@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Lesson Plans — Kid City USA</title>
+<style>
+:root{--ink:#4a3a30;--soft:#9b8576;--blue:#5aa9ff;--green:#46c97f;--orange:#ffb13d;--coral:#ff6b6b;--pink:#ff6b9d;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',system-ui,sans-serif;}
+body{background:linear-gradient(160deg,#fff7ef,#ffe7d4);color:var(--ink);padding:24px 16px 60px;}
+.wrap{max-width:960px;margin:0 auto;}
+a.back{display:inline-block;margin-bottom:14px;text-decoration:none;font-weight:800;color:var(--soft);}
+h1{font-size:1.7rem;margin-bottom:2px;}
+.sub{color:var(--soft);margin-bottom:6px;}
+.theme{background:#fff;border-radius:16px;padding:14px 18px;box-shadow:0 4px 14px rgba(74,58,48,.08);margin:12px 0 18px;border-left:8px solid var(--green);}
+.theme b{font-size:1.05rem;}
+.note{background:#fff3d6;border-left:5px solid var(--orange);padding:10px 14px;border-radius:8px;margin:0 0 18px;font-size:.88rem;}
+.ages{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+.age{padding:10px 22px;border-radius:999px;font-weight:800;cursor:pointer;background:#fff;box-shadow:0 4px 12px rgba(74,58,48,.10);border:3px solid transparent;font-size:.95rem;}
+.age.sel{border-color:var(--blue);background:#eaf3ff;}
+.classlbl{color:var(--soft);font-size:.85rem;margin:2px 0 14px;font-weight:700;}
+.wk{font-weight:900;font-size:1.15rem;margin:20px 0 4px;color:var(--coral);}
+.wkfocus{color:var(--soft);font-size:.85rem;margin-bottom:8px;}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 4px 14px rgba(74,58,48,.08);margin-bottom:8px;}
+th,td{padding:9px 11px;text-align:left;font-size:.83rem;border-bottom:1px solid #f1e6da;vertical-align:top;}
+th{background:linear-gradient(90deg,var(--orange),var(--coral));color:#fff;font-size:.82rem;}
+tr:last-child td{border-bottom:none;}
+.rowlabel{font-weight:800;color:var(--soft);white-space:nowrap;width:96px;}
+.words{background:#eef8f0;border-radius:10px;padding:8px 12px;font-size:.85rem;font-weight:600;margin-bottom:20px;}
+.learn{font-size:.85rem;color:var(--soft);margin:2px 0 12px;}
+@media(max-width:640px){th,td{font-size:.75rem;padding:6px 7px;}.rowlabel{width:auto;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<a class="back" href="../parent.html">← back to Parent Portal</a>
+<h1>🏕️ Lesson Plans — July 2026</h1>
+<div class="sub">Kid City USA · Both schools follow the same plan</div>
+<div class="theme"><b>Monthly Theme: Let's Go Camping! 🏕️</b><br>Character trait of the month: <b>Bee Brave 🐝</b> — being brave and trying new things.</div>
+<div class="note">📌 This shows the current month's plan by age group. It refreshes each month — pick your child's age below to see what they're learning each week.</div>
+
+<div class="ages" id="ages"></div>
+<div class="classlbl" id="classlbl"></div>
+<div id="weeks"></div>
+</div>
+<script>
+const ROWS=[["🌅 Focus","focus"],["🎨 Craft","craft"],["📖 Book","book"],["🎵 Song","song"],["🤸 Move","move"]];
+const DAYS=["Mon","Tue","Wed","Thu","Fri"];
+
+// ---- July "Let's Go Camping" plans (from the Kid City USA weekly lesson plans) ----
+const ones={class:"Toddlers / Ones",learn:"Learning focus: calendar, counting to 10, colors & shapes.",weeks:[
+ {focus:["Introduce camping — tents, RVs & cabins","4th of July is coming — the flag","Read the “Bee Brave” book","4th of July fun","4th of July fun"],
+  craft:["Glue a tent scene (tent, trees, sponge stars)","Patriotic marble painting (red & blue)","4th of July hats","Firework painting","Torn-paper red/white/blue stars"],
+  book:["Brave Little Camper","Corduroy's 4th of July","The Night Before the 4th of July","You're My Little Firecracker","Goodnight America"],
+  song:["A Camping We Will Go","Happy 4th of July","Tooty Ta","Rock Your Body to the Colors","Shake Something"],
+  move:["Bubble Fun","Yoga Fun","Catch the Teacher race","Ring Around the Rosey","Roll & Kick a Ball"],
+  words:"Flag – bandera · Fireworks – fuego artificiales"},
+ {focus:["Camping flashcards — explore flashlights","Campfire","Yummy s'mores","Read “In My Sleeping Bag” poem","Explore a watermelon (watermelon pops)"],
+  craft:["Painted camping lanterns","Handprint campfire","Marshmallow painting / make s'mores","Sleeping-bag craft","Paper-plate watermelon / squish bags"],
+  book:["Llama Llama Loves Camping","When We Go Camping","S is for S'Mores","Goodnight Campsite","Mouse's First Summer"],
+  song:["A Camping We Will Go","Camping Song (Cocomelon)","Bluegrass Jamboree","Move Your Body","Clap Your Hands"],
+  move:["Follow the Leader","Yoga Fun","Bean Bag Balance","Run & Race","Bubble Fun"],
+  words:"Tent – tienda de campaña · Flashlight – linterna"},
+ {focus:["What do we grill when we camp?","Animals we see — squirrels","Racoons","Camping in nature","Nature"],
+  craft:["Squeeze-paint hot dog","Squirrel resist painting","Paper-plate racoon","Painted branch / table tents","Pinecone painting"],
+  book:["Let's Have a Picnic","The Busy Little Squirrel","Love You S'more","Toddler Book about Nature","Brave Little One"],
+  song:["Hot Dog Dance Remix","Grey Squirrel","A Camping We Will Go","Forest Dance","Be Brave (Miss Jessica)"],
+  move:["Picnic Blanket Parachute","Yoga Fun","Jump over the Lines","Bubble Fun","Pinecone Toss"],
+  words:"Squirrel – ardilla · Racoon – mapache"},
+ {focus:["Birds we see camping","Summer ice cream","Read “Going on a Bear Hunt”","Read “You Are Brave” — camping in an RV","Read “You Can Do it Sam”"],
+  craft:["Paper-plate birds","Puffy-paint ice cream cones","Bear mask","Paper-plate camper","Rock painting / table tents"],
+  book:["Birds","Ice Cream For Everyone","Teddy Bear Picnic","Let's Go on a Hike","Maisy Goes Camping"],
+  song:["Camping Song (Cocomelon)","Shake Your Sillies Out","Going on a Bear Hunt","A Camping We Will Go","Forest Dance"],
+  move:["Fly Like Birds","Yoga Fun","Bear-Hunt Bubble-Wrap Jump","Kick the Ball","Bubble Fun"],
+  words:"Bird – pájaros · Deer – venado"}
+]};
+// Twos share the Ones plan (one small movement swap in Week 2).
+const twos=JSON.parse(JSON.stringify(ones)); twos.class="Twos"; twos.weeks[1].move[2]="Marshmallow Toss";
+
+const threes={class:"Threes / Pre-K 3",learn:"Learning focus: counting to 20, days of the week, months, all colors & shapes.",weeks:[
+ {focus:["Introduce camping — tents, RVs & cabins","4th of July — the flag","4th of July fun","Read “Bee Brave” — what does brave mean?","4th of July fun"],
+  craft:["Camping scene (add a photo of the child)","Handprint flag + red stripes","July 4th crown / color the 6's","Star thumbprints","Straw fireworks"],
+  book:["Pete the Cat Goes Camping","I Pledge Allegiance","The Night Before the 4th of July","On The 4th of July","What is America?"],
+  song:["A Camping We Will Go","Happy 4th of July","Tooty Ta","Rock Your Body to the Colors","Shake Something"],
+  move:["Happy Camper Obstacle Course","Yoga Fun","Simon Says","Balance Beam Fun","Balloon Waddle"],
+  words:"Flag – bandera · Fireworks – fuego artificiales"},
+ {focus:["Camping flashcards — explore flashlights","Campfire — what do we need?","Yummy s'mores — Build-a-S'more center","Read “In My Sleeping Bag” poem","Explore a watermelon"],
+  craft:["Plastic-cup lanterns / table tents","Torn-paper campfire / color the 7's","Marshmallow painting & s'mores","Sleeping-bag craft / color the 8's","Sponge-paint watermelon"],
+  book:["Flashlight","Camping Day","123 Make a S'more with Me","A Camping Spree with Mr. Magee","Llama Llama Loves to Go Camping"],
+  song:["A Camping We Will Go","Camping Song (Cocomelon)","Bluegrass Jamboree","Move Your Body","Clap Your Hands"],
+  move:["Happy Camper Obstacle Course","Yoga Fun","Marshmallow Toss","Freeze Tag","Marshmallow & Spoon Relay"],
+  words:"Tent – tienda de campaña · Flashlight – linterna"},
+ {focus:["What do we grill when we camp?","Animals we see — squirrels","Racoons","Camping in nature","Nature"],
+  craft:["Trace & cut a hot dog","Fork-paint squirrel / feed-the-squirrel bin","Paper-plate racoon / color the 9's","Painted branch / table tents","Pinecone painting"],
+  book:["Picnic With Mommy","Scaredy Squirrel Goes Camping","Racoon On His Own","Over in the Forest","I Can Do Hard Things"],
+  song:["Hot Dog Dance Remix","Grey Squirrel","A Camping We Will Go","Forest Dance","Be Brave (Miss Jessica)"],
+  move:["Happy Camper Obstacle Course","Yoga Fun","Jump over the Lines","Straw Javelin Throw","Pinecone Toss"],
+  words:"Squirrel – ardilla · Racoon – mapache"},
+ {focus:["Birds we see camping","Summer ice cream","Read “Going on a Bear Hunt”","Read “The Tent Mouse & the RV Mouse”","Read “When You Are Brave”"],
+  craft:["Baby birds & nest craft","Ice cream cones / color the 10's","Towel-tube bears","Paper-plate camper","Rock painting / table tents"],
+  book:["Birds, Nests & Eggs","Curious George & the Ice Cream Surprise","The Bear Ate Your Sandwich","Froggy Goes Camping","Maisy Goes Camping"],
+  song:["Camping Song (Cocomelon)","Shake Your Sillies Out","Going on a Bear Hunt","A Camping We Will Go","Forest Dance"],
+  move:["Happy Camper Obstacle Course","Yoga Fun","Bear-Hunt Bubble Jump","Marshmallow & Spoon Relay","Kick Ball"],
+  words:"Bird – pájaros · Deer – venado"}
+]};
+
+const fours={class:"Fours / Pre-K 4",learn:"Learning focus: counting to 20, days & months, colors & shapes, handwriting & journals.",weeks:[
+ {focus:["Introduce camping (game: Touch Your Nose)","4th of July — the flag","4th of July fun","Read “Bee Brave” — what does brave mean?","4th of July fun (game: Quack Quack)"],
+  craft:["Camping scene — draw yourself","Create a flag / write Aa–Ee","Firework salt art","Crayon-resist patriotic stars","Shaving-cream fireworks / journals"],
+  book:["Pete the Cat Goes Camping","I Pledge Allegiance","The Night Before the 4th of July","On The 4th of July","What is America?"],
+  song:["A Camping We Will Go","Happy 4th of July","Tooty Ta","Rock Your Body to the Colors","Shake Something"],
+  move:["Happy Camper Obstacle Course","Yoga Fun","Simon Says","Balance Beam Fun","Balloon Waddle"],
+  words:"Flag – bandera · Fireworks – fuego artificiales"},
+ {focus:["Camping flashcards — flashlights","Campfire — what do we need?","Yummy s'mores — Build-a-S'more center","Read “In My Sleeping Bag” poem","Explore a watermelon"],
+  craft:["Plastic-cup lanterns / table tents","Chalk campfire / write Ff–Jj","Marshmallow painting & s'mores","Sleeping-bag craft / write Kk–Oo","Watermelon suncatchers / journal"],
+  book:["Flashlight","Camping Day","123 Make a S'more with Me","A Camping Spree with Mr. Magee","Llama Llama Loves to Go Camping"],
+  song:["A Camping We Will Go","Camping Song (Cocomelon)","Bluegrass Jamboree","Move Your Body","Clap Your Hands"],
+  move:["Happy Camper Obstacle Course","Yoga Fun","Marshmallow Toss","Freeze Tag","Marshmallow & Spoon Relay"],
+  words:"Tent – tienda de campaña · Flashlight – linterna"},
+ {focus:["What do we grill? (game: Hold 'Em High)","Squirrels","Racoons (game: Van Drivers)","Camping in nature","Nature (game: Guessing W Words)"],
+  craft:["Trace & cut hot dog / write Pp–Tt","Fork-paint squirrel / sensory bin","Paper-plate racoon / write Uu–Ww","Painted branch / table tents","Make a Stick Man / journal story"],
+  book:["Picnic With Mommy","Scaredy Squirrel Goes Camping","Racoon On His Own","Over in the Forest","I Can Do Hard Things"],
+  song:["Hot Dog Dance Remix","Grey Squirrel","A Camping We Will Go","Forest Dance","Be Brave (Miss Jessica)"],
+  move:["Happy Camper Obstacle Course","Yoga Fun","Jump over the Lines","Straw Javelin Throw","What's the Time Mr. Wolf"],
+  words:"Squirrel – ardilla · Racoon – mapache"},
+ {focus:["Birds we see camping","Summer ice cream (game: Name Game)","Read “Going on a Bear Hunt”","Read “The Tent Mouse & the RV Mouse”","Read “When You Are Brave”"],
+  craft:["Bottle-cap bird puppets","Ice cream cones / write Xx–Zz","Towel-tube bears","Paper-plate camper / table tents","Rock painting / brave-story journal"],
+  book:["Birds, Nests & Eggs","Curious George & the Ice Cream Surprise","The Bear Ate Your Sandwich","Froggy Goes Camping","A Camp Fire Tail"],
+  song:["Camping Song (Cocomelon)","Shake Your Sillies Out","Going on a Bear Hunt","A Camping We Will Go","Forest Dance"],
+  move:["Happy Camper Obstacle Course","Yoga Fun","Bear-Hunt Bubble Jump","Marshmallow & Spoon Relay","What's the Time Mr. Wolf"],
+  words:"Bird – pájaros · Deer – venado"}
+]};
+
+const PLANS={Ones:ones,Twos:twos,Threes:threes,Fours:fours};
+const esc=s=>(s??'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let cur='Ones';
+function renderAges(){
+  document.getElementById('ages').innerHTML=Object.keys(PLANS).map(a=>`<div class="age${a===cur?' sel':''}" onclick="pick('${a}')">${a}</div>`).join('');
+}
+function pick(a){cur=a;renderAges();renderWeeks();}
+function renderWeeks(){
+  const p=PLANS[cur];
+  document.getElementById('classlbl').textContent='Class: '+p.class;
+  let h=`<div class="learn">${esc(p.learn)}</div>`;
+  p.weeks.forEach((w,i)=>{
+    h+=`<div class="wk">Week ${i+1}</div>`;
+    h+=`<table><tr><th></th>${DAYS.map(d=>`<th>${d}</th>`).join('')}</tr>`;
+    ROWS.forEach(([label,key])=>{
+      h+=`<tr><td class="rowlabel">${label}</td>${w[key].map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`;
+    });
+    h+=`</table>`;
+    h+=`<div class="words">🗣️ Words of the week: ${esc(w.words)}</div>`;
+  });
+  document.getElementById('weeks').innerHTML=h;
+}
+renderAges();renderWeeks();
+</script>
+</body>
+</html>
