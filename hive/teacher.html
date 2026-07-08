@@ -55,6 +55,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
   <div class="tab t-lesson active" onclick="show('lesson',this)">📚 Lesson Plan Wizard</div>
   <div class="tab" style="background:linear-gradient(90deg,#5a4cc9,#9b6bff)" onclick="show('mc',this)">🎛 Mission Control</div>
   <div class="tab t-forms" onclick="show('ask',this)">💬 Ask Mrs. Bear & Charles</div>
+<div class="tab t-facil" onclick="show('facil',this)">🧹 Facility Checklists</div>
 </nav>
 <main>
   <div class="panel show" id="p-lesson">
@@ -73,7 +74,8 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
     <div id="mcList" class="empty">Loading your links… 🐝</div>
   </div>
 
-  <div class="panel" id="p-ask">
+  <style>#p-facil .fcard{background:#fff;border-left:5px solid #e5d9c8;border-radius:12px;padding:12px 14px;margin:8px 0;box-shadow:0 1px 4px rgba(0,0,0,.06);}#p-facil .fcard.fdone{opacity:.55;}#p-facil .frow{display:flex;align-items:center;gap:10px;}#p-facil .fchk{width:30px;height:30px;min-width:30px;border:2px solid #bbb;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:900;color:#12946c;background:#fafafa;}#p-facil .fchk.on{background:#d5f0e2;border-color:#12946c;}#p-facil .fitem{font-size:15px;font-weight:600;}#p-facil .fnotes{margin-top:8px;display:flex;gap:6px;}#p-facil .fnotes textarea{flex:1;border:1px solid #e5d9c8;border-radius:8px;padding:6px 8px;font-size:14px;min-height:34px;font-family:inherit;}#p-facil .fmini{border:none;border-radius:8px;padding:6px 12px;color:#fff;font-weight:700;cursor:pointer;background:#8fbf9f;}</style><div id="p-facil" class="panel"><div class="fcard" style="border-left-color:#c9bcae"><b>🧹 Facility Checklists.</b> Your class's cleaning &amp; inspection charts for the whole week. Enter your name, pick your school and room, then tap ✔ as you finish each task. Flag ⚠️ anything that needs attention.</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;"><input class="search" style="margin:0" id="ftName" placeholder="Your name"><select class="search" style="margin:0" id="ftSchool" onchange="ftLoad()"><option value="">Your school…</option><option>Sanford</option><option>DeLand 2</option></select><select class="search" style="margin:0" id="ftClass"><option value="">Your room…</option><option>Infant Room</option><option>Ones</option><option>Twos</option><option>Threes</option><option>Fours / VPK</option><option>School Age</option><option>Kitchen</option><option>Playground</option><option>Whole Building / Common Areas</option></select></div><div id="ftList"><div class="empty">Pick your school above to see your checklist. 👆</div></div></div>
+<div class="panel" id="p-ask">
     <div class="result show" style="border-top-color:var(--pink)">
       <h2>💬 Got a question? Ask away!</h2>
       <div class="note">Need activity ideas for your theme? Wondering about a lesson plan? Want advice on anything classroom? Send it here — <b>Charles or Mrs. Bear will message you personally on Slack</b>, usually within the hour on weekdays. 💛</div>
@@ -166,7 +168,62 @@ async function sendQuestion(e){ e.preventDefault();
   document.getElementById('qText').value='';
   document.getElementById('qSent').innerHTML = '🎉 <b>Sent!</b> Watch your Slack — Charles or Mrs. Bear will message you personally, usually within the hour on weekdays.';
   return false; }
-loadPlans();
+window.ftToast=function(m){ var t=document.getElementById('ftToastBox'); if(!t){t=document.createElement('div'); t.id='ftToastBox'; t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 18px;border-radius:20px;z-index:9999;font-weight:700;transition:opacity .3s;'; document.body.appendChild(t);} t.textContent=m; t.style.opacity='1'; clearTimeout(window.__ftT); window.__ftT=setTimeout(function(){t.style.opacity='0';},2200); };
+window.ftLoad=async function(){
+  var school=document.getElementById('ftSchool').value;
+  var box=document.getElementById('ftList');
+  var nm=(document.getElementById('ftName').value||'').trim(); if(nm) localStorage.setItem('hiveName',nm);
+  var cl=document.getElementById('ftClass').value; if(cl) localStorage.setItem('hiveClass',cl); localStorage.setItem('hiveSchool',school);
+  if(!school){ box.innerHTML='<div class="empty">Pick your school above to see your checklist. 👆</div>'; return; }
+  box.innerHTML='<div class="empty">Loading… 🧹</div>';
+  var d=await api({action:'list', table:'Facility Checklists', filterByFormula:"AND(IS_SAME({Week Of},TODAY(),'week'),{School}='"+school+"')", maxRecords:500});
+  var recs=(d.records||[]).filter(function(r){return r.fields.Item;});
+  if(!recs.length){ box.innerHTML='<div class="empty">No checklist for '+esc(school)+' this week yet — check back Monday. 🧹</div>'; return; }
+  var dayOrder=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  var chartOrder=['🚽 Bathroom Cleaning','🧹 Classroom Cleaning','🏠 Indoor Inspection','🛝 Outdoor / Playground Inspection','🧼 Sanitation & Safety','🌙 End of Day Building Sweep'];
+  var days={}; recs.forEach(function(r){ var dy=r.fields.Day||'—'; (days[dy]=days[dy]||[]).push(r); });
+  var done=recs.filter(function(r){return r.fields.Checked;}).length;
+  var todayName=dayOrder[(new Date().getDay()+6)%7];
+  var html='<div class="fcard" style="border-left-color:#12946c"><b>'+done+'/'+recs.length+' done this week</b> · tap ✔ as you go</div>';
+  Object.keys(days).sort(function(a,b){return (dayOrder.indexOf(a)+99)-(dayOrder.indexOf(b)+99);}).forEach(function(dy){
+    var isToday=dy===todayName;
+    html+='<details '+(isToday?'open':'')+' style="margin:14px 0;"><summary style="font-weight:900;font-size:19px;cursor:pointer;padding:6px 0;">📅 '+esc(dy)+(isToday?' — today':'')+'</summary>';
+    var charts={}; days[dy].forEach(function(r){ var c=r.fields.Chart||'Other'; (charts[c]=charts[c]||[]).push(r); });
+    Object.keys(charts).sort(function(a,b){return (chartOrder.indexOf(a)+99)-(chartOrder.indexOf(b)+99);}).forEach(function(chart){
+      var items=charts[chart].sort(function(a,b){return (a.fields.Order||0)-(b.fields.Order||0);});
+      html+='<div style="font-weight:800;margin:12px 0 4px;font-size:16px;color:#7a6a55;">'+esc(chart)+'</div>';
+      items.forEach(function(r){ var f=r.fields; var needs=f.Status==='⚠️ Needs Attention';
+        html+='<div class="fcard '+(f.Checked?'fdone':'')+'" id="ft-'+r.id+'"><div class="frow"><div class="fchk '+(f.Checked?'on':'')+'" onclick="ftToggle(\''+r.id+'\',this)">'+(f.Checked?'✔':'')+'</div><div class="fitem">'+esc(f.Item)+(f['Checked By']?' <span style="color:#8a7;font-weight:700;">— '+esc(f['Checked By'])+'</span>':'')+'</div></div><div style="margin-top:8px;"><button class="fmini" style="background:'+(needs?'#e74c3c':'#8fbf9f')+'" onclick="ftFlag(\''+r.id+'\',this)">'+(needs?'⚠️ Needs Attention':'✅ OK')+'</button></div><div class="fnotes"><textarea id="ftn-'+r.id+'" placeholder="Note…">'+esc(f.Notes||'')+'</textarea><button class="fmini" onclick="ftNote(\''+r.id+'\')">Save</button></div></div>';
+      });
+    });
+    html+='</details>';
+  });
+  box.innerHTML=html;
+};
+window.ftToggle=async function(id,el){
+  var on=!el.classList.contains('on');
+  el.classList.toggle('on',on); el.textContent=on?'✔':''; document.getElementById('ft-'+id).classList.toggle('fdone',on);
+  var nm=(document.getElementById('ftName').value||'').trim(), cl=document.getElementById('ftClass').value;
+  if(nm) localStorage.setItem('hiveName',nm);
+  var fields={'Checked':on};
+  if(on){ fields['Checked By']=nm; fields['Time']=new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}); if(cl) fields['Room / Classroom']=cl; }
+  await api({action:'update', table:'Facility Checklists', recordId:id, fields:fields});
+  ftToast(on?'Checked off! 🎉':'Un-checked');
+};
+window.ftFlag=async function(id,el){
+  var needs=el.textContent.indexOf('Needs')>-1; var next=needs?'✅ OK':'⚠️ Needs Attention';
+  el.textContent=next; el.style.background=needs?'#8fbf9f':'#e74c3c';
+  await api({action:'update', table:'Facility Checklists', recordId:id, fields:{'Status':next}});
+  ftToast(needs?'Marked OK ✅':'Flagged ⚠️');
+};
+window.ftNote=async function(id){
+  var v=document.getElementById('ftn-'+id).value;
+  await api({action:'update', table:'Facility Checklists', recordId:id, fields:{'Notes':v}});
+  ftToast('Saved 📝');
+};
+window.ftInit=function(){ var s=localStorage.getItem('hiveSchool'), el=document.getElementById('ftSchool'); if(el&&s)el.value=s; var n=localStorage.getItem('hiveName'), ne=document.getElementById('ftName'); if(ne&&n)ne.value=n; var c=localStorage.getItem('hiveClass'), ce=document.getElementById('ftClass'); if(ce&&c)ce.value=c; if(s)ftLoad(); };
+
+loadPlans(); ftInit();
 </script>
 </body>
 </html>
