@@ -2,6 +2,7 @@
 /* ============================================================
    THE HIVE v2 — Airtable messenger (server-side proxy)
    Per-school director roles: each PIN only reaches its own school.
+   Per-school PARENT roles too: each family only sees their school.
    Mrs. Bear: keep your Airtable token between the quotes below.
    ============================================================ */
 $__t = 'PASTE_YOUR_AIRTABLE_TOKEN_HERE';
@@ -21,19 +22,22 @@ define('PIN_CACHE_TTL', 300);
 header('Content-Type: application/json; charset=utf-8');
 header('X-Robots-Tag: noindex, nofollow');
 
-$SCHOOL_BY_ROLE = ['director-sanford' => 'Sanford', 'director-deland' => 'DeLand 2'];
+$SCHOOL_BY_ROLE = ['director-sanford' => 'Sanford', 'director-deland' => 'DeLand 2', 'parent-sanford' => 'Sanford', 'parent-deland' => 'DeLand 2'];
 
 // Tables that carry a School field (server injects the school filter for directors)
-$SCHOOL_TABLES = ['Briefing Checklist','Ratio Snapshots','FTE & Occupancy','Task Board','ProCare Message Requests','Staff Time Corrections','Onboarding Tracker','Staff Roster','Staff Hours Snapshot','Food Program Log','Email Automation Requests','Tab Notes','Sign-In Log','Weekly Schedule','Teacher Questions','Resource Links','Inventory','Parent Messages','Facility Checklists','Facility Submissions'];
+$SCHOOL_TABLES = ['Briefing Checklist','Ratio Snapshots','FTE & Occupancy','Task Board','ProCare Message Requests','Staff Time Corrections','Onboarding Tracker','Staff Roster','Staff Hours Snapshot','Food Program Log','Email Automation Requests','Tab Notes','Sign-In Log','Weekly Schedule','Teacher Questions','Resource Links','Inventory','Parent Messages','Facility Checklists'];
 
 $DIRECTOR_PERMS = [
-  'read'  => ['Lesson Plan Index','Forms Library','Briefing Checklist','Ratio Snapshots','FTE & Occupancy','Task Board','ProCare Message Requests','Staff Time Corrections','Onboarding Tracker','Staff Roster','Staff Hours Snapshot','Food Program Log','Email Automation Requests','Tab Notes','Sign-In Log','Weekly Schedule','Teacher Questions','Resource Links','Parent Messages','Inventory','Facility Checklists','Facility Submissions'],
-  'create'=> ['ProCare Message Requests','Staff Time Corrections','Onboarding Tracker','Email Automation Requests','Tab Notes','Inventory','Facility Submissions'],
+  'read'  => ['Lesson Plan Index','Forms Library','Briefing Checklist','Ratio Snapshots','FTE & Occupancy','Task Board','ProCare Message Requests','Staff Time Corrections','Onboarding Tracker','Staff Roster','Staff Hours Snapshot','Food Program Log','Email Automation Requests','Tab Notes','Sign-In Log','Weekly Schedule','Teacher Questions','Resource Links','Parent Messages','Inventory','Facility Checklists'],
+  'create'=> ['ProCare Message Requests','Staff Time Corrections','Onboarding Tracker','Email Automation Requests','Tab Notes','Inventory'],
   'update'=> ['Briefing Checklist' => ['Done','Director Notes'], 'Onboarding Tracker' => ['Current Step','Status','Notes'], 'Parent Messages' => ['Status'], 'Inventory' => ['On-Hand Qty','Par / Reorder Level','Notes','Last Updated'], 'Facility Checklists' => ['Checked','Checked By','Time','Notes','Status','Room / Classroom']]
 ];
+$PARENT_PERMS = ['read' => ['Resource Links'], 'create'=>['Parent Messages'], 'update'=>[]];
 $PERMS = [
-  'teacher' => ['read' => ['Lesson Plan Index','Resource Links','Facility Checklists','Facility Submissions'], 'create'=>['Teacher Questions','Facility Submissions'], 'update'=>['Facility Checklists' => ['Checked','Checked By','Time','Notes','Status','Room / Classroom']]],
-  'parent'  => ['read' => ['Resource Links'], 'create'=>['Parent Messages'], 'update'=>[]],
+  'teacher' => ['read' => ['Lesson Plan Index','Resource Links','Facility Checklists'], 'create'=>['Teacher Questions'], 'update'=>['Facility Checklists' => ['Checked','Checked By','Time','Notes','Status','Room / Classroom']]],
+  'parent' => $PARENT_PERMS,
+  'parent-sanford' => $PARENT_PERMS,
+  'parent-deland'  => $PARENT_PERMS,
   'director-sanford' => $DIRECTOR_PERMS,
   'director-deland'  => $DIRECTOR_PERMS
 ];
@@ -84,7 +88,7 @@ $action = $input['action'] ?? '';
 $table  = $input['table'] ?? '';
 
 if ($action === 'whoami'){
-  echo json_encode(['role' => (strpos($role,'director')===0 ? 'director' : $role), 'school' => $school]); exit;
+  echo json_encode(['role' => (strpos($role,'director')===0 ? 'director' : (strpos($role,'parent')===0 ? 'parent' : $role)), 'school' => $school]); exit;
 }
 
 if ($action === 'list'){
@@ -94,9 +98,8 @@ if ($action === 'list'){
   if (!empty($input['filterByFormula'])) $formulas[] = '(' . $input['filterByFormula'] . ')';
   if ($school && in_array($table, $SCHOOL_TABLES)) $formulas[] = "OR({School}='" . $school . "',{School}='Both')";
   if ($role === 'teacher' && $table === 'Resource Links') $formulas[] = "{Audience}='Everyone'"; // teachers never see director-only links
-  if ($role === 'parent' && $table === 'Resource Links') $formulas[] = "{Audience}='Parents'"; // parents only see parent-facing links
+  if (strpos($role,'parent')===0 && $table === 'Resource Links') $formulas[] = "{Audience}='Parents'"; // parents only see parent-facing links
   if ($role === 'teacher' && $table === 'Facility Checklists') $formulas[] = "{Portal Visibility}='Both'";
-  if ($role === 'teacher' && $table === 'Facility Submissions') $formulas[] = "{Form Type}!='🚨 Incident Report'";
   if ($formulas) $q['filterByFormula'] = count($formulas) > 1 ? 'AND(' . implode(',', $formulas) . ')' : $formulas[0];
   if (!empty($input['sortField'])) { $q['sort[0][field]'] = $input['sortField']; $q['sort[0][direction]'] = ($input['sortDir'] ?? 'asc') === 'desc' ? 'desc' : 'asc'; }
   $out = at_request('GET', [$table], $q);
@@ -112,7 +115,7 @@ if ($action === 'create'){
   if (!in_array($table, $perm['create'])) fail('Not allowed', 403);
   $fields = $input['fields'] ?? [];
   if (!$fields) fail('No fields');
-  if ($school && in_array($table, $SCHOOL_TABLES)) $fields['School'] = $school; // directors can only file for their own school
+  if ($school && in_array($table, $SCHOOL_TABLES)) $fields['School'] = $school; // directors + school parents can only file for their own school
   $out = at_request('POST', [$table], null, ['records' => [['fields' => $fields]], 'typecast' => true]);
   echo json_encode($out); exit;
 }
