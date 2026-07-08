@@ -158,11 +158,12 @@
     a{color:#000;text-decoration:none;}
     /* optional pieces each start on their own page(s) */
     .reader{page-break-before:always;}
-    .reader .rband{page-break-after:avoid;}
-    .reader .rpage{display:block;width:100%;max-width:6.2in;margin:0 auto;page-break-inside:avoid;}
-    .reader .rpage + .rpage{page-break-before:always;}
+    .reader .rband{page-break-after:avoid;break-after:avoid;}
+    .reader .rpages{display:block !important;gap:0;}
+    .reader .rpage{display:block;width:auto;max-width:9.5in;max-height:3.4in;margin:0 auto 0.18in;border:none;page-break-inside:avoid;break-inside:avoid;}
     .reader .rnote{display:none;}
-    .takehome{page-break-before:always;page-break-inside:avoid;}
+    .takehome{page-break-before:always;}
+    .takehome .thcols,.takehome .thnote,.takehome .thlearn,.takehome .thband{page-break-inside:avoid;break-inside:avoid;}
     #results.hide-plan .plan,
     #results.hide-reader .reader,
     #results.hide-take .takehome{display:none !important;}
