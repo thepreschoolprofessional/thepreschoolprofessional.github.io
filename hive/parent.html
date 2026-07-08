@@ -149,7 +149,10 @@ html += `<a class="rescard" href="javascript:void(0)" onclick="openMsg('${esc(t)
 <div class="txt"><h3>${esc(r.Title)}</h3><p>${esc(r.Description||'')}</p></div>
 <div class="arrow">→</div></a>`;
 } else {
-html += `<a class="rescard" href="${esc(url||'#')}" target="_blank" rel="noopener">
+let sameTab=false;
+try{ const abs=new URL(url, location.href); if(abs.origin===location.origin && /\/hive\/.*\.html$/i.test(abs.pathname)) sameTab=true; }catch(e){}
+const attrs = sameTab ? '' : ' target="_blank" rel="noopener"';
+html += `<a class="rescard" href="${esc(url||'#')}"${attrs}>
 <div class="em">${esc(r.Emoji||'🔗')}</div>
 <div class="txt"><h3>${esc(r.Title)}</h3><p>${esc(r.Description||'')}</p></div>
 <div class="arrow">→</div></a>`;
