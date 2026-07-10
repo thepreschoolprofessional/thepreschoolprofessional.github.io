@@ -65,15 +65,15 @@
     if(!rows.length){ area.innerHTML='<div class="empty">No board for this day yet 🐝</div>'; }
     else { schools.forEach(function(sc){
       html+='<div class="bz-school">'+esc(sc)+'</div><div class="bz-wrap"><table><thead><tr><th class="nm">Teacher</th>'+TCOLS.map(function(c){return '<th>'+c[0]+'</th>';}).join('')+'<th>Points</th><th>⭐</th></tr></thead><tbody>';
-      rows.filter(function(r){return sel(r.f.School)===sc;}).sort(function(a,b){return sel(a.f.Staff).localeCompare(sel(b.f.Staff));}).forEach(function(r){ var f=r.f; var noLunch=f['No Lunch']===true; var ds=sel(f.Date);
+      rows.filter(function(r){return sel(r.f.School)===sc;}).sort(function(a,b){return (b.f.Points||0)-(a.f.Points||0)||sel(a.f.Staff).localeCompare(sel(b.f.Staff));}).forEach(function(r){ var f=r.f; var noLunch=f['No Lunch']===true; var ds=sel(f.Date);
         html+='<tr><td class="nm">'+esc(sel(f.Staff))+'</td>'+TCOLS.map(function(c){ var isL=(c[1]==='Lunch Out'||c[1]==='Lunch In'); if(isL&&noLunch) return '<td>'+dot('na')+'</td>'; return '<td>'+dot(state(f,c[1],ds))+'</td>'; }).join('')+'<td class="bz-pts">'+(f.Points||0)+'/6</td><td>'+sel(f['Perfect Day'])+'</td></tr>'; });
       html+='</tbody></table></div>'; });
       area.innerHTML=html;
     }
     var tally={}; teamRecs.forEach(function(r){ var n=sel(r.f.Staff); if(!n)return; if(!tally[n])tally[n]={stars:0,pts:0}; if(sel(r.f['Perfect Day']))tally[n].stars++; tally[n].pts+=(r.f.Points||0); });
-    var arr=Object.keys(tally).map(function(n){return {n:n,stars:tally[n].stars,pts:tally[n].pts};}).sort(function(a,b){return b.stars-a.stars||b.pts-a.pts;}).slice(0,10);
+    var arr=Object.keys(tally).map(function(n){return {n:n,stars:tally[n].stars,pts:tally[n].pts};}).sort(function(a,b){return b.pts-a.pts||b.stars-a.stars;}).slice(0,10);
     var medal=['🥇','🥈','🥉'];
-    document.getElementById('bztLead').innerHTML=arr.length?arr.map(function(p,i){return '<div class="bz-lrow"><span class="bz-rank">'+(medal[i]||(i+1))+'</span><span class="bz-lnm">'+esc(p.n)+'</span><span class="bz-lst">'+('⭐'.repeat(p.stars)||'—')+' · '+p.pts+' pts</span></div>';}).join(''):'<div class="empty">Scores grow through the week 🌟</div>';
+    document.getElementById('bztLead').innerHTML=arr.length?arr.map(function(p,i){return '<div class="bz-lrow"><span class="bz-rank">'+(medal[i]||(i+1))+'</span><span class="bz-lnm">'+esc(p.n)+'</span><span class="bz-lst">'+p.pts+' done'+(p.stars?' · '+'⭐'.repeat(p.stars):'')+'</span></div>';}).join(''):'<div class="empty">Scores grow through the week 🌟</div>';
   }
 
   // ---------- DIRECTOR OWN BOARD ----------
