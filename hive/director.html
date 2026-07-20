@@ -15,7 +15,7 @@ nav{display:flex;gap:8px;overflow-x:auto;padding:14px 16px;scrollbar-width:none;
 nav::-webkit-scrollbar{display:none;}
 .tab{flex:0 0 auto;padding:10px 16px;border-radius:16px;font-weight:800;cursor:pointer;color:#fff;opacity:.55;transition:.12s;box-shadow:0 4px 12px rgba(74,58,48,.15);font-size:.92rem;}
 .tab.active{opacity:1;transform:scale(1.06);}
-.t-brief{background:var(--green);} .t-auto{background:var(--navy);} .t-hours{background:var(--coral);} .t-food{background:var(--orange);} .t-ratio{background:var(--blue);} .t-task{background:#c95ab0;} .t-msg{background:var(--pink);} .t-time{background:var(--purple);} .t-onb{background:var(--teal);} .t-facility{background:#c98a3b;}
+.t-brief{background:var(--green);} .t-auto{background:var(--navy);} .t-hours{background:var(--coral);} .t-food{background:var(--orange);} .t-ratio{background:var(--blue);} .t-task{background:#c95ab0;} .t-msg{background:var(--pink);} .t-time{background:var(--purple);} .t-onb{background:var(--teal);} .t-facility{background:#c98a3b;} .t-fund{background:linear-gradient(90deg,#ffb13d,#ff6b9d);}
 main{max-width:840px;margin:0 auto;padding:4px 16px;}
 .panel{display:none;} .panel.show{display:block;animation:pop .25s;}
 @keyframes pop{from{opacity:0;transform:translateY(8px);}to{opacity:1;}}
@@ -99,6 +99,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
   <div class="tab t-onb" onclick="show('onb',this)">🌟 Onboarding</div>
   <div class="tab" style="background:#2fc4b2" onclick="show('forms',this)">📄 Forms Wizard</div>
   <div class="tab" style="background:linear-gradient(90deg,#5a4cc9,#9b6bff)" onclick="show('mc',this)">🎛 Mission Control</div>
+  <div class="tab t-fund" onclick="show('fund',this)">🐝 Fundraiser</div>
 </nav>
 <main>
   <div class="panel show" id="p-brief">
@@ -225,6 +226,17 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
     <input id="fq" oninput="renderForms()" placeholder="🔍 Search a form… (e.g. incident, field trip)" style="width:100%;font-size:1.05rem;padding:13px 18px;border:3px solid var(--teal);border-radius:16px;margin-bottom:12px;font-family:inherit;">
     <div id="fcats" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;"></div>
     <div id="formList" class="empty">Loading the library… 🐝</div>
+  </div>
+
+  <div class="panel" id="p-fund">
+    <img src="files/fundraiser-banner.svg" alt="Year-Round Fundraiser — help our hive grow" style="width:100%;border-radius:20px;margin-bottom:16px;box-shadow:0 8px 24px rgba(74,58,48,.14)">
+    <div class="card" style="border-left-color:#ffb13d">
+      <b>🐝 Shop &amp; Grow Our Hive.</b> Every purchase from The Preschool Professional shop helps power early childhood education — <b>10% of profit from every order</b> goes right back into programs that support early childhood education, all year long.
+    </div>
+    <div class="card" style="border-left-color:#ff6b9d">
+      This is a year-round fundraiser, not a one-time drive — share it with staff, families, grandparents, alumni, and anyone who wants to help. Every purchase counts, from anywhere. 💛
+    </div>
+    <a class="submit" style="display:block;text-align:center;text-decoration:none;background:linear-gradient(90deg,#ffb13d,#ff6b9d)" href="https://the-preschool-professional.myshopify.com/" target="_blank" rel="noopener">🛍️ Shop Now &amp; Support →</a>
   </div>
 </main>
 <div class="toast" id="toast"></div>
