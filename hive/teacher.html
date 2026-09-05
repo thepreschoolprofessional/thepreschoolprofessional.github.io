@@ -142,8 +142,10 @@ document.getElementById('rTitle').textContent = '🎉 ' + (p.Plan || (selMonth+'
 document.getElementById('rNote').textContent = p.Notes || 'Your weekly plan is ready to print, and the month folder has instructions, resources, and take-home sheets.';
 let b = '';
 if(p['File Link']) b += `<a class="go g1" href="${esc(p['File Link'])}" target="_blank" rel="noopener">🖨️ Open & Print My Plan</a>`;
-if(p['Student Workbook Link']) b += `<a class="go g3" href="${esc(p['Student Workbook Link'])}" target="_blank" rel="noopener">📗 Student Workbook</a>`;
-if(p['Teacher Workbook Link']) b += `<a class="go g4" href="${esc(p['Teacher Workbook Link'])}" target="_blank" rel="noopener">📘 Teacher Supplement</a>`;
+if(p['Student Workbook Link']) b += `<a class="go g3" href="${esc(p['Student Workbook Link'])}" target="_blank" rel="noopener">📗 Student Workbook${selAge==='School Age'?' (K-3)':''}</a>`;
+if(p['Teacher Workbook Link']) b += `<a class="go g4" href="${esc(p['Teacher Workbook Link'])}" target="_blank" rel="noopener">📘 Teacher Supplement${selAge==='School Age'?' (K-3)':''}</a>`;
+if(p['4-6 Student Workbook Link']) b += `<a class="go g3" href="${esc(p['4-6 Student Workbook Link'])}" target="_blank" rel="noopener">📗 Student Workbook (4-6)</a>`;
+if(p['4-6 Teacher Workbook Link']) b += `<a class="go g4" href="${esc(p['4-6 Teacher Workbook Link'])}" target="_blank" rel="noopener">📘 Teacher Supplement (4-6)</a>`;
 if(folderField && p[folderField]) b += `<a class="go g2" href="${esc(p[folderField])}" target="_blank" rel="noopener">📂 Instructions, Resources & Take-Homes</a>`;
 document.getElementById('rBtns').innerHTML = b || '<div class="note">Links coming soon for this one — ask Mrs. Bear!</div>';
 box.scrollIntoView({behavior:'smooth', block:'nearest'});
