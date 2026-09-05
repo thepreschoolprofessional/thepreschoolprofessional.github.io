@@ -77,7 +77,14 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 .viewtog .vt{flex:1;text-align:center;padding:10px;border-radius:14px;font-weight:900;cursor:pointer;background:#fff;color:var(--soft);box-shadow:0 4px 12px rgba(74,58,48,.08);}
 .viewtog .vt.on{background:linear-gradient(90deg,#c95ab0,var(--purple));color:#fff;}
 .dayhdr{font-weight:900;margin:16px 0 8px;font-size:1rem;padding:8px 14px;border-radius:12px;color:#fff;display:inline-block;}
-</style>
+
+.wbgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-bottom:10px;}
+.wbpick{background:#fff;border-radius:16px;padding:14px 8px;text-align:center;font-weight:800;cursor:pointer;box-shadow:0 4px 12px rgba(74,58,48,.10);border:3px solid transparent;transition:.12s;font-size:.9rem;}
+.wbpick:hover{transform:translateY(-3px);}
+.wbpick.sel{border-color:var(--teal);background:#eafffa;}
+.wbresult{display:none;}
+.wbresult.show{display:block;animation:pop .25s;}
+.wbbtn{flex:1;min-width:180px;text-align:center;text-decoration:none;color:#fff;font-weight:900;padding:14px;border-radius:16px;font-size:.95rem;}</style>
 </head>
 <body>
 <a class="back" href="index.html">← exit</a>
@@ -99,6 +106,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
   <div class="tab t-onb" onclick="show('onb',this)">🌟 Onboarding</div>
   <div class="tab" style="background:#2fc4b2" onclick="show('forms',this)">📄 Forms Wizard</div>
   <div class="tab" style="background:linear-gradient(90deg,#5a4cc9,#9b6bff)" onclick="show('mc',this)">🎛 Mission Control</div>
+  <div class="tab" style="background:linear-gradient(90deg,var(--teal),var(--green))" onclick="show('wb',this)">📗 Workbooks</div>
   <div class="tab t-fund" onclick="show('fund',this)">🐝 Fundraiser</div>
 </nav>
 <main>
@@ -237,6 +245,19 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
       This is a year-round fundraiser, not a one-time drive — share it with staff, families, grandparents, alumni, and anyone who wants to help. Every purchase counts, from anywhere. 💛
     </div>
     <a class="submit" style="display:block;text-align:center;text-decoration:none;background:linear-gradient(90deg,#ffb13d,#ff6b9d)" href="https://the-preschool-professional.myshopify.com/" target="_blank" rel="noopener">🛍️ Shop Now &amp; Support →</a>
+  </div>
+
+  <div class="panel" id="p-wb">
+    <div class="banner">📗 Monthly lesson plans, student workbooks, and teacher supplements — pick the month, then the classroom.</div>
+    <div class="sect">1️⃣ Pick the month</div>
+    <div class="wbgrid" id="wbMonths"></div>
+    <div class="sect">2️⃣ Pick the classroom</div>
+    <div class="wbgrid" id="wbAges"></div>
+    <div class="card wbresult" id="wbResult" style="border-left-color:var(--teal)">
+      <div class="sect" id="wbTitle" style="margin-top:0"></div>
+      <div style="color:var(--soft);font-size:.9rem;margin-bottom:12px" id="wbNote"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap" id="wbBtns"></div>
+    </div>
   </div>
 </main>
 <div class="toast" id="toast"></div>
@@ -532,8 +553,42 @@ function renderForms(){
     : '<div class="empty">No forms match — try another word 🔍</div>';
 }
 
+// ---- WORKBOOKS & LESSON PLANS (Month → Classroom wizard) ----
+let wbPlans = [], wbMonth = null, wbAge = null;
+const WB_MONTH_EMOJI = {'January':'⛄','February — Dinosaur Theme':'🦕','February — Real & Make-Believe':'🦄','March':'☘️','April':'🌷','May':'🌞','June':'🏖️','July':'🎆','August':'✏️','September':'🍂','October':'🎃','November':'🦃','December':'🎄','Extra Summer Fun':'🍉'};
+const WB_AGE_EMOJI = {'Infant':'👶','Ones':'🧸','Twos':'🚂','Threes':'🖍️','Fours':'🎒','School Age':'⚽'};
+async function loadWorkbooks(){
+  const d = await api({action:'list', table:'Lesson Plan Index', maxRecords:120});
+  wbPlans = (d.records||[]).map(r=>r.fields);
+  const months = [...new Set(wbPlans.map(p=>sel(p.Month)).filter(Boolean))];
+  const order = Object.keys(WB_MONTH_EMOJI);
+  months.sort((a,b)=>order.indexOf(a)-order.indexOf(b));
+  document.getElementById('wbMonths').innerHTML = months.map(m=>`<div class="wbpick" onclick="pickWbMonth('${esc(m)}',this)">${WB_MONTH_EMOJI[m]||'📅'}<br>${esc(m.replace('February — ','Feb: '))}</div>`).join('');
+  const ages = ['Infant','Ones','Twos','Threes','Fours','School Age'];
+  document.getElementById('wbAges').innerHTML = ages.map(a=>`<div class="wbpick" onclick="pickWbAge('${a}',this)">${WB_AGE_EMOJI[a]}<br>${a}</div>`).join('');
+}
+function pickWbMonth(m, el){ wbMonth=m; document.querySelectorAll('#wbMonths .wbpick').forEach(p=>p.classList.remove('sel')); el.classList.add('sel'); showWbResult(); }
+function pickWbAge(a, el){ wbAge=a; document.querySelectorAll('#wbAges .wbpick').forEach(p=>p.classList.remove('sel')); el.classList.add('sel'); showWbResult(); }
+function showWbResult(){
+  if(!wbMonth || !wbAge) return;
+  const p = wbPlans.find(x => sel(x.Month)===wbMonth && sel(x['Age Group'])===wbAge);
+  const box = document.getElementById('wbResult'); box.classList.add('show');
+  const folderField = Object.keys(p||{}).find(k=>k.includes('Month Folder'));
+  if(!p){ document.getElementById('wbTitle').textContent='🤔 No plan for that combo';
+    document.getElementById('wbNote').textContent='That month doesn\'t have a plan for this classroom (like School Age in summer). Try another pick!';
+    document.getElementById('wbBtns').innerHTML=''; return; }
+  document.getElementById('wbTitle').textContent = '📗 ' + (p.Plan || (wbMonth+' — '+wbAge));
+  document.getElementById('wbNote').textContent = p.Notes || 'Lesson plan, workbooks, and take-home resources for this month & classroom.';
+  let b = '';
+  if(p['File Link']) b += `<a class="wbbtn" style="background:linear-gradient(90deg,var(--purple),var(--pink))" href="${esc(p['File Link'])}" target="_blank" rel="noopener">🖨️ Lesson Plan</a>`;
+  if(p['Student Workbook Link']) b += `<a class="wbbtn" style="background:linear-gradient(90deg,var(--teal),var(--green))" href="${esc(p['Student Workbook Link'])}" target="_blank" rel="noopener">📗 Student Workbook</a>`;
+  if(p['Teacher Workbook Link']) b += `<a class="wbbtn" style="background:linear-gradient(90deg,var(--blue),var(--teal))" href="${esc(p['Teacher Workbook Link'])}" target="_blank" rel="noopener">📘 Teacher Supplement</a>`;
+  if(folderField && p[folderField]) b += `<a class="wbbtn" style="background:linear-gradient(90deg,var(--orange),var(--coral))" href="${esc(p[folderField])}" target="_blank" rel="noopener">📂 Resources & Take-Homes</a>`;
+  document.getElementById('wbBtns').innerHTML = b || '<div class="empty">Links coming soon for this one — ask Mrs. Bear!</div>';
+}
+
 // ---- TAB NOTES (a note box on every tab) ----
-const TAB_LABELS = {brief:'📰 Daily Briefing', auto:'✉️ Automations', hours:'⏱ Staff Hours', food:'🍽 Food Program', inv:'📦 Inventory', ratio:'🧮 Ratios & FTE', task:'📋 Task Board', msg:'💬 Parent Message', time:'⏰ Time Fix', onb:'🌟 Onboarding', facility:'🧹 Facility Checklists'};
+const TAB_LABELS = {brief:'📰 Daily Briefing', auto:'✉️ Automations', hours:'⏱ Staff Hours', food:'🍽 Food Program', inv:'📦 Inventory', ratio:'🧮 Ratios & FTE', task:'📋 Task Board', msg:'💬 Parent Message', time:'⏰ Time Fix', onb:'🌟 Onboarding', facility:'🧹 Facility Checklists', wb:'📗 Workbooks'};
 // (Mission Control + Forms tabs share the Tab Notes box via the panels below)
 window.loadFacility=async function(){
  var box=document.getElementById('facMonitor'); if(!box) return;
@@ -611,7 +666,7 @@ async function sendTabNote(id){
   b.style.background = SCHOOL==='Sanford' ? 'linear-gradient(135deg,#1d4e89,#2f6bb0)' : 'linear-gradient(135deg,#0a6b4f,#12946c)';
   document.getElementById('fromEmail').textContent = SCHOOL==='Sanford' ? 'sanfordoffice@kidcityusa.com' : 'deland2office@kidcityusa.com';
   renderCodes(); injectNoteBoxes();
-  loadCheck(); loadAuto(); loadSignin(); loadHours(); loadFood(); loadInv(); loadFacility(); loadRatio(); loadTasks(); loadWeek(); loadMsg(); loadStaffDropdown(); loadTime(); loadOnb(); loadForms(); loadMC();
+  loadCheck(); loadAuto(); loadSignin(); loadHours(); loadFood(); loadInv(); loadFacility(); loadRatio(); loadTasks(); loadWeek(); loadMsg(); loadStaffDropdown(); loadTime(); loadOnb(); loadForms(); loadMC(); loadWorkbooks();
 })();
 </script>
 </body>
