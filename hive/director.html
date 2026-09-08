@@ -106,7 +106,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
   <div class="tab t-onb" onclick="show('onb',this)">🌟 Onboarding</div>
   <div class="tab" style="background:#2fc4b2" onclick="show('forms',this)">📄 Forms Wizard</div>
   <div class="tab" style="background:linear-gradient(90deg,#5a4cc9,#9b6bff)" onclick="show('mc',this)">🎛 Mission Control</div>
-  <div class="tab" style="background:linear-gradient(90deg,var(--teal),var(--green))" onclick="show('wb',this)">📗 Workbooks</div>
+  <div class="tab" style="background:linear-gradient(90deg,var(--teal),var(--green))" onclick="show('wb',this)">📚 Lesson Plan Wizard</div>
   <div class="tab t-fund" onclick="show('fund',this)">🐝 Fundraiser</div>
 </nav>
 <main>
@@ -590,7 +590,7 @@ function showWbResult(){
 }
 
 // ---- TAB NOTES (a note box on every tab) ----
-const TAB_LABELS = {brief:'📰 Daily Briefing', auto:'✉️ Automations', hours:'⏱ Staff Hours', food:'🍽 Food Program', inv:'📦 Inventory', ratio:'🧮 Ratios & FTE', task:'📋 Task Board', msg:'💬 Parent Message', time:'⏰ Time Fix', onb:'🌟 Onboarding', facility:'🧹 Facility Checklists', wb:'📗 Workbooks'};
+const TAB_LABELS = {brief:'📰 Daily Briefing', auto:'✉️ Automations', hours:'⏱ Staff Hours', food:'🍽 Food Program', inv:'📦 Inventory', ratio:'🧮 Ratios & FTE', task:'📋 Task Board', msg:'💬 Parent Message', time:'⏰ Time Fix', onb:'🌟 Onboarding', facility:'🧹 Facility Checklists', wb:'📚 Lesson Plan Wizard'};
 // (Mission Control + Forms tabs share the Tab Notes box via the panels below)
 window.loadFacility=async function(){
  var box=document.getElementById('facMonitor'); if(!box) return;
