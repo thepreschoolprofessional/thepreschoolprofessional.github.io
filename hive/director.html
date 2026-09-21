@@ -97,6 +97,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
   <div class="tab t-auto" onclick="show('auto',this)">✉️ Automations</div>
   <div class="tab t-hours" onclick="show('hours',this)">⏱ Staff Hours</div>
   <div class="tab t-food" onclick="show('food',this)">🍽 Food Program</div>
+<div class="tab" style="background:#3f8f5c" onclick="show('foodforms',this)">📋 Food Forms</div>
   <div class="tab" style="background:#b0722e" onclick="show('inv',this)">📦 Inventory</div>
 <div class="tab t-facility" onclick="show('facility',this)">🧹 Facility Checklists</div>
   <div class="tab t-ratio" onclick="show('ratio',this)">🧮 Ratios & FTE</div>
@@ -142,9 +143,15 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
   <div class="panel" id="p-food">
     <div class="banner">🍽 Daily KidKare meal counts and what still needs attention. Remember: Charles records &amp; saves daily — <b>you submit the claim at month-end</b>.</div>
     <div id="foodList" class="empty">Loading…</div>
-    <div class="sect">📋 CACFP/CCFP Forms &amp; Reference</div>
-    <div id="fpCats" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;"></div>
-    <div id="fpList" class="empty">Loading…</div>
+  </div>
+
+  <div class="panel" id="p-foodforms">
+    <div class="banner">📋 Every CACFP/CCFP form in one place — pick a category, pick the exact form you need, then open it. Most forms work for both schools; anything with a school's name printed on it only shows on that school's side.</div>
+    <form onsubmit="return false;">
+    <div class="frow"><label>1 · Category</label><select id="fpCatSel" onchange="fpFilterForms()"><option>Loading…</option></select></div>
+    <div class="frow"><label>2 · Form</label><select id="fpFormSel" onchange="fpUpdateOpenBtn()"><option>Loading…</option></select></div>
+    </form>
+    <a id="fpOpenBtn" class="submit" style="display:block;text-align:center;text-decoration:none;background:linear-gradient(90deg,var(--teal),var(--green));opacity:.5;pointer-events:none;" href="#" target="_blank" rel="noopener">Loading…</a>
   </div>
 
   <div id="p-facility" class="panel"><style>#p-facility .fbtn{border:none;border-radius:12px;padding:11px 18px;color:#fff;font-weight:800;cursor:pointer;background:#5aa9ff;font-size:15px;margin:6px 0}#p-facility .fsubmit{display:block;width:100%;background:#12946c;margin-top:12px;font-size:16px}#p-facility .fformhead{font-weight:900;font-size:17px;margin:12px 0 6px}#p-facility .fitemrow{background:#fff;border-radius:10px;padding:10px 12px;margin:7px 0;box-shadow:0 1px 3px rgba(0,0,0,.05)}#p-facility .fitemtxt{font-weight:600;font-size:15px;margin-bottom:6px}#p-facility .fbtns{display:flex;gap:6px;margin-bottom:6px}#p-facility .ftog{border:2px solid #ddd;background:#fafafa;border-radius:8px;padding:5px 10px;font-weight:700;cursor:pointer;font-size:13px;color:#888}#p-facility .ftog.ok.on{background:#d5f0e2;border-color:#12946c;color:#0a6b4f}#p-facility .ftog.bad.on{background:#ffd9d4;border-color:#e74c3c;color:#c0392b}#p-facility .dinp{border:2px solid #e5d9c8;border-radius:10px;padding:9px 12px;font-size:15px;font-family:inherit;width:100%}#p-facility .dinp.big{min-height:70px}#p-facility .fnote{margin-top:4px}#p-facility .flbl{display:block;font-weight:700;margin:9px 0 3px;font-size:14px}#p-facility .fwarn{background:#fff6d9;border-left:4px solid #ffb13d;padding:10px 12px;border-radius:8px}#p-facility .fok{background:#d5f0e2;border-left:4px solid #12946c;padding:14px;border-radius:10px;font-weight:700}</style><div class="card" style="border-left-color:#c9bcae"><b>🧹 Facility Checklists.</b> Every room's cleaning &amp; inspection logs land here as staff submit them through the Teacher Portal — review today's, open the PDF, watch for 🚨 incidents. You can also submit director-only forms (temps, drills, security) yourself below.</div><div id="facMonitor"><div class="empty">Loading today's submissions… 🧹</div></div><details style="margin-top:16px"><summary style="font-weight:900;cursor:pointer;font-size:16px">➕ Submit a form yourself</summary><div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><input id="dfName" class="dinp" style="flex:1;min-width:130px" placeholder="Your name"><select id="dfRoom" class="dinp" style="flex:1;min-width:130px"><option value="">Room…</option><option>Infant Room</option><option>Ones</option><option>Twos</option><option>Threes</option><option>Fours / VPK</option><option>School Age</option><option>Kitchen</option><option>Playground</option><option>Whole Building / Common Areas</option></select><select id="dfForm" class="dinp" style="flex:1;min-width:130px"><option value="">Which form?…</option><option>🚽 Bathroom Cleaning</option><option>🧹 Classroom Cleaning</option><option>🏠 Indoor Inspection</option><option>🛝 Outdoor / Playground Inspection</option><option>🧼 Sanitation & Safety</option><option>🌡️ Temp & Safety Logs</option><option>🔒 Security & Attendance</option><option>🧯 Drills & Emergency</option><option>🌙 End of Day Building Sweep</option><option>🚨 Incident Report</option></select></div><button class="fbtn" onclick="dfStart()">Start →</button><div id="dfBody"></div></details></div>
@@ -354,23 +361,29 @@ async function loadFood(){
     </div>`; }).join('') || '<div class="empty">Daily counts appear here after each school day 🍽</div>';
 }
 
-// ---- FOOD PROGRAM — CACFP/CCFP FORMS & REFERENCE ----
-let fpDocs = [], fpCat = 'All';
+// ---- FOOD PROGRAM — CACFP/CCFP FORMS & REFERENCE (category → form dropdown picker) ----
+let fpDocs = [];
 async function loadFoodForms(){
   const d = await api({action:'list', table:'Food Program', maxRecords:120, sortField:'Document'});
   fpDocs = (d.records||[]).map(r=>r.fields).filter(f => !f.School || sel(f.School)===SCHOOL || sel(f.School)==='Both');
-  const cats = ['All', ...new Set(fpDocs.map(f=>sel(f.Category)).filter(Boolean))];
-  const colors = ['var(--blue)','var(--teal)','var(--green)','var(--orange)','var(--purple)','var(--coral)','var(--pink)'];
-  document.getElementById('fpCats').innerHTML = cats.map((c,i)=>`<div onclick="pickFpCat('${esc(c)}',this)" style="padding:8px 16px;border-radius:999px;font-weight:800;font-size:.82rem;cursor:pointer;color:#fff;background:${colors[i%7]};opacity:${c===fpCat?1:.5}" data-fpcat>${esc(c)}</div>`).join('');
-  renderFoodForms();
+  const cats = [...new Set(fpDocs.map(f=>sel(f.Category)).filter(Boolean))].sort();
+  const catSel = document.getElementById('fpCatSel');
+  catSel.innerHTML = '<option value="All">All Categories</option>' + cats.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  fpFilterForms();
 }
-function pickFpCat(c, el){ fpCat=c; document.querySelectorAll('[data-fpcat]').forEach(x=>x.style.opacity=.5); el.style.opacity=1; renderFoodForms(); }
-function renderFoodForms(){
-  const box = document.getElementById('fpList'); box.classList.remove('empty');
-  const list = fpDocs.filter(f => fpCat==='All' || sel(f.Category)===fpCat);
-  box.innerHTML = list.length ? list.map(f=>`<div class="taskchip"><div><b>${esc(f.Document)}</b><br><span style="color:var(--soft);font-size:.8rem">${esc(sel(f.Category))}${f.Sponsor?' · '+esc(sel(f.Sponsor)):''}</span></div>
-    ${f['File Link'] ? `<a class="tstat s-done" style="text-decoration:none" href="${esc(f['File Link'])}" target="_blank" rel="noopener">Open 🖨️</a>` : '<span class="tstat s-pend">ask Mrs. Bear</span>'}</div>`).join('')
-    : '<div class="empty">No forms yet 🍽</div>';
+function fpFilterForms(){
+  const cat = document.getElementById('fpCatSel').value;
+  const list = fpDocs.filter(f => cat==='All' || sel(f.Category)===cat).slice().sort((a,b)=>(a.Document||'').localeCompare(b.Document||''));
+  const formSel = document.getElementById('fpFormSel');
+  formSel.innerHTML = list.length ? list.map(f=>`<option value="${esc(f['File Link']||'')}">${esc(f.Document)}${f.Sponsor?' ('+esc(sel(f.Sponsor))+')':''}</option>`).join('') : '<option value="">No forms in this category yet</option>';
+  fpUpdateOpenBtn();
+}
+function fpUpdateOpenBtn(){
+  const formSel = document.getElementById('fpFormSel');
+  const btn = document.getElementById('fpOpenBtn');
+  const link = formSel.value;
+  if(link){ btn.href = link; btn.style.opacity = 1; btn.style.pointerEvents = 'auto'; btn.textContent = 'Open Form 🖨️'; }
+  else { btn.href = '#'; btn.style.opacity = .5; btn.style.pointerEvents = 'none'; btn.textContent = 'No form selected'; }
 }
 
 // ---- INVENTORY ----
@@ -612,7 +625,7 @@ function showWbResult(){
 }
 
 // ---- TAB NOTES (a note box on every tab) ----
-const TAB_LABELS = {brief:'📰 Daily Briefing', auto:'✉️ Automations', hours:'⏱ Staff Hours', food:'🍽 Food Program', inv:'📦 Inventory', ratio:'🧮 Ratios & FTE', task:'📋 Task Board', msg:'💬 Parent Message', time:'⏰ Time Fix', onb:'🌟 Onboarding', facility:'🧹 Facility Checklists', wb:'📚 Lesson Plan Wizard'};
+const TAB_LABELS = {brief:'📰 Daily Briefing', auto:'✉️ Automations', hours:'⏱ Staff Hours', food:'🍽 Food Program', foodforms:'📋 Food Forms', inv:'📦 Inventory', ratio:'🧮 Ratios & FTE', task:'📋 Task Board', msg:'💬 Parent Message', time:'⏰ Time Fix', onb:'🌟 Onboarding', facility:'🧹 Facility Checklists', wb:'📚 Lesson Plan Wizard'};
 // (Mission Control + Forms tabs share the Tab Notes box via the panels below)
 window.loadFacility=async function(){
  var box=document.getElementById('facMonitor'); if(!box) return;
