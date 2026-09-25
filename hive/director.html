@@ -84,7 +84,20 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 .wbpick.sel{border-color:var(--teal);background:#eafffa;}
 .wbresult{display:none;}
 .wbresult.show{display:block;animation:pop .25s;}
-.wbbtn{flex:1;min-width:180px;text-align:center;text-decoration:none;color:#fff;font-weight:900;padding:14px;border-radius:16px;font-size:.95rem;}</style>
+.wbbtn{flex:1;min-width:180px;text-align:center;text-decoration:none;color:#fff;font-weight:900;padding:14px;border-radius:16px;font-size:.95rem;}.t-meet{background:linear-gradient(90deg,#1d4e89,#9b6bff);}
+.meet-sec{font-weight:900;margin:18px 0 8px;font-size:1.05rem;padding:8px 14px;border-radius:12px;color:#fff;display:inline-block;}
+.ms-Recognition{background:var(--green);} .ms-Outstanding{background:var(--coral);} .ms-Discussion{background:var(--purple);} .ms-Action{background:var(--navy);}
+.meet-card{background:#fff;border-radius:18px;padding:16px 18px;margin-bottom:12px;box-shadow:0 6px 18px rgba(74,58,48,.10);border-left:8px solid var(--soft);}
+.meet-card .mi{font-weight:800;font-size:1.02rem;white-space:pre-wrap;}
+.meet-card .md{color:var(--soft);font-size:.9rem;margin-top:4px;white-space:pre-wrap;}
+.meet-card .mb{margin-top:8px;background:#f4efff;border-radius:10px;padding:8px 12px;font-size:.88rem;color:#4b3a8c;white-space:pre-wrap;}
+.mstat{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+.mstat button{border:2px solid #f0e2d4;background:#fff;border-radius:999px;padding:6px 14px;font-weight:800;font-size:.85rem;cursor:pointer;color:var(--ink);font-family:inherit;}
+.mstat button.on{color:#fff;border-color:transparent;}
+.mstat button.on[data-s="Done"]{background:var(--green);} .mstat button.on[data-s="In progress"]{background:var(--orange);} .mstat button.on[data-s="Need help"]{background:var(--coral);} .mstat button.on[data-s="Noted"]{background:var(--soft);}
+.meet-card textarea{width:100%;margin-top:10px;border:2px solid #f0e2d4;border-radius:12px;padding:10px 12px;font-family:inherit;font-size:.95rem;min-height:70px;resize:vertical;}
+.meet-save{display:flex;align-items:center;gap:10px;margin-top:8px;} .meet-save small{color:var(--soft);font-weight:700;}
+</style>
 </head>
 <body>
 <a class="back" href="index.html">← exit</a>
@@ -94,6 +107,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 </header>
 <nav>
   <div class="tab t-brief active" onclick="show('brief',this)">📰 Daily Briefing</div>
+  <div class="tab t-meet" onclick="show('meet',this)">🤝 Friday Meeting</div>
   <div class="tab t-auto" onclick="show('auto',this)">✉️ Automations</div>
   <div class="tab t-hours" onclick="show('hours',this)">⏱ Staff Hours</div>
   <div class="tab t-food" onclick="show('food',this)">🍽 Food Program</div>
@@ -114,6 +128,12 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
   <div class="panel show" id="p-brief">
     <div class="banner">📰 This is your morning briefing, turned into a to-do list. Check things off as you go and leave notes — Charles reads them every hour and rolls them up to Mrs. Bear. 💛</div>
     <div id="checkList" class="empty">Loading your day… 🌞</div>
+  </div>
+
+  <div class="panel" id="p-meet">
+    <div class="banner">🤝 Your Friday meeting with Mrs. Bear. Before or during the meeting, answer each item: pick a status and type your update, then tap Save. Mrs. Bear sees your answers right away. 💛</div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px;"><label for="meetDate" style="font-weight:800;">Meeting:</label><select id="meetDate" onchange="renderMeet()" style="border:2px solid #f0e2d4;border-radius:12px;padding:8px 12px;font-family:inherit;font-size:.95rem;background:#fff;"></select><span id="meetCount" style="color:var(--soft);font-weight:700;"></span></div>
+    <div id="meetList" class="empty">Loading your meeting… 🌞</div>
   </div>
 
   <div class="panel" id="p-auto">
@@ -282,6 +302,51 @@ function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.
 function show(id, el){ document.querySelectorAll('.panel').forEach(p=>p.classList.remove('show'));
   document.getElementById('p-'+id).classList.add('show');
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); el.classList.add('active'); }
+
+
+// ---- FRIDAY MEETING (director answers saved to the Director Meeting table) ----
+let MEET=[];
+const MEET_SECS=[['Recognition','Recognition','🌟 Recognition'],['Outstanding Item','Outstanding','📌 Outstanding Items'],['Discussion Question','Discussion','💬 Discussion Questions'],['Action Plan','Action','✅ Agreed Action Plan']];
+async function loadMeet(){
+  const d = await api({action:'list', table:'Director Meeting', filterByFormula:"IS_AFTER({Meeting Date},DATEADD(TODAY(),-70,'days'))", sortField:'Order', maxRecords:400});
+  MEET = d.records||[];
+  const dates=[...new Set(MEET.map(r=>r.fields['Meeting Date']).filter(Boolean))].sort().reverse();
+  const dsel=document.getElementById('meetDate');
+  if(!dates.length){ dsel.innerHTML=''; document.getElementById('meetList').innerHTML='<div class="empty">No meeting items yet. They are posted every Thursday evening for Friday. 🗓</div>'; return; }
+  const fmt=x=>{const [y,m,dd]=x.split('-');return new Date(+y,m-1,+dd).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});};
+  dsel.innerHTML=dates.map(x=>`<option value="${x}">${fmt(x)}</option>`).join('');
+  renderMeet();
+}
+function renderMeet(){
+  const day=document.getElementById('meetDate').value; const box=document.getElementById('meetList');
+  const recs=MEET.filter(r=>r.fields['Meeting Date']===day);
+  const answered=recs.filter(r=>r.fields['Director Response']||r.fields['Director Status']).length;
+  document.getElementById('meetCount').textContent=`${answered} of ${recs.length} answered`;
+  box.classList.remove('empty');
+  box.innerHTML = MEET_SECS.map(([name,key,label])=>{
+    const rows=recs.filter(r=>sel(r.fields.Section)===name).sort((a,b)=>(a.fields.Order||0)-(b.fields.Order||0));
+    if(!rows.length) return '';
+    const opts = name==='Recognition'?['Noted']:name==='Discussion Question'?['Noted','Need help']:['Done','In progress','Need help'];
+    return `<div class="meet-sec ms-${key}">${label}</div>` + rows.map(r=>{ const f=r.fields; const st=sel(f['Director Status'])||'';
+      return `<div class="meet-card" id="m-${r.id}">
+        <div class="mi">${esc(f.Item||'')}</div>
+        ${f.Details?`<div class="md">${esc(f.Details)}</div>`:''}
+        ${f['Mrs. Bear Notes']?`<div class="mb">Mrs. Bear: ${esc(f['Mrs. Bear Notes'])}</div>`:''}
+        <div class="mstat">${opts.map(o=>`<button type="button" data-s="${o}" class="${st===o?'on':''}" onclick="pickMeet('${r.id}',this)">${o}</button>`).join('')}</div>
+        <textarea id="mr-${r.id}" placeholder="${name==='Recognition'?'Optional: add a note…':'Your answer or update…'}">${esc(f['Director Response']||'')}</textarea>
+        <div class="meet-save"><button class="mini" onclick="saveMeet('${r.id}')">Save</button><small id="ms-${r.id}">${f['Responded At']?'Saved '+new Date(f['Responded At']).toLocaleString([], {weekday:'short',hour:'numeric',minute:'2-digit'}):''}</small></div>
+      </div>`; }).join('');
+  }).join('');
+}
+function pickMeet(id, btn){ btn.parentElement.querySelectorAll('button').forEach(b=>b.classList.toggle('on', b===btn && !btn.classList.contains('on'))); saveMeet(id); }
+async function saveMeet(id){
+  const card=document.getElementById('m-'+id); const on=card.querySelector('.mstat button.on');
+  const fields={'Director Response':document.getElementById('mr-'+id).value,'Director Status':on?on.dataset.s:null,'Responded At':new Date().toISOString()};
+  const small=document.getElementById('ms-'+id); small.textContent='Saving…';
+  const r=await api({action:'update', table:'Director Meeting', recordId:id, fields});
+  if(r&&r.id){ small.textContent='Saved ✔'; const rec=MEET.find(x=>x.id===id); if(rec) rec.fields={...rec.fields,...r.fields}; const day=document.getElementById('meetDate').value; const recs=MEET.filter(x=>x.fields['Meeting Date']===day); document.getElementById('meetCount').textContent=`${recs.filter(x=>x.fields['Director Response']||x.fields['Director Status']).length} of ${recs.length} answered`; toast('Saved for Mrs. Bear 💛'); }
+  else { small.textContent='Not saved. Try again.'; toast((r&&r.error)||'Not saved'); }
+}
 
 // ---- DAILY BRIEFING (interactive checklist) ----
 async function loadCheck(){
@@ -703,7 +768,7 @@ async function sendTabNote(id){
   b.style.background = SCHOOL==='Sanford' ? 'linear-gradient(135deg,#1d4e89,#2f6bb0)' : 'linear-gradient(135deg,#0a6b4f,#12946c)';
   document.getElementById('fromEmail').textContent = SCHOOL==='Sanford' ? 'sanfordoffice@kidcityusa.com' : 'deland2office@kidcityusa.com';
   renderCodes(); injectNoteBoxes();
-  loadCheck(); loadAuto(); loadSignin(); loadHours(); loadFood(); loadFoodForms(); loadInv(); loadFacility(); loadRatio(); loadTasks(); loadWeek(); loadMsg(); loadStaffDropdown(); loadTime(); loadOnb(); loadForms(); loadMC(); loadWorkbooks();
+  loadCheck(); loadMeet(); loadAuto(); loadSignin(); loadHours(); loadFood(); loadFoodForms(); loadInv(); loadFacility(); loadRatio(); loadTasks(); loadWeek(); loadMsg(); loadStaffDropdown(); loadTime(); loadOnb(); loadForms(); loadMC(); loadWorkbooks();
 })();
 </script>
 </body>
