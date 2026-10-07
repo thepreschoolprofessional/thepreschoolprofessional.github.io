@@ -6,7 +6,8 @@ Driver signs (name + DATE only) → 2nd staff confirms the visual sweep + signs 
 Rules from Mrs. Bear: signatures carry the date only (no timestamps); departure location is always Kid City.
 Week-at-a-glance grid, any past day can be opened and back-filled.
 v2 (10/7/26): AM run = Kid City → school; PM run = school → Kid City (departure/arrival swap). Signatures print with DATE only on the paper log.
-v3 (10/7/26): time fields start BLANK with a ⏱ Now button — tap Now when it's happening live, or type the real time when catching up late. Nothing is auto-stamped. */
+v3 (10/7/26): time fields start BLANK with a ⏱ Now button — tap Now when it's happening live, or type the real time when catching up late. Nothing is auto-stamped.
+v4 (10/7/26): director portal — school now comes from api whoami (the page's SCHOOL isn't on window), fixes the 'pick your school' dead-end. */
 (function(){
 var path = location.pathname.toLowerCase();
 var isDir = path.indexOf('director.html') > -1;
@@ -76,9 +77,14 @@ var open = null;             // {date, dest, run, rec}
 function kidCity(){ return 'Kid City USA '+(school||''); }
 function fromLoc(dest,run){ return run==='PM' ? dest : kidCity(); }
 function toLoc(dest,run){ return run==='PM' ? kidCity() : dest; }
+var dirSchool = null;
 function mySchool(){
-if(isDir) return window.SCHOOL || null;
+if(isDir){ var g=null; try{ g = (typeof SCHOOL!=='undefined' && SCHOOL) ? SCHOOL : (window.SCHOOL||null); }catch(e){} return g || dirSchool || null; }
 return localStorage.getItem('hiveSchool') || null;
+}
+async function ensureDirSchool(){
+if(!isDir || mySchool()) return;
+try{ var w=await api({action:'whoami'}); if(w && w.school) dirSchool=w.school; }catch(e){}
 }
 function myName(){ return localStorage.getItem('hiveName') || ''; }
 
@@ -100,7 +106,7 @@ function ridersFor(dest,run){ return riders.filter(function(r){ return sel(r.f.D
 // ---------- render: week grid ----------
 function renderGrid(){
 var area=document.getElementById('trArea'); if(!area) return;
-if(!school){ area.innerHTML='<div class="tr-warn">Pick your school above to see the bus log.</div>'; return; }
+if(!school){ area.innerHTML='<div class="tr-warn">'+(isDir?'Couldn\'t read your school from your PIN — refresh the page and try again.':'Pick your school above to see the bus log.')+'</div>'; return; }
 var t=today();
 var html='<div class="tr-top"><div class="tr-wk"><button id="trPrev">‹</button><span>Week of '+md(weekMon)+' – '+md(addDays(weekMon,4))+'</span><button id="trNext">›</button><button id="trNow" class="sec" style="font-size:.75rem">This week</button></div>'
 + '<button class="tr-btn" id="trNew" style="font-size:.8rem">+ Start a trip</button></div>';
@@ -223,6 +229,7 @@ if(msg) toast(msg); renderTrip();
 
 // ---------- boot ----------
 async function refresh(){
+await ensureDirSchool();
 school=mySchool();
 var area=document.getElementById('trArea'); if(!area) return;
 if(!school){ renderGrid(); return; }
