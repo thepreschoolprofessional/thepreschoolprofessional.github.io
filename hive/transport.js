@@ -4,7 +4,8 @@ One shared tab on BOTH portals. Data lives in Airtable "Transportation Trips" + 
 Flow per trip: Start (departure location + time) → riders IN → Arrive (arrival time) → riders OUT →
 Driver signs (name + DATE only) → 2nd staff confirms the visual sweep + signs (name + DATE only) → Complete.
 Rules from Mrs. Bear: signatures carry the date only (no timestamps); departure location is always Kid City.
-Week-at-a-glance grid, any past day can be opened and back-filled. v1 */
+Week-at-a-glance grid, any past day can be opened and back-filled.
+v2 (10/7/26): AM run = Kid City → school; PM run = school → Kid City (departure/arrival swap). Signatures print with DATE only on the paper log. */
 (function(){
 var path = location.pathname.toLowerCase();
 var isDir = path.indexOf('director.html') > -1;
@@ -69,6 +70,9 @@ var trips = [];              // {id, f} for the visible week
 var dests = [];              // distinct destinations for this school
 var open = null;             // {date, dest, run, rec}
 
+function kidCity(){ return 'Kid City USA '+(school||''); }
+function fromLoc(dest,run){ return run==='PM' ? dest : kidCity(); }
+function toLoc(dest,run){ return run==='PM' ? kidCity() : dest; }
 function mySchool(){
 if(isDir) return window.SCHOOL || null;
 return localStorage.getItem('hiveSchool') || null;
@@ -129,13 +133,13 @@ var roster=ridersFor(o.dest,o.run); var inL=f?lines(f['Riders In']):[]; var outL
 // riders already marked but not on the roster (one-offs) still show
 inL.concat(outL).forEach(function(n){ if(roster.indexOf(n)<0) roster.push(n); });
 var html='<span class="tr-back" id="trBack">‹ Back to the week</span>';
-html+='<div class="tr-card"><div class="tr-h">🚌 '+esc(o.dest)+' · '+o.run+' run · '+nice+'</div><div class="tr-sub">'+esc(school)+(isPast?' · <b style="color:#c97a1a">Back-filling a past day — enter the times as they happened.</b>':'')+'</div>';
+html+='<div class="tr-card"><div class="tr-h">🚌 '+esc(o.dest)+' · '+o.run+' run · '+nice+'</div><div class="tr-sub">'+esc(fromLoc(o.dest,o.run))+' → '+esc(toLoc(o.dest,o.run))+(isPast?' · <b style="color:#c97a1a">Back-filling a past day — enter the times as they happened.</b>':'')+'</div>';
 
 // STEP 1 — Depart
 var s1ok=!!f;
 html+='<div class="tr-step'+(s1ok?' ok':'')+'"><b>1</b> Depart</div>';
 if(!f){
-html+='<div class="tr-row"><div><span class="tr-lbl">Departure location</span><input class="tr-inp" id="trDepLoc" value="Kid City USA '+esc(school)+'"></div><div><span class="tr-lbl">Departure time</span><input class="tr-inp" id="trDepTime" value="'+(isToday?nowHM():'')+'" placeholder="7:05 AM"></div><div><span class="tr-lbl">Destination</span><select class="tr-inp" id="trDest">'+dests.map(function(x){return '<option'+(x===o.dest?' selected':'')+'>'+esc(x)+'</option>';}).join('')+'</select></div><div><span class="tr-lbl">Run</span><select class="tr-inp" id="trRun"><option'+(o.run==='AM'?' selected':'')+'>AM</option><option'+(o.run==='PM'?' selected':'')+'>PM</option></select></div></div>';
+html+='<div class="tr-row"><div><span class="tr-lbl">Departure location</span><input class="tr-inp" id="trDepLoc" value="'+esc(fromLoc(o.dest,o.run))+'"></div><div><span class="tr-lbl">Departure time</span><input class="tr-inp" id="trDepTime" value="'+(isToday?nowHM():'')+'" placeholder="7:05 AM"></div><div><span class="tr-lbl">Destination</span><select class="tr-inp" id="trDest">'+dests.map(function(x){return '<option'+(x===o.dest?' selected':'')+'>'+esc(x)+'</option>';}).join('')+'</select></div><div><span class="tr-lbl">Run</span><select class="tr-inp" id="trRun"><option'+(o.run==='AM'?' selected':'')+'>AM</option><option'+(o.run==='PM'?' selected':'')+'>PM</option></select></div></div>';
 html+='<button class="tr-btn" id="trStart">Start trip →</button>';
 } else {
 html+='<div class="tr-row"><div><span class="tr-lbl">Departure location</span><input class="tr-inp" id="trDepLoc" value="'+esc(f['Departure Location']||'')+'"></div><div><span class="tr-lbl">Departure time</span><input class="tr-inp" id="trDepTime" value="'+esc(f['Departure Time']||'')+'" placeholder="7:05 AM"></div></div>';
@@ -147,7 +151,7 @@ html+='<div class="tr-step'+(inL.length?' ok':'')+'"><b>2</b> Riders on the bus 
 html+='<div class="tr-row"><div><input class="tr-inp" id="trExtra" placeholder="Add a rider not on the list (First L.)"></div><div style="flex:0"><button class="tr-btn sec" id="trAddExtra">Add</button></div></div>';
 // STEP 3 — Arrive
 var arrived=!!(f['Arrival Time']);
-html+='<div class="tr-step'+(arrived?' ok':'')+'"><b>3</b> Arrive at '+esc(o.dest)+'</div>';
+html+='<div class="tr-step'+(arrived?' ok':'')+'"><b>3</b> Arrive at '+esc(toLoc(o.dest,o.run))+'</div>';
 html+='<div class="tr-row"><div><span class="tr-lbl">Arrival time</span><input class="tr-inp" id="trArrTime" value="'+esc(f['Arrival Time']||'')+'" placeholder="7:35 AM"></div><div style="flex:0;align-self:flex-end"><button class="tr-btn grn" id="trArrive">'+(arrived?'Update':'Mark arrived (now)')+'</button></div></div>';
 // STEP 4 — Riders OUT
 html+='<div class="tr-step'+(outL.length&&outL.length>=inL.length?' ok':'')+'"><b>4</b> Riders off the bus (tap OUT as each child exits)</div><div class="tr-riders">'+roster.map(function(n){ var on=outL.indexOf(n)>-1; var was=inL.indexOf(n)>-1; return '<div class="tr-rider" style="'+(was?'':'opacity:.45')+'"><span>'+esc(n)+'</span><button class="tr-tog'+(on?' on':'')+'" data-k="out" data-n="'+esc(n)+'">'+(on?'OUT ✓':'OUT')+'</button></div>'; }).join('')+'</div>';
@@ -176,7 +180,7 @@ wireTrip();
 function wireTrip(){
 var o=open; var f=o.rec?o.rec.f:null;
 document.getElementById('trBack').onclick=closeTrip;
-if(!f){ document.getElementById('trStart').onclick=startTrip; return; }
+if(!f){ document.getElementById('trStart').onclick=startTrip; var sync=function(){ document.getElementById('trDepLoc').value=fromLoc(val('trDest')||o.dest, val('trRun')||o.run); }; document.getElementById('trDest').onchange=sync; document.getElementById('trRun').onchange=sync; return; }
 document.querySelectorAll('.tr-tog').forEach(function(b){ b.onclick=function(){ toggleRider(b.getAttribute('data-k'), b.getAttribute('data-n')); }; });
 document.getElementById('trAddExtra').onclick=function(){ var n=(document.getElementById('trExtra').value||'').trim(); if(!n) return; toggleRider('in',n); };
 document.getElementById('trArrive').onclick=function(){ var v=(document.getElementById('trArrTime').value||'').trim(); if(!v) v=nowHM(); saveFields({'Arrival Time':v, 'Departure Location':val('trDepLoc'), 'Departure Time':val('trDepTime'), 'Status': nextStatus(f,{arr:v})}, 'Arrival marked'); };
@@ -224,7 +228,7 @@ if(open){ open.rec=findTrip(open.date,open.dest,open.run); renderTrip(); } else 
 function boot(){
 if(!document.querySelector('nav') || !document.querySelector('main')) { return setTimeout(boot, 300); }
 var intro = isTeach
-? '<div class="step">🚌 Transportation Log — start the trip, tap each child IN and OUT, mark arrival, then the driver and a 2nd staff member each sign (date only). Any day can be opened and filled in later.</div>'
+? '<div class="step">🚌 Transportation Log — start the trip (AM: Kid City → school · PM: school → Kid City), tap each child IN and OUT, mark arrival, then the driver and a 2nd staff member each sign (date only). Any day can be opened and filled in later.</div>'
 : '<div class="banner">🚌 Transportation Log — every bus run to Hamilton and Midway, with riders IN/OUT and both sweep signatures. Green = complete. Tap a purple box to add the 2nd signature.</div>';
 var schoolPick = isTeach ? '<div class="tr-top"><div><span class="tr-lbl">Your school</span><select class="tr-sel" id="trSchool"><option value="">— pick —</option><option>Sanford</option><option>DeLand 2</option></select></div><div><span class="tr-lbl">Your name</span><input class="tr-inp" id="trMyName" style="width:auto" placeholder="First Last"></div></div>' : '';
 addPanel('transport', intro + schoolPick + '<div id="trArea" class="empty">Loading… 🚌</div>');
