@@ -5,7 +5,8 @@ Flow per trip: Start (departure location + time) → riders IN → Arrive (arriv
 Driver signs (name + DATE only) → 2nd staff confirms the visual sweep + signs (name + DATE only) → Complete.
 Rules from Mrs. Bear: signatures carry the date only (no timestamps); departure location is always Kid City.
 Week-at-a-glance grid, any past day can be opened and back-filled.
-v2 (10/7/26): AM run = Kid City → school; PM run = school → Kid City (departure/arrival swap). Signatures print with DATE only on the paper log. */
+v2 (10/7/26): AM run = Kid City → school; PM run = school → Kid City (departure/arrival swap). Signatures print with DATE only on the paper log.
+v3 (10/7/26): time fields start BLANK with a ⏱ Now button — tap Now when it's happening live, or type the real time when catching up late. Nothing is auto-stamped. */
 (function(){
 var path = location.pathname.toLowerCase();
 var isDir = path.indexOf('director.html') > -1;
@@ -35,6 +36,8 @@ var css = ''
 + '.tr-btn{border:none;border-radius:12px;padding:11px 16px;font-weight:900;cursor:pointer;color:#fff;background:linear-gradient(90deg,#ffb13d,#ff6b6b);box-shadow:0 4px 12px rgba(255,107,107,.25);font-size:.9rem;}'
 + '.tr-btn.sec{background:#fff;color:#7a6a5c;box-shadow:0 3px 10px rgba(74,58,48,.10);} .tr-btn.grn{background:linear-gradient(90deg,#46c97f,#2fc4b2);} .tr-btn.pur{background:linear-gradient(90deg,#c95ab0,#9b6bff);}'
 + '.tr-btn:disabled{opacity:.45;cursor:default;}'
++ '.tr-time{display:flex;gap:6px;} .tr-time input{flex:1;} .tr-now{border:none;border-radius:10px;padding:0 12px;font-weight:900;cursor:pointer;background:#ffb13d;color:#fff;white-space:nowrap;}'
++ '.tr-hint{font-size:.7rem;color:#9b8576;margin-top:3px;}'
 + '.tr-step{display:flex;align-items:center;gap:8px;font-weight:900;color:#7a6a5c;margin:14px 0 6px;font-size:.85rem;} .tr-step b{display:inline-block;width:22px;height:22px;border-radius:50%;background:#ffb13d;color:#fff;text-align:center;line-height:22px;font-size:.72rem;} .tr-step.ok b{background:#46c97f;}'
 + '.tr-riders{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:6px 0;}'
 + '.tr-rider{display:flex;align-items:center;justify-content:space-between;background:#fbf7f2;border-radius:12px;padding:8px 10px;font-weight:800;font-size:.85rem;color:#4a3a30;}'
@@ -139,10 +142,10 @@ html+='<div class="tr-card"><div class="tr-h">🚌 '+esc(o.dest)+' · '+o.run+' 
 var s1ok=!!f;
 html+='<div class="tr-step'+(s1ok?' ok':'')+'"><b>1</b> Depart</div>';
 if(!f){
-html+='<div class="tr-row"><div><span class="tr-lbl">Departure location</span><input class="tr-inp" id="trDepLoc" value="'+esc(fromLoc(o.dest,o.run))+'"></div><div><span class="tr-lbl">Departure time</span><input class="tr-inp" id="trDepTime" value="'+(isToday?nowHM():'')+'" placeholder="7:05 AM"></div><div><span class="tr-lbl">Destination</span><select class="tr-inp" id="trDest">'+dests.map(function(x){return '<option'+(x===o.dest?' selected':'')+'>'+esc(x)+'</option>';}).join('')+'</select></div><div><span class="tr-lbl">Run</span><select class="tr-inp" id="trRun"><option'+(o.run==='AM'?' selected':'')+'>AM</option><option'+(o.run==='PM'?' selected':'')+'>PM</option></select></div></div>';
+html+='<div class="tr-row"><div><span class="tr-lbl">Departure location</span><input class="tr-inp" id="trDepLoc" value="'+esc(fromLoc(o.dest,o.run))+'"></div><div><span class="tr-lbl">Departure time</span><div class="tr-time"><input class="tr-inp" id="trDepTime" value="" placeholder="type time, e.g. 7:05 AM"><button type="button" class="tr-now" data-for="trDepTime">⏱ Now</button></div><div class="tr-hint">Tap Now if you\'re leaving right now. Catching up later? Type the real time.</div></div><div><span class="tr-lbl">Destination</span><select class="tr-inp" id="trDest">'+dests.map(function(x){return '<option'+(x===o.dest?' selected':'')+'>'+esc(x)+'</option>';}).join('')+'</select></div><div><span class="tr-lbl">Run</span><select class="tr-inp" id="trRun"><option'+(o.run==='AM'?' selected':'')+'>AM</option><option'+(o.run==='PM'?' selected':'')+'>PM</option></select></div></div>';
 html+='<button class="tr-btn" id="trStart">Start trip →</button>';
 } else {
-html+='<div class="tr-row"><div><span class="tr-lbl">Departure location</span><input class="tr-inp" id="trDepLoc" value="'+esc(f['Departure Location']||'')+'"></div><div><span class="tr-lbl">Departure time</span><input class="tr-inp" id="trDepTime" value="'+esc(f['Departure Time']||'')+'" placeholder="7:05 AM"></div></div>';
+html+='<div class="tr-row"><div><span class="tr-lbl">Departure location</span><input class="tr-inp" id="trDepLoc" value="'+esc(f['Departure Location']||'')+'"></div><div><span class="tr-lbl">Departure time</span><div class="tr-time"><input class="tr-inp" id="trDepTime" value="'+esc(f['Departure Time']||'')+'" placeholder="type time, e.g. 7:05 AM"><button type="button" class="tr-now" data-for="trDepTime">⏱ Now</button></div></div></div>';
 }
 
 if(f){
@@ -152,7 +155,7 @@ html+='<div class="tr-row"><div><input class="tr-inp" id="trExtra" placeholder="
 // STEP 3 — Arrive
 var arrived=!!(f['Arrival Time']);
 html+='<div class="tr-step'+(arrived?' ok':'')+'"><b>3</b> Arrive at '+esc(toLoc(o.dest,o.run))+'</div>';
-html+='<div class="tr-row"><div><span class="tr-lbl">Arrival time</span><input class="tr-inp" id="trArrTime" value="'+esc(f['Arrival Time']||'')+'" placeholder="7:35 AM"></div><div style="flex:0;align-self:flex-end"><button class="tr-btn grn" id="trArrive">'+(arrived?'Update':'Mark arrived (now)')+'</button></div></div>';
+html+='<div class="tr-row"><div><span class="tr-lbl">Arrival time</span><div class="tr-time"><input class="tr-inp" id="trArrTime" value="'+esc(f['Arrival Time']||'')+'" placeholder="type time, e.g. 7:35 AM"><button type="button" class="tr-now" data-for="trArrTime">⏱ Now</button></div><div class="tr-hint">Tap Now on arrival, or type the real arrival time if you\'re logging this later.</div></div><div style="flex:0;align-self:flex-end"><button class="tr-btn grn" id="trArrive">'+(arrived?'Update arrival':'Save arrival')+'</button></div></div>';
 // STEP 4 — Riders OUT
 html+='<div class="tr-step'+(outL.length&&outL.length>=inL.length?' ok':'')+'"><b>4</b> Riders off the bus (tap OUT as each child exits)</div><div class="tr-riders">'+roster.map(function(n){ var on=outL.indexOf(n)>-1; var was=inL.indexOf(n)>-1; return '<div class="tr-rider" style="'+(was?'':'opacity:.45')+'"><span>'+esc(n)+'</span><button class="tr-tog'+(on?' on':'')+'" data-k="out" data-n="'+esc(n)+'">'+(on?'OUT ✓':'OUT')+'</button></div>'; }).join('')+'</div>';
 var missing=inL.filter(function(n){return outL.indexOf(n)<0;});
@@ -180,10 +183,11 @@ wireTrip();
 function wireTrip(){
 var o=open; var f=o.rec?o.rec.f:null;
 document.getElementById('trBack').onclick=closeTrip;
+document.querySelectorAll('.tr-now').forEach(function(b){ b.onclick=function(){ var t=document.getElementById(b.getAttribute('data-for')); if(t){ t.value=nowHM(); } }; });
 if(!f){ document.getElementById('trStart').onclick=startTrip; var sync=function(){ document.getElementById('trDepLoc').value=fromLoc(val('trDest')||o.dest, val('trRun')||o.run); }; document.getElementById('trDest').onchange=sync; document.getElementById('trRun').onchange=sync; return; }
 document.querySelectorAll('.tr-tog').forEach(function(b){ b.onclick=function(){ toggleRider(b.getAttribute('data-k'), b.getAttribute('data-n')); }; });
 document.getElementById('trAddExtra').onclick=function(){ var n=(document.getElementById('trExtra').value||'').trim(); if(!n) return; toggleRider('in',n); };
-document.getElementById('trArrive').onclick=function(){ var v=(document.getElementById('trArrTime').value||'').trim(); if(!v) v=nowHM(); saveFields({'Arrival Time':v, 'Departure Location':val('trDepLoc'), 'Departure Time':val('trDepTime'), 'Status': nextStatus(f,{arr:v})}, 'Arrival marked'); };
+document.getElementById('trArrive').onclick=function(){ var v=(document.getElementById('trArrTime').value||'').trim(); if(!v){ toast('Tap ⏱ Now or type the arrival time'); return; } saveFields({'Arrival Time':v, 'Departure Location':val('trDepLoc'), 'Departure Time':val('trDepTime'), 'Status': nextStatus(f,{arr:v})}, 'Arrival marked'); };
 var ds=document.getElementById('trDrvSign'); if(ds) ds.onclick=function(){ var n=val('trDrvName'), d=val('trDrvDate'); if(!n||!d){toast('Name and date, please'); return;} localStorage.setItem('hiveName',n); saveFields({'Driver Name':n,'Driver Date':d,'Sweep Confirmed':true,'Status':nextStatus(f,{drv:1})}, 'Signed as driver'); };
 var ss=document.getElementById('trSecSign'); if(ss) ss.onclick=function(){ var n=val('trSecName'), d=val('trSecDate'); if(!n||!d){toast('Name and date, please'); return;} if(f['Driver Name'] && n.trim().toLowerCase()===(f['Driver Name']||'').trim().toLowerCase()){ toast('2nd staff must be a different person than the driver'); return; } saveFields({'Second Staff Name':n,'Second Staff Date':d,'Status':nextStatus(f,{sec:1})}, 'Signed as 2nd staff'); };
 document.getElementById('trSave').onclick=function(){ saveFields({'Departure Location':val('trDepLoc'),'Departure Time':val('trDepTime'),'Arrival Time':val('trArrTime'),'Notes':val('trNotes')}, 'Saved'); };
@@ -197,6 +201,7 @@ if(drv&&sec) return 'Complete'; if(drv||sec) return 'Awaiting 2nd Signature'; if
 async function startTrip(){
 var o=open; var dest=val('trDest')||o.dest, run=val('trRun')||o.run, loc=val('trDepLoc'), tm=val('trDepTime');
 if(!loc){ toast('Departure location, please'); return; }
+if(!tm){ toast('Tap ⏱ Now or type the departure time'); return; }
 if(findTrip(o.date,dest,run)){ open={date:o.date,dest:dest,run:run,rec:findTrip(o.date,dest,run)}; renderTrip(); return; }
 var fields={'Trip':school+' · '+dest+' · '+o.date+' · '+run,'School':school,'Destination':dest,'Date':o.date,'Run':run,'Departure Location':loc,'Departure Time':tm,'Status':'Started','Started By Role':roleName+(myName()?' · '+myName():''),'Submitted At':new Date().toISOString()};
 var res=await api({action:'create', table:TRIPS, fields:fields});
