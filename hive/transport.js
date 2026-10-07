@@ -9,7 +9,8 @@ v2 (10/7/26): AM run = Kid City → school; PM run = school → Kid City (depart
 v3 (10/7/26): time fields start BLANK with a ⏱ Now button — tap Now when it's happening live, or type the real time when catching up late. Nothing is auto-stamped.
 v4 (10/7/26): director portal — school now comes from api whoami (the page's SCHOOL isn't on window), fixes the 'pick your school' dead-end.
 v5 (10/7/26): 'Select all' buttons for riders IN (whole roster) and riders OUT (everyone who boarded), plus Clear.
-v6 (10/7/26): director-only '📄 Inspection packet' card on the Facility Checklists tab — one tap files a Packet Requests row; Charles builds the week-to-date packet and posts the Drive link back here within ~20 min. */
+v6 (10/7/26): director-only '📄 Inspection packet' card on the Facility Checklists tab — one tap files a Packet Requests row; Charles builds the week-to-date packet at the next pickup (9 AM · Wed 2:45 PM · other weekdays 3:45 PM) and posts the Drive link back here.
+v7 (10/7/26): card wording updated to those pickup times. */
 (function(){
 var path = location.pathname.toLowerCase();
 var isDir = path.indexOf('director.html') > -1;
@@ -250,7 +251,7 @@ var PKT='Packet Requests';
 function packetCard(){
 var host=document.getElementById('p-facility'); if(!host){ return setTimeout(packetCard,500); }
 var card=document.createElement('div'); card.className='pk-card'; card.id='pkCard';
-card.innerHTML='<div class="pk-h">📄 Inspection packet — need this week\'s charts right now?</div><div class="pk-sub">One tap and Charles builds this week\'s filled cleaning charts, inspections and bus logs (Monday through today) as a PDF, puts it in your Drive folder and posts the link here and on your to-do list — usually within 20 minutes. While you wait, the inspector can view the forms live on this tab and the 🚌 Transportation tab.</div><div class="pk-row"><button class="tr-btn pur" id="pkGo">📄 Build this week\'s packet now</button><span id="pkMsg" class="pk-sub" style="margin:0"></span></div><div class="pk-list" id="pkList"></div>';
+card.innerHTML='<div class="pk-h">📄 Inspection packet — need this week\'s charts right now?</div><div class="pk-sub">One tap and Charles builds this week\'s filled cleaning charts, inspections and bus logs (Monday through today) as a PDF, puts it in your Drive folder and posts the link here and on your to-do list. Pickups: 9:00 AM, and 2:45 PM on Wednesdays / 3:45 PM other days. Meanwhile, the inspector can view every form live on this tab and the 🚌 Transportation tab, and yesterday\'s forms are already PDFs in your Drive compliance folder.</div><div class="pk-row"><button class="tr-btn pur" id="pkGo">📄 Build this week\'s packet now</button><span id="pkMsg" class="pk-sub" style="margin:0"></span></div><div class="pk-list" id="pkList"></div>';
 host.insertBefore(card, host.firstChild);
 document.getElementById('pkGo').onclick=requestPacket;
 loadPacketList();
@@ -262,7 +263,7 @@ var mon=mondayOf(new Date()); var now=new Date();
 var fields={'Request':sc+' · '+ymd(now)+' · '+nowHM(),'School':sc,'Requested By':myName()||'Director','Requested At':now.toISOString(),'Status':'Requested','Week Of':ymd(mon),'Notes':'Requested from the Director Dashboard'};
 var res=await api({action:'create', table:PKT, fields:fields});
 var ok=res&&res.records&&res.records[0]&&res.records[0].id;
-msg.textContent= ok ? '✅ Request sent — the link will appear below (and on your to-do list) when it\'s ready.' : ('Didn\'t send — '+((res&&res.error)||'try again'));
+msg.textContent= ok ? '✅ Request sent — the link will appear below (and on your to-do list) after the next pickup (9 AM · Wed 2:45 PM · other days 3:45 PM).' : ('Didn\'t send — '+((res&&res.error)||'try again'));
 btn.disabled=false; loadPacketList();
 }
 async function loadPacketList(){
