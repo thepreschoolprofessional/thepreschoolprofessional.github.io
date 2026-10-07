@@ -7,7 +7,8 @@ Rules from Mrs. Bear: signatures carry the date only (no timestamps); departure 
 Week-at-a-glance grid, any past day can be opened and back-filled.
 v2 (10/7/26): AM run = Kid City → school; PM run = school → Kid City (departure/arrival swap). Signatures print with DATE only on the paper log.
 v3 (10/7/26): time fields start BLANK with a ⏱ Now button — tap Now when it's happening live, or type the real time when catching up late. Nothing is auto-stamped.
-v4 (10/7/26): director portal — school now comes from api whoami (the page's SCHOOL isn't on window), fixes the 'pick your school' dead-end. */
+v4 (10/7/26): director portal — school now comes from api whoami (the page's SCHOOL isn't on window), fixes the 'pick your school' dead-end.
+v5 (10/7/26): 'Select all' buttons for riders IN (whole roster) and riders OUT (everyone who boarded), plus Clear. */
 (function(){
 var path = location.pathname.toLowerCase();
 var isDir = path.indexOf('director.html') > -1;
@@ -39,6 +40,7 @@ var css = ''
 + '.tr-btn:disabled{opacity:.45;cursor:default;}'
 + '.tr-time{display:flex;gap:6px;} .tr-time input{flex:1;} .tr-now{border:none;border-radius:10px;padding:0 12px;font-weight:900;cursor:pointer;background:#ffb13d;color:#fff;white-space:nowrap;}'
 + '.tr-hint{font-size:.7rem;color:#9b8576;margin-top:3px;}'
++ '.tr-bulk{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 6px;} .tr-bulk .tr-btn{padding:8px 14px;font-size:.8rem;}'
 + '.tr-step{display:flex;align-items:center;gap:8px;font-weight:900;color:#7a6a5c;margin:14px 0 6px;font-size:.85rem;} .tr-step b{display:inline-block;width:22px;height:22px;border-radius:50%;background:#ffb13d;color:#fff;text-align:center;line-height:22px;font-size:.72rem;} .tr-step.ok b{background:#46c97f;}'
 + '.tr-riders{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:6px 0;}'
 + '.tr-rider{display:flex;align-items:center;justify-content:space-between;background:#fbf7f2;border-radius:12px;padding:8px 10px;font-weight:800;font-size:.85rem;color:#4a3a30;}'
@@ -156,14 +158,14 @@ html+='<div class="tr-row"><div><span class="tr-lbl">Departure location</span><i
 
 if(f){
 // STEP 2 — Riders IN
-html+='<div class="tr-step'+(inL.length?' ok':'')+'"><b>2</b> Riders on the bus (tap IN as each child boards)</div><div class="tr-riders">'+roster.map(function(n){ var on=inL.indexOf(n)>-1; return '<div class="tr-rider"><span>'+esc(n)+'</span><button class="tr-tog'+(on?' on':'')+'" data-k="in" data-n="'+esc(n)+'">'+(on?'IN ✓':'IN')+'</button></div>'; }).join('')+'</div>';
+html+='<div class="tr-step'+(inL.length?' ok':'')+'"><b>2</b> Riders on the bus (tap IN as each child boards)</div><div class="tr-bulk"><button class="tr-btn grn" id="trAllIn">✓ Select all IN ('+roster.length+')</button><button class="tr-btn sec" id="trClearIn">Clear</button></div><div class="tr-riders">'+roster.map(function(n){ var on=inL.indexOf(n)>-1; return '<div class="tr-rider"><span>'+esc(n)+'</span><button class="tr-tog'+(on?' on':'')+'" data-k="in" data-n="'+esc(n)+'">'+(on?'IN ✓':'IN')+'</button></div>'; }).join('')+'</div>';
 html+='<div class="tr-row"><div><input class="tr-inp" id="trExtra" placeholder="Add a rider not on the list (First L.)"></div><div style="flex:0"><button class="tr-btn sec" id="trAddExtra">Add</button></div></div>';
 // STEP 3 — Arrive
 var arrived=!!(f['Arrival Time']);
 html+='<div class="tr-step'+(arrived?' ok':'')+'"><b>3</b> Arrive at '+esc(toLoc(o.dest,o.run))+'</div>';
 html+='<div class="tr-row"><div><span class="tr-lbl">Arrival time</span><div class="tr-time"><input class="tr-inp" id="trArrTime" value="'+esc(f['Arrival Time']||'')+'" placeholder="type time, e.g. 7:35 AM"><button type="button" class="tr-now" data-for="trArrTime">⏱ Now</button></div><div class="tr-hint">Tap Now on arrival, or type the real arrival time if you\'re logging this later.</div></div><div style="flex:0;align-self:flex-end"><button class="tr-btn grn" id="trArrive">'+(arrived?'Update arrival':'Save arrival')+'</button></div></div>';
 // STEP 4 — Riders OUT
-html+='<div class="tr-step'+(outL.length&&outL.length>=inL.length?' ok':'')+'"><b>4</b> Riders off the bus (tap OUT as each child exits)</div><div class="tr-riders">'+roster.map(function(n){ var on=outL.indexOf(n)>-1; var was=inL.indexOf(n)>-1; return '<div class="tr-rider" style="'+(was?'':'opacity:.45')+'"><span>'+esc(n)+'</span><button class="tr-tog'+(on?' on':'')+'" data-k="out" data-n="'+esc(n)+'">'+(on?'OUT ✓':'OUT')+'</button></div>'; }).join('')+'</div>';
+html+='<div class="tr-step'+(outL.length&&outL.length>=inL.length?' ok':'')+'"><b>4</b> Riders off the bus (tap OUT as each child exits)</div><div class="tr-bulk"><button class="tr-btn grn" id="trAllOut"'+(inL.length?'':' disabled')+'>✓ Select all OUT ('+inL.length+')</button><button class="tr-btn sec" id="trClearOut">Clear</button></div><div class="tr-riders">'+roster.map(function(n){ var on=outL.indexOf(n)>-1; var was=inL.indexOf(n)>-1; return '<div class="tr-rider" style="'+(was?'':'opacity:.45')+'"><span>'+esc(n)+'</span><button class="tr-tog'+(on?' on':'')+'" data-k="out" data-n="'+esc(n)+'">'+(on?'OUT ✓':'OUT')+'</button></div>'; }).join('')+'</div>';
 var missing=inL.filter(function(n){return outL.indexOf(n)<0;});
 if(inL.length && missing.length) html+='<div class="tr-warn">Still on the bus: '+esc(missing.join(', '))+'</div>';
 // STEP 5 — Driver signature
@@ -192,6 +194,10 @@ document.getElementById('trBack').onclick=closeTrip;
 document.querySelectorAll('.tr-now').forEach(function(b){ b.onclick=function(){ var t=document.getElementById(b.getAttribute('data-for')); if(t){ t.value=nowHM(); } }; });
 if(!f){ document.getElementById('trStart').onclick=startTrip; var sync=function(){ document.getElementById('trDepLoc').value=fromLoc(val('trDest')||o.dest, val('trRun')||o.run); }; document.getElementById('trDest').onchange=sync; document.getElementById('trRun').onchange=sync; return; }
 document.querySelectorAll('.tr-tog').forEach(function(b){ b.onclick=function(){ toggleRider(b.getAttribute('data-k'), b.getAttribute('data-n')); }; });
+var ai=document.getElementById('trAllIn'); if(ai) ai.onclick=function(){ var rs=ridersFor(o.dest,o.run); lines(f['Riders Out']).forEach(function(n){ if(rs.indexOf(n)<0) rs.push(n); }); saveFields({'Riders In':rs.join('\n')}, 'All '+rs.length+' marked IN'); };
+var ci=document.getElementById('trClearIn'); if(ci) ci.onclick=function(){ if(confirm('Clear all IN marks for this trip?')) saveFields({'Riders In':''}, 'IN marks cleared'); };
+var ao=document.getElementById('trAllOut'); if(ao) ao.onclick=function(){ var ins=lines(f['Riders In']); saveFields({'Riders Out':ins.join('\n')}, 'All '+ins.length+' marked OUT'); };
+var co=document.getElementById('trClearOut'); if(co) co.onclick=function(){ if(confirm('Clear all OUT marks for this trip?')) saveFields({'Riders Out':''}, 'OUT marks cleared'); };
 document.getElementById('trAddExtra').onclick=function(){ var n=(document.getElementById('trExtra').value||'').trim(); if(!n) return; toggleRider('in',n); };
 document.getElementById('trArrive').onclick=function(){ var v=(document.getElementById('trArrTime').value||'').trim(); if(!v){ toast('Tap ⏱ Now or type the arrival time'); return; } saveFields({'Arrival Time':v, 'Departure Location':val('trDepLoc'), 'Departure Time':val('trDepTime'), 'Status': nextStatus(f,{arr:v})}, 'Arrival marked'); };
 var ds=document.getElementById('trDrvSign'); if(ds) ds.onclick=function(){ var n=val('trDrvName'), d=val('trDrvDate'); if(!n||!d){toast('Name and date, please'); return;} localStorage.setItem('hiveName',n); saveFields({'Driver Name':n,'Driver Date':d,'Sweep Confirmed':true,'Status':nextStatus(f,{drv:1})}, 'Signed as driver'); };
