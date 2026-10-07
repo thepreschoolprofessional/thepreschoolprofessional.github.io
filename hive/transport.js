@@ -8,7 +8,8 @@ Week-at-a-glance grid, any past day can be opened and back-filled.
 v2 (10/7/26): AM run = Kid City → school; PM run = school → Kid City (departure/arrival swap). Signatures print with DATE only on the paper log.
 v3 (10/7/26): time fields start BLANK with a ⏱ Now button — tap Now when it's happening live, or type the real time when catching up late. Nothing is auto-stamped.
 v4 (10/7/26): director portal — school now comes from api whoami (the page's SCHOOL isn't on window), fixes the 'pick your school' dead-end.
-v5 (10/7/26): 'Select all' buttons for riders IN (whole roster) and riders OUT (everyone who boarded), plus Clear. */
+v5 (10/7/26): 'Select all' buttons for riders IN (whole roster) and riders OUT (everyone who boarded), plus Clear.
+v6 (10/7/26): director-only '📄 Inspection packet' card on the Facility Checklists tab — one tap files a Packet Requests row; Charles builds the week-to-date packet and posts the Drive link back here within ~20 min. */
 (function(){
 var path = location.pathname.toLowerCase();
 var isDir = path.indexOf('director.html') > -1;
@@ -41,6 +42,7 @@ var css = ''
 + '.tr-time{display:flex;gap:6px;} .tr-time input{flex:1;} .tr-now{border:none;border-radius:10px;padding:0 12px;font-weight:900;cursor:pointer;background:#ffb13d;color:#fff;white-space:nowrap;}'
 + '.tr-hint{font-size:.7rem;color:#9b8576;margin-top:3px;}'
 + '.tr-bulk{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 6px;} .tr-bulk .tr-btn{padding:8px 14px;font-size:.8rem;}'
++ '.pk-card{background:#fff;border-radius:18px;padding:14px 16px;box-shadow:0 6px 18px rgba(74,58,48,.10);margin:0 0 14px;border-left:8px solid #9b6bff;} .pk-h{font-weight:900;font-size:1rem;color:#4a3a30;margin-bottom:4px;} .pk-sub{font-size:.8rem;color:#9b8576;margin-bottom:10px;} .pk-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;} .pk-list{margin-top:10px;font-size:.8rem;} .pk-item{padding:6px 0;border-top:1px solid #f6ece0;} .pk-st{display:inline-block;padding:2px 8px;border-radius:8px;font-weight:900;font-size:.7rem;color:#fff;margin-right:6px;} .pk-Requested{background:#ffb13d;} .pk-Building{background:#ff9b4a;} .pk-Done{background:#46c97f;} .pk-Failed{background:#ff6b6b;}'
 + '.tr-step{display:flex;align-items:center;gap:8px;font-weight:900;color:#7a6a5c;margin:14px 0 6px;font-size:.85rem;} .tr-step b{display:inline-block;width:22px;height:22px;border-radius:50%;background:#ffb13d;color:#fff;text-align:center;line-height:22px;font-size:.72rem;} .tr-step.ok b{background:#46c97f;}'
 + '.tr-riders{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:6px 0;}'
 + '.tr-rider{display:flex;align-items:center;justify-content:space-between;background:#fbf7f2;border-radius:12px;padding:8px 10px;font-weight:800;font-size:.85rem;color:#4a3a30;}'
@@ -243,6 +245,34 @@ area.innerHTML='<div class="empty">Loading the bus log… 🚌</div>';
 try{ await loadRiders(); await loadTrips(); }catch(e){ area.innerHTML='<div class="tr-warn">Couldn\'t load — check your connection and try again.</div>'; return; }
 if(open){ open.rec=findTrip(open.date,open.dest,open.run); renderTrip(); } else renderGrid();
 }
+// ---------- Inspection packet (director only) ----------
+var PKT='Packet Requests';
+function packetCard(){
+var host=document.getElementById('p-facility'); if(!host){ return setTimeout(packetCard,500); }
+var card=document.createElement('div'); card.className='pk-card'; card.id='pkCard';
+card.innerHTML='<div class="pk-h">📄 Inspection packet — need this week\'s charts right now?</div><div class="pk-sub">One tap and Charles builds this week\'s filled cleaning charts, inspections and bus logs (Monday through today) as a PDF, puts it in your Drive folder and posts the link here and on your to-do list — usually within 20 minutes. While you wait, the inspector can view the forms live on this tab and the 🚌 Transportation tab.</div><div class="pk-row"><button class="tr-btn pur" id="pkGo">📄 Build this week\'s packet now</button><span id="pkMsg" class="pk-sub" style="margin:0"></span></div><div class="pk-list" id="pkList"></div>';
+host.insertBefore(card, host.firstChild);
+document.getElementById('pkGo').onclick=requestPacket;
+loadPacketList();
+}
+async function requestPacket(){
+var btn=document.getElementById('pkGo'); btn.disabled=true; var msg=document.getElementById('pkMsg'); msg.textContent='Sending…';
+await ensureDirSchool(); var sc=mySchool()||'';
+var mon=mondayOf(new Date()); var now=new Date();
+var fields={'Request':sc+' · '+ymd(now)+' · '+nowHM(),'School':sc,'Requested By':myName()||'Director','Requested At':now.toISOString(),'Status':'Requested','Week Of':ymd(mon),'Notes':'Requested from the Director Dashboard'};
+var res=await api({action:'create', table:PKT, fields:fields});
+var ok=res&&res.records&&res.records[0]&&res.records[0].id;
+msg.textContent= ok ? '✅ Request sent — the link will appear below (and on your to-do list) when it\'s ready.' : ('Didn\'t send — '+((res&&res.error)||'try again'));
+btn.disabled=false; loadPacketList();
+}
+async function loadPacketList(){
+var el=document.getElementById('pkList'); if(!el) return;
+var d=await api({action:'list', table:PKT, maxRecords:6, sortField:'Requested At', sortDir:'desc'});
+var recs=((d&&d.records)||[]).map(function(r){return r.fields;});
+if(!recs.length){ el.innerHTML=''; return; }
+el.innerHTML=recs.map(function(f){ var st=sel(f.Status)||'Requested'; var when=(f['Requested At']||'').slice(0,16).replace('T',' '); var link=f['Drive Link']?' <a href="'+esc(f['Drive Link'])+'" target="_blank" style="font-weight:900;color:#9b6bff">Open packet ↗</a>':''; var note=(st==='Failed'&&f.Notes)?' <span style="color:#c0392b">'+esc(f.Notes)+'</span>':''; return '<div class="pk-item"><span class="pk-st pk-'+st+'">'+st+'</span>'+esc(when)+' · '+esc(f['Requested By']||'')+link+note+'</div>'; }).join('');
+}
+
 function boot(){
 if(!document.querySelector('nav') || !document.querySelector('main')) { return setTimeout(boot, 300); }
 var intro = isTeach
@@ -251,6 +281,7 @@ var intro = isTeach
 var schoolPick = isTeach ? '<div class="tr-top"><div><span class="tr-lbl">Your school</span><select class="tr-sel" id="trSchool"><option value="">— pick —</option><option>Sanford</option><option>DeLand 2</option></select></div><div><span class="tr-lbl">Your name</span><input class="tr-inp" id="trMyName" style="width:auto" placeholder="First Last"></div></div>' : '';
 addPanel('transport', intro + schoolPick + '<div id="trArea" class="empty">Loading… 🚌</div>');
 addTab('🚌 Transportation', 'linear-gradient(90deg,#2fc4b2,#46c97f)', 'transport', function(){ open=null; refresh(); });
+if(isDir){ packetCard(); }
 if(isTeach){
 var s=document.getElementById('trSchool'); s.value=localStorage.getItem('hiveSchool')||''; s.onchange=function(){ localStorage.setItem('hiveSchool',s.value); open=null; refresh(); };
 var n=document.getElementById('trMyName'); n.value=myName(); n.onchange=function(){ localStorage.setItem('hiveName',n.value.trim()); };
