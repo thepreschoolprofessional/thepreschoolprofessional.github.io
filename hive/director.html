@@ -121,7 +121,6 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
   <div class="tab t-onb" onclick="show('onb',this)">🌟 Onboarding</div>
   <div class="tab" style="background:#2fc4b2" onclick="show('forms',this)">📄 Forms Wizard</div>
   <div class="tab" style="background:linear-gradient(90deg,#5a4cc9,#9b6bff)" onclick="show('mc',this)">🎛 Mission Control</div>
-<div class="tab" style="background:linear-gradient(90deg,#e8833a,#f2b544)" onclick="show('books',this);loadBooks()">📚 Phonics Books</div>
   <div class="tab" style="background:linear-gradient(90deg,var(--teal),var(--green))" onclick="show('wb',this)">📚 Lesson Plan Wizard</div>
   <div class="tab t-fund" onclick="show('fund',this)">🐝 Fundraiser</div>
 </nav>
@@ -255,13 +254,6 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
     <div class="sect">🌱 In progress</div><div id="onbList" class="empty">Loading…</div>
   </div>
 
-<div class="panel" id="p-books">
-<style>#p-books .bkgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px;margin-top:10px}#p-books .bk{background:#fff;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.08);overflow:hidden;cursor:pointer;transition:transform .15s;border:none;padding:0;text-align:left;font-family:inherit}#p-books .bk:hover{transform:translateY(-3px)}#p-books .bk img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block;background:#f4ede3}#p-books .bk b{display:block;padding:8px 10px 10px;font-size:.88rem;line-height:1.25}#p-books .viewer{display:none;margin-top:12px}#p-books .viewer.show{display:block}#p-books .vbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}#p-books .vbar b{flex:1;font-size:1.05rem}#p-books .vbtn{border:none;border-radius:10px;padding:8px 14px;font-weight:800;cursor:pointer;color:#fff;background:#e8833a;text-decoration:none;font-size:.85rem}#p-books .vbtn.alt{background:#8a7c66}#p-books iframe{width:100%;height:78vh;border:0;border-radius:12px;background:#222}</style>
-<div class="step">📚 B.E.A.R. Phonics books — tap a cover to read it on screen (great for circle time on the TV or tablet).</div>
-<div class="viewer" id="bkViewer"><div class="vbar"><b id="bkTitle"></b><a class="vbtn" id="bkFull" href="#" target="_blank" rel="noopener">⛶ Full screen</a><button class="vbtn alt" onclick="closeBook()">✕ Back to all books</button></div><iframe id="bkFrame" allow="autoplay; fullscreen" allowfullscreen></iframe></div>
-<div id="bkList" class="bkgrid"><div class="empty">Loading books… 📚</div></div>
-</div>
-
   <div class="panel" id="p-mc">
     <div class="banner">🎛 Every tool and link you need — Slack, portals, look-ups, music, your school's registration & tour links. One home base. (Same links as the old interface page — now they live here!)</div>
     <div id="mcList" class="empty">Loading your links… 🐝</div>
@@ -296,6 +288,12 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
       <div style="color:var(--soft);font-size:.9rem;margin-bottom:12px" id="wbNote"></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap" id="wbBtns"></div>
     </div>
+<div id="p-books" style="margin-top:30px;border-top:2px dashed #e5d9c8;padding-top:18px">
+<style>#p-books .bkgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px;margin-top:10px}#p-books .bk{background:#fff;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.08);overflow:hidden;cursor:pointer;transition:transform .15s;border:none;padding:0;text-align:left;font-family:inherit}#p-books .bk:hover{transform:translateY(-3px)}#p-books .bk img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block;background:#f4ede3}#p-books .bk b{display:block;padding:8px 10px 10px;font-size:.88rem;line-height:1.25}#p-books .viewer{display:none;margin-top:12px}#p-books .viewer.show{display:block}#p-books .vbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}#p-books .vbar b{flex:1;font-size:1.05rem}#p-books .vbtn{border:none;border-radius:10px;padding:8px 14px;font-weight:800;cursor:pointer;color:#fff;background:#e8833a;text-decoration:none;font-size:.85rem}#p-books .vbtn.alt{background:#8a7c66}#p-books iframe{width:100%;height:78vh;border:0;border-radius:12px;background:#222}</style>
+<div class="sect">📚 B.E.A.R. Phonics Books — tap a cover to read it on screen (great for circle time on the TV or tablet).</div>
+<div class="viewer" id="bkViewer"><div class="vbar"><b id="bkTitle"></b><a class="vbtn" id="bkFull" href="#" target="_blank" rel="noopener">⛶ Full screen</a><button class="vbtn alt" onclick="closeBook()">✕ Back to all books</button></div><iframe id="bkFrame" allow="autoplay; fullscreen" allowfullscreen></iframe></div>
+<div id="bkList" class="bkgrid"><div class="empty">Loading books… 📚</div></div>
+</div>
   </div>
 </main>
 <div class="toast" id="toast"></div>
@@ -625,6 +623,7 @@ async function loadOnb(){ const d = await api({action:'list', table:'Onboarding 
 
 // ---- PHONICS BOOKS (Resource Links · Section = 📚 Phonics Books) ----
 let booksLoaded=false;
+setTimeout(()=>loadBooks(),0);
 async function loadBooks(){ if(booksLoaded) return; 
 const d = await api({action:'list', table:'Resource Links', filterByFormula:"{Section}='📚 Phonics Books'", sortField:'Order', maxRecords:100});
 const recs=(d.records||[]).map(r=>r.fields).filter(f=>f.URL);
