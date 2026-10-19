@@ -1,0 +1,6 @@
+# Always load the newest version of the portal pages (no stale cached copies)
+<IfModule mod_headers.c>
+<FilesMatch "\.(html|js)$">
+Header set Cache-Control "no-cache, must-revalidate"
+</FilesMatch>
+</IfModule>
