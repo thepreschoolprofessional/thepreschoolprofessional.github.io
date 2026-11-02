@@ -183,7 +183,7 @@ function boardHTML(){
     h+='<button class="tile'+(rt.over?' warn':'')+'" data-act="openroom" data-r="'+encodeURIComponent(r.name)+'">'
      +'<div class="tn">'+esc(r.name)+'</div><div class="ts">'+esc(r.teachers.join(', '))+'</div>'
      +'<div class="tc"><span class="big">'+pres+'</span><span class="of"> in / '+list.length+' on roster</span></div>'
-     +'<div class="tr">Ratio now <b class="'+(rt.over?'rd':'')+'">'+(rt.kids||rt.staff? rt.kids+':'+rt.staff : '—')+'</b>'+(rt.req&&rt.kids?' <small>(max '+rt.req+':1)</small>':'')+'</div>'
+     +'<div class="tr">Ratio now <b class="'+(rt.over?'rd':'')+'">'+(rt.kids||rt.staff? rt.kids+':'+rt.staff : '—')+'</b>'+(rt.req&&rt.kids?' <small>(max '+rt.req+':1 for '+rt.grp+')</small>':'')+'</div>'
      +(ot?'<div class="tb o">With class: '+esc(ot.dest)+' since '+fmt(ot.out)+'</div>':'')
      +(due?'<div class="tb r">Headcount due</div>':'')
      +((ar||ir)?'<div class="tb r">'+(ar?ar+' accident ':'')+(ir?ir+' illness':'')+' report(s)</div>':'')
@@ -264,7 +264,7 @@ function staffTab(r){
   h+='<label class="lbl">Teacher coming in? Pick their name (they are stamped IN at the time above)</label><select class="inp" id="tpick" data-act="pick"><option value="">Choose a teacher…</option>'+opts.map(function(t){return '<option>'+esc(t)+'</option>';}).join('')+'<option value="__other">Someone else (type a name)…</option></select></div>';
   // ratio grid
   var list=roomKids(r.name), am=attMapFor(list), kl=list.map(function(c){return {name:c.name,dob:c.dob};}), nowS=nowHM();
-  h+='<div class="card"><b>Children : Staff by hour</b><div class="sub2">Fills in automatically from sign-ins and staff times. Red = over the Florida limit for the youngest child present.</div><div class="rgrid">';
+  h+='<div class="card"><b>Children : Staff by hour</b><div class="sub2">Fills in automatically from sign-ins and staff times. Red = over the limit for the majority age group in the room (3s = 15:1, 2s = 11:1, 4s = 20:1; a tie uses the younger group).</div><div class="rgrid">';
   P.SLOTS.forEach(function(s,i){
     var show = !isToday() || s<=nowS; var q=P.ratioAt(kl,am,day.staff,s,S.date); var txt=(show&&(q.kids||q.staff))? q.kids+':'+q.staff : '—';
     h+='<div class="rc'+(show&&q.over?' over':'')+'"><div class="rt">'+P.SLOT_LABELS[i]+'</div><div class="rv">'+txt+'</div><button class="mi" data-act="mgmt" data-s="'+s+'">'+esc(day.mgmt[s]||'initial')+'</button></div>';

@@ -36,16 +36,22 @@ function staffAt(staff, hm){
   var n=0; Object.keys(staff||{}).forEach(function(k){ (staff[k]||[]).forEach(function(s){ if(s.in && s.in<=hm && (!s.out || hm<s.out)) n++; }); });
   return n;
 }
-/* children: [{name,dob}], att: {name: attRow}, staff: {teacher:[{in,out}]} -> {kids, staff, req, over} at time hm */
+/* Kid City rule: the ratio follows the MAJORITY age group in the room (not the youngest child).
+   Age groups: under 1, 1s, 2s, 3s, 4s, 5+. On a tie the younger group (stricter ratio) wins. */
+function ageBracket(m){ return m<12?0:m<24?1:m<36?2:m<48?3:m<60?4:5; }
+var BRACKET_MIN=[0,12,24,36,48,60], BRACKET_NAME=['infants','1s','2s','3s','4s','5s+'];
+/* children: [{name,dob}], att: {name: attRow}, staff: {teacher:[{in,out}]} -> {kids, staff, req, over, grp} at time hm */
 function ratioAt(children, att, staff, hm, dateStr){
-  var kids=0, minM=null;
+  var kids=0, cnt=[0,0,0,0,0,0];
   children.forEach(function(c){
     var a=att[c.name];
-    if(presentAt(a,hm)){ kids++; var m=monthsOld(c.dob,dateStr); if(m!=null && (minM==null||m<minM)) minM=m; }
+    if(presentAt(a,hm)){ kids++; var m=monthsOld(c.dob,dateStr); if(m!=null) cnt[ageBracket(m)]++; }
   });
-  var st=staffAt(staff,hm), req=requiredRatio(minM);
+  var best=-1;
+  for(var i=0;i<6;i++){ if(cnt[i]>0 && (best<0 || cnt[i]>cnt[best])) best=i; }
+  var st=staffAt(staff,hm), req=best<0?null:requiredRatio(BRACKET_MIN[best]);
   var over = (kids>0 && req!=null && (st===0 || kids/st>req));
-  return {kids:kids, staff:st, req:req, over:over};
+  return {kids:kids, staff:st, req:req, over:over, grp:best<0?'':BRACKET_NAME[best]};
 }
 
 var CSS = ''
@@ -136,7 +142,7 @@ function render(o){
   });
   h+='</tr><tr><td class="nm">Management Initials</td>';
   SLOTS.forEach(function(s){ h+='<td class="c sm">'+esc(mgmt[s]||'')+'</td>'; });
-  h+='</tr></table>';
+  h+='</tr></table><div class="ft" style="margin-top:2px">Ratio limit follows the majority age group in the room (Kid City policy); a tie uses the younger group.</div>';
   // headcount log
   if(counts.length){
     h+='<div class="hc"><b>Headcounts / sweeps:</b> '+counts.map(function(c){ return esc(fmt12(c.t))+' &mdash; '+esc(c.count)+(c.kind==='sweep'?' (sweep)':'')+(c.by?' ('+esc(c.by)+')':''); }).join(' &nbsp;|&nbsp; ')+'</div>';
