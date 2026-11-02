@@ -60,7 +60,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,san
 .trow{display:flex;gap:6px}.err{color:var(--r);font-size:14px;min-height:18px;margin-top:6px}
 .mback{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;display:flex;align-items:flex-end;justify-content:center}
 .mbox{background:#fff;width:100%;max-width:520px;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;padding:16px}
-.mbox h3{margin-top:0}.mrow{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.g3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px}.ckl{display:flex;gap:8px;align-items:center;font-size:16px;margin:6px 0}.ckl input,.rg input{width:20px;height:20px}.rg label{display:block;font-size:16px;margin:6px 0}.dayrow{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:6px;align-items:center}.inp.sm{padding:8px;font-size:15px}.addh{margin:18px 0 4px;border-top:2px solid var(--line);padding-top:12px}.mbox h3{margin-top:0}.mrow{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap}
 .dests{display:flex;flex-wrap:wrap;gap:6px}.dst input{display:none}.dst span{display:block;padding:10px 12px;border:2px solid var(--line);border-radius:10px;font-weight:700}.dst input:checked+span{background:var(--y);border-color:var(--y)}
 .ck2{display:flex;gap:10px;align-items:center;margin:14px 0;font-weight:700}.ck2 input{width:26px;height:26px}
 .rst .rsr{margin-bottom:10px}.rsk{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-top:1px solid var(--line)}
@@ -75,6 +75,6 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,san
 <div id="app"></div><div id="modal"></div><div id="toast" class="toast"></div>
 <script src="rooms-paper.js?v=1"></script>
 <script>document.getElementById('paperCss').textContent=(window.RoomsPaper&&RoomsPaper.CSS)||'';</script>
-<script src="rooms.js?v=4"></script>
+<script src="rooms.js?v=5"></script>
 </body>
 </html>

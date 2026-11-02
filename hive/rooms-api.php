@@ -32,7 +32,7 @@ $CREATE_DIR   = ['Room Children'];
 $UPDATE = [
  'Room Attendance' => ['Current Room','Arrival','Departure','Arrival By','Departure By','B','L','P','WC','IR','AR'],
  'Room Day'        => ['Staff','Transitions','Counts','Mgmt','Notes'],
- 'Room Children'   => ['Child','Room','DOB','Status','Withdrawn Date','Withdrawn From Room','Withdraw Reason','ProCare Removed']
+ 'Room Children'   => ['Child','Room','DOB','Status','Withdrawn Date','Withdrawn From Room','Withdraw Reason','ProCare Removed','KidKare Action','KidKare Intake']
 ];
 $DIRECTOR_ONLY_UPDATE = ['Room Children'];          // whole table
 $DIRECTOR_ONLY_FIELDS = ['Room Day' => ['Mgmt']];  // single fields

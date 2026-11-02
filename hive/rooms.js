@@ -416,18 +416,32 @@ var ACT = {
  dpinok: function(){ var p=val('dpin').trim(); if(!p) return; api('whoami','',null,p).then(function(w){ if(w.role!=='director'){ throw new Error('That is not a director PIN.'); } if(w.school && w.school!==S.school){ throw new Error('That PIN is for '+w.school+', not '+S.school+'.'); } S.dirPin=p; S.dirAt=Date.now(); closeModal(); var cb=needDirector.cb; needDirector.cb=null; if(cb) cb(p); }).catch(function(e){ var el=document.getElementById('derr'); if(el) el.textContent=e.message; }); },
  /* roster (director: add / withdraw) */
  roster: function(){ if(S.role==='director') rosterModal(S.pin); else needDirector(function(p){ rosterModal(p); }); },
- addkid: function(el){ var p=el.getAttribute('data-p'); var raw=val('knm').trim().replace(/\s+/g,' '); var dob=val('kdob'), room=val('kroom'); var err=document.getElementById('merr');
-   if(!raw){ err.textContent='Enter the child\'s first name and last name.'; return; }
-   var parts=raw.replace(/\./g,'').split(' '); var name = parts.length>1 ? parts[0]+' '+parts[parts.length-1].charAt(0).toUpperCase()+'.' : parts[0];
+ addkid: function(el){ var p=el.getAttribute('data-p'); var err=document.getElementById('merr'); err.textContent='';
+   var fn=val('kfn').trim(), ln=val('kln').trim(), dob=val('kdob'), room=val('kroom');
+   if(!fn||!ln){ err.textContent='Enter the child\'s first AND last name.'; return; }
    if(!dob){ err.textContent='Enter the date of birth.'; return; }
+   var name=fn+' '+ln.charAt(0).toUpperCase()+'.';
    if(S.kids.some(function(k){ return k.status==='Active' && k.name.toLowerCase()===name.toLowerCase(); })){ err.textContent=name+' is already on a roster. Use a different last initial or letter.'; return; }
-   api('create','Room Children',{fields:{Child:name, Room:room, DOB:dob, Status:'Active', Order:99}},p).then(function(){ closeModal(); toast(name+' added to '+room+'. Remember to add them in KidKare and ProCare too.'); return reloadAll(); }).catch(function(e){ err.textContent=e.message; }); },
+   var race=['AI','As','Bl','HI','Wh','Un'].filter(function(c){ return chk('krace'+c); });
+   var eth=radio('keth'); if(!race.length){ err.textContent='Pick at least one race (or Unknown) - KidKare requires it.'; return; } if(!eth){ err.textContent='Pick an ethnicity (or Unknown) - KidKare requires it.'; return; }
+   var gmode=radio('kgm'); var g={mode:gmode||'new'};
+   if(g.mode==='existing'){ g.existing=val('kgex').trim(); if(!g.existing){ err.textContent='Type the existing parent/guardian name exactly as it shows in KidKare.'; return; } }
+   else { g.rel=val('kgrel'); g.first=val('kgfn').trim(); g.mid=val('kgmn').trim(); g.last=val('kgln').trim(); g.phone=val('kgph').trim(); g.phone2=val('kgph2').trim(); g.email=val('kgem').trim(); g.lang=val('kglang'); g.addr=val('kgad').trim(); g.city=val('kgct').trim(); g.state=val('kgst').trim()||'FL'; g.zip=val('kgzp').trim();
+     if(!g.first||!g.last||!g.phone||!g.addr||!g.city||!g.zip){ err.textContent='Guardian needs first + last name, primary phone, address, city and zip (KidKare requires them).'; return; } }
+   var days={}; ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach(function(d){ if(chk('kd'+d)) days[d]={drop:val('kdr'+d),pick:val('kpk'+d)}; });
+   if(!Object.keys(days).length){ err.textContent='Pick the days the child attends.'; return; }
+   var meals=['B','AM','L','PM','D','E'].filter(function(c){ return chk('km'+c); });
+   var intake={first:fn,mid:val('kmn').trim(),last:ln,dob:dob,enroll:val('ken'),expire:val('kex'),sex:radio('ksex')||'',race:race,eth:eth,
+     specialNeeds:chk('ksn'),atRisk:chk('kar'),solidsDate:val('ksol'),specialDiet:chk('ksd'),milkSub:chk('kms'),milkAllergy:chk('kma'),dietExp:val('kde'),notes:val('kno').trim(),
+     guardian:g,days:days,timesVary:chk('ktv'),overnight:chk('kov'),meals:meals,migrant:chk('kmi'),room:room};
+   if(!intake.enroll||!intake.expire){ err.textContent='Enter the enrollment date and expiration date.'; return; }
+   api('create','Room Children',{fields:{Child:name, Room:room, DOB:dob, Status:'Active', Order:99, 'KidKare Action':'Needs Add', 'KidKare Intake':JSON.stringify(intake)}},p).then(function(){ closeModal(); toast(name+' added to '+room+'. Charles will add them in KidKare at the next 10 AM / 6 PM check. Remember ProCare too.'); return reloadAll(); }).catch(function(e){ err.textContent=e.message; }); },
  wdopen: function(el){ var id=el.getAttribute('data-id'), p=el.getAttribute('data-p'); var k=S.kids.filter(function(x){return x.id===id;})[0]; if(!k) return;
    openModal('<h3>Withdraw '+esc(k.name)+'?</h3><p class="sub2">They come off every room sheet. Charles will remove them from the food program (KidKare) and remind the director to remove them from ProCare.</p><label class="lbl">Reason</label><select class="inp" id="wr"><option>Moved away</option><option>Changed schools / programs</option><option>Aged out / started kindergarten</option><option>Family decision</option><option>Other</option></select><label class="lbl">Last day</label><input class="inp" type="date" id="wdt" value="'+todayISO()+'"><div id="merr" class="err"></div><div class="mrow"><button class="btn sec" data-act="mclose2">Cancel</button><button class="btn org" data-act="wdgo" data-id="'+id+'" data-p="'+esc(p)+'">Withdraw</button></div>'); },
  wdgo: function(el){ var id=el.getAttribute('data-id'), p=el.getAttribute('data-p'); var k=S.kids.filter(function(x){return x.id===id;})[0]; if(!k) return;
-   api('update','Room Children',{recordId:id, fields:{Status:'Withdrawn','Withdrawn Date':val('wdt'),'Withdrawn From Room':k.room,'Withdraw Reason':val('wr')}},p).then(function(){ closeModal(); toast(k.name+' withdrawn. KidKare removal + ProCare reminder are queued.'); return reloadAll(); }).catch(function(e){ var m=document.getElementById('merr'); if(m) m.textContent=e.message; }); },
+   api('update','Room Children',{recordId:id, fields:{Status:'Withdrawn','Withdrawn Date':val('wdt'),'Withdrawn From Room':k.room,'Withdraw Reason':val('wr'),'KidKare Action':'Needs Remove'}},p).then(function(){ closeModal(); toast(k.name+' withdrawn. KidKare removal happens at the next 10 AM / 6 PM check; remove from ProCare too.'); return reloadAll(); }).catch(function(e){ var m=document.getElementById('merr'); if(m) m.textContent=e.message; }); },
  pcdone: function(el){ var id=el.getAttribute('data-id'); needDirector(function(p){ api('update','Room Children',{recordId:id, fields:{'ProCare Removed':true}},p).then(reloadAll).then(function(){ toast('Marked removed from ProCare'); }).catch(function(e){ toast(e.message,true); }); }); },
- reinstate: function(el){ var id=el.getAttribute('data-id'); if(!confirm('Put this child back on their room roster?')) return; needDirector(function(p){ api('update','Room Children',{recordId:id, fields:{Status:'Active','Withdrawn Date':null,'Withdrawn From Room':'','Withdraw Reason':''}},p).then(reloadAll).then(function(){ toast('Put back on the roster'); }).catch(function(e){ toast(e.message,true); }); }); }
+ reinstate: function(el){ var id=el.getAttribute('data-id'); if(!confirm('Put this child back on their room roster?')) return; needDirector(function(p){ api('update','Room Children',{recordId:id, fields:{Status:'Active','Withdrawn Date':null,'Withdrawn From Room':'','Withdraw Reason':'','KidKare Action':null}},p).then(reloadAll).then(function(){ toast('Put back on the roster'); }).catch(function(e){ toast(e.message,true); }); }); }
 };
 function mgmtSave(roomName, pinUse){
   var d=S.days[roomName]; var fields={Staff:JSON.stringify(d.staff), Transitions:JSON.stringify(d.transitions), Counts:JSON.stringify(d.counts), Mgmt:JSON.stringify(d.mgmt), Notes:d.notes||''};
@@ -439,6 +453,34 @@ function mgmtSave(roomName, pinUse){
   });
 }
 function whoSelect(roomName,id){ var t=teachersFor(roomName); return '<select class="inp" id="'+id+'">'+t.map(function(x){ return '<option>'+esc(x)+'</option>'; }).join('')+'<option value="">Other / initials not listed</option></select>'; }
+
+function chk(id){ var e=document.getElementById(id); return !!(e&&e.checked); }
+function radio(name){ var e=document.querySelector('input[name="'+name+'"]:checked'); return e?e.value:''; }
+function kkForm(rooms){
+  var Y=new Date().getFullYear(), exp=(new Date().getMonth()>=7?Y+1:Y)+'-07-31';
+  function ck(id,l,chk0){ return '<label class="ckl"><input type="checkbox" id="'+id+'"'+(chk0?' checked':'')+'> '+l+'</label>'; }
+  var h='<h4>Child</h4><div class="g2"><input class="inp" id="kfn" placeholder="First name"><input class="inp" id="kmn" placeholder="Middle (optional)"></div><input class="inp" id="kln" placeholder="Last name" style="margin-top:8px">'
+   +'<label class="lbl">Date of birth</label><input class="inp" type="date" id="kdob"><label class="lbl">Room</label><select class="inp" id="kroom">'+rooms.map(function(n){ return '<option'+(n===S.room?' selected':'')+'>'+esc(n)+'</option>'; }).join('')+'</select>'
+   +'<div class="g2"><div><label class="lbl">Enrollment date</label><input class="inp" type="date" id="ken" value="'+todayISO()+'"></div><div><label class="lbl">Enrollment expires</label><input class="inp" type="date" id="kex" value="'+exp+'"></div></div>'
+   +'<label class="lbl">Sex</label><div class="rg"><label><input type="radio" name="ksex" value="Male"> Male</label><label><input type="radio" name="ksex" value="Female"> Female</label></div>'
+   +'<label class="lbl">Race (check all that apply)</label>'+ck('kraceAI','American Indian / Alaskan Native')+ck('kraceAs','Asian')+ck('kraceBl','Black or African American')+ck('kraceHI','Native Hawaiian / Pacific Islander')+ck('kraceWh','White')+ck('kraceUn','Unknown')
+   +'<label class="lbl">Ethnicity</label><div class="rg"><label><input type="radio" name="keth" value="Hispanic or Latino"> Hispanic or Latino</label><label><input type="radio" name="keth" value="Not Hispanic or Latino"> Not Hispanic or Latino</label><label><input type="radio" name="keth" value="Unknown"> Unknown</label></div>'
+   +'<label class="lbl">Special</label>'+ck('ksn','Special needs')+ck('kar','At-risk child')+'<label class="lbl">Developmentally ready for solid foods (date, infants)</label><input class="inp" type="date" id="ksol">'
+   +'<label class="lbl">Diet</label>'+ck('ksd','Special diet')+ck('kms','Needs milk substitution')+ck('kma','Milk allergy')+'<label class="lbl">Diet expiration date</label><input class="inp" type="date" id="kde"><label class="lbl">Notes</label><input class="inp" id="kno" placeholder="Optional">'
+   +'<h4>Parent / guardian</h4><div class="rg"><label><input type="radio" name="kgm" value="existing"> Already in KidKare (sibling)</label><label><input type="radio" name="kgm" value="new" checked> New contact</label></div>'
+   +'<div class="hint">For an existing contact I only link them. I never change who pays.</div><input class="inp" id="kgex" placeholder="Existing contact exactly as in KidKare, e.g. WONG, SAMANTHA">'
+   +'<label class="lbl">New contact</label><select class="inp" id="kgrel"><option>Mother</option><option>Father</option><option>Other</option></select><div class="g2" style="margin-top:8px"><input class="inp" id="kgfn" placeholder="First name"><input class="inp" id="kgmn" placeholder="Middle"></div><input class="inp" id="kgln" placeholder="Last name" style="margin-top:8px">'
+   +'<div class="g2" style="margin-top:8px"><input class="inp" id="kgph" type="tel" placeholder="Primary phone"><input class="inp" id="kgph2" type="tel" placeholder="Other phone"></div><input class="inp" id="kgem" type="email" placeholder="Email" style="margin-top:8px"><select class="inp" id="kglang" style="margin-top:8px"><option>English</option><option>Spanish</option></select>'
+   +'<input class="inp" id="kgad" placeholder="Street address" style="margin-top:8px"><div class="g3" style="margin-top:8px"><input class="inp" id="kgct" placeholder="City"><input class="inp" id="kgst" value="FL"><input class="inp" id="kgzp" placeholder="Zip"></div>'
+   +'<h4>Care schedule</h4><div class="hint">Check the days the child attends and the usual drop-off / pick-up times.</div>';
+  [['Mon','Monday'],['Tue','Tuesday'],['Wed','Wednesday'],['Thu','Thursday'],['Fri','Friday'],['Sat','Saturday'],['Sun','Sunday']].forEach(function(d){
+    h+='<div class="dayrow"><label class="ckl"><input type="checkbox" id="kd'+d[0]+'"'+(['Mon','Tue','Wed','Thu','Fri'].indexOf(d[0])>-1?' checked':'')+'> '+d[1]+'</label><input class="inp sm" type="time" id="kdr'+d[0]+'" value="07:00"><input class="inp sm" type="time" id="kpk'+d[0]+'" value="17:30"></div>';
+  });
+  h+=ck('ktv','Drop-off / pick-up times vary')+ck('kov','Child stays overnight')
+   +'<label class="lbl">Meals the child takes</label>'+ck('kmB','Breakfast',true)+ck('kmAM','AM snack')+ck('kmL','Lunch',true)+ck('kmPM','PM snack',true)+ck('kmD','Dinner')+ck('kmE','Evening snack')
+   +'<label class="lbl">CACFP</label>'+ck('kmi','Child is the dependent of a migrant worker');
+  return h;
+}
 function rosterModal(p){
   var rooms=S.rooms.map(function(r){return r.name;});
   var h='<h3>Roster — '+esc(S.school)+'</h3><div class="rst">';
@@ -449,7 +491,7 @@ function rosterModal(p){
     });
     h+='</div>';
   });
-  h+='</div><h4>Add a child</h4><input class="inp" id="knm" placeholder="First and last name (shown as First L.)"><label class="lbl">Date of birth</label><input class="inp" type="date" id="kdob"><label class="lbl">Room</label><select class="inp" id="kroom">'+rooms.map(function(n){ return '<option'+(n===S.room?' selected':'')+'>'+esc(n)+'</option>'; }).join('')+'</select><div id="merr" class="err"></div><div class="mrow"><button class="btn sec" data-act="mclose2">Close</button><button class="btn grn" data-act="addkid" data-p="'+esc(p)+'">Add child</button></div>';
+  h+='</div><h2 class="addh">Add a child</h2><div class="hint">Fill this once. Charles adds the child to KidKare at 10 AM / 6 PM, then clears the parent details.</div>'+kkForm(rooms)+'<div id="merr" class="err"></div><div class="mrow"><button class="btn sec" data-act="mclose2">Close</button><button class="btn grn" data-act="addkid" data-p="'+esc(p)+'">Add child</button></div>';
   openModal(h);
 }
 
