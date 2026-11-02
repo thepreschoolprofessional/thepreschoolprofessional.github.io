@@ -47,8 +47,11 @@ function ratioAt(children, att, staff, hm, dateStr){
     var a=att[c.name];
     if(presentAt(a,hm)){ kids++; var m=monthsOld(c.dob,dateStr); if(m!=null) cnt[ageBracket(m)]++; }
   });
-  var best=-1;
-  for(var i=0;i<6;i++){ if(cnt[i]>0 && (best<0 || cnt[i]>cnt[best])) best=i; }
+  /* majority = the oldest age group that at least half-plus-one of the room is AT or ABOVE
+     (e.g. 9 kids 3+ and 5 twos -> 3s ratio). */
+  var best=-1, above=0;
+  for(var i=5;i>=0;i--){ above+=cnt[i]; if(cnt[i]>0 && above*2>kids){ best=i; break; } }
+  if(best<0){ for(var j=0;j<6;j++){ if(cnt[j]>0){ best=j; break; } } }
   var st=staffAt(staff,hm), req=best<0?null:requiredRatio(BRACKET_MIN[best]);
   var over = (kids>0 && req!=null && (st===0 || kids/st>req));
   return {kids:kids, staff:st, req:req, over:over, grp:best<0?'':BRACKET_NAME[best]};
