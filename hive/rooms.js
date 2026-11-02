@@ -260,7 +260,8 @@ function staffTab(r){
     var btn = (last && last.in && !last.out) ? '<button class="btn org sm" data-act="stout" data-k="'+k+'">Time OUT</button>' : (s.length<3 ? '<button class="btn grn sm" data-act="stin" data-k="'+k+'">Time IN</button>' : '<small>3 of 3 used</small>');
     h+='<div class="stl"><b>'+esc(t)+'</b><span>'+(s.map(function(x){ return fmt(x.in)+'–'+(x.out?fmt(x.out):'…'); }).join(' &nbsp; ')||'not in yet')+'</span>'+btn+'</div>';
   });
-  h+='<button class="link" data-act="addstaff">+ Add a teacher to this room</button></div>';
+  var have=teachers, opts=schoolTeachers().filter(function(t){return have.indexOf(t)<0;});
+  h+='<label class="lbl">Teacher coming in? Pick their name (they are stamped IN at the time above)</label><select class="inp" id="tpick" data-act="pick"><option value="">Choose a teacher…</option>'+opts.map(function(t){return '<option>'+esc(t)+'</option>';}).join('')+'<option value="__other">Someone else (type a name)…</option></select></div>';
   // ratio grid
   var list=roomKids(r.name), am=attMapFor(list), kl=list.map(function(c){return {name:c.name,dob:c.dob};}), nowS=nowHM();
   h+='<div class="card"><b>Children : Staff by hour</b><div class="sub2">Fills in automatically from sign-ins and staff times. Red = over the Florida limit for the youngest child present.</div><div class="rgrid">';
@@ -404,10 +405,9 @@ var ACT = {
  /* staff */
  stin: function(el){ var t=decodeURIComponent(el.getAttribute('data-k')), tm=timeOrNow('stT'); var day=ensureDay(S.room); var s=day.staff[t]=day.staff[t]||[]; if(s.length<3) s.push({'in':tm,out:''}); saveDay(S.room); },
  stout: function(el){ var t=decodeURIComponent(el.getAttribute('data-k')), tm=timeOrNow('stT'); var day=ensureDay(S.room); var s=day.staff[t]||[]; var last=s[s.length-1]; if(last){ if(tm<last['in']){ toast('Out time is before the in time.',true); return; } last.out=tm; } saveDay(S.room); },
- addstaff: function(){ var have=teachersFor(S.room), all=schoolTeachers().filter(function(t){return have.indexOf(t)<0;});
-   openModal('<h3>Add a teacher to this room</h3><p class="sub2">Pick who is working here now. People move between rooms, so you can add anyone.</p><select class="inp" id="sname">'+all.map(function(t){return '<option>'+esc(t)+'</option>';}).join('')+'<option value="__other">Someone else (type name)…</option></select><input class="inp" id="sother" placeholder="Name" style="margin-top:8px">'
-    +'<div class="mrow"><button class="btn sec" data-act="mclose2">Cancel</button><button class="btn" data-act="addstaffgo">Add</button></div>'); },
- addstaffgo: function(){ var n=val('sname'); if(n==='__other'||!n) n=val('sother').trim(); if(!n) return; var day=ensureDay(S.room); if(!day.staff[n]) day.staff[n]=[]; saveDay(S.room); closeModal(); },
+ pick: function(el){ var v=el.value; if(!v) return; if(v==='__other'){ el.value=''; ACT.addstaff(); return; } var tm=timeOrNow('stT'); var day=ensureDay(S.room); var st=day.staff[v]=day.staff[v]||[]; if(st.length<3 && !(st.length && !st[st.length-1].out)) st.push({'in':tm,out:''}); saveDay(S.room); toast(v+' in at '+fmt(tm)); },
+ addstaff: function(){ openModal('<h3>Someone else is in this room</h3><p class="sub2">Type the name of the sub or floater.</p><input class="inp" id="sother" placeholder="Name, e.g. Ms Lopez" autofocus><div class="mrow"><button class="btn sec" data-act="mclose2">Cancel</button><button class="btn" data-act="addstaffgo">Add &amp; time IN</button></div>'); },
+ addstaffgo: function(){ var n=val('sother').trim(); if(!n) return; var tm=nowHM(); var day=ensureDay(S.room); if(!day.staff[n]) day.staff[n]=[{'in':tm,out:''}]; saveDay(S.room); closeModal(); },
  mgmt: function(el){ var s=el.getAttribute('data-s'); needDirector(function(){ openModal('<h3>Management initials — '+P.SLOT_LABELS[P.SLOTS.indexOf(s)]+'</h3><input class="inp" id="mi" maxlength="4" autocapitalize="characters" autofocus placeholder="Your initials"><div class="mrow"><button class="btn sec" data-act="mclose2">Cancel</button><button class="btn sec" data-act="migo" data-s="'+s+'" data-clear="1">Clear</button><button class="btn" data-act="migo" data-s="'+s+'">Save</button></div>'); }); },
  migo: function(el){ var s=el.getAttribute('data-s'); var day=ensureDay(S.room); if(el.getAttribute('data-clear')) delete day.mgmt[s]; else { var v=val('mi').trim().toUpperCase(); if(!v) return; day.mgmt[s]=v; }
    // management writes need a director PIN, so send with it
@@ -457,11 +457,11 @@ function rosterModal(p){
 document.addEventListener('click', function(e){
   var el=e.target.closest('[data-act]'); if(!el) return;
   var act=el.getAttribute('data-act'); var fn=ACT[act]; if(!fn) return;
-  if(act==='sel') return; // handled on change
+  if(act==='sel'||act==='pick') return; // handled on change
   if(act==='mclose' && e.target!==el) return;
   fn(el);
 });
-document.addEventListener('change', function(e){ var el=e.target; if(el.getAttribute && el.getAttribute('data-act')==='sel') ACT.sel(el); });
+document.addEventListener('change', function(e){ var el=e.target; if(el.getAttribute && el.getAttribute('data-act')==='sel') ACT.sel(el); else if(el.getAttribute && el.getAttribute('data-act')==='pick') ACT.pick(el); });
 document.addEventListener('keydown', function(e){ if(e.key==='Enter'){ var t=e.target; if(t.id==='pin') ACT.login(); if(t.id==='dpin') ACT.dpinok(); } });
 
 /* ---------- boot / timers ---------- */
@@ -474,6 +474,6 @@ function boot(){
 setInterval(function(){ if(S.view!=='login' && document.visibilityState==='visible' && !modalOpen() && S.pending===0 && isToday()) refresh(true); }, 20000);
 setInterval(function(){ if(S.view!=='login' && !modalOpen() && S.view!=='dcf' && S.tab!=='paper') render(); }, 60000);
 document.addEventListener('visibilitychange', function(){ if(document.visibilityState==='visible' && S.view!=='login' && !modalOpen() && S.pending===0) refresh(true); });
-window.__rooms = {S:S, ACT:ACT, refresh:refresh}; // for tests
+window.__rooms = {S:S, ACT:ACT, refresh:refresh, st:schoolTeachers, tf:teachersFor}; // for tests
 boot();
 })();
