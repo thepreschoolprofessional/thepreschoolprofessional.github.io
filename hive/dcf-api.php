@@ -134,4 +134,54 @@ $out = at_request('PATCH', [$table, $recId], null, ['fields' => $fields, 'typeca
 echo json_encode($out); exit;
 }
 
+function upload_dir($school){
+$cands = [dirname(__DIR__, 2).'/hive-uploads', dirname(__DIR__).'/hive-uploads'];
+foreach ($cands as $c){
+if (!is_dir($c)) @mkdir($c, 0750, true);
+if (is_dir($c) && is_writable($c)){
+$d = $c.'/'.preg_replace('/[^a-z0-9]+/', '-', strtolower($school));
+if (!is_dir($d)) @mkdir($d, 0750, true);
+if (is_dir($d) && is_writable($d)) return $d;
+}
+}
+return null;
+}
+
+if ($action === 'upload'){
+// Signed parent forms (photo or PDF) filed against a child + month. Directors only, own school only.
+$m = $input['month'] ?? '';
+$child = trim(preg_replace('/[^A-Za-z0-9 ,\.\'-]/', '', $input['child'] ?? ''));
+$kind = ($input['kind'] ?? '') === 'INFANT' ? 'INFANT' : 'FR';
+$b64 = $input['b64'] ?? '';
+if (!preg_match('/^\d{4}-\d{2}$/', $m) || $child === '' || strlen($child) > 80 || $b64 === '') fail('Missing month, child or file');
+$raw = base64_decode($b64, true);
+if ($raw === false || strlen($raw) < 200) fail('That file could not be read');
+if (strlen($raw) > 6 * 1024 * 1024) fail('File too large (6 MB max) - take the photo again at a lower size');
+if (substr($raw, 0, 4) === "%PDF") { $mime = 'application/pdf'; $ext = 'pdf'; }
+elseif (substr($raw, 0, 3) === "\xFF\xD8\xFF") { $mime = 'image/jpeg'; $ext = 'jpg'; }
+elseif (substr($raw, 0, 8) === "\x89PNG\r\n\x1a\n") { $mime = 'image/png'; $ext = 'png'; }
+else fail('Only photos (JPG/PNG) or PDFs can be uploaded');
+$dir = upload_dir($school);
+if (!$dir) fail('The server could not store the file. Tell Mrs. Bear.', 500);
+$id = bin2hex(random_bytes(12));
+if (file_put_contents($dir.'/'.$id.'.'.$ext, $raw) === false) fail('The server could not save the file', 500);
+$orig = substr(preg_replace('/[^A-Za-z0-9 ._-]/', '', $input['name'] ?? 'signed-form'), 0, 80);
+$data = ['child'=>$child, 'kind'=>$kind, 'file'=>$id.'.'.$ext, 'name'=>$orig, 'mime'=>$mime, 'size'=>strlen($raw), 'at'=>gmdate('c'), 'by'=>substr($input['by'] ?? '', 0, 60)];
+$f = ['Entry'=>$school.' · '.$m.' · SIGNED · '.$child, 'School'=>$school, 'Month'=>$m, 'Form'=>'SIGNED', 'Employee'=>$child.'|'.$kind.'|'.$id, 'Data'=>json_encode($data), 'Updated By'=>$data['by'], 'Updated At'=>$data['at']];
+$out = at_request('POST', ['Monthly Forms'], null, ['records' => [['fields' => $f]], 'typecast' => true]);
+if (empty($out['records'][0]['id'])){ @unlink($dir.'/'.$id.'.'.$ext); fail('Saved the file but could not record it. Try again.', 502); }
+echo json_encode($out); exit;
+}
+
+if ($action === 'getfile'){
+$fid = $input['id'] ?? '';
+if (!preg_match('/^[a-f0-9]{24}\.(jpg|png|pdf)$/', $fid)) fail('Bad file');
+$chk = at_request('GET', ['Monthly Forms'], ['maxRecords'=>1, 'filterByFormula'=>"AND({School}='".$school."',{Form}='SIGNED',FIND('".$fid."',{Data}))"]);
+if (empty($chk['records'][0])) fail('Not found', 404);
+$dir = upload_dir($school);
+$p = $dir ? $dir.'/'.$fid : '';
+if (!$p || !is_file($p)) fail('File missing on the server', 404);
+echo json_encode(['b64'=>base64_encode(file_get_contents($p)), 'file'=>$fid]); exit;
+}
+
 fail('Unknown action');
