@@ -35,7 +35,8 @@ var TABS = [
  {id:'trans',label:'Transportation'},
  {id:'att',label:'Attendance'},
  {id:'food',label:'Food Program'},
- {id:'pack',label:'Month-End Packet'}
+ {id:'pack',label:'Month-End Packet'},
+ {id:'forms',label:'Forms to Print'}
 ];
 
 /* ---------- state + helpers ---------- */
@@ -147,6 +148,7 @@ function body(){
   if(S.tab==='att') return attView();
   if(S.tab==='food') return foodView();
   if(S.tab==='pack') return packView();
+  if(S.tab==='forms') return formsView();
   var h='';
   if(tab.forms.length===1 && FORMS[tab.forms[0]].monthly) return drillView();
   tab.forms.forEach(function(k){ h+=gridFor(k); });
@@ -344,11 +346,42 @@ function savePacket(){
   p.then(function(res){ var r=res.records?res.records[0]:res; if(r&&r.id){ pk.recs[pkKey(form,emp)]=r; toast('Saved.'); render(); } else toast('Did not save',true); }).catch(function(e){ toast(e.message,true); });
 }
 
+
+/* ---------- FORMS TO PRINT (prefilled, fillable PDFs + month-end forms) ---------- */
+var BLANKS=[['Free &amp; Reduced-Price Meal Application (blank, DeLand 2)','files/food-program/deland2-free-reduced-application-blank.pdf'],['Infant Feeding Form (blank, DeLand 2)','files/food-program/deland2-infant-feeding-form-blank.pdf']];
+function savePF(data){
+  var pk=S.pk, nm=directorName()||'Director', ex=pk.recs[pkKey('PARENTFORMS','')], now=new Date().toISOString(), p;
+  if(ex) p=api('update','Monthly Forms',{recordId:ex.id,fields:{Data:JSON.stringify(data),'Updated By':nm,'Updated At':now}});
+  else p=api('create','Monthly Forms',{fields:{Entry:S.school+' · '+pk.month+' · PARENTFORMS',Month:pk.month,Form:'PARENTFORMS',Employee:'',Data:JSON.stringify(data),'Updated By':nm,'Updated At':now}});
+  return p.then(function(res){ var r=res.records?res.records[0]:res; if(r&&r.id){ pk.recs[pkKey('PARENTFORMS','')]=r; toast('Saved.'); } else toast('Did not save',true); render(); }).catch(function(e){ toast(e.message,true); });
+}
+function formsView(){
+  var pk=S.pk;
+  if(pk.loaded!==pk.month){ if(!S.busy) setTimeout(loadPacket,0); return '<div class="card">Loading&hellip;</div>'; }
+  var d=pkData('PARENTFORMS')||{items:[]}, items=d.items||[];
+  var h='<div class="card"><div class="ct">Forms to print</div><div class="sub">Everything for the month-end Food Program packet in one place. Prefilled forms open as PDFs: type in any blank (SNAP / case number, income, address, phone), print, and have the parent sign.</div>';
+  h+='<div class="bar"><button class="btn sec sm" data-pf="prev">&lsaquo;</button><b>'+mLabel(pk.month)+'</b><button class="btn sec sm" data-pf="next">&rsaquo;</button></div></div>';
+  var mf=(S.school==='DeLand 2')?[['CHECKLIST','Monthly Provider Check List'],['ENTRANCES','Monthly Entrances']]:[];
+  mf.push(['PAR','Personnel Activity Report']);
+  h+='<div class="card"><div class="ct">Month-end forms (filled in for you)</div>';
+  mf.forEach(function(f){ var saved=Object.keys(pk.recs).some(function(k){return k.split('|')[1]===f[0];}); h+='<div class="line '+(saved?'ok':'bad')+'">'+(saved?'&#10003; ':'&#9679; ')+f[1]+' <button class="btn sec sm" data-goto="'+f[0]+'">open &amp; print</button></div>'; });
+  h+='</div>';
+  h+='<div class="card"><div class="ct">Forms for parents to sign</div>';
+  if(!items.length) h+='<div class="okline">Nothing waiting for a parent signature this month.</div>';
+  items.forEach(function(it,i){
+    h+='<div class="line '+(it.done?'ok':'bad')+'"><b>'+esc(it.child)+'</b> &middot; '+esc(it.type==='INFANT'?'Infant Feeding Form':'Free & Reduced Meal Application')+(it.why?'<div class="hint">'+esc(it.why)+'</div>':'')+'<div style="margin-top:6px"><a class="btn sm" target="_blank" href="'+esc(it.file)+'">Open &amp; print</a> <label style="margin-left:10px"><input type="checkbox" class="pfdone" data-i="'+i+'" '+(it.done?'checked':'')+'> Returned signed</label></div></div>';
+  });
+  h+='</div>';
+  if(S.school==='DeLand 2'){ h+='<div class="card"><div class="ct">Blank forms</div>'; BLANKS.forEach(function(b){ h+='<div class="line"><a target="_blank" href="'+b[1]+'">'+b[0]+'</a></div>'; }); h+='</div>'; }
+  return h;
+}
+
 /* ---------- events ---------- */
 document.addEventListener('input',function(e){ if(e.target.classList.contains('pv')) parTotals(); });
-document.addEventListener('change',function(e){ if(e.target.id==='pEmp'){ S.pk.emp=e.target.value; render(); } });
+document.addEventListener('change',function(e){ if(e.target.classList&&e.target.classList.contains('pfdone')){ var dd=pkData('PARENTFORMS')||{items:[]}; var it=dd.items[+e.target.getAttribute('data-i')]; if(it){ it.done=e.target.checked; savePF(dd); } return; } if(e.target.id==='pEmp'){ S.pk.emp=e.target.value; render(); } });
 document.addEventListener('click',function(e){
-  var el=e.target.closest('[data-cell],[data-tab],[data-a],[data-adddrill],[data-pf]'); if(!el) return;
+  var el=e.target.closest('[data-cell],[data-tab],[data-a],[data-adddrill],[data-pf],[data-goto]'); if(!el) return;
+  if(el.hasAttribute('data-goto')){ S.tab='pack'; S.pk.form=el.getAttribute('data-goto'); render(); return; }
   if(el.hasAttribute('data-pf')){ var a2=el.getAttribute('data-pf'),pk=S.pk; if(a2==='prev'||a2==='next'){ pk.month=shiftMonth(pk.month,a2==='prev'?-1:1); pk.loaded=''; render(); } else if(a2==='form'){ pk.form=el.getAttribute('data-v'); render(); } else if(a2==='save') savePacket(); else if(a2==='print') window.print(); return; }
   if(el.getAttribute('data-a')==='mclose' && e.target.closest('[data-stop]') && !e.target.classList.contains('btn')) return;
   if(el.hasAttribute('data-adddrill')){ addDrill(); return; }
