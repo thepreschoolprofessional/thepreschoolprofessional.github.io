@@ -69,9 +69,9 @@ var CSS = ''
 + '.pf .sm{font-size:9px;} .pf .vis{font-style:italic;color:#555;font-size:9px;}'
 + '.pf .lp{padding:0;} .pf .lp div{display:flex;} .pf .lp span{flex:1;text-align:center;padding:2px 0;} .pf .lp span+span{border-left:1.2px solid #111;}'
 + '.pf .gap{height:8px;}'
-+ '.pf .over{background:#ffd9d9;font-weight:900;}'
++ '.pf .over{font-weight:900;}'
 + '.pf .notes{margin-top:8px;font-size:10px;line-height:1.35;} .pf .notes b{font-size:11px;}'
-+ '.pf .hl{background:#fff36b;padding:0 2px;}'
++ '.pf .hl{padding:0 2px;}'
 + '.pf .hc{margin-top:6px;font-size:10px;}'
 + '.pf .ft{margin-top:6px;font-size:9px;color:#666;}'
 + '@media print{ @page{size:landscape;margin:8mm;} body{background:#fff !important;} .pf{page-break-after:always;max-width:none;margin:0;padding:0;} .pf:last-child{page-break-after:auto;} .noprint{display:none !important;} }';
@@ -142,7 +142,7 @@ function render(o){
   });
   h+='</tr><tr><td class="nm">Management Initials</td>';
   SLOTS.forEach(function(s){ h+='<td class="c sm">'+esc(mgmt[s]||'')+'</td>'; });
-  h+='</tr></table><div class="ft" style="margin-top:2px">Ratio limit follows the majority age group in the room (Kid City policy); a tie uses the younger group.</div>';
+  h+='</tr></table>';
   // headcount log
   if(counts.length){
     h+='<div class="hc"><b>Headcounts / sweeps:</b> '+counts.map(function(c){ return esc(fmt12(c.t))+' &mdash; '+esc(c.count)+(c.kind==='sweep'?' (sweep)':'')+(c.by?' ('+esc(c.by)+')':''); }).join(' &nbsp;|&nbsp; ')+'</div>';
