@@ -322,12 +322,27 @@ function entForm(){
 }
 function parForm(){
   var pk=S.pk, m=pk.month, d=pkData('PAR',pk.emp)||{days:{}}, dim=new Date(+m.slice(0,4),+m.slice(5),0).getDate();
-  var h=letterhead()+'<h2 class="pt">Child Care Food Program<br>PERSONNEL ACTIVITY REPORT</h2><div class="parhead"><label>Authorization Number <input id="pAuth" class="ln sm" value="'+esc(d.auth||'')+'"></label><label>Employee Name <select id="pEmp" class="inp sm">'+(pk.staff||[]).map(function(n){return '<option'+(n===pk.emp?' selected':'')+'>'+esc(n)+'</option>';}).join('')+'</select></label><span>Month/Year <b>'+m.slice(5)+'/'+m.slice(0,4)+'</b></span></div>';
-  h+='<div class="hint">Hours to the nearest quarter hour. Admin + Oper = hours spent on the Food Program. Regular + Paid Leave = all hours worked.</div><table class="par"><tr><th rowspan="2">Date</th><th colspan="2">Hours on CCFP</th><th colspan="2">Total Hours (CCFP &amp; Non-CCFP)</th></tr><tr><th>Admin.</th><th>Oper.</th><th>Regular</th><th>Paid Leave</th></tr>';
-  for(var i=1;i<=31;i++){ var r=(d.days||{})[i]||{}, off=i>dim; h+='<tr><td>'+i+'</td>'+['a','o','r','p'].map(function(k){ return '<td><input class="pv" data-d="'+i+'" data-k="'+k+'" inputmode="decimal" value="'+esc(r[k]||'')+'"'+(off?' disabled':'')+'></td>'; }).join('')+'</tr>'; }
-  h+='<tr class="tot"><td>TOTAL</td>'+['a','o','r','p'].map(function(k){ return '<td id="pt-'+k+'">0</td>'; }).join('')+'</tr></table>';
+  var AUTH={'DeLand 2':'4-2677'}, au=(d.auth!=null&&d.auth!=='')?d.auth:(AUTH[S.school]||'');
+  function cell(i,k){ var r=(d.days||{})[i]||{}, off=i>dim; return '<td><input class="pv" data-d="'+i+'" data-k="'+k+'" inputmode="decimal" value="'+esc(r[k]||'')+'"'+(off?' disabled':'')+'></td>'; }
+  function side(i){ return '<td class="dn">'+i+'</td>'+['a','o','r','p'].map(function(k){return cell(i,k);}).join(''); }
+  var h=letterhead()+'<h2 class="pt">Child Care Food Program</h2><h3 class="pt2h">PERSONNEL ACTIVITY REPORT</h3><div class="pel">&middot; *Electronic self-calculating version of this form is on our website</div>';
+  h+='<div class="parhead"><label>Authorization Number <input id="pAuth" class="ln sm" value="'+esc(au)+'"></label><label>Employee Name: <select id="pEmp" class="inp sm">'+(pk.staff||[]).map(function(n){return '<option'+(n===pk.emp?' selected':'')+'>'+esc(n)+'</option>';}).join('')+'</select></label><span>Month/Year <b>'+MONTHS[+m.slice(5)-1]+' '+m.slice(0,4)+'</b></span></div>';
+  h+='<div class="parins"><b>INSTRUCTIONS:</b> This form is required for <i>all private sector</i> employees who work on the Child Care Food Program (CCFP). Each month, indicate the number of hours per day spent on administrative and operational activities related to the CCFP (to nearest quarter hour). Examples of CCFP administrative activities include, but are not limited to: monitoring, record keeping, compiling data, completing the claim for reimbursement, and attending training related to CCFP. Examples of CCFP operational activities include, but are not limited to: menu planning, grocery shopping, cooking and serving meals and clean up after meals.</div>';
+  h+='<table class="par par2"><tr><th rowspan="2" class="dh">Date</th><th colspan="2">Hours Worked<br>on CCFP</th><th colspan="2">Total<br>Hours Worked<br>(CCFP &amp; Non-CCFP)</th><th rowspan="2" class="dh">Date</th><th colspan="2">Hours Worked<br>on CCFP</th><th colspan="2">Total<br>Hours Worked<br>(CCFP &amp; Non-CCFP)</th></tr>';
+  h+='<tr><th>Admin.</th><th>Oper.</th><th>Regular</th><th>Paid Leave</th><th>Admin.</th><th>Oper.</th><th>Regular</th><th>Paid Leave</th></tr>';
+  for(var i=1;i<=16;i++){
+    h+='<tr>'+side(i);
+    if(i<=15) h+=side(i+16); else h+='<td class="dn tl">TOTAL</td>'+['a','o','r','p'].map(function(k){return '<td class="tot" id="pt-'+k+'">0</td>';}).join('');
+    h+='</tr>';
+  }
+  h+='</table>';
   h+='<div class="cert">I certify that this is an accurate record of the number of hours worked on the Child Care Food Program.</div><div class="sig3"><label>Employee&rsquo;s Signature<input class="ln" placeholder="(sign on the printed copy)" disabled></label><label>Title<input id="pTitle" class="ln" value="'+esc(d.title||'')+'"></label><label>Date<input class="ln" disabled></label></div>';
-  h+='<div class="sponsor"><b>TO BE COMPLETED BY SPONSOR / CENTER DIRECTOR / AUTHORIZED REPRESENTATIVE</b><div>A. (HOURLY PAID STAFF) Total admin hours ____ x $____ = $____ &nbsp; Total oper hours ____ x $____ = $____</div><div>B. (SALARIED STAFF) Admin hours ____ &divide; Total hours ____ = ____% &nbsp; Salary $____ x ____% = $____ &nbsp; Oper hours ____ &divide; Total hours ____ = ____% &nbsp; Salary $____ x ____% = $____</div><div>I certify that payroll records are on file that verify the total wages as listed above.<br>Signature of Sponsor/Center Director/Authorized Representative __________________ Date ________</div><div class="hint noprint">Pay lines are left blank on purpose: write them in on the printed copy (no wages are stored here).</div></div><div class="rev">I-026-04 &middot; Revised 2/2011</div>';
+  var U='<span class="u"></span>';
+  h+='<div class="sponsor"><div class="sh">TO BE COMPLETED BY SPONSOR / CENTER DIRECTOR / AUTHORIZED REPRESENTATIVE</div>';
+  h+='<div><b>A.</b> (HOURLY PAID STAFF)</div><div>Total administrative hours worked on CCFP '+U+' x $'+U+' (hourly wage) = $'+U+' (Total admin. CCFP salary)</div><div>Total operational hours worked on CCFP '+U+' x $'+U+' (hourly wage) = $'+U+' (Total oper. CCFP salary)</div>';
+  h+='<div><b>B.</b> (SALARIED STAFF)</div><div>Total administrative hours worked on CCFP '+U+' &divide; Total hours worked '+U+' = '+U+'%</div><div class="ind">Total Salary to be <b>paid</b> this month $'+U+' x '+U+'% = $'+U+' (Total admin. CCFP salary)</div><div>Total operational hours worked on CCFP '+U+' &divide; Total hours worked '+U+' = '+U+'%</div><div class="ind">Total Salary to be <b>paid</b> this month $'+U+' x '+U+'% = $'+U+' (Total oper. CCFP salary)</div>';
+  h+='<div><b>I certify that payroll records are on file that verify the total wages as listed above.</b></div><div>Signature of Sponsor/Center Director/Authorized Representative'+U+U+' Date '+U+'</div></div>';
+  h+='<div class="hint noprint">Pay lines are left blank on purpose: write them in on the printed copy (no wages are stored here).</div><div class="rev">Revised 2/2011 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; I-026-04</div>';
   return h;
 }
 function parTotals(){
