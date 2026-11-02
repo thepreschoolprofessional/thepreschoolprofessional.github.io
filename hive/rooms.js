@@ -94,6 +94,7 @@ function headcountDue(roomName){
   var last=lastCountMin(roomName); if(!last) return false;
   return toMin(nowHM())-toMin(last) >= 10;
 }
+function schoolTeachers(){ var o=[]; S.rooms.forEach(function(r){ r.teachers.forEach(function(t){ if(o.indexOf(t)<0) o.push(t); }); }); S.rooms.forEach(function(r){ Object.keys(dayOf(r.name).staff).forEach(function(t){ if(o.indexOf(t)<0) o.push(t); }); }); return o; }
 function teachersFor(roomName){ var r=roomObj(roomName); var t=(r?r.teachers:[]).slice(); Object.keys(dayOf(roomName).staff).forEach(function(k){ if(t.indexOf(k)<0) t.push(k); }); return t; }
 
 /* ---------- writes ---------- */
@@ -259,7 +260,7 @@ function staffTab(r){
     var btn = (last && last.in && !last.out) ? '<button class="btn org sm" data-act="stout" data-k="'+k+'">Time OUT</button>' : (s.length<3 ? '<button class="btn grn sm" data-act="stin" data-k="'+k+'">Time IN</button>' : '<small>3 of 3 used</small>');
     h+='<div class="stl"><b>'+esc(t)+'</b><span>'+(s.map(function(x){ return fmt(x.in)+'–'+(x.out?fmt(x.out):'…'); }).join(' &nbsp; ')||'not in yet')+'</span>'+btn+'</div>';
   });
-  h+='<button class="link" data-act="addstaff">+ Add another staff member (sub / floater)</button></div>';
+  h+='<button class="link" data-act="addstaff">+ Add a teacher to this room</button></div>';
   // ratio grid
   var list=roomKids(r.name), am=attMapFor(list), kl=list.map(function(c){return {name:c.name,dob:c.dob};}), nowS=nowHM();
   h+='<div class="card"><b>Children : Staff by hour</b><div class="sub2">Fills in automatically from sign-ins and staff times. Red = over the Florida limit for the youngest child present.</div><div class="rgrid">';
@@ -403,8 +404,10 @@ var ACT = {
  /* staff */
  stin: function(el){ var t=decodeURIComponent(el.getAttribute('data-k')), tm=timeOrNow('stT'); var day=ensureDay(S.room); var s=day.staff[t]=day.staff[t]||[]; if(s.length<3) s.push({'in':tm,out:''}); saveDay(S.room); },
  stout: function(el){ var t=decodeURIComponent(el.getAttribute('data-k')), tm=timeOrNow('stT'); var day=ensureDay(S.room); var s=day.staff[t]||[]; var last=s[s.length-1]; if(last){ if(tm<last['in']){ toast('Out time is before the in time.',true); return; } last.out=tm; } saveDay(S.room); },
- addstaff: function(){ openModal('<h3>Add staff to this room</h3><input class="inp" id="sname" placeholder="Name, e.g. Mrs Lopez" autofocus><div class="mrow"><button class="btn sec" data-act="mclose2">Cancel</button><button class="btn" data-act="addstaffgo">Add</button></div>'); },
- addstaffgo: function(){ var n=val('sname').trim(); if(!n) return; var day=ensureDay(S.room); if(!day.staff[n]) day.staff[n]=[]; saveDay(S.room); closeModal(); },
+ addstaff: function(){ var have=teachersFor(S.room), all=schoolTeachers().filter(function(t){return have.indexOf(t)<0;});
+   openModal('<h3>Add a teacher to this room</h3><p class="sub2">Pick who is working here now. People move between rooms, so you can add anyone.</p><select class="inp" id="sname">'+all.map(function(t){return '<option>'+esc(t)+'</option>';}).join('')+'<option value="__other">Someone else (type name)…</option></select><input class="inp" id="sother" placeholder="Name" style="margin-top:8px">'
+    +'<div class="mrow"><button class="btn sec" data-act="mclose2">Cancel</button><button class="btn" data-act="addstaffgo">Add</button></div>'); },
+ addstaffgo: function(){ var n=val('sname'); if(n==='__other'||!n) n=val('sother').trim(); if(!n) return; var day=ensureDay(S.room); if(!day.staff[n]) day.staff[n]=[]; saveDay(S.room); closeModal(); },
  mgmt: function(el){ var s=el.getAttribute('data-s'); needDirector(function(){ openModal('<h3>Management initials — '+P.SLOT_LABELS[P.SLOTS.indexOf(s)]+'</h3><input class="inp" id="mi" maxlength="4" autocapitalize="characters" autofocus placeholder="Your initials"><div class="mrow"><button class="btn sec" data-act="mclose2">Cancel</button><button class="btn sec" data-act="migo" data-s="'+s+'" data-clear="1">Clear</button><button class="btn" data-act="migo" data-s="'+s+'">Save</button></div>'); }); },
  migo: function(el){ var s=el.getAttribute('data-s'); var day=ensureDay(S.room); if(el.getAttribute('data-clear')) delete day.mgmt[s]; else { var v=val('mi').trim().toUpperCase(); if(!v) return; day.mgmt[s]=v; }
    // management writes need a director PIN, so send with it
