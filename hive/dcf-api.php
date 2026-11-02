@@ -26,13 +26,14 @@ header('X-Robots-Tag: noindex, nofollow');
 header('Cache-Control: no-store');
 
 $ROLE_SCHOOL = ['director-sanford' => 'Sanford', 'director-deland' => 'DeLand 2'];
-$READ = ['Facility Submissions', 'Transportation Trips', 'Daily Meal Counts', 'Room Attendance', 'Room Day', 'Rooms', 'Room Children'];
-$CREATE = ['Facility Submissions'];
+$READ = ['Facility Submissions', 'Transportation Trips', 'Daily Meal Counts', 'Room Attendance', 'Room Day', 'Rooms', 'Room Children', 'Monthly Forms', 'Staff Roster'];
+$CREATE = ['Facility Submissions', 'Monthly Forms'];
 $UPDATE = [
  'Facility Submissions' => ['Staff Name','Items','Overall Status','Details','Submitted At','Status'],
+ 'Monthly Forms' => ['Data','Updated By','Updated At','Employee'],
  'Transportation Trips' => ['Departure Location','Departure Time','Arrival Time','Riders In','Riders Out','Driver Name','Driver Date','Second Staff Name','Second Staff Date','Sweep Confirmed','Notes']
 ];
-$CREATE_FIELDS = ['Submission','Room / Classroom','Form Type','Staff Name','Date','Submitted At','Items','Overall Status','Details','Status'];
+$CREATE_FIELDS = ['Entry','Month','Form','Employee','Data','Updated By','Updated At','Submission','Room / Classroom','Form Type','Staff Name','Date','Submitted At','Items','Overall Status','Details','Status'];
 $DATE_FIELD = ['Facility Submissions'=>'Date','Transportation Trips'=>'Date','Daily Meal Counts'=>'Date','Room Attendance'=>'Date','Room Day'=>'Date'];
 
 function fail($msg, $code = 400){ http_response_code($code); echo json_encode(['error'=>$msg]); exit; }
@@ -95,6 +96,8 @@ $formulas[] = "IS_AFTER({" . $f . "},'" . date('Y-m-d', strtotime($from . ' -1 d
 $formulas[] = "IS_BEFORE({" . $f . "},'" . date('Y-m-d', strtotime($to . ' +1 day')) . "')";
 }
 if ($table === 'Room Children') $formulas[] = "{Status}='Active'";
+if ($table === 'Monthly Forms'){ $m = $input['month'] ?? ''; if (!preg_match('/^\d{4}-\d{2}$/', $m)) fail('Bad month'); $formulas[] = "{Month}='" . $m . "'"; }
+if ($table === 'Staff Roster') $formulas[] = "{Active}=TRUE()";
 $q = ['pageSize' => 100, 'filterByFormula' => 'AND(' . implode(',', $formulas) . ')'];
 $out = at_request('GET', [$table], $q);
 $all = $out['records'] ?? [];
@@ -111,7 +114,9 @@ echo json_encode(['records' => $all, 'truncated' => isset($out['offset'])]); exi
 if ($action === 'create'){
 if (!in_array($table, $CREATE)) fail('Not allowed', 403);
 $f = array_intersect_key($input['fields'] ?? [], array_flip($CREATE_FIELDS));
-if (!$f || empty($f['Form Type']) || empty($f['Date']) || !valid_date($f['Date'])) fail('Missing form type or date');
+if ($table === 'Monthly Forms'){
+if (empty($f['Form']) || empty($f['Month']) || !preg_match('/^\d{4}-\d{2}$/', $f['Month'])) fail('Missing form or month');
+} elseif (!$f || empty($f['Form Type']) || empty($f['Date']) || !valid_date($f['Date'])) fail('Missing form type or date');
 $f['School'] = $school;
 $out = at_request('POST', [$table], null, ['records' => [['fields' => $f]], 'typecast' => true]);
 echo json_encode($out); exit;

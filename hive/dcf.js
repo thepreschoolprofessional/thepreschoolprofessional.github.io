@@ -10,7 +10,7 @@ var NY='America/New_York';
 /* ---------- config: what is expected, and the paper form items ---------- */
 var CLASSROOMS = { 'Sanford':['Ones','Fours / VPK','School Age'], 'DeLand 2':['Infant Room','Ones','Twos','Threes'] };
 var BLDG='Whole Building / Common Areas';
-var CLOSED = ['2026-11-26','2026-11-27','2026-12-24','2026-12-25','2026-12-31','2027-01-01']; /* closed days: never flagged (edit this list) */
+var CLOSED = ['2026-07-03','2026-07-31','2026-09-07','2026-11-11','2026-11-26','2026-11-27','2026-12-24','2026-12-25','2027-01-01','2027-01-18','2027-03-26','2027-05-31','2027-06-18']; /* both schools; from the signed 2026-27 ELC holiday schedule (School Closures Tracker). Add any extra closed day here. */
 var DEEP = {1:['Language Center','Writing Center'],2:['Math Center','Music Center'],3:['Dramatic Play','Art Center'],4:['Cars/Blocks Center','Lego Table'],5:['Discovery Center','Wash trash cans']};
 var INDOOR=['All entrances/exits are kept clear of clutter.','Hallways and tops of walls are kept clean and clutter free.','Bathrooms are clean and well stocked with toilet paper, soap and paper towels.','Staff purses and personal items are locked out of reach of children.','Cell phones are not in classroom.','Hands are washed by staff and children upon arrival to classroom.','Each child has brief health check by classroom teacher (includes parent/caregiver communication).','All hygiene supplies are available (soap, paper towels, toilet paper, lined garbage can, warm water).','All areas are clean and clutter-free (garbage emptied, floors swept, toys and workspace, bathroom clean).','All chemicals are locked/out of reach of children.','Air fresheners are not used.','All electrical outlets are covered.','Furniture and equipment is in good repair (check for broken toys, accessories, wrinkled/disrepair rugs/carpet).','Heavy toys/items are stored on lowest shelf.','Window cords are adjusted to prevent strangulation.',"Children's personal/nap items are kept separated (use of cubbies, bags, or storage containers).",'Tables and chairs are not stacked while children are present.','Diapering supplies are gathered and within reach before beginning (including a lined and covered foot operated garbage can).','Changing table is clean and free of any obstructions (only changing pad).','First aid kit is available in each room / appropriately stocked.','Bottles & sippy cups are labeled with first and last name.','Infants always placed on their back to sleep in cribs/pack-n-plays.','Infant Room (additions): all bottles have full name/date and refrigerated immediately.','Cribs are free of soft bedding, bumper pads, pillows and stuffed toys.','Cribs have tight fitting mattress and a secure fitted sheet.','Highchairs are in good repair and cleaned and sanitized before/after use.','Safety restraints are used on infant seats, swings, strollers and highchairs.'];
 var OUTDOOR=['Surfacing is free from broken glass, nails, trash, and animal excrement, and check for compressed/packed areas, prior to allowing children to enter the play area.','There are no visible cracks, bending or warping, rusting or breakage of any equipment.','Toys are clean and in good repair.','There are no worn swing hangers or chains.','There are no missing, damaged, or loose swing seats.','There are no broken supports or anchors.','There are no cement support footings that are exposed, cracked, or loose in the ground.','There are no accessible sharp edges or points.','There are no protruding bolt ends that have lost caps or covers.','There are no loose bolts, nuts, and so forth that require tightening.','There are no nails that have become loose.','There are no splintered, cracked or otherwise deteriorating wood.','There is no chipped or peeling paint.','Trees/shade covering maintained and in good repair.','Play areas free of foreign objects that may injure children.','Unsafe equipment.','Ground cover adequate in play areas.','Ground free from debris/litter/rusted equipment.','Area free of any insect nest or infestation.','Equipment age appropriate and accessible.'];
@@ -34,7 +34,8 @@ var TABS = [
  {id:'drill',label:'Drills',forms:['drl']},
  {id:'trans',label:'Transportation'},
  {id:'att',label:'Attendance'},
- {id:'food',label:'Food Program'}
+ {id:'food',label:'Food Program'},
+ {id:'pack',label:'Month-End Packet'}
 ];
 
 /* ---------- state + helpers ---------- */
@@ -136,6 +137,7 @@ function render(){
   h+='<div class="body">'+body()+'</div><div id="toast" class="toast"></div><div id="modal"></div>';
   $('app').innerHTML=h;
   $('prt').onclick=function(){ window.print(); };
+  if(S.tab==='pack'&&S.pk.form==='PAR') parTotals();
   $('dt').onchange=function(){ if(this.value){ S.date=this.value; ensureData(); } };
 }
 function body(){
@@ -144,6 +146,7 @@ function body(){
   if(S.tab==='trans') return transView();
   if(S.tab==='att') return attView();
   if(S.tab==='food') return foodView();
+  if(S.tab==='pack') return packView();
   var h='';
   if(tab.forms.length===1 && FORMS[tab.forms[0]].monthly) return drillView();
   tab.forms.forEach(function(k){ h+=gridFor(k); });
@@ -256,9 +259,97 @@ function addDrill(){
   openCell('drl',d,'(building)');
 }
 
+
+/* ---------- MONTH-END FOOD PROGRAM PACKET ---------- */
+var HDR={'DeLand 2':['KID CITY USA DELAND 2 INC.','238 S ARMELIA AVE.','DELAND, FL. 32724'],'Sanford':['KID CITY USA SANFORD','(confirm legal name + address)','']};
+var PAR_DEFAULT={'DeLand 2':'Madhumita Sahoo'};
+var CHK=['Monthly Provider Check list','Infant/Child Menus (NOT NECESSARY IF CLAIMING ON-LINE)','Receipts for Operating Expenses, including itemized food/non-food receipts, including CATERED MEAL RECEIPTS','CN labels or PFS (Product Formulation Statement) for processed/pre-cooked food packages','Personnel Activity Report (PAR) for Operating Labor Expenses','Free and Reduced-Price Meal Applications, DCF forms or Center Enrollment forms with Original Child Participation forms','Infant Feeding form, Medical Statement, Dietary Preference Request form','Monthly Entrances/Terminations form','Other (Please specify)'];
+var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+S.pk={month:defMonth(),form:'PAR',emp:'',staff:null,kids:null,recs:{},loaded:''};
+function defMonth(){ var t=todayNY(); return (+t.slice(8)<=10) ? monthStart(addDays(monthStart(t),-1)).slice(0,7) : t.slice(0,7); }
+function mLabel(m){ return MONTHS[+m.slice(5)-1]+' '+m.slice(0,4); }
+function shiftMonth(m,n){ var d=new Date(+m.slice(0,4),+m.slice(5)-1+n,1,12); return iso(d).slice(0,7); }
+function pkKey(form,emp){ return S.pk.month+'|'+form+'|'+(emp||''); }
+function loadPacket(){
+  var pk=S.pk, m=pk.month; S.busy++; render();
+  var ps=[api('list','Monthly Forms',{month:m})];
+  if(!pk.staff) ps.push(api('list','Staff Roster')); else ps.push(Promise.resolve(null));
+  ps.push(api('list','Room Children'));
+  return Promise.all(ps).then(function(r){
+    pk.recs={}; r[0].records.forEach(function(x){ pk.recs[pkKey(x.fields.Form,x.fields.Employee)]=x; });
+    if(r[1]) pk.staff=r[1].records.map(function(x){return x.fields.Name;}).filter(function(n){return n&&n!=='Mrs. Honey';}).sort();
+    pk.kids=r[2].records; pk.loaded=m;
+    if(!pk.emp){ var d=PAR_DEFAULT[S.school]; pk.emp=(d&&pk.staff.indexOf(d)>-1)?d:(pk.staff[0]||''); }
+  }).catch(function(e){ toast(e.message,true); }).then(function(){ S.busy--; render(); });
+}
+function pkData(form,emp){ var r=S.pk.recs[pkKey(form,emp)]; if(!r) return null; try{ return JSON.parse(r.fields.Data||'{}'); }catch(e){ return null; } }
+function packView(){
+  var pk=S.pk, forms=(S.school==='DeLand 2')?[['CHECKLIST','Provider Check List'],['ENTRANCES','Monthly Entrances'],['PAR','Personnel Activity Report']]:[['PAR','Personnel Activity Report']];
+  if(forms.every(function(f){return f[0]!==pk.form;})) pk.form=forms[0][0];
+  if(pk.loaded!==pk.month) { if(!S.busy) setTimeout(loadPacket,0); return '<div class="card">Loading&hellip;</div>'; }
+  var h='<div class="card noprint"><div class="ct">Month-end Food Program packet</div><div class="sub">Everything the sponsor needs at the end of the month. Fill in during the month; print or save at the end.</div>';
+  h+='<div class="bar"><button class="btn sec sm" data-pf="prev">&lsaquo;</button><b>'+mLabel(pk.month)+'</b><button class="btn sec sm" data-pf="next">&rsaquo;</button></div><div class="tabs">';
+  forms.forEach(function(f){ var saved=Object.keys(pk.recs).some(function(k){return k.split('|')[1]===f[0];}); h+='<button class="tab'+(pk.form===f[0]?' on':'')+'" data-pf="form" data-v="'+f[0]+'">'+f[1]+(saved?' &#10003;':'')+'</button>'; });
+  h+='</div>';
+  if(S.school==='Sanford') h+='<div class="hint">Sanford (sponsor 4C): only the Personnel Activity Report is here for now. The other two sponsor forms get added as soon as they are uploaded.</div>';
+  h+='</div><div class="card paper" id="paper">'+(pk.form==='CHECKLIST'?chkForm():pk.form==='ENTRANCES'?entForm():parForm())+'</div>';
+  h+='<div class="mrow noprint"><button class="btn sec" data-pf="print">Print</button><button class="btn grn" data-pf="save">Save</button></div>';
+  return h;
+}
+function letterhead(){ var a=HDR[S.school]||[]; return '<div class="lh">'+a.map(esc).join('<br>')+'</div>'; }
+function chkForm(){
+  var d=pkData('CHECKLIST')||{c:[],other:[],sug:[]}, m=S.pk.month;
+  var h=letterhead()+'<h2 class="pt">Monthly Provider Check List</h2><div class="pm">Month <b>'+MONTHS[+m.slice(5)-1]+'</b> &nbsp; Year <b>'+m.slice(0,4)+'</b></div><div class="pb"><b>X &ndash; Before Submitting</b></div>';
+  CHK.forEach(function(t,i){ h+='<label class="ck2"><input type="checkbox" class="pc" data-i="'+i+'" '+(d.c&&d.c[i]?'checked':'')+'> <span>'+esc(t)+'</span></label>'; });
+  for(var i=0;i<3;i++) h+='<input class="ln po" placeholder="'+(i?'':'Other (specify)')+'" value="'+esc((d.other||[])[i]||'')+'">';
+  h+='<div class="pb"><b>Suggestions</b></div>';
+  for(i=0;i<3;i++) h+='<input class="ln ps" value="'+esc((d.sug||[])[i]||'')+'">';
+  return h+'<div class="rev">Revised 6.27.2023/mis</div>';
+}
+function entRows(){
+  var pk=S.pk, saved=pkData('ENTRANCES'); if(saved&&saved.rows) return saved.rows;
+  var m=pk.month, out=[];
+  (pk.kids||[]).forEach(function(k){ var f=k.fields; if(!f['KidKare Action']||f['KidKare Action']==='Needs Remove') return; var d=new Date(k.createdTime).toLocaleDateString('en-CA',{timeZone:NY}); if(d.slice(0,7)===m) out.push({n:f.Child,d:d}); });
+  return out.sort(function(a,b){return a.d<b.d?-1:1;});
+}
+function entForm(){
+  var rows=entRows(), m=S.pk.month;
+  var h=letterhead()+'<div class="pm">Month: <b>'+MONTHS[+m.slice(5)-1]+' '+m.slice(0,4)+'</b></div><h2 class="pt">Monthly Entrances</h2><table class="pt2"><tr><th>Childs Name</th><th>Entrance Date</th></tr>';
+  for(var i=0;i<28;i++){ var r=rows[i]||{}; h+='<tr><td><input class="en" value="'+esc(r.n||'')+'"></td><td><input class="ed" value="'+esc(r.d||'')+'" placeholder="'+(i?'':'YYYY-MM-DD')+'"></td></tr>'; }
+  return h+'</table><div class="hint noprint">Pre-filled with children added through the Rooms board this month. Fix or add anyone else by typing.</div><div class="rev">Updated 6.18.19</div>';
+}
+function parForm(){
+  var pk=S.pk, m=pk.month, d=pkData('PAR',pk.emp)||{days:{}}, dim=new Date(+m.slice(0,4),+m.slice(5),0).getDate();
+  var h=letterhead()+'<h2 class="pt">Child Care Food Program<br>PERSONNEL ACTIVITY REPORT</h2><div class="parhead"><label>Authorization Number <input id="pAuth" class="ln sm" value="'+esc(d.auth||'')+'"></label><label>Employee Name <select id="pEmp" class="inp sm">'+(pk.staff||[]).map(function(n){return '<option'+(n===pk.emp?' selected':'')+'>'+esc(n)+'</option>';}).join('')+'</select></label><span>Month/Year <b>'+m.slice(5)+'/'+m.slice(0,4)+'</b></span></div>';
+  h+='<div class="hint">Hours to the nearest quarter hour. Admin + Oper = hours spent on the Food Program. Regular + Paid Leave = all hours worked.</div><table class="par"><tr><th rowspan="2">Date</th><th colspan="2">Hours on CCFP</th><th colspan="2">Total Hours (CCFP &amp; Non-CCFP)</th></tr><tr><th>Admin.</th><th>Oper.</th><th>Regular</th><th>Paid Leave</th></tr>';
+  for(var i=1;i<=31;i++){ var r=(d.days||{})[i]||{}, off=i>dim; h+='<tr><td>'+i+'</td>'+['a','o','r','p'].map(function(k){ return '<td><input class="pv" data-d="'+i+'" data-k="'+k+'" inputmode="decimal" value="'+esc(r[k]||'')+'"'+(off?' disabled':'')+'></td>'; }).join('')+'</tr>'; }
+  h+='<tr class="tot"><td>TOTAL</td>'+['a','o','r','p'].map(function(k){ return '<td id="pt-'+k+'">0</td>'; }).join('')+'</tr></table>';
+  h+='<div class="cert">I certify that this is an accurate record of the number of hours worked on the Child Care Food Program.</div><div class="sig3"><label>Employee&rsquo;s Signature<input class="ln" placeholder="(sign on the printed copy)" disabled></label><label>Title<input id="pTitle" class="ln" value="'+esc(d.title||'')+'"></label><label>Date<input class="ln" disabled></label></div>';
+  h+='<div class="sponsor"><b>TO BE COMPLETED BY SPONSOR / CENTER DIRECTOR / AUTHORIZED REPRESENTATIVE</b><div>A. (HOURLY PAID STAFF) Total admin hours ____ x $____ = $____ &nbsp; Total oper hours ____ x $____ = $____</div><div>B. (SALARIED STAFF) Admin hours ____ &divide; Total hours ____ = ____% &nbsp; Salary $____ x ____% = $____ &nbsp; Oper hours ____ &divide; Total hours ____ = ____% &nbsp; Salary $____ x ____% = $____</div><div>I certify that payroll records are on file that verify the total wages as listed above.<br>Signature of Sponsor/Center Director/Authorized Representative __________________ Date ________</div><div class="hint noprint">Pay lines are left blank on purpose: write them in on the printed copy (no wages are stored here).</div></div><div class="rev">I-026-04 &middot; Revised 2/2011</div>';
+  return h;
+}
+function parTotals(){
+  var t={a:0,o:0,r:0,p:0}; document.querySelectorAll('.pv').forEach(function(i){ var v=parseFloat(i.value); if(!isNaN(v)) t[i.getAttribute('data-k')]+=v; });
+  ['a','o','r','p'].forEach(function(k){ var e=$('pt-'+k); if(e) e.textContent=Math.round(t[k]*100)/100; });
+}
+function savePacket(){
+  var pk=S.pk, nm=directorName(); if(!nm) return toast('Enter your name first.',true);
+  var form=pk.form, emp=(form==='PAR')?($('pEmp').value||pk.emp):'', data={};
+  if(form==='CHECKLIST'){ data={c:[].map.call(document.querySelectorAll('.pc'),function(x){return x.checked;}),other:[].map.call(document.querySelectorAll('.po'),function(x){return x.value;}),sug:[].map.call(document.querySelectorAll('.ps'),function(x){return x.value;})}; }
+  else if(form==='ENTRANCES'){ var n=document.querySelectorAll('.en'), dd=document.querySelectorAll('.ed'), rows=[]; for(var i=0;i<n.length;i++) if(n[i].value.trim()||dd[i].value.trim()) rows.push({n:n[i].value.trim(),d:dd[i].value.trim()}); data={rows:rows}; }
+  else { var days={}; document.querySelectorAll('.pv').forEach(function(x){ if(x.value.trim()){ var k=x.getAttribute('data-d'); (days[k]=days[k]||{})[x.getAttribute('data-k')]=x.value.trim(); } }); data={auth:$('pAuth').value.trim(),title:$('pTitle').value.trim(),days:days}; }
+  var ex=pk.recs[pkKey(form,emp)], now=new Date().toISOString(), p;
+  if(ex) p=api('update','Monthly Forms',{recordId:ex.id,fields:{Data:JSON.stringify(data),'Updated By':nm,'Updated At':now}});
+  else p=api('create','Monthly Forms',{fields:{Entry:S.school+' · '+pk.month+' · '+form+(emp?' · '+emp:''),Month:pk.month,Form:form,Employee:emp,Data:JSON.stringify(data),'Updated By':nm,'Updated At':now}});
+  p.then(function(res){ var r=res.records?res.records[0]:res; if(r&&r.id){ pk.recs[pkKey(form,emp)]=r; toast('Saved.'); render(); } else toast('Did not save',true); }).catch(function(e){ toast(e.message,true); });
+}
+
 /* ---------- events ---------- */
+document.addEventListener('input',function(e){ if(e.target.classList.contains('pv')) parTotals(); });
+document.addEventListener('change',function(e){ if(e.target.id==='pEmp'){ S.pk.emp=e.target.value; render(); } });
 document.addEventListener('click',function(e){
-  var el=e.target.closest('[data-cell],[data-tab],[data-a],[data-adddrill]'); if(!el) return;
+  var el=e.target.closest('[data-cell],[data-tab],[data-a],[data-adddrill],[data-pf]'); if(!el) return;
+  if(el.hasAttribute('data-pf')){ var a2=el.getAttribute('data-pf'),pk=S.pk; if(a2==='prev'||a2==='next'){ pk.month=shiftMonth(pk.month,a2==='prev'?-1:1); pk.loaded=''; render(); } else if(a2==='form'){ pk.form=el.getAttribute('data-v'); render(); } else if(a2==='save') savePacket(); else if(a2==='print') window.print(); return; }
   if(el.getAttribute('data-a')==='mclose' && e.target.closest('[data-stop]') && !e.target.classList.contains('btn')) return;
   if(el.hasAttribute('data-adddrill')){ addDrill(); return; }
   if(el.hasAttribute('data-cell')){ var p=el.getAttribute('data-cell').split('|'); openCell(p[0],p[1],p[2]); return; }
