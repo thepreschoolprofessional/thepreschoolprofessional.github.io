@@ -74,7 +74,7 @@ function monthsList(){const s=new Set(Object.keys(DATA.months));const d=new Date
 async function load(){try{DATA=await api('list');$('sch').textContent=DATA.school;{const P=PACKETS[DATA.school];$('drv').innerHTML=P?'<a class="lk" style="background:#00695c" target="_blank" rel="noopener" href="'+P.folder+'">📁 Facility packets (Drive)</a>':'';}
  const ms=monthsList();const cur=new Date();const prev=new Date(cur.getFullYear(),cur.getMonth()-1,1);const pm=prev.getFullYear()+'-'+String(prev.getMonth()+1).padStart(2,'0');
  const keep=MON||pm;let og='',yy='';ms.forEach(m=>{if(m.slice(0,4)!==yy){if(yy)og+='</optgroup>';yy=m.slice(0,4);og+='<optgroup label="'+yy+'">';}og+='<option value="'+m+'">'+lbl(m)+'</option>';});$('mon').innerHTML=og+'</optgroup>';
- MON=ms.includes(keep)?keep:ms[1]||ms[0];$('mon').value=MON;render();renderVault();renderWait();say('');}catch(e){say(e.message,true);}}
+ MON=ms.includes(keep)?keep:ms[1]||ms[0];$('mon').value=MON;render();renderVault();renderWait();loadWeeks();say('');}catch(e){say(e.message,true);}}
 function mdata(m){return DATA.months[m]||{files:[],checklist:{}};}
 function fileRow(m,f){return '<div class="f"><span>'+(isDone(f)?'⭐ ':'📄 ')+esc(f.name)+' <small>('+Math.max(1,Math.round(f.size/1024))+' KB)</small></span><button onclick="dl(\''+m+'\',\''+f.cat+'\',decodeURIComponent(\''+encodeURIComponent(f.name)+'\'))">Open</button></div>';}
 function render(){MON=$('mon').value;const d=mdata(MON);let h='';
@@ -163,8 +163,49 @@ function sgEl(){let m=document.getElementById('sgm');if(!m){m=document.createEle
 
 const TOSIGN=/^(Pages to Sign|To Sign)/i;
 function waiting(){const out=[];Object.keys(DATA.months).sort().forEach(m=>{mdata(m).files.forEach(f=>{if(f.cat==='dcf'&&TOSIGN.test(f.name)&&!sup(m,f))out.push([m,f.name]);});});return out;}
-function renderWait(){const w=waiting(),el=$('wait');if(!el)return;
- el.innerHTML=w.length?'<div style="background:#ffebee;border:2px solid #e53935;border-radius:14px;padding:12px;margin:8px 0"><b style="color:#c62828;font-size:1.05rem">🔴 '+w.length+' waiting for a signature</b>'+w.map((x,i)=>'<div class="f" style="background:#fff"><span>📄 '+esc(x[1])+' <small>('+esc(lbl(x[0]))+')</small></span><button style="background:#e53935" onclick="sgOpenWait('+i+')">✍ Sign now</button></div>').join('')+'</div>':'<div style="background:#e8f5e9;border-radius:12px;padding:8px 12px;margin:8px 0;font-size:.9rem">✅ Nothing is waiting for a signature.</div>';el._w=w;}
+let WK=[];
+async function loadWeeks(){try{WK=(await api('weeks')).weeks||[];}catch(e){WK=[];}renderWait();}
+const wkLbl=w=>{const a=new Date(w.monday+'T12:00'),b=new Date(w.friday+'T12:00');return MN[a.getMonth()].slice(0,3)+' '+a.getDate()+' - '+(a.getMonth()!==b.getMonth()?MN[b.getMonth()].slice(0,3)+' ':'')+b.getDate()+', '+b.getFullYear();};
+function wkWaiting(){return WK.map((w,i)=>[w,i]).filter(x=>x[0].rows.length>0&&!x[0].signed);}
+function renderWait(){const w=waiting(),wk=wkWaiting(),el=$('wait');if(!el)return;const n=w.length+wk.length;
+ let h='';
+ if(n){h+='<div style="background:#ffebee;border:2px solid #e53935;border-radius:14px;padding:12px;margin:8px 0"><b style="color:#c62828;font-size:1.05rem">🔴 '+n+' waiting for a signature</b>'
+  +wk.map(x=>'<div class="f" style="background:#fff"><span>🗓️ <b>Weekly facility checklists</b> · '+esc(wkLbl(x[0]))+' <small>('+x[0].rows.length+' collected)</small></span><button style="background:#e53935" onclick="wkOpen('+x[1]+')">✍ Review &amp; sign</button></div>').join('')
+  +w.map((x,i)=>'<div class="f" style="background:#fff"><span>📄 '+esc(x[1])+' <small>('+esc(lbl(x[0]))+')</small></span><button style="background:#e53935" onclick="sgOpenWait('+i+')">✍ Sign now</button></div>').join('')+'</div>';}
+ else h+='<div style="background:#e8f5e9;border-radius:12px;padding:8px 12px;margin:8px 0;font-size:.9rem">✅ Nothing is waiting for a signature.</div>';
+ if(WK.length)h+='<details style="margin:6px 0"><summary style="cursor:pointer;font-weight:700">Recent weeks</summary>'+WK.map((x,i)=>'<div class="f"><span>'+(x.signed?'✅':(x.rows.length?'🔴':'⚪'))+' '+esc(wkLbl(x))+' <small>('+(x.rows.length?x.rows.length+' collected':'nothing collected')+(x.signed?' · signed':'')+')</small></span>'+(x.rows.length?'<button onclick="wkOpen('+i+')">'+(x.signed?'View / re-sign':'Review &amp; sign')+'</button>':'')+'</div>').join('')+'</details>';
+ el.innerHTML=h;el._w=w;}
+function wkGroup(w){const g={};w.rows.forEach(r=>{const d=new Date(r.date+'T12:00').getDay()-1;if(d<0||d>4)return;const k=r.type+'|'+r.room;(g[k]=g[k]||{type:r.type,room:r.room,days:[null,null,null,null,null]});const c=g[k].days[d]=g[k].days[d]||{staff:[],bad:false};if(r.staff&&!c.staff.includes(r.staff))c.staff.push(r.staff);if(/Issues|Incident/.test(r.overall||''))c.bad=true;});return Object.values(g).sort((a,b)=>a.type.localeCompare(b.type)||a.room.localeCompare(b.room));}
+function wkOpen(i){const w=WK[i];let o=document.getElementById('wkm');if(!o){o=document.createElement('div');o.id='wkm';o.className='sgm';document.body.appendChild(o);}
+ const g=wkGroup(w);const dn=['Mon','Tue','Wed','Thu','Fri'];const bad=w.rows.filter(r=>/Issues|Incident/.test(r.overall||'')).length;
+ const days=dn.map((d,k)=>{const x=new Date(w.monday+'T12:00');x.setDate(x.getDate()+k);return d+' '+(x.getMonth()+1)+'/'+x.getDate();});
+ o.innerHTML='<div class="sgi"><b style="font-size:1.1rem">Weekly facility sign-off · '+esc(wkLbl(w))+'</b><div style="font-size:.88rem;color:#555;margin:4px 0">Everything the teachers submitted this week, already collected. Check it, sign once, and it files itself in the vault (DCF/Licensing).'+(bad?' <b style="color:#c62828">'+bad+' checklist'+(bad===1?'':'s')+' had issues flagged.</b>':' No issues were flagged.')+'</div>'
+ +'<div style="overflow:auto;max-height:46vh;border:1px solid #ddd;border-radius:8px"><table style="border-collapse:collapse;width:100%;font-size:.8rem"><tr style="background:#eee;position:sticky;top:0"><th style="text-align:left;padding:4px">Form / room</th>'+days.map(d=>'<th style="padding:4px">'+d+'</th>').join('')+'</tr>'
+ +g.map(r=>'<tr><td style="padding:4px;border-top:1px solid #eee">'+esc(r.type)+' · '+esc(r.room)+'</td>'+r.days.map(c=>'<td style="text-align:center;border-top:1px solid #eee;'+(c&&c.bad?'background:#ffe0b2':'')+'">'+(c?(c.bad?'⚠️':'✓')+'<div style="font-size:.65rem;color:#666">'+esc(c.staff.map(s=>s.split(' ')[0]).join(', ').slice(0,14))+'</div>':'<span style="color:#bbb">—</span>')+'</td>').join('')+'</tr>').join('')+'</table></div>'
+ +'<div style="margin-top:8px"><label style="font-weight:700">Your name<br><input id="wkn" style="padding:9px;border:1px solid #bbb;border-radius:8px;width:100%" value="'+esc(localStorage.getItem('hiveName')||'')+'"></label></div>'
+ +'<div style="margin-top:6px"><b>Sign here</b> <button class="x" onclick="wkClr()">Clear</button><canvas id="wkp" width="420" height="130"></canvas></div>'
+ +'<div><button class="g" onclick="wkSave('+i+')">✅ Sign &amp; file this week</button><button class="x" onclick="document.getElementById(\'wkm\').style.display=\'none\'">Close</button></div></div>';
+ o.style.display='block';const c=document.getElementById('wkp'),x=c.getContext('2d');x.lineWidth=3;x.lineCap='round';x.strokeStyle='#0d1b6b';let dn2=0;const pt=e=>{const r=c.getBoundingClientRect();return [(e.clientX-r.left)*c.width/r.width,(e.clientY-r.top)*c.height/r.height];};
+ c.onpointerdown=e=>{dn2=1;c.setPointerCapture(e.pointerId);const [a,b]=pt(e);x.beginPath();x.moveTo(a,b);x.lineTo(a+.1,b+.1);x.stroke();c._ink=1;};c.onpointermove=e=>{if(!dn2)return;const [a,b]=pt(e);x.lineTo(a,b);x.stroke();};c.onpointerup=()=>{dn2=0;};}
+function wkClr(){const c=document.getElementById('wkp');c.getContext('2d').clearRect(0,0,c.width,c.height);c._ink=0;}
+async function wkSave(i){const w=WK[i],c=document.getElementById('wkp'),nm=document.getElementById('wkn').value.trim();
+ if(!c._ink){say('Please sign in the box first.',true);return;}if(!nm){say('Please type your name.',true);return;}
+ try{say('Filing the signed sign-off…');localStorage.setItem('hiveName',nm);const {PDFDocument,StandardFonts,rgb}=PDFLib;const doc=await PDFDocument.create();const f=await doc.embedFont(StandardFonts.Helvetica),fb=await doc.embedFont(StandardFonts.HelveticaBold);
+  const g=wkGroup(w),dn=['Mon','Tue','Wed','Thu','Fri'];const W=612,H=792;let pg=doc.addPage([W,H]),y=H-50;const sch=DATA.school||'';
+  const head=()=>{pg.drawText(wa('Kid City USA '+sch+' - Weekly Facility Sign-off'),{x:40,y:H-45,size:16,font:fb});pg.drawText(wa('Week of '+wkLbl(w)+'   (checklists submitted through the Hive)'),{x:40,y:H-64,size:10,font:f,color:rgb(.3,.3,.3)});
+   let x=300;dn.forEach((d,k)=>{const dd=new Date(w.monday+'T12:00');dd.setDate(dd.getDate()+k);pg.drawText(d+' '+(dd.getMonth()+1)+'/'+dd.getDate(),{x:x+k*52,y:H-88,size:8,font:fb});});pg.drawText('Form / room',{x:40,y:H-88,size:8,font:fb});y=H-102;};
+  head();
+  for(const r of g){if(y<150){pg=doc.addPage([W,H]);head();}
+   pg.drawText(wa(r.type+' - '+r.room).trim().slice(0,52),{x:40,y,size:8,font:f});
+   r.days.forEach((c,k)=>{const t=c?((c.bad?'ISSUE ':'OK ')+wa(c.staff.map(s=>s.split(' ')[0]).join(',')).slice(0,7)):'-';pg.drawText(t,{x:300+k*52,y,size:7,font:f,color:c&&c.bad?rgb(.8,.2,.1):rgb(.1,.4,.1)});});
+   pg.drawLine({start:{x:40,y:y-3},end:{x:572,y:y-3},thickness:.3,color:rgb(.85,.85,.85)});y-=13;}
+  if(y<190){pg=doc.addPage([W,H]);y=H-60;}
+  y-=14;pg.drawText(wa('I reviewed the facility checklists above for this week ('+w.rows.length+' submitted).'),{x:40,y,size:10,font:f});y-=22;
+  const png=await doc.embedPng(bytesOf(c.toDataURL('image/png').split(',')[1]));const sw=190,sh=sw*c.height/c.width;pg.drawImage(png,{x:40,y:y-sh+10,width:sw,height:sh});
+  pg.drawLine({start:{x:40,y:y-sh+8},end:{x:300,y:y-sh+8},thickness:.6});pg.drawText(wa(nm)+'   (signed '+new Date().toLocaleString()+')',{x:40,y:y-sh-4,size:9,font:f});
+  const b64=await doc.saveAsBase64();await api('upload',{month:w.monday.slice(0,7),cat:'dcf',name:'SIGNED - Weekly Sign-off - Week of '+w.monday+'.pdf',b64});
+  document.getElementById('wkm').style.display='none';say('Signed and filed ✔ Week of '+wkLbl(w)+' (DCF/Licensing).');await load();}
+ catch(e){say('Could not save: '+e.message,true);}}
 async function sgOpenWait(i){const x=$('wait')._w[i];MON=x[0];if($('mon'))$('mon').value=x[0];try{say('Opening '+x[1]+'…');const j=await api('getfile',{month:x[0],cat:'dcf',name:x[1]});say('');await sgStart(bytesOf(j.b64),x[1]);}catch(e){say('Could not open it: '+e.message,true);}}
 function sgPick(){let o=document.getElementById('sgl');if(!o){o=document.createElement('div');o.id='sgl';o.className='sgm';document.body.appendChild(o);}
  const fl=mdata(MON).files.filter(f=>f.cat==='dcf'&&/\.(pdf|jpe?g|png)$/i.test(f.name)&&!isDone(f)&&!sup(MON,f));

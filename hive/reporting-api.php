@@ -160,4 +160,41 @@ $offset = $res['offset'] ?? null;
 echo json_encode(['month'=>$m, 'school'=>$school, 'rows'=>$rows]); exit;
 }
 
+if ($action === 'weeks'){
+// READ-ONLY: this school's facility checklists grouped by Mon-Fri week (last 6 weeks), plus whether each week has been signed off in the vault.
+date_default_timezone_set('America/New_York');
+$today = new DateTime('today'); $dow = (int)$today->format('N');
+$mon = (clone $today)->modify('-'.($dow-1).' days');
+$mondays = [];
+for ($i = ($dow >= 5 ? 0 : 1); $i <= 6; $i++){ $mondays[] = (clone $mon)->modify('-'.(7*$i).' days')->format('Y-m-d'); }
+$earliest = end($mondays); $latest = $mondays[0];
+$from = (new DateTime($earliest))->modify('-1 day')->format('Y-m-d');
+$to = (new DateTime($latest))->modify('+5 days')->format('Y-m-d');
+$formula = "AND({School}='".str_replace("'", "", $school)."', IS_AFTER({Date},'".$from."'), IS_BEFORE({Date},'".$to."'))";
+$byWeek = []; foreach ($mondays as $m) $byWeek[$m] = [];
+$offset = null; $guard = 0;
+do {
+$q = ['filterByFormula'=>$formula, 'pageSize'=>100, 'fields'=>['Form Type','Room / Classroom','Staff Name','Date','Overall Status']];
+if ($offset) $q['offset'] = $offset;
+$qs = preg_replace('/fields%5B\d+%5D/', 'fields%5B%5D', http_build_query($q));
+$res = at_request('GET', ['Facility Submissions'], $qs);
+if (isset($res['error'])) fail('Could not read the facility checklists right now.', 502);
+foreach (($res['records'] ?? []) as $r){
+$f = $r['fields']; $d = $f['Date'] ?? ''; if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $d)) continue;
+$m = date('Y-m-d', strtotime('monday this week', strtotime($d.' 12:00:00')));
+if ((int)date('N', strtotime($d.' 12:00:00')) === 7) $m = date('Y-m-d', strtotime($m.' -7 days'));
+if (!isset($byWeek[$m])) continue;
+$byWeek[$m][] = ['type'=>$f['Form Type'] ?? 'Other', 'room'=>$f['Room / Classroom'] ?? '', 'staff'=>$f['Staff Name'] ?? '', 'date'=>$d, 'overall'=>$f['Overall Status'] ?? ''];
+}
+$offset = $res['offset'] ?? null;
+} while ($offset && ++$guard < 30);
+$weeks = [];
+foreach ($mondays as $m){
+$fri = (new DateTime($m))->modify('+4 days')->format('Y-m-d');
+$signed = count(glob($base.'/'.substr($m,0,7).'/dcf/SIGNED - Weekly Sign-off - Week of '.$m.'*')) > 0;
+$weeks[] = ['monday'=>$m, 'friday'=>$fri, 'rows'=>$byWeek[$m], 'signed'=>$signed];
+}
+echo json_encode(['school'=>$school, 'weeks'=>$weeks]); exit;
+}
+
 fail('Unknown action');
