@@ -87,7 +87,7 @@ function loadRange(from,to){
 }
 function ensureData(){
   var ms=monthStart(S.date), me=monthEnd(S.date), wk=monday(S.date), we=addDays(wk,4), tm=monthStart(todayNY()), te=monthEnd(todayNY());
-  var ps=[loadRange(ms,me)]; if(tm!==ms) ps.push(loadRange(tm,te)); if(monthStart(wk)!==ms) ps.push(loadRange(monthStart(wk),monthEnd(wk))); if(monthStart(we)!==ms && monthStart(we)!==monthStart(wk)) ps.push(loadRange(monthStart(we),monthEnd(we)));
+  var pm=monthStart(addDays(tm,-1)); var ps=[loadRange(ms,me)]; if(tm!==ms) ps.push(loadRange(tm,te)); if(pm!==ms&&pm!==tm) ps.push(loadRange(pm,monthEnd(pm))); if(monthStart(wk)!==ms) ps.push(loadRange(monthStart(wk),monthEnd(wk))); if(monthStart(we)!==ms && monthStart(we)!==monthStart(wk)) ps.push(loadRange(monthStart(we),monthEnd(we)));
   return Promise.all(ps);
 }
 function subsFor(formKey,date,room){
@@ -133,7 +133,7 @@ function render(){
   h+='<div class="hdr"><div><b>DCF Binder</b> <span class="sch">'+esc(S.school)+'</span></div><div class="hbtn"><a class="btn sec sm" href="director.html">&lsaquo; Director portal</a> <button class="btn sec sm" id="prt">Print</button></div></div>';
   h+='<div class="bar"><button class="btn sec sm" data-a="prev">&lsaquo;</button><input type="date" id="dt" value="'+S.date+'"><button class="btn sec sm" data-a="next">&rsaquo;</button><button class="btn sec sm" data-a="today">Today</button>'+(S.busy?'<span class="load">loading&hellip;</span>':'')+'</div>';
   var wk=monday(S.date), t=todayNY();
-  var mt=missingList(monthStart(t),t).length+(drillMissing(t)?1:0);
+  var mt=missingList(monthStart(t),t).length+(drillMissing(t)?1:0)+(drillMissing(addDays(monthStart(t),-1))?1:0);
   h+='<div class="tabs">'+TABS.map(function(x){ return '<button class="tab'+(S.tab===x.id?' on':'')+'" data-tab="'+x.id+'">'+x.label+(x.id==='miss'&&mt?' <span class="red">'+mt+'</span>':'')+'</button>'; }).join('')+'</div>';
   h+='<div class="body">'+body()+'</div><div id="toast" class="toast"></div><div id="modal"></div>';
   $('app').innerHTML=h;
@@ -182,6 +182,7 @@ function missingView(){
     h+='<div class="card"><div class="ct">'+p[0]+' <span class="'+((list.length||dm)?'red':'grn')+'">'+(list.length+(dm?1:0))+'</span></div>';
     if(!list.length && !dm) h+='<div class="okline">&#10003; Nothing missing.</div>';
     if(dm) h+='<button class="line bad" data-tab="drill">&#9679; No fire/emergency drill logged for '+d2(t).toLocaleDateString('en-US',{month:'long'})+' &rsaquo;</button>';
+    var pmIso=addDays(monthStart(t),-1); if(p[0]==='This month'&&drillMissing(pmIso)) h+='<button class="line bad" data-tab="drill" data-d="'+pmIso+'">&#9679; No fire/emergency drill logged for LAST month ('+d2(pmIso).toLocaleDateString('en-US',{month:'long'})+') &rsaquo;</button>';
     list.forEach(function(m){
       if(m.kind==='form') h+='<button class="line bad" data-cell="'+m.form+'|'+m.date+'|'+esc(m.room)+'">&#9679; '+nice(m.date)+' &middot; '+esc(FORMS[m.form].label)+(m.room==='(building)'?'':' &middot; '+esc(m.room))+' &rsaquo;</button>';
       else if(m.kind==='att') h+='<button class="line bad" data-tab="att" data-d="'+m.date+'">&#9679; '+nice(m.date)+' &middot; no attendance recorded &rsaquo;</button>';
@@ -717,6 +718,6 @@ document.addEventListener('click',function(e){
 });
 
 /* ---------- boot ---------- */
-api('whoami').then(function(w){ S.school=w.school; render(); return ensureData(); }).catch(function(e){ document.getElementById('app').innerHTML='<div class="card"><b>'+esc(e.message)+'</b><br><a class="btn" href="index.html">Back to sign in</a></div>'; });
+api('whoami').then(function(w){ S.school=w.school; try{var q=new URLSearchParams(location.search);if(q.get('date')&&/^\d{4}-\d{2}-\d{2}$/.test(q.get('date')))S.date=q.get('date');if(q.get('tab'))S.tab=q.get('tab');}catch(e){} render(); return ensureData(); }).then(function(){ try{var c=new URLSearchParams(location.search).get('cell');if(c){var p=c.split('|');if(FORMS[p[0]])openCell(p[0],p[1],p[2]);}}catch(e){} }).catch(function(e){ document.getElementById('app').innerHTML='<div class="card"><b>'+esc(e.message)+'</b><br><a class="btn" href="index.html">Back to sign in</a></div>'; });
 window.__dcf={S:S,cellState:cellState,missingList:missingList,drillMissing:drillMissing,parseItems:parseItems};
 })();

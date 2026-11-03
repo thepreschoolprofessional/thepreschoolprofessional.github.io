@@ -188,23 +188,40 @@ $byWeek[$m][] = ['type'=>$f['Form Type'] ?? 'Other', 'room'=>$f['Room / Classroo
 }
 $offset = $res['offset'] ?? null;
 } while ($offset && ++$guard < 30);
-// Expected daily charts = any form+room that was filled on 3+ different days in at least one of these weeks (excludes incident reports).
-$expected = [];
-foreach ($byWeek as $m => $rs){ $days = [];
-foreach ($rs as $r){ if (strpos($r['type'], 'Incident') !== false) continue; $days[$r['type'].'|'.$r['room']][$r['date']] = 1; }
-foreach ($days as $k => $d){ if (count($d) >= 3) $expected[$k] = 1; } }
+// Same rules as the Inspector view (dcf.js): which daily charts each school must complete, and which days are closed.
+$CLASSROOMS = ['Sanford'=>['Ones','Fours / VPK','School Age'], 'DeLand 2'=>['Infant Room','Ones','Twos','Threes']];
+$CLOSED = ['2026-07-03','2026-07-31','2026-09-07','2026-11-11','2026-11-26','2026-11-27','2026-12-24','2026-12-25','2027-01-01','2027-01-18','2027-03-26','2027-05-31','2027-06-18'];
+$BLDG = 'Whole Building / Common Areas';
+$DAILY = [ // key => [form type, room-based?, building-form room label]
+'bath'=>['🚽 Bathroom Cleaning', true, ''], 'cls'=>['🧹 Classroom Cleaning', true, ''], 'ind'=>['🏠 Indoor Inspection', true, ''],
+'out'=>['🛝 Outdoor / Playground Inspection', false, 'Playground'], 'san'=>['🧼 Sanitation & Safety', false, $BLDG],
+'tmp'=>['🌡️ Temp & Safety Logs', false, 'Kitchen'], 'sec'=>['🔒 Security & Attendance', false, $BLDG], 'eod'=>['🌙 End of Day Building Sweep', false, $BLDG] ];
 $todayStr = $today->format('Y-m-d');
 $weeks = [];
 foreach ($mondays as $m){
 $fri = (new DateTime($m))->modify('+4 days')->format('Y-m-d');
 $signed = count(glob($base.'/'.substr($m,0,7).'/dcf/SIGNED - Weekly Sign-off - Week of '.$m.'*')) > 0;
-$have = []; foreach ($byWeek[$m] as $r) $have[$r['type'].'|'.$r['room'].'|'.$r['date']] = 1;
+$haveRoom = []; $haveType = [];
+foreach ($byWeek[$m] as $r){ $haveRoom[$r['type'].'|'.$r['room'].'|'.$r['date']] = 1; $haveType[$r['type'].'|'.$r['date']] = 1; }
 $missing = [];
-for ($d = 0; $d < 5; $d++){ $ds = (new DateTime($m))->modify('+'.$d.' days')->format('Y-m-d'); if ($ds > $todayStr) continue;
-foreach ($expected as $k => $_){ if (!isset($have[$k.'|'.$ds])){ list($t, $rm) = explode('|', $k, 2); $missing[] = ['type'=>$t, 'room'=>$rm, 'date'=>$ds]; } } }
+for ($d = 0; $d < 5; $d++){ $ds = (new DateTime($m))->modify('+'.$d.' days')->format('Y-m-d');
+if ($ds >= $todayStr || in_array($ds, $CLOSED)) continue; // today is not flagged until it is over
+foreach ($DAILY as $key => $def){
+if ($def[1]){ foreach (($CLASSROOMS[$school] ?? []) as $room){ if (!isset($haveRoom[$def[0].'|'.$room.'|'.$ds])) $missing[] = ['form'=>$key, 'type'=>$def[0], 'room'=>$room, 'date'=>$ds, 'cell'=>$key.'|'.$ds.'|'.$room]; } }
+else { if (!isset($haveType[$def[0].'|'.$ds])) $missing[] = ['form'=>$key, 'type'=>$def[0], 'room'=>$def[2], 'date'=>$ds, 'cell'=>$key.'|'.$ds.'|(building)']; }
+} }
 $weeks[] = ['monday'=>$m, 'friday'=>$fri, 'rows'=>$byWeek[$m], 'signed'=>$signed, 'missing'=>$missing];
 }
-echo json_encode(['school'=>$school, 'weeks'=>$weeks]); exit;
+// Monthly forms (fire / emergency drill): due once a month. Flag the current month from the 25th on, and last month if none was logged (new month).
+$curM = $today->format('Y-m'); $prevM = (clone $today)->modify('first day of last month')->format('Y-m');
+$dFrom = (new DateTime($prevM.'-01'))->modify('-1 day')->format('Y-m-d'); $dTo = (new DateTime($curM.'-01'))->modify('last day of this month')->modify('+1 day')->format('Y-m-d');
+$dq = ['filterByFormula'=>"AND({School}='".str_replace("'", "", $school)."', {Form Type}='🧯 Drills & Emergency', IS_AFTER({Date},'".$dFrom."'), IS_BEFORE({Date},'".$dTo."'))", 'pageSize'=>100, 'fields'=>['Date']];
+$dr = at_request('GET', ['Facility Submissions'], preg_replace('/fields%5B\d+%5D/', 'fields%5B%5D', http_build_query($dq)));
+$drillMonths = []; foreach (($dr['records'] ?? []) as $r){ $dm = substr($r['fields']['Date'] ?? '', 0, 7); if ($dm) $drillMonths[$dm] = 1; }
+$monthly = [];
+if (!isset($drillMonths[$prevM])) $monthly[] = ['form'=>'drl', 'month'=>$prevM, 'label'=>'Fire / emergency drill'];
+if (!isset($drillMonths[$curM]) && (int)$today->format('j') >= 25) $monthly[] = ['form'=>'drl', 'month'=>$curM, 'label'=>'Fire / emergency drill'];
+echo json_encode(['school'=>$school, 'weeks'=>$weeks, 'monthly'=>$monthly]); exit;
 }
 
 fail('Unknown action');
