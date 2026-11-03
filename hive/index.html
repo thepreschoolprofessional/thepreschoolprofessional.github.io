@@ -104,7 +104,7 @@ function pick(r){ role = r; document.getElementById('gate').classList.add('show'
   p.setAttribute('inputmode', r==='director' ? 'numeric' : 'text');
   p.placeholder = r==='director' ? '6-digit PIN' : 'YOUR-PIN';
   p.value=''; document.getElementById('err').textContent='';
-  const pad = r==='director';
+  const pad = (r==='director' || r==='teacher');
   document.getElementById('pad').classList.toggle('show', pad);
   document.getElementById('pinrow').style.display = pad ? 'none' : '';
   p.required = !pad; paint();
@@ -113,13 +113,13 @@ function pick(r){ role = r; document.getElementById('gate').classList.add('show'
   if(!pad) p.focus(); }
 function paint(){ const n=document.getElementById('pin').value.length; document.querySelectorAll('#dots i').forEach((d,i)=>d.classList.toggle('on',i<n)); }
 function key(k){
-  if(role!=='director') return;
+  if(role!=='director' && role!=='teacher') return;
   const p=document.getElementById('pin');
   if(k==='del') p.value=p.value.slice(0,-1); else if(p.value.length<6) p.value+=k;
   document.getElementById('err').textContent=''; paint();
   if(p.value.length===6) setTimeout(()=>enter(),120);
 }
-document.addEventListener('keydown',e=>{ if(role==='director' && !e.ctrlKey && !e.metaKey){ if(/^[0-9]$/.test(e.key)) key(e.key); else if(e.key==='Backspace') key('del'); } });
+document.addEventListener('keydown',e=>{ if((role==='director'||role==='teacher') && !e.ctrlKey && !e.metaKey){ if(/^[0-9]$/.test(e.key)) key(e.key); else if(e.key==='Backspace') key('del'); } });
 async function enter(auto){
   const pin = document.getElementById('pin').value.trim().toUpperCase();
   const err = document.getElementById('err'); err.textContent = '';
