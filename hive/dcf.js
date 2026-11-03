@@ -324,6 +324,7 @@ function ovForm(key,get,opt){
     var st='left:'+(f.x/sp.w*100).toFixed(3)+'%;top:'+(f.y/sp.h*100).toFixed(3)+'%;width:'+(f.w/sp.w*100).toFixed(3)+'%;height:'+(f.h/sp.h*100).toFixed(3)+'%';
     var o=opt.render&&opt.render(f); if(o===false) return; if(typeof o==='string'){ h+='<div class="ovx" style="'+st+'">'+o+'</div>'; return; }
     var v=get(f.id), req=sp.req.indexOf(f.id)>-1;
+    if(f.t==='s'){ h+='<div class="ovsig" data-sig="'+f.id+'" data-form="'+key+'" style="'+st+'">'+(v?'<img src="'+esc(v)+'" alt="signature">':'<span>Tap to sign</span>')+'<input type="hidden" '+(f.sp?'class="spi" data-sp="'+f.id+'"':'data-f="'+f.id+'"')+' value="'+esc(v||'')+'"></div>'; return; }
     if(f.t==='c') h+='<input type="checkbox" class="ovc'+(req?' rq-in':'')+'" data-f="'+f.id+'" style="'+st+'"'+(v?' checked':'')+'>';
     else h+='<input class="ovi'+(req?' rq-in':'')+'" data-f="'+f.id+'" style="'+st+'" value="'+esc(v||'')+'">';
   });
@@ -352,24 +353,69 @@ function expOv(){
 }
 function labOv(){
   var rows=(pkData('LABOR')||{}).rows||[], m=S.pk.month;
-  return ovForm('LABOR',function(){return '';},{render:function(f){
+  var ld=pkData('LABOR')||{};
+  return ovForm('LABOR',function(id){return id==='sig'?(ld.sig||''):'';},{render:function(f){
+    if(f.t==='s') return null;
     if(f.id==='center') return '<span class="ovs">'+esc((SITEDEF[S.school]||{}).sname||'')+'</span>';
     if(f.id==='month') return '<span class="ovs">'+MONTHS[+m.slice(5)-1]+' '+m.slice(0,4)+'</span>';
     if(f.id==='total') return '<div class="ovt" id="labTot">0.00</div>';
-    if(f.id==='sig') return false;
     var i=+f.id.slice(1)-1, r=rows[i]||[], v=r.length?r[r.length-1]:'';
     return '<input class="ws lab ovi num" style="position:static;width:100%;height:100%" inputmode="decimal" value="'+esc(v||'')+'">';
   }});
 }
+function parQuick(){
+  var dopt='<option value="wk">Every weekday (Mon&ndash;Fri)</option><option value="all">Every day of the month</option><option value="mwf">Mon / Wed / Fri</option><option value="tt">Tue / Thu</option><option value="cus">Specific days&hellip;</option>';
+  function row(k,lab,def){ return '<div class="qfrow"><b>'+lab+'</b><input class="inp qh" id="qf-'+k+'-h" inputmode="decimal" placeholder="hrs/day" value="'+def+'"><select class="inp" id="qf-'+k+'-d">'+dopt+'</select><input class="inp" id="qf-'+k+'-c" placeholder="e.g. 1,2,5-9" style="display:none"></div>'; }
+  return '<div class="card noprint qf"><div class="ct">Quick fill this month</div><div class="sub">Type the hours per day and pick which days. Leave hours blank to skip a column. It only fills the days you pick, so you can still change any box afterward.</div>'+row('a','Admin hours','')+row('o','Operational hours','')+row('r','Regular hours worked','')+row('p','Paid leave hours','')+'<div class="mrow"><button class="btn grn" data-pf="parfill">Fill the table</button><button class="btn sec" data-pf="parclear">Clear this month</button></div></div>';
+}
+function parDays(sel,txt,dim,y,m){
+  var out=[]; for(var d=1;d<=dim;d++){ var w=new Date(y,m-1,d).getDay();
+    if(sel==='all'||(sel==='wk'&&w>0&&w<6)||(sel==='mwf'&&(w===1||w===3||w===5))||(sel==='tt'&&(w===2||w===4))) out.push(d); }
+  if(sel==='cus'){ String(txt||'').split(',').forEach(function(p){ var r=p.trim().split('-'); var a=+r[0], b=r.length>1?+r[1]:a; for(var d=a;d<=b;d++) if(d>=1&&d<=dim&&out.indexOf(d)<0) out.push(d); }); }
+  return out;
+}
+function parFill(){
+  if(isLocked()) return toast('This month is locked.',true);
+  var m=S.pk.month, y=+m.slice(0,4), mo=+m.slice(5), dim=new Date(y,mo,0).getDate(), n=0;
+  ['a','o','r','p'].forEach(function(k){ var hv=$('qf-'+k+'-h').value.trim(); if(hv==='') return; var days=parDays($('qf-'+k+'-d').value,$('qf-'+k+'-c').value,dim,y,mo);
+    days.forEach(function(d){ var i=document.querySelector('.pv[data-d="'+d+'"][data-k="'+k+'"]'); if(i&&!i.disabled){ i.value=hv; n++; } }); });
+  parTotals(); postPack(); schedSave(); toast(n?('Filled '+n+' boxes.'):'Nothing to fill - enter hours first.',!n);
+}
+function parClear(){ if(isLocked()) return; if(!confirm('Clear every hours box on this form?')) return; document.querySelectorAll('.pv').forEach(function(i){ i.value=''; }); parTotals(); postPack(); schedSave(); }
+/* ----- signature pad ----- */
+var SIGDATE={MEDICAL:{sig:'f:sdate'},DIETARY:{psig:'f:pdate'},INFANTFEED:{psig:'f:pdate'},SITEINFO:{sig:'f:sdate'},PAR:{sigE:'s:sigdate',sigD:'s:sd'}};
+function todayUS(){ var d=new Date(); return ('0'+(d.getMonth()+1)).slice(-2)+'/'+('0'+d.getDate()).slice(-2)+'/'+d.getFullYear(); }
+function openPad(box){
+  if(isLocked()) return toast('This month is locked.',true);
+  var ov=document.createElement('div'); ov.className='padov'; ov.innerHTML='<div class="padbox"><div class="ct">Sign here</div><canvas width="700" height="220"></canvas><div class="mrow"><button class="btn sec" data-pad="clear">Clear</button><button class="btn sec" data-pad="cancel">Cancel</button><button class="btn grn" data-pad="save">Use this signature</button></div><div class="hint">Use your finger or mouse. Today&rsquo;s date fills in next to it.</div></div>';
+  document.body.appendChild(ov);
+  var c=ov.querySelector('canvas'), x=c.getContext('2d'), dr=false, any=false; x.lineWidth=3; x.lineCap='round'; x.lineJoin='round'; x.strokeStyle='#0a2a8a';
+  function pos(e){ var r=c.getBoundingClientRect(); return [(e.clientX-r.left)*c.width/r.width,(e.clientY-r.top)*c.height/r.height]; }
+  c.style.touchAction='none';
+  c.addEventListener('pointerdown',function(e){ dr=true; any=true; var p=pos(e); x.beginPath(); x.moveTo(p[0],p[1]); c.setPointerCapture(e.pointerId); e.preventDefault(); });
+  c.addEventListener('pointermove',function(e){ if(!dr) return; var p=pos(e); x.lineTo(p[0],p[1]); x.stroke(); });
+  ['pointerup','pointercancel'].forEach(function(t){ c.addEventListener(t,function(){ dr=false; }); });
+  ov.addEventListener('click',function(e){ var a=e.target.getAttribute&&e.target.getAttribute('data-pad'); if(!a) return;
+    if(a==='clear'){ x.clearRect(0,0,c.width,c.height); any=false; }
+    else if(a==='cancel') ov.remove();
+    else if(a==='save'){ if(!any) return toast('Draw your signature first.',true);
+      var t=document.createElement('canvas'); t.width=350; t.height=110; t.getContext('2d').drawImage(c,0,0,350,110);
+      var url=t.toDataURL('image/png'), hid=box.querySelector('input'); hid.value=url; box.querySelector('span,img')&&box.querySelector('span,img').remove(); var im=new Image(); im.src=url; box.insertBefore(im,hid);
+      var form=box.getAttribute('data-form'), id=box.getAttribute('data-sig'), dm=(SIGDATE[form]||{})[id];
+      if(dm){ var kind=dm.split(':')[0], did=dm.split(':')[1], de=document.querySelector(kind==='f'?'#paper [data-f="'+did+'"]':'#paper [data-sp="'+did+'"]'); if(de&&!de.value) de.value=todayUS(); }
+      hid.dispatchEvent(new Event('input',{bubbles:true})); ov.remove(); postPack(); schedSave(); } });
+}
+document.addEventListener('change',function(e){ var t=e.target; if(t.id&&/^qf-.-d$/.test(t.id)){ var c=$(t.id.replace(/-d$/,'-c')); if(c) c.style.display=t.value==='cus'?'':'none'; } });
+document.addEventListener('click',function(e){ var b=e.target.closest&&e.target.closest('.ovsig'); if(b) openPad(b); });
 function parOv(){
   var pk=S.pk, m=pk.month, d=pkData('PAR',pk.emp)||{days:{}}, sp=d.sp||{}, dim=new Date(+m.slice(0,4),+m.slice(5),0).getDate();
-  var h='<label class="fl noprint">Employee <span class="rq">*</span><select id="pEmp" class="inp">'+(pk.staff||[]).map(function(n){return '<option'+(n===pk.emp?' selected':'')+'>'+esc(n)+'</option>';}).join('')+'</select></label>';
-  h+=ovForm('PAR',function(){return '';},{render:function(f){
+  var h=parQuick()+'<label class="fl noprint">Employee <span class="rq">*</span><select id="pEmp" class="inp">'+(pk.staff||[]).map(function(n){return '<option'+(n===pk.emp?' selected':'')+'>'+esc(n)+'</option>';}).join('')+'</select></label>';
+  h+=ovForm('PAR',function(id){return sp[id]||'';},{render:function(f){
+    if(f.t==='s') return null;
     if(f.id==='center') return '<span class="ovs">'+esc((SITEDEF[S.school]||{}).sname||'')+'</span>';
     if(f.id==='emp') return '<span class="ovs">'+esc(pk.emp||'')+'</span>';
     if(f.id==='month') return '<span class="ovs sm">'+m.slice(5)+'/'+m.slice(0,4)+'</span>';
     if(f.id==='title') return '<input id="pTitle" class="ovi rq-in" style="position:static;width:100%;height:100%" value="'+esc(d.title||'')+'">';
-    if(f.id==='sigdate') return false;
     if(f.tot) return '<div class="ovt" id="pt-'+f.tot+'">0</div>';
     if(f.sp) return '<input class="ovi spi" data-sp="'+f.id+'" style="position:static;width:100%;height:100%" value="'+esc(sp[f.id]||'')+'">';
     var r=(d.days||{})[f.day]||{}, off=f.day>dim;
@@ -491,7 +537,7 @@ function collect(form){
   else if(form==='ENTRANCES'){ var n=document.querySelectorAll('.en'), dd=document.querySelectorAll('.ed'), rows=[]; for(var i=0;i<n.length;i++) if(n[i].value.trim()||dd[i].value.trim()) rows.push({n:n[i].value.trim(),d:dd[i].value.trim()}); var nn=$('entNone'); data={rows:rows,none:!!(nn&&nn.checked)}; }
   else if(form==='PAR'){ emp=pk.emp; var days={}; document.querySelectorAll('.pv').forEach(function(x){ if(x.value.trim()){ var k=x.getAttribute('data-d'); (days[k]=days[k]||{})[x.getAttribute('data-k')]=x.value.trim(); } }); var sp={}; document.querySelectorAll('.spi').forEach(function(x){ if(x.value.trim()) sp[x.getAttribute('data-sp')]=x.value.trim(); }); data={auth:'',title:($('pTitle')||{value:''}).value.trim(),days:days,sp:sp}; }
   else if(form==='SITEINFO'||KF[form]){ if(KF[form]) emp=pk.kid||''; document.querySelectorAll('#paper [data-f]').forEach(function(x){ data[x.getAttribute('data-f')]=x.type==='checkbox'?(x.checked?'1':''):x.value.trim(); }); if(KF[form]&&!emp) return null; }
-  else if(form==='EXPEND'||form==='LABOR'){ var per=form==='EXPEND'?7:1, all=[].map.call(document.querySelectorAll('#paper input.ws'),function(x){return x.value.trim();}), rows=[]; for(var q=0;q<all.length;q+=per) rows.push(all.slice(q,q+per)); data={rows:rows}; }
+  else if(form==='EXPEND'||form==='LABOR'){ var per=form==='EXPEND'?7:1, all=[].map.call(document.querySelectorAll('#paper input.ws'),function(x){return x.value.trim();}), rows=[]; for(var q=0;q<all.length;q+=per) rows.push(all.slice(q,q+per)); data={rows:rows}; var sgl=document.querySelector('#paper [data-f=sig]'); if(sgl&&form==='LABOR') data.sig=sgl.value; }
   else return null;
   return {form:form,emp:emp,data:data};
 }
@@ -658,7 +704,7 @@ document.addEventListener('click',function(e){
   var dl=e.target.closest&&e.target.closest('[data-dl]'); if(dl){ e.preventDefault(); downloadSigned(dl.getAttribute('data-dl'),dl.getAttribute('data-nm')); return; }
   var el=e.target.closest('[data-cell],[data-tab],[data-a],[data-adddrill],[data-pf],[data-goto]'); if(!el) return;
   if(el.hasAttribute('data-goto')){ S.tab='pack'; S.pk.form=el.getAttribute('data-goto'); render(); return; }
-  if(el.hasAttribute('data-pf')){ var a2=el.getAttribute('data-pf'),pk=S.pk; if(a2==='prev'||a2==='next'){ flushSave().then(function(){ pk.month=shiftMonth(pk.month,a2==='prev'?-1:1); pk.loaded=''; render(); }); } else if(a2==='form'){ var fv=el.getAttribute('data-v'); flushSave().then(function(){ pk.form=fv; render(); }); } else if(a2==='save') savePacket(); else if(a2==='submit') submitPacket(); else if(a2==='print'){ var ls=pk.form==='EXPEND', stt=$('pgst'); if(!stt){ stt=document.createElement('style'); stt.id='pgst'; document.head.appendChild(stt); } stt.textContent='@page{size:letter '+(ls?'landscape':'portrait')+';margin:'+(/^(SITEINFO|CHECKLIST|ENTRANCES|MEDICAL|DIETARY|INFANTFEED|PAR|LABOR|EXPEND)$/.test(pk.form)?'0':'0.4in')+'}'; window.print(); } return; }
+  if(el.hasAttribute('data-pf')){ var a2=el.getAttribute('data-pf'),pk=S.pk; if(a2==='prev'||a2==='next'){ flushSave().then(function(){ pk.month=shiftMonth(pk.month,a2==='prev'?-1:1); pk.loaded=''; render(); }); } else if(a2==='form'){ var fv=el.getAttribute('data-v'); flushSave().then(function(){ pk.form=fv; render(); }); } else if(a2==='save') savePacket(); else if(a2==='submit') submitPacket(); else if(a2==='parfill') parFill(); else if(a2==='parclear') parClear(); else if(a2==='print'){ var ls=pk.form==='EXPEND', stt=$('pgst'); if(!stt){ stt=document.createElement('style'); stt.id='pgst'; document.head.appendChild(stt); } stt.textContent='@page{size:letter '+(ls?'landscape':'portrait')+';margin:'+(/^(SITEINFO|CHECKLIST|ENTRANCES|MEDICAL|DIETARY|INFANTFEED|PAR|LABOR|EXPEND)$/.test(pk.form)?'0':'0.4in')+'}'; window.print(); } return; }
   if(el.getAttribute('data-a')==='mclose' && e.target.closest('[data-stop]') && !e.target.classList.contains('btn')) return;
   if(el.hasAttribute('data-adddrill')){ addDrill(); return; }
   if(el.hasAttribute('data-cell')){ var p=el.getAttribute('data-cell').split('|'); openCell(p[0],p[1],p[2]); return; }
