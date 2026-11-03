@@ -308,18 +308,18 @@ function packView(){
   PFORMS.forEach(function(f){ var s=st[f[0]]; var mark=s==null?'':(s.ok?' &#10003;':' <span class="red">&#9679;</span>'); h+='<button class="tab'+(pk.form===f[0]?' on':'')+'" data-pf="form" data-v="'+f[0]+'">'+f[1]+mark+'</button>'; });
   h+='</div></div>';
   var body;
-  if(pk.form==='CHECKLIST') body=chkForm(); else if(pk.form==='ENTRANCES') body=entForm(); else if(pk.form==='PAR') body=parOv(); else if(pk.form==='SITEINFO') body=siteForm(); else if(KF[pk.form]) body=kidOv(pk.form); else if(pk.form==='EXPEND') body=expOv(); else if(pk.form==='LABOR') body=labOv(); else body=reviewForm(st);
+  if(pk.form==='CHECKLIST') body=chkOv(); else if(pk.form==='ENTRANCES') body=entOv(); else if(pk.form==='PAR') body=parOv(); else if(pk.form==='SITEINFO') body=siteOv(); else if(KF[pk.form]) body=kidOv(pk.form); else if(pk.form==='EXPEND') body=expOv(); else if(pk.form==='LABOR') body=labOv(); else body=reviewForm(st);
   if(pk.form==='REVIEW') return h+'<div class="card" id="paper">'+body+'</div>';
-  h+='<div class="card paper'+(/^(MEDICAL|DIETARY|INFANTFEED|PAR|LABOR|EXPEND)$/.test(pk.form)?' ovwrap '+(pk.form==='EXPEND'?'land':'port'):'')+'" id="paper">'+body+'</div>';
+  h+='<div class="card paper'+(/^(SITEINFO|CHECKLIST|ENTRANCES|MEDICAL|DIETARY|INFANTFEED|PAR|LABOR|EXPEND)$/.test(pk.form)?' ovwrap '+(pk.form==='EXPEND'?'land':'port'):'')+'" id="paper">'+body+'</div>';
   h+='<div class="mrow noprint"><button class="btn sec" data-pf="print">Print / Save PDF</button>'+'<button class="btn grn" data-pf="save">Save now</button>'+'</div>';
   return h;
 }
 function fld(key,label,req,val,ph){ return '<label class="fl">'+esc(label)+(req?' <span class="rq">*</span>':'')+'<input class="fi'+(req?' rq-in':'')+'" data-f="'+key+'" data-req="'+(req?1:0)+'" value="'+esc(val||'')+'" placeholder="'+esc(ph||'')+'"></label>'; }
 
 /* ----- exact official-form overlays ----- */
-var OVFS={MEDICAL:10,DIETARY:10,INFANTFEED:10,PAR:9,LABOR:10,EXPEND:11};
+var OVFS={SITEINFO:10,CHECKLIST:10,ENTRANCES:10,MEDICAL:10,DIETARY:10,INFANTFEED:10,PAR:9,LABOR:10,EXPEND:11};
 function ovForm(key,get,opt){
-  opt=opt||{}; var sp=window.OVSPEC[key], h='<div class="ovp '+(sp.w>sp.h?'land':'port')+'" data-ovk="'+key+'" style="--fs:'+(OVFS[key]/sp.w*100).toFixed(3)+'cqw"><img src="files/food-program/forms/'+key.toLowerCase()+'.jpg" alt="">';
+  opt=opt||{}; var sp=window.OVSPEC[key], h='<div class="ovp '+(sp.w>sp.h?'land':'port')+'" data-ovk="'+key+'" style="--fs:'+(OVFS[key]/sp.w*100).toFixed(3)+'cqw"><img src="files/food-program/forms/'+(opt.img||key.toLowerCase())+'.jpg" alt="">';
   sp.f.forEach(function(f){
     var st='left:'+(f.x/sp.w*100).toFixed(3)+'%;top:'+(f.y/sp.h*100).toFixed(3)+'%;width:'+(f.w/sp.w*100).toFixed(3)+'%;height:'+(f.h/sp.h*100).toFixed(3)+'%';
     var o=opt.render&&opt.render(f); if(o===false) return; if(typeof o==='string'){ h+='<div class="ovx" style="'+st+'">'+o+'</div>'; return; }
@@ -377,6 +377,37 @@ function parOv(){
   }});
   return h+'<div class="hint noprint">The pay section at the bottom fills in as you type; the sponsor/director signs the printed copy.</div>';
 }
+var SD={'Sanford':{cname:'Kid City USA Sanford',street:'1320 Hickory Ave.',city:'Sanford',state:'FL',zip:'32771',phone:'(407) 942-3242',m_br:'1',m_lu:'1',m_as:'1',sv0:'1',sv0_br:'1',sv0_lu:'1',sv0_as:'1'},'DeLand 2':{auth:'4-2677',cname:'Kid City USA DeLand 2',street:'238 S. Armelia Ave.',city:'DeLand',state:'FL',zip:'32724',phone:'386-279-7553',fn:'Shanika',ln:'Preston',title:'Owner',phone2:'386-279-7553',m_br:'1',m_lu:'1',m_as:'1',sv0:'1',sv0_br:'1',sv0_lu:'1',sv0_as:'1',ts_br:'7am',tf_br:'9am',ts_lu:'10:30',tf_lu:'12pm',ts_as:'2pm',tf_as:'4pm'}};
+
+function schImg(k){ return k.toLowerCase()+(S.school==='Sanford'?'_sanford':'_deland'); }
+function siteOv(){
+  var d=pkData('SITEINFO'), df=SD[S.school]||{}; if(!d) setTimeout(function(){ if(S.pk.form==='SITEINFO') schedSave(); },400);
+  d=d||{};
+  var h=ovForm('SITEINFO',function(id){ var v=d[id]; return Object.prototype.hasOwnProperty.call(d,id)?v:(df[id]||''); },{img:'siteinfo',render:function(f){ return null; }});
+  return h+'<div class="hint noprint">This is the official Child Care Center Site Information form. Yellow boxes are still needed. Sanford&rsquo;s 4C authorization number is not on file yet.</div>';
+}
+function chkOv(){
+  var d=pkData('CHECKLIST')||{c:[],other:[],sug:[]}, m=S.pk.month;
+  var h=ovForm('CHECKLIST',function(){return '';},{img:schImg('CHECKLIST'),render:function(f){
+    if(f.id==='month') return '<span class="ovs">'+MONTHS[+m.slice(5)-1]+'</span>';
+    if(f.id==='year') return '<span class="ovs">'+m.slice(0,4)+'</span>';
+    var t=f.id[0], i=+f.id.slice(1);
+    if(t==='c') return '<input type="checkbox" class="pc ovc" data-i="'+i+'" style="position:static" '+(d.c&&d.c[i]?'checked':'')+'>';
+    if(t==='o') return '<input class="po ovi" style="position:static;width:100%;height:100%" value="'+esc((d.other||[])[i]||'')+'">';
+    return '<input class="ps ovi" style="position:static;width:100%;height:100%" value="'+esc((d.sug||[])[i]||'')+'">';
+  }});
+  return h+'<div class="hint noprint">Tick each item as it goes in the packet. Yellow items are required.</div>';
+}
+function entOv(){
+  var rows=entRows(), m=S.pk.month, sv0=pkData('ENTRANCES')||{};
+  var h='<label class="ck2 noprint"><input type="checkbox" id="entNone" '+(sv0.none?'checked':'')+'> <span>No entrances or terminations this month</span></label>';
+  h+=ovForm('ENTRANCES',function(){return '';},{img:schImg('ENTRANCES'),render:function(f){
+    if(f.id==='month') return '<span class="ovs">'+MONTHS[+m.slice(5)-1]+' '+m.slice(0,4)+'</span>';
+    var r=rows[f.row]||{}, c=f.col==='n';
+    return '<input class="'+(c?'en':'ed')+' ovi" style="position:static;width:100%;height:100%" value="'+esc((c?r.n:r.d)||'')+'">';
+  }});
+  return h+(rows.length>25?'<div class="warnbox">More than 25 entrances &mdash; only the first 25 fit on this page. Tell Charles to add a second page.</div>':'')+'<div class="hint noprint">Pre-filled with children added through the Rooms board this month. Type to fix or add anyone else.</div>';
+}
 function siteForm(){
   var d=pkData('SITEINFO')||{}, df=SITEDEF[S.school]||{};
   var h=letterhead()+'<h2 class="pt">CCFP Site Information</h2><div class="pm">'+mLabel(S.pk.month)+'</div><div class="fgrid">';
@@ -413,7 +444,7 @@ function wsCalc(){
 /* ----- status / review ----- */
 function pkStatus(){
   var pk=S.pk, s={}, any=function(f){ return Object.keys(pk.recs).filter(function(k){return k.split('|')[1]===f;}); };
-  var si=pkData('SITEINFO'); s.SITEINFO={ok:!!si&&SITEF.filter(function(f){return f[2]&&!String(si[f[0]]||(SITEDEF[S.school]||{})[f[0]]||'').trim();}).length===0, why:'Site details incomplete'};
+  var si=pkData('SITEINFO'); var SREQ=window.OVSPEC.SITEINFO.req, sdf=SD[S.school]||{}; s.SITEINFO={ok:!!si&&SREQ.every(function(k){ var v=si[k]; return String((v==null||v==='')?(sdf[k]||''):v).trim(); }), why:'Site Information still has yellow boxes'};
   var ck=pkData('CHECKLIST'); var need=[0,2,4,5,6,7]; s.CHECKLIST={ok:!!ck&&need.every(function(i){return ck.c&&ck.c[i];}), why:'Check list items still unchecked'};
   var en=pkData('ENTRANCES'); s.ENTRANCES={ok:!!en&&((en.rows&&en.rows.length)||en.none), why:'Entrances not reviewed (add rows or tick "none this month")'};
   s.PAR={ok:any('PAR').length>0, why:'No Personnel Activity Report saved'};
@@ -448,7 +479,7 @@ function postPack(){
   var p=$('paper'); if(!p) return;
   p.querySelectorAll('.rq-in').forEach(function(i){ i.classList.toggle('need',!String(i.value).trim()); });
   if(S.pk.form==='EXPEND'||S.pk.form==='LABOR') wsCalc();
-  if(S.pk.form==='CHECKLIST'){ var NEED=[0,2,4,5,6,7]; p.querySelectorAll('.pc').forEach(function(c){ var l=c.closest('label'); if(l) l.classList.toggle('need',NEED.indexOf(+c.getAttribute('data-i'))>-1&&!c.checked); }); }
+  if(S.pk.form==='CHECKLIST'){ var NEED=[0,2,4,5,6,7]; p.querySelectorAll('.pc').forEach(function(c){ var l=c.closest('label')||c; if(l) l.classList.toggle('need',NEED.indexOf(+c.getAttribute('data-i'))>-1&&!c.checked); }); }
   if(S.pk.form==='PAR'){ ['pAuth','pTitle'].forEach(function(id){ var e=$(id); if(e) e.classList.toggle('need',!e.value.trim()); }); }
   if(S.pk.form==='ENTRANCES'){ var nn=$('entNone'), has=[].some.call(p.querySelectorAll('.en'),function(x){return x.value.trim();}); p.classList.toggle('needbox',!(nn&&nn.checked)&&!has); }
   if(isLocked()) p.querySelectorAll('input,select,textarea').forEach(function(i){ i.disabled=true; });
@@ -627,7 +658,7 @@ document.addEventListener('click',function(e){
   var dl=e.target.closest&&e.target.closest('[data-dl]'); if(dl){ e.preventDefault(); downloadSigned(dl.getAttribute('data-dl'),dl.getAttribute('data-nm')); return; }
   var el=e.target.closest('[data-cell],[data-tab],[data-a],[data-adddrill],[data-pf],[data-goto]'); if(!el) return;
   if(el.hasAttribute('data-goto')){ S.tab='pack'; S.pk.form=el.getAttribute('data-goto'); render(); return; }
-  if(el.hasAttribute('data-pf')){ var a2=el.getAttribute('data-pf'),pk=S.pk; if(a2==='prev'||a2==='next'){ flushSave().then(function(){ pk.month=shiftMonth(pk.month,a2==='prev'?-1:1); pk.loaded=''; render(); }); } else if(a2==='form'){ var fv=el.getAttribute('data-v'); flushSave().then(function(){ pk.form=fv; render(); }); } else if(a2==='save') savePacket(); else if(a2==='submit') submitPacket(); else if(a2==='print'){ var ls=pk.form==='EXPEND', stt=$('pgst'); if(!stt){ stt=document.createElement('style'); stt.id='pgst'; document.head.appendChild(stt); } stt.textContent='@page{size:letter '+(ls?'landscape':'portrait')+';margin:'+(/^(MEDICAL|DIETARY|INFANTFEED|PAR|LABOR|EXPEND)$/.test(pk.form)?'0':'0.4in')+'}'; window.print(); } return; }
+  if(el.hasAttribute('data-pf')){ var a2=el.getAttribute('data-pf'),pk=S.pk; if(a2==='prev'||a2==='next'){ flushSave().then(function(){ pk.month=shiftMonth(pk.month,a2==='prev'?-1:1); pk.loaded=''; render(); }); } else if(a2==='form'){ var fv=el.getAttribute('data-v'); flushSave().then(function(){ pk.form=fv; render(); }); } else if(a2==='save') savePacket(); else if(a2==='submit') submitPacket(); else if(a2==='print'){ var ls=pk.form==='EXPEND', stt=$('pgst'); if(!stt){ stt=document.createElement('style'); stt.id='pgst'; document.head.appendChild(stt); } stt.textContent='@page{size:letter '+(ls?'landscape':'portrait')+';margin:'+(/^(SITEINFO|CHECKLIST|ENTRANCES|MEDICAL|DIETARY|INFANTFEED|PAR|LABOR|EXPEND)$/.test(pk.form)?'0':'0.4in')+'}'; window.print(); } return; }
   if(el.getAttribute('data-a')==='mclose' && e.target.closest('[data-stop]') && !e.target.classList.contains('btn')) return;
   if(el.hasAttribute('data-adddrill')){ addDrill(); return; }
   if(el.hasAttribute('data-cell')){ var p=el.getAttribute('data-cell').split('|'); openCell(p[0],p[1],p[2]); return; }
