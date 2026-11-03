@@ -293,7 +293,7 @@ var KF={
  DIETARY:{title:'Dietary Preference Request',fields:[['dob','Date of birth',0],['parent','Parent / guardian',1],['reason','Reason (religious, ethical, personal preference)',1],['avoid','Foods the child does not eat',1],['sub','Acceptable substitutions the parent will supply or approve',0],['pdate','Parent signature date (sign on printed copy)',0]]}
 };
 var SITEF=[['sname','Site name',1],['saddr','Address',1],['sphone','Phone',1],['auth','Authorization / site number',1],['sponsor','Sponsor',1],['license','DCF license number',1],['dirn','Director name',1],['dire','Director email',1],['days','Days of operation',1],['hours','Hours of operation',1],['cap','Licensed capacity',0],['bt','Breakfast time',1],['lt','Lunch time',1],['st','PM snack time',1]];
-var SITEDEF={'Sanford':{sname:'Kid City USA Sanford',saddr:'1320 Hickory Ave., Sanford, FL 32771',phone:'',sphone:'(407) 942-3242',sponsor:'4C Florida',license:'C18SE0336',dirn:'Sanchita',dire:'sanfordoffice.1320@gmail.com',days:'Monday - Friday',hours:'6:30 AM - 5:30 PM'},'DeLand 2':{sname:'Kid City USA DeLand 2 Inc.',saddr:'238 S Armelia Ave., DeLand, FL 32724',sponsor:'CCSWFL',auth:'4-2677',dirn:'Madhumita Sahoo',days:'Monday - Friday'}};
+var SITEDEF={'Sanford':{sname:'Kid City USA Sanford',saddr:'1320 Hickory Ave., Sanford, FL 32771',phone:'',sphone:'(407) 942-3242',sponsor:'4C Florida',license:'C18SE0336',dirn:'Sanchita',dire:'sanfordoffice.1320@gmail.com',days:'Monday - Friday',hours:'6:30 AM - 5:30 PM'},'DeLand 2':{sname:'Kid City USA DeLand 2 Inc.',saddr:'238 S Armelia Ave., DeLand, FL 32724',sponsor:'CCSWFL',auth:'4-2677',dirn:'Madhumita Sahoo',dire:'delandoffice.238@gmail.com',days:'Monday - Friday'}};
 function isLocked(){ return !!S.pk.recs[pkKey('SUBMITTED','')]; }
 function dayKidKey(c){ return c; }
 function packView(){
@@ -396,7 +396,7 @@ function collect(form){
   var pk=S.pk, data={}, emp='';
   if(form==='CHECKLIST'){ data={c:[].map.call(document.querySelectorAll('.pc'),function(x){return x.checked;}),other:[].map.call(document.querySelectorAll('.po'),function(x){return x.value;}),sug:[].map.call(document.querySelectorAll('.ps'),function(x){return x.value;})}; }
   else if(form==='ENTRANCES'){ var n=document.querySelectorAll('.en'), dd=document.querySelectorAll('.ed'), rows=[]; for(var i=0;i<n.length;i++) if(n[i].value.trim()||dd[i].value.trim()) rows.push({n:n[i].value.trim(),d:dd[i].value.trim()}); var nn=$('entNone'); data={rows:rows,none:!!(nn&&nn.checked)}; }
-  else if(form==='PAR'){ emp=pk.emp; var days={}; document.querySelectorAll('.pv').forEach(function(x){ if(x.value.trim()){ var k=x.getAttribute('data-d'); (days[k]=days[k]||{})[x.getAttribute('data-k')]=x.value.trim(); } }); data={auth:$('pAuth').value.trim(),title:$('pTitle').value.trim(),days:days}; }
+  else if(form==='PAR'){ emp=pk.emp; var days={}; document.querySelectorAll('.pv').forEach(function(x){ if(x.value.trim()){ var k=x.getAttribute('data-d'); (days[k]=days[k]||{})[x.getAttribute('data-k')]=x.value.trim(); } }); var sp={}; document.querySelectorAll('.spi').forEach(function(x){ if(x.value.trim()) sp[x.getAttribute('data-sp')]=x.value.trim(); }); data={auth:$('pAuth').value.trim(),title:$('pTitle').value.trim(),days:days,sp:sp}; }
   else if(form==='SITEINFO'||KF[form]){ if(KF[form]) emp=pk.kid||''; document.querySelectorAll('#paper [data-f]').forEach(function(x){ data[x.getAttribute('data-f')]=x.value.trim(); }); if(KF[form]&&!emp) return null; }
   else if(form==='EXPEND'||form==='LABOR'){ var trs=document.querySelectorAll('#paper table tr'), rows=[]; trs.forEach(function(tr){ var ins=tr.querySelectorAll('input.ws'); if(!ins.length) return; var r=[].map.call(ins,function(x){return x.value.trim();}); rows.push(r); }); data={rows:rows}; }
   else return null;
@@ -453,17 +453,31 @@ function parForm(){
   }
   h+='</table>';
   h+='<div class="cert">I certify that this is an accurate record of the number of hours worked on the Child Care Food Program.</div><div class="sig3"><label>Employee&rsquo;s Signature<input class="ln" placeholder="(sign on the printed copy)" disabled></label><label>Title<input id="pTitle" class="ln" value="'+esc(d.title||'')+'"></label><label>Date<input class="ln" disabled></label></div>';
-  var U='<span class="u"></span>';
+  var sp=d.sp||{};
+  function I(k,w){ return '<input class="spi" data-sp="'+k+'" inputmode="decimal" style="width:'+(w||80)+'px" value="'+esc(sp[k]||'')+'">'; }
+  function T(k,w){ return '<input class="spi" data-sp="'+k+'" style="width:'+(w||160)+'px" value="'+esc(sp[k]||'')+'">'; }
   h+='<div class="sponsor"><div class="sh">TO BE COMPLETED BY SPONSOR / CENTER DIRECTOR / AUTHORIZED REPRESENTATIVE</div>';
-  h+='<div><b>A.</b> (HOURLY PAID STAFF)</div><div>Total administrative hours worked on CCFP '+U+' x $'+U+' (hourly wage) = $'+U+' (Total admin. CCFP salary)</div><div>Total operational hours worked on CCFP '+U+' x $'+U+' (hourly wage) = $'+U+' (Total oper. CCFP salary)</div>';
-  h+='<div><b>B.</b> (SALARIED STAFF)</div><div>Total administrative hours worked on CCFP '+U+' &divide; Total hours worked '+U+' = '+U+'%</div><div class="ind">Total Salary to be <b>paid</b> this month $'+U+' x '+U+'% = $'+U+' (Total admin. CCFP salary)</div><div>Total operational hours worked on CCFP '+U+' &divide; Total hours worked '+U+' = '+U+'%</div><div class="ind">Total Salary to be <b>paid</b> this month $'+U+' x '+U+'% = $'+U+' (Total oper. CCFP salary)</div>';
-  h+='<div><b>I certify that payroll records are on file that verify the total wages as listed above.</b></div><div>Signature of Sponsor/Center Director/Authorized Representative'+U+U+' Date '+U+'</div></div>';
-  h+='<div class="hint noprint">Pay lines are left blank on purpose: write them in on the printed copy (no wages are stored here).</div><div class="rev">Revised 2/2011 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; I-026-04</div>';
+  h+='<div><b>A.</b> (HOURLY PAID STAFF)</div><div>Total administrative hours worked on CCFP '+I('ah')+' x $'+I('aw')+' (hourly wage) = $'+I('aa')+' (Total admin. CCFP salary)</div><div>Total operational hours worked on CCFP '+I('oh')+' x $'+I('ow')+' (hourly wage) = $'+I('oa')+' (Total oper. CCFP salary)</div>';
+  h+='<div><b>B.</b> (SALARIED STAFF)</div><div>Total administrative hours worked on CCFP '+I('bah')+' &divide; Total hours worked '+I('bth')+' = '+I('bap',60)+'%</div><div class="ind">Total Salary to be <b>paid</b> this month $'+I('bs')+' x '+I('bap2',60)+'% = $'+I('baa')+' (Total admin. CCFP salary)</div><div>Total operational hours worked on CCFP '+I('boh')+' &divide; Total hours worked '+I('bth2')+' = '+I('bop',60)+'%</div><div class="ind">Total Salary to be <b>paid</b> this month $'+I('bs2')+' x '+I('bop2',60)+'% = $'+I('boa')+' (Total oper. CCFP salary)</div>';
+  h+='<div><b>I certify that payroll records are on file that verify the total wages as listed above.</b></div><div>Signature of Sponsor/Center Director/Authorized Representative <span class="noprint">(sign on the printed copy)</span> &nbsp; Date '+T('sd',110)+'</div></div>';
+  h+='<div class="hint noprint">The pay section fills in as you type. Hours carry over from the table above when left blank; amounts and percentages calculate themselves.</div><div class="rev">Revised 2/2011 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; I-026-04</div>';
   return h;
+}
+function spCalc(){
+  var g=function(k){ var e=document.querySelector('[data-sp='+k+']'); return e?e:null; }, v=function(k){ var e=g(k); return e?parseFloat(e.value):NaN; };
+  var set=function(k,val,dec){ var e=g(k); if(!e||document.activeElement===e) return; e.value=(isNaN(val)||!isFinite(val))?'':(dec==null?String(Math.round(val*100)/100):val.toFixed(dec)); };
+  var T={a:0,o:0,r:0,p:0}; document.querySelectorAll('.pv').forEach(function(i){ var x=parseFloat(i.value); if(!isNaN(x)) T[i.getAttribute('data-k')]+=x; });
+  var ah=g('ah'); if(ah&&!ah.value&&T.a) ah.value=Math.round(T.a*100)/100; var oh=g('oh'); if(oh&&!oh.value&&T.o) oh.value=Math.round(T.o*100)/100;
+  var bah=g('bah'); if(bah&&!bah.value&&T.a) bah.value=Math.round(T.a*100)/100; var boh=g('boh'); if(boh&&!boh.value&&T.o) boh.value=Math.round(T.o*100)/100;
+  var tot=T.r+T.p; ['bth','bth2'].forEach(function(k){ var e=g(k); if(e&&!e.value&&tot) e.value=Math.round(tot*100)/100; });
+  set('aa',v('ah')*v('aw'),2); set('oa',v('oh')*v('ow'),2);
+  set('bap',v('bah')/v('bth')*100,2); set('bap2',v('bah')/v('bth')*100,2); set('baa',v('bs')*(v('bah')/v('bth')),2);
+  set('bop',v('boh')/v('bth2')*100,2); set('bop2',v('boh')/v('bth2')*100,2); set('boa',v('bs2')*(v('boh')/v('bth2')),2);
 }
 function parTotals(){
   var t={a:0,o:0,r:0,p:0}; document.querySelectorAll('.pv').forEach(function(i){ var v=parseFloat(i.value); if(!isNaN(v)) t[i.getAttribute('data-k')]+=v; });
   ['a','o','r','p'].forEach(function(k){ var e=$('pt-'+k); if(e) e.textContent=Math.round(t[k]*100)/100; });
+  spCalc();
 }
 /* ---------- FORMS TO PRINT (prefilled, fillable PDFs + month-end forms) ---------- */
 var RECEIPTS={'2026-10':[['Sep 30 order, delivered Oct 1 &middot; $813.01','files/food-program/receipt-2026-10-walmart-sep30-order.pdf'],['Sep 21 order, Oct 2 delivery only (It\'s Delish) &middot; $19.99','files/food-program/receipt-2026-10-walmart-sep21-itsdelish.pdf'],['Oct 15 order, delivered Oct 19 &middot; $564.65','files/food-program/receipt-2026-10-walmart-oct15-order.pdf'],['Oct 30 order, delivery Nov 3 &middot; $1,005.13','files/food-program/receipt-2026-10-walmart-oct30-order.pdf']]};
@@ -544,7 +558,7 @@ function formsView(){
 }
 
 /* ---------- events ---------- */
-document.addEventListener('input',function(e){ var t=e.target; if(t.classList.contains('pv')) parTotals(); if(t.closest&&t.closest('#paper')){ if(t.classList.contains('ws')) wsCalc(); postPack(); schedSave(); } });
+document.addEventListener('input',function(e){ var t=e.target; if(t.classList.contains('pv')) parTotals(); if(t.classList.contains('spi')) spCalc(); if(t.closest&&t.closest('#paper')){ if(t.classList.contains('ws')) wsCalc(); postPack(); schedSave(); } });
 document.addEventListener('change',function(e){ var t=e.target; if(t.classList&&t.classList.contains('wsflag')){ var w=pkData('WORKSHEETS')||{}; w[t.getAttribute('data-w')]=t.checked; writeRec({form:'WORKSHEETS',emp:'',data:w},false); return; } if(t.id==='kidSel'){ flushSave().then(function(){ S.pk.kid=t.value; render(); }); return; } if(t.closest&&t.closest('#paper')&&(t.type==='checkbox')&&!t.classList.contains('ws')){ postPack(); schedSave(); } });
 document.addEventListener('change',function(e){ if(e.target.classList&&e.target.classList.contains('pfup')){ var fl=e.target.files; uploadSigned(fl,+e.target.getAttribute('data-i')); return; } if(e.target.classList&&e.target.classList.contains('pfdone')){ var dd=pkData('PARENTFORMS')||{items:[]}; var it=dd.items[+e.target.getAttribute('data-i')]; if(it){ it.done=e.target.checked; savePF(dd); } return; } if(e.target.id==='pEmp'){ var nv=e.target.value; flushSave().then(function(){ S.pk.emp=nv; render(); }); } });
 document.addEventListener('click',function(e){
