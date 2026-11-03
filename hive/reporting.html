@@ -33,6 +33,7 @@ details.ydet>summary.yr{cursor:pointer;list-style:revert;padding:12px 8px;margin
 <div class="tabs"><button class="m on" id="tM" onclick="tab('m')">📋 Monthly Reporting</button><button class="v" id="tV" onclick="tab('v')">🏛️ Audit Vault</button></div>
 <div class="msg" id="msg"></div>
 <div id="pM">
+ <div id="wait"></div>
  <div class="bar"><b>Reporting month:</b><select id="mon" onchange="render()"></select><span id="drv"></span></div>
  <div id="secs"></div>
 </div>
@@ -73,7 +74,7 @@ function monthsList(){const s=new Set(Object.keys(DATA.months));const d=new Date
 async function load(){try{DATA=await api('list');$('sch').textContent=DATA.school;{const P=PACKETS[DATA.school];$('drv').innerHTML=P?'<a class="lk" style="background:#00695c" target="_blank" rel="noopener" href="'+P.folder+'">📁 Facility packets (Drive)</a>':'';}
  const ms=monthsList();const cur=new Date();const prev=new Date(cur.getFullYear(),cur.getMonth()-1,1);const pm=prev.getFullYear()+'-'+String(prev.getMonth()+1).padStart(2,'0');
  const keep=MON||pm;let og='',yy='';ms.forEach(m=>{if(m.slice(0,4)!==yy){if(yy)og+='</optgroup>';yy=m.slice(0,4);og+='<optgroup label="'+yy+'">';}og+='<option value="'+m+'">'+lbl(m)+'</option>';});$('mon').innerHTML=og+'</optgroup>';
- MON=ms.includes(keep)?keep:ms[1]||ms[0];$('mon').value=MON;render();renderVault();say('');}catch(e){say(e.message,true);}}
+ MON=ms.includes(keep)?keep:ms[1]||ms[0];$('mon').value=MON;render();renderVault();renderWait();say('');}catch(e){say(e.message,true);}}
 function mdata(m){return DATA.months[m]||{files:[],checklist:{}};}
 function fileRow(m,f){return '<div class="f"><span>'+(isDone(f)?'⭐ ':'📄 ')+esc(f.name)+' <small>('+Math.max(1,Math.round(f.size/1024))+' KB)</small></span><button onclick="dl(\''+m+'\',\''+f.cat+'\',decodeURIComponent(\''+encodeURIComponent(f.name)+'\'))">Open</button></div>';}
 function render(){MON=$('mon').value;const d=mdata(MON);let h='';
@@ -159,6 +160,12 @@ function sgEl(){let m=document.getElementById('sgm');if(!m){m=document.createEle
  c.onpointermove=e=>{if(!d)return;const [a,b]=pt(e);x.lineTo(a,b);x.stroke();};c.onpointerup=()=>{d=0;};
  document.getElementById('sgc').onclick=sgTap;}
  return m;}
+
+const TOSIGN=/^(Pages to Sign|To Sign)/i;
+function waiting(){const out=[];Object.keys(DATA.months).sort().forEach(m=>{mdata(m).files.forEach(f=>{if(f.cat==='dcf'&&TOSIGN.test(f.name)&&!sup(m,f))out.push([m,f.name]);});});return out;}
+function renderWait(){const w=waiting(),el=$('wait');if(!el)return;
+ el.innerHTML=w.length?'<div style="background:#ffebee;border:2px solid #e53935;border-radius:14px;padding:12px;margin:8px 0"><b style="color:#c62828;font-size:1.05rem">🔴 '+w.length+' waiting for a signature</b>'+w.map((x,i)=>'<div class="f" style="background:#fff"><span>📄 '+esc(x[1])+' <small>('+esc(lbl(x[0]))+')</small></span><button style="background:#e53935" onclick="sgOpenWait('+i+')">✍ Sign now</button></div>').join('')+'</div>':'<div style="background:#e8f5e9;border-radius:12px;padding:8px 12px;margin:8px 0;font-size:.9rem">✅ Nothing is waiting for a signature.</div>';el._w=w;}
+async function sgOpenWait(i){const x=$('wait')._w[i];MON=x[0];if($('mon'))$('mon').value=x[0];try{say('Opening '+x[1]+'…');const j=await api('getfile',{month:x[0],cat:'dcf',name:x[1]});say('');await sgStart(bytesOf(j.b64),x[1]);}catch(e){say('Could not open it: '+e.message,true);}}
 function sgPick(){let o=document.getElementById('sgl');if(!o){o=document.createElement('div');o.id='sgl';o.className='sgm';document.body.appendChild(o);}
  const fl=mdata(MON).files.filter(f=>f.cat==='dcf'&&/\.(pdf|jpe?g|png)$/i.test(f.name)&&!isDone(f)&&!sup(MON,f));
  o.innerHTML='<div class="sgi"><b>Which one do you want to sign? ('+esc(lbl(MON))+')</b>'+(fl.length?fl.map((f,i)=>'<div class="f"><span>'+(/^SIGNED - /.test(f.name)?'✅ ':'📄 ')+esc(f.name)+'</span><button onclick="sgOpenVault('+i+')">Open to sign</button></div>').join(''):'<div class="none" style="margin:8px 0">The '+esc(lbl(MON))+' packet is not in the vault yet. Use "Add a file" under DCF/Licensing above to put it here once, then it opens right here every time.</div>')+'<div style="margin-top:10px"><label class="up" style="background:#555">Or sign a file from this device<input type="file" hidden accept=".pdf,.jpg,.jpeg,.png" onchange="sgLoad(this)"></label> <button class="x" style="border:0;border-radius:8px;padding:9px 12px;font-weight:800;background:#888;color:#fff" onclick="document.getElementById(\'sgl\').style.display=\'none\'">Close</button></div></div>';

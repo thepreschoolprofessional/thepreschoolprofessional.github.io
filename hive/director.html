@@ -311,6 +311,8 @@ if(!PIN || sessionStorage.getItem('hiveRole')!=='director') location.href='index
 let SCHOOL = null;
 const esc = s => (s??'').toString().replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const sel = v => v?.name || v || '';
+async function loadWait(){try{const r=await fetch('reporting-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:PIN,action:'list'})});const j=await r.json();let n=0;for(const m in (j.months||{})){const fs=j.months[m].files||[];fs.forEach(f=>{if(f.cat==='dcf'&&/^(Pages to Sign|To Sign)/i.test(f.name)&&!fs.some(x=>x.cat==='dcf'&&x.name==='SIGNED - '+f.name.replace(/\.[^.]+$/,'')+'.pdf'))n++;});}
+ if(n)document.querySelectorAll('a[href="reporting.html"],.tab[onclick*="reporting.html"]').forEach(e=>e.insertAdjacentHTML('beforeend',' <span style="background:#e53935;color:#fff;border-radius:12px;padding:2px 10px;font-size:.8rem;white-space:nowrap">🔴 '+n+' to sign</span>'));}catch(e){}}
 async function api(payload){ const r = await fetch('api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:PIN,...payload})}); return r.json(); }
 function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2400); }
 function show(id, el){ document.querySelectorAll('.panel').forEach(p=>p.classList.remove('show'));
@@ -802,7 +804,7 @@ async function sendTabNote(id){
   b.style.background = SCHOOL==='Sanford' ? 'linear-gradient(135deg,#1d4e89,#2f6bb0)' : 'linear-gradient(135deg,#0a6b4f,#12946c)';
   document.getElementById('fromEmail').textContent = SCHOOL==='Sanford' ? 'sanfordoffice@kidcityusa.com' : 'deland2office@kidcityusa.com';
   renderCodes(); injectNoteBoxes();
-  loadCheck(); loadMeet(); loadAuto(); loadSignin(); loadHours(); loadFood(); loadFoodForms(); loadInv(); loadFacility(); loadRatio(); loadTasks(); loadWeek(); loadMsg(); loadStaffDropdown(); loadTime(); loadOnb(); loadForms(); loadMC(); loadWorkbooks();
+  loadWait(); loadCheck(); loadMeet(); loadAuto(); loadSignin(); loadHours(); loadFood(); loadFoodForms(); loadInv(); loadFacility(); loadRatio(); loadTasks(); loadWeek(); loadMsg(); loadStaffDropdown(); loadTime(); loadOnb(); loadForms(); loadMC(); loadWorkbooks();
 })();
 </script>
 <script>try{if(sessionStorage.getItem('hiveOwner')){document.querySelectorAll('a.back').forEach(function(a){a.href='owner.html';a.textContent='← Owner Portal';});}}catch(e){}</script>
