@@ -344,8 +344,11 @@ function kidOv(form){
   h+=ovForm(form,function(id){ var v=d[id]; return (v==null||v==='')?(dflt[id]||''):v; });
   return h+'<div class="hint noprint">This is the official form. Fill it in, then Print / Save PDF for the parent or physician to sign. Upload the signed copy on the Forms tab.</div>';
 }
+var EXPDEF={'Sanford|2026-10':[['19','2000155-17455353','Walmart','265.95','','',''],['26','2000153-27095377','Walmart','227.44','','','']]};
 function expOv(){
   var rows=(pkData('EXPEND')||{}).rows||[], m=S.pk.month, cn=['wd','wr','wv','c1','c2','c3','c4'];
+  var hv=rows.some(function(r){ return r.some(function(v){return v;}); }), dfx=EXPDEF[S.school+'|'+m];
+  if(!hv&&dfx){ rows=dfx; setTimeout(function(){ if(S.pk.form==='EXPEND') schedSave(); },400); }
   return ovForm('EXPEND',function(){return '';},{render:function(f){
     if(f.id==='center') return '<span class="ovs">'+esc((SITEDEF[S.school]||{}).sname||'')+'</span>';
     if(f.id==='month') return '<span class="ovs">'+MONTHS[+m.slice(5)-1]+'</span>';
