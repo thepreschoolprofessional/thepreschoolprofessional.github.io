@@ -26,7 +26,7 @@ h1{margin:6px 0 2px;font-size:1.5rem}.sub{color:#666;font-size:.9rem;margin-bott
 .yr{margin:16px 0 4px;font-weight:900;font-size:1.1rem}.mo{background:var(--card);border:1px solid var(--line);border-radius:12px;margin:8px 0}
 .mo summary{padding:12px;font-weight:800;cursor:pointer}.mo .in{padding:0 12px 12px}
 .pill{font-size:.78rem;background:rgba(255,255,255,.25);border-radius:12px;padding:2px 9px;white-space:nowrap}
-</style></head><body>
+details.ydet>summary.yr{cursor:pointer;list-style:revert;padding:12px 8px;margin:8px 0 0;background:#fff;border:1px solid var(--line);border-radius:10px}.yin{padding:4px 0 4px 10px}</style></head><body>
 <a class="back" href="director.html">← Director Dashboard</a>
 <h1>🗄️ Reporting & Audit Vault <span class="badge" id="sch">…</span></h1>
 <div class="sub">Everything we report each month, and every file we must keep for 5 years, in one place. Files are private (director PIN only).</div>
@@ -84,11 +84,13 @@ function render(){MON=$('mon').value;const d=mdata(MON);let h='';
   h+='<div class="files"><h3>Files for '+esc(lbl(MON))+'</h3>'+(fl.length?fl.map(f=>fileRow(MON,f)).join(''):'<div class="none">Nothing filed yet</div>')+'<label class="up">⬆ Add a file<input type="file" multiple hidden accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx" onchange="up(\''+c+'\',this)"></label></div></div></div>';}
  $('secs').innerHTML=h;}
 function renderVault(){const ms=monthsList();
- let h='',yr='';ms.forEach(m=>{if(m.slice(0,4)!==yr){yr=m.slice(0,4);h+='<div class="yr">'+yr+'</div>';}
+ const openYrs=[...document.querySelectorAll('#vault details.ydet[open]')].map(x=>x.dataset.y);
+ let h='',yr='';ms.forEach(m=>{if(m.slice(0,4)!==yr){if(yr)h+='</div></details>';yr=m.slice(0,4);const cnt=ms.filter(x=>x.slice(0,4)===yr).reduce((n,x)=>n+mdata(x).files.length,0);
+  h+='<details class="ydet" data-y="'+yr+'"'+(openYrs.includes(yr)?' open':'')+'><summary class="yr">'+yr+' <small style="font-weight:400;color:#777">· '+cnt+' file'+(cnt===1?'':'s')+'</small></summary><div class="yin">';}
   const d=mdata(m);const keep=MN[+m.slice(5)-1]+' '+(+m.slice(0,4)+5);
   h+='<details class="mo"><summary>'+lbl(m)+' <small style="font-weight:400;color:#777">· '+d.files.length+' files · keep until '+keep+'</small></summary><div class="in">';
   for(const c of Object.keys(CATS)){const fl=d.files.filter(f=>f.cat===c);h+='<h3 style="margin:10px 0 2px;color:'+CATS[c].c+'">'+CATS[c].t+'</h3>'+(fl.length?fl.map(f=>fileRow(m,f)).join(''):'<div class="none">—</div>');}
-  h+='<button class="up" style="border:0;margin-top:10px" onclick="openMonth(\''+m+'\')">⬆ Add files / checklist for '+lbl(m)+'</button></div></details>';});$('vault').innerHTML=h;}
+  h+='<button class="up" style="border:0;margin-top:10px" onclick="openMonth(\''+m+'\')">⬆ Add files / checklist for '+lbl(m)+'</button></div></details>';});if(yr)h+='</div></details>';$('vault').innerHTML=h;}
 async function tick(key,on){try{let by=localStorage.getItem('hiveName')||'';if(on&&!by){by=prompt("What's your name? (saved for next time)")||'';if(by)localStorage.setItem('hiveName',by);}
  const r=await api('check',{month:MON,key,done:on,by});(DATA.months[MON]=mdata(MON)).checklist=r.checklist;render();}catch(e){say(e.message,true);render();}}
 async function up(cat,inp){const fs=[...inp.files];if(!fs.length)return;let n=0;
