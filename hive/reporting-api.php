@@ -146,14 +146,14 @@ if (!preg_match('/^\d{4}-\d{2}$/', $m)) fail('Bad month');
 $formula = "AND({School}='".str_replace("'", "", $school)."', DATETIME_FORMAT({Date},'YYYY-MM')='".$m."')";
 $rows = []; $offset = null; $guard = 0;
 do {
-$q = ['filterByFormula'=>$formula, 'pageSize'=>100, 'fields'=>['Form Type','Room / Classroom','Staff Name','Date','Drive Link','Overall Status','Status'], 'sort'=>[['field'=>'Date','direction'=>'asc']]];
+$q = ['filterByFormula'=>$formula, 'pageSize'=>100, 'fields'=>['Form Type','Room / Classroom','Staff Name','Date','Submitted At','Drive Link','Overall Status','Items','Details'], 'sort'=>[['field'=>'Date','direction'=>'asc']]];
 if ($offset) $q['offset'] = $offset;
 $qs = preg_replace('/fields%5B\d+%5D/', 'fields%5B%5D', http_build_query($q));
 $res = at_request('GET', ['Facility Submissions'], $qs);
 if (isset($res['error'])) fail('Could not read the facility checklists right now.', 502);
 foreach (($res['records'] ?? []) as $r){
 $f = $r['fields'];
-$rows[] = ['type'=>$f['Form Type'] ?? 'Other', 'room'=>$f['Room / Classroom'] ?? '', 'staff'=>$f['Staff Name'] ?? '', 'date'=>$f['Date'] ?? '', 'link'=>$f['Drive Link'] ?? '', 'overall'=>$f['Overall Status'] ?? ''];
+$rows[] = ['type'=>$f['Form Type'] ?? 'Other', 'room'=>$f['Room / Classroom'] ?? '', 'staff'=>$f['Staff Name'] ?? '', 'date'=>$f['Date'] ?? '', 'link'=>$f['Drive Link'] ?? '', 'overall'=>$f['Overall Status'] ?? '', 'at'=>$f['Submitted At'] ?? '', 'items'=>substr($f['Items'] ?? '', 0, 4000), 'details'=>substr($f['Details'] ?? '', 0, 4000)];
 }
 $offset = $res['offset'] ?? null;
 } while ($offset && ++$guard < 20);
