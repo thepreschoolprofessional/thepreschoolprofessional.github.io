@@ -26,7 +26,7 @@ h1{margin:6px 0 2px;font-size:1.5rem}.sub{color:#666;font-size:.9rem;margin-bott
 .yr{margin:16px 0 4px;font-weight:900;font-size:1.1rem}.mo{background:var(--card);border:1px solid var(--line);border-radius:12px;margin:8px 0}
 .mo summary{padding:12px;font-weight:800;cursor:pointer}.mo .in{padding:0 12px 12px}
 .pill{font-size:.78rem;background:rgba(255,255,255,.25);border-radius:12px;padding:2px 9px;white-space:nowrap}
-details.ydet>summary.yr{cursor:pointer;list-style:revert;padding:12px 8px;margin:8px 0 0;background:#fff;border:1px solid var(--line);border-radius:10px}.yin{padding:4px 0 4px 10px}.lk{background:#4e342e;color:#fff;padding:6px 12px;border-radius:8px;text-decoration:none;font-weight:700;font-size:.85rem}</style><script src="jspdf.umd.min.js?v=251"></script></head><body>
+details.ydet>summary.yr{cursor:pointer;list-style:revert;padding:12px 8px;margin:8px 0 0;background:#fff;border:1px solid var(--line);border-radius:10px}.yin{padding:4px 0 4px 10px}.lk{background:#4e342e;color:#fff;padding:6px 12px;border-radius:8px;text-decoration:none;font-weight:700;font-size:.85rem}</style><script src="jspdf.umd.min.js?v=251"></script><script src="pdf-lib.min.js?v=117"></script></head><body>
 <a class="back" href="director.html">← Director Dashboard</a>
 <h1>🗄️ Reporting & Audit Vault <span class="badge" id="sch">…</span></h1>
 <div class="sub">Everything we report each month, and every file we must keep for 5 years, in one place. Files are private (director PIN only).</div>
@@ -37,7 +37,7 @@ details.ydet>summary.yr{cursor:pointer;list-style:revert;padding:12px 8px;margin
  <div id="secs"></div>
 </div>
 <div id="pV" style="display:none">
- <div class="note"><b>Audit Vault.</b> Every month back to <b>January 2021</b> is here, and nothing is ever deleted. Pick any month (on <i>Monthly Reporting</i>, or tap a month below) to add scans, agendas or files. Keep each month for at least <b>5 years</b> (the "keep until" date is shown). If there's an audit, open the month and download what's needed.</div>
+ <div class="note"><b>Audit Vault.</b> Every month back to <b>January 2021</b> is here, and nothing is ever deleted. Once a month is older than the last 2, each section (ELC, Food Program, DCF) can be combined into <b>one file</b> marked ⭐ COMPLETE. Pick any month (on <i>Monthly Reporting</i>, or tap a month below) to add scans, agendas or files. Keep each month for at least <b>5 years</b> (the "keep until" date is shown). If there's an audit, open the month and download what's needed.</div>
  <div id="vault"></div>
 </div>
 <script>
@@ -75,7 +75,7 @@ async function load(){try{DATA=await api('list');$('sch').textContent=DATA.schoo
  const keep=MON||pm;let og='',yy='';ms.forEach(m=>{if(m.slice(0,4)!==yy){if(yy)og+='</optgroup>';yy=m.slice(0,4);og+='<optgroup label="'+yy+'">';}og+='<option value="'+m+'">'+lbl(m)+'</option>';});$('mon').innerHTML=og+'</optgroup>';
  MON=ms.includes(keep)?keep:ms[1]||ms[0];$('mon').value=MON;render();renderVault();say('');}catch(e){say(e.message,true);}}
 function mdata(m){return DATA.months[m]||{files:[],checklist:{}};}
-function fileRow(m,f){return '<div class="f"><span>📄 '+esc(f.name)+' <small>('+Math.max(1,Math.round(f.size/1024))+' KB)</small></span><button onclick="dl(\''+m+'\',\''+f.cat+'\',decodeURIComponent(\''+encodeURIComponent(f.name)+'\'))">Open</button></div>';}
+function fileRow(m,f){return '<div class="f"><span>'+(isDone(f)?'⭐ ':'📄 ')+esc(f.name)+' <small>('+Math.max(1,Math.round(f.size/1024))+' KB)</small></span><button onclick="dl(\''+m+'\',\''+f.cat+'\',decodeURIComponent(\''+encodeURIComponent(f.name)+'\'))">Open</button></div>';}
 function render(){MON=$('mon').value;const d=mdata(MON);let h='';
  for(const c of Object.keys(CATS)){const its=ITEMS.filter(i=>i[0]===c);const done=its.filter(i=>d.checklist[i[1]]).length;
   h+='<div class="sec"><h2 style="background:'+CATS[c].c+'"><span>'+CATS[c].t+'</span>'+(its.length?'<span class="pill">'+done+' / '+its.length+' done</span>':'')+'</h2><div class="body">';
@@ -107,18 +107,48 @@ async function buildFacPdf(){const m=MON;const rows=FAC[m]||[];if(!rows.length)r
   await api('upload',{month:m,cat:'dcf',name:'Facility Checklists - '+sc+' - '+lbl(m)+' (all combined).pdf',b64});
   say('Filed ✔ one combined PDF ('+n+' pages) in DCF / Licensing for '+lbl(m));await load();}
  catch(e){say(e.message,true);}}
-async function loadFac(m){const box=()=>$('fac');try{if(!FAC[m]){FAC[m]=(await api('facility',{month:m})).rows;}}catch(e){if(box()&&MON===m)box().innerHTML='<div class="none">'+esc(e.message)+'</div>';return;}
+async function loadFac(m){const box=()=>$('fac');try{if(!FAC[m]){FAC[m]=(await api('facility',{month:m})).rows||[];}}catch(e){if(box()&&MON===m)box().innerHTML='<div class="none">'+esc(e.message)+'</div>';return;}
  if(MON!==m||!box())return;const rows=FAC[m];if(!rows.length){box().innerHTML='<div class="none">No completed facility checklists were submitted for '+esc(lbl(m))+'.</div>';return;}
  const by={};rows.forEach(r=>{(by[r.type]=by[r.type]||[]).push(r);});
  box().innerHTML='<button class="up" style="border:0;width:100%;margin:4px 0 10px;font-size:1rem" onclick="buildFacPdf()">📄 Build ONE combined PDF of all '+rows.length+' and file it in the Vault</button><div style="font-size:.9rem;color:#555;margin-bottom:6px">'+rows.length+' submitted checklists for '+esc(lbl(m))+'. Each opens its saved PDF.</div>'+Object.keys(by).sort().map(t=>'<details class="mo"><summary>'+esc(t)+' <small style="font-weight:400;color:#777">· '+by[t].length+'</small></summary><div class="in">'+by[t].map(r=>'<div class="f"><span>'+esc((r.date||'').slice(5).replace('-','/'))+' · '+esc(r.room||'—')+(r.staff?' · '+esc(r.staff):'')+(r.overall?' <small>('+esc(r.overall)+')</small>':'')+'</span>'+(r.link?'<a href="'+esc(r.link)+'" target="_blank" rel="noopener" class="lk">Open PDF</a>':'<small style="color:#999">no PDF yet</small>')+'</div>').join('')+'</div></details>').join('');}
+const isDone=f=>/^COMPLETE - /.test(f.name)?1:0;
+const MERGEABLE=/\.(pdf|jpe?g|png)$/i;
+function mergeable(m,c){return mdata(m).files.filter(f=>f.cat===c&&!isDone(f)&&MERGEABLE.test(f.name));}
+function recentMonths(){const d=new Date(),a=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'),p=new Date(d.getFullYear(),d.getMonth()-1,1);return [a,p.getFullYear()+'-'+String(p.getMonth()+1).padStart(2,'0')];}
+function pendingCombine(){const rec=recentMonths(),out=[];Object.keys(DATA.months).sort().forEach(m=>{if(rec.includes(m))return;Object.keys(CATS).forEach(c=>{const mg=mergeable(m,c);if(mg.length<2)return;const done=mdata(m).files.filter(f=>f.cat===c&&isDone(f));const newest=done.reduce((t,f)=>Math.max(t,Date.parse(f.at)||0),0);if(!done.length||mg.some(f=>(Date.parse(f.at)||0)>newest))out.push([m,c]);});});return out;}
+function bytesOf(b64){const b=atob(b64),a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a;}
+const wa=t=>String(t||'').replace(/[^\x20-\x7E]/g,'');
+async function combine(m,c,quiet){if(!window.PDFLib){say('The PDF tool did not load. Refresh the page.',true);return false;}
+ const {PDFDocument,StandardFonts,rgb}=PDFLib;const fl=mergeable(m,c).sort((a,b)=>a.name.localeCompare(b.name));if(fl.length<2)return true;
+ const sec=CATS[c].t.replace(/^\S+\s/,'');const sc=DATA.school||'';
+ try{let part=1,doc=null,est=0,items=[];const outs=[];
+  const finish=async()=>{if(!doc)return;const font=await doc.embedFont(StandardFonts.HelveticaBold),reg=await doc.embedFont(StandardFonts.Helvetica);
+   const cover=doc.insertPage(0,[612,792]);let y=730;cover.drawText(wa('Kid City USA '+sc),{x:50,y,size:22,font});y-=30;cover.drawText(wa(sec+' - '+lbl(m)+(part>1||outs.length?' (part '+(outs.length+1)+')':'')),{x:50,y,size:16,font});y-=24;
+   cover.drawText('Compiled '+new Date().toLocaleDateString()+' from the Hive vault. Keep 5 years.',{x:50,y,size:10,font:reg,color:rgb(.4,.4,.4)});y-=26;
+   items.forEach((it,i)=>{if(y<60)return;cover.drawText(wa((i+1)+'.  '+it.name).slice(0,95)+'   (p. '+it.page+')',{x:50,y,size:10,font:reg});y-=15;});
+   const b64=await doc.saveAsBase64();outs.push(b64);doc=null;est=0;items=[];};
+  for(const f of fl){say('Combining '+sec+' '+lbl(m)+': '+f.name+'…');
+   const j=await api('getfile',{month:m,cat:c,name:f.name});const bytes=bytesOf(j.b64);
+   if(!doc){doc=await PDFDocument.create();est=0;items=[];}
+   const startPage=doc.getPageCount()+2;
+   if(/\.pdf$/i.test(f.name)){const src=await PDFDocument.load(bytes,{ignoreEncryption:true});(await doc.copyPages(src,src.getPageIndices())).forEach(p=>doc.addPage(p));}
+   else{const img=/\.png$/i.test(f.name)?await doc.embedPng(bytes):await doc.embedJpg(bytes);const pg=doc.addPage([612,792]);const k=Math.min(512/img.width,692/img.height,1);pg.drawImage(img,{x:50,y:792-50-img.height*k,width:img.width*k,height:img.height*k});}
+   items.push({name:f.name,page:startPage});est+=bytes.length;
+   if(est>7.5*1024*1024){await finish();}}
+  await finish();
+  for(let i=0;i<outs.length;i++){await api('upload',{month:m,cat:c,name:'COMPLETE - '+sec+' - '+sc+' - '+lbl(m)+(outs.length>1?' (part '+(i+1)+' of '+outs.length+')':'')+'.pdf',b64:outs[i]});}
+  if(!quiet){say('Filed ✔ one combined '+sec+' file for '+lbl(m)+' ('+fl.length+' files).');await load();}return true;}
+ catch(e){say('Could not combine '+sec+' '+lbl(m)+': '+e.message,true);return false;}}
+async function combineAll(){const list=pendingCombine();let n=0;for(const [m,c] of list){if(await combine(m,c,true))n++;else return;}say('Filed ✔ combined '+n+' section'+(n===1?'':'s')+'.');await load();}
+function vaultBanner(){const p=pendingCombine();return p.length?'<div class="note" style="background:#fff3e0;border-color:#ffb74d"><b>📦 '+p.length+' older month section'+(p.length===1?' is':'s are')+' ready to combine into one file each</b> (Food Program, ELC, DCF all separate). Your original files stay too.<br><button class="up" style="border:0;margin-top:8px" onclick="combineAll()">Combine them now</button></div>':'';}
 function renderVault(){const ms=monthsList();
  const openYrs=[...document.querySelectorAll('#vault details.ydet[open]')].map(x=>x.dataset.y);
  let h='',yr='';ms.forEach(m=>{if(m.slice(0,4)!==yr){if(yr)h+='</div></details>';yr=m.slice(0,4);const cnt=ms.filter(x=>x.slice(0,4)===yr).reduce((n,x)=>n+mdata(x).files.length,0);
   h+='<details class="ydet" data-y="'+yr+'"'+(openYrs.includes(yr)?' open':'')+'><summary class="yr">'+yr+' <small style="font-weight:400;color:#777">· '+cnt+' file'+(cnt===1?'':'s')+'</small></summary><div class="yin">';}
   const d=mdata(m);const keep=MN[+m.slice(5)-1]+' '+(+m.slice(0,4)+5);
   h+='<details class="mo"><summary>'+lbl(m)+' <small style="font-weight:400;color:#777">· '+d.files.length+' files · keep until '+keep+'</small></summary><div class="in">';
-  for(const c of Object.keys(CATS)){const fl=d.files.filter(f=>f.cat===c);h+='<h3 style="margin:10px 0 2px;color:'+CATS[c].c+'">'+CATS[c].t+'</h3>'+(fl.length?fl.map(f=>fileRow(m,f)).join(''):'<div class="none">—</div>');}
-  h+='<button class="up" style="border:0;margin-top:10px" onclick="openMonth(\''+m+'\')">⬆ Add files / checklist for '+lbl(m)+'</button></div></details>';});if(yr)h+='</div></details>';$('vault').innerHTML=h;}
+  for(const c of Object.keys(CATS)){const fl=d.files.filter(f=>f.cat===c).sort((a,b)=>(isDone(b)-isDone(a))||a.name.localeCompare(b.name));const mg=mergeable(m,c);h+='<h3 style="margin:10px 0 2px;color:'+CATS[c].c+'">'+CATS[c].t+'</h3>'+(fl.length?fl.map(f=>fileRow(m,f)).join(''):'<div class="none">—</div>')+(mg.length>=2?'<button class="up" style="border:0;margin:4px 0;background:#37474f" onclick="combine(\''+m+'\',\''+c+'\')">📦 Combine '+mg.length+' files into ONE '+esc(CATS[c].t.replace(/^\S+\s/,''))+' file</button>':'');}
+  h+='<button class="up" style="border:0;margin-top:10px" onclick="openMonth(\''+m+'\')">⬆ Add files / checklist for '+lbl(m)+'</button></div></details>';});if(yr)h+='</div></details>';$('vault').innerHTML=vaultBanner()+h;}
 async function tick(key,on){try{let by=localStorage.getItem('hiveName')||'';if(on&&!by){by=prompt("What's your name? (saved for next time)")||'';if(by)localStorage.setItem('hiveName',by);}
  const r=await api('check',{month:MON,key,done:on,by});(DATA.months[MON]=mdata(MON)).checklist=r.checklist;render();}catch(e){say(e.message,true);render();}}
 async function up(cat,inp){const fs=[...inp.files];if(!fs.length)return;let n=0;
