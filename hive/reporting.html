@@ -26,7 +26,7 @@ h1{margin:6px 0 2px;font-size:1.5rem}.sub{color:#666;font-size:.9rem;margin-bott
 .yr{margin:16px 0 4px;font-weight:900;font-size:1.1rem}.mo{background:var(--card);border:1px solid var(--line);border-radius:12px;margin:8px 0}
 .mo summary{padding:12px;font-weight:800;cursor:pointer}.mo .in{padding:0 12px 12px}
 .pill{font-size:.78rem;background:rgba(255,255,255,.25);border-radius:12px;padding:2px 9px;white-space:nowrap}
-details.ydet>summary.yr{cursor:pointer;list-style:revert;padding:12px 8px;margin:8px 0 0;background:#fff;border:1px solid var(--line);border-radius:10px}.yin{padding:4px 0 4px 10px}.lk{background:#4e342e;color:#fff;padding:6px 12px;border-radius:8px;text-decoration:none;font-weight:700;font-size:.85rem}</style><script src="jspdf.umd.min.js?v=251"></script><script src="pdf-lib.min.js?v=117"></script></head><body>
+details.ydet>summary.yr{cursor:pointer;list-style:revert;padding:12px 8px;margin:8px 0 0;background:#fff;border:1px solid var(--line);border-radius:10px}.yin{padding:4px 0 4px 10px}.lk{background:#4e342e;color:#fff;padding:6px 12px;border-radius:8px;text-decoration:none;font-weight:700;font-size:.85rem}.sgm{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;display:none;overflow:auto;padding:10px}.sgi{background:#fff;border-radius:14px;max-width:760px;margin:0 auto;padding:12px}.sgi canvas{max-width:100%;border:1px solid #bbb;touch-action:none;display:block;margin:6px auto;background:#fff}.sgi button{border:0;border-radius:8px;padding:9px 12px;font-weight:800;cursor:pointer;background:#222;color:#fff;margin:3px}.sgi button.g{background:#2e7d32}.sgi button.x{background:#888}</style><script src="jspdf.umd.min.js?v=251"></script><script src="pdf-lib.min.js?v=117"></script><script src="pdfjs.min.js?v=3111"></script></head><body>
 <a class="back" href="director.html">← Director Dashboard</a>
 <h1>🗄️ Reporting & Audit Vault <span class="badge" id="sch">…</span></h1>
 <div class="sub">Everything we report each month, and every file we must keep for 5 years, in one place. Files are private (director PIN only).</div>
@@ -89,7 +89,10 @@ const PACKETS={'Sanford':{folder:'https://drive.google.com/drive/folders/1osFBQY
 function packetBox(m){const P=PACKETS[DATA.school];if(!P)return '';const u=P.months[m];
  return '<div style="background:#e0f2f1;border:1px solid #80cbc4;border-radius:12px;padding:12px;margin-bottom:12px"><b>📘 Monthly Facility Compliance Packet - '+esc(lbl(m))+'</b><div style="font-size:.9rem;color:#444;margin:4px 0 8px">One PDF: bathroom cleaning logs, classroom cleaning, daily indoor/outdoor inspections, with director review and signature lines.</div>'
  +(u?'<a class="lk" target="_blank" rel="noopener" href="'+u+'">Open the '+esc(lbl(m))+' packet (PDF)</a> ':'<div class="none" style="margin-bottom:6px">This month\'s packet isn\'t linked here yet. It is saved in the folder below once it is built.</div>')
- +'<a class="lk" style="background:#00695c" target="_blank" rel="noopener" href="'+P.folder+'">All packets (Drive folder)</a></div>';}
+ +'<a class="lk" style="background:#00695c" target="_blank" rel="noopener" href="'+P.folder+'">All packets (Drive folder)</a>'
+ +'<div style="margin-top:12px;padding-top:10px;border-top:1px dashed #80cbc4"><b>✍ Pages that need a signature</b> (end-of-day sweeps, weekly bus cleaning log, director review lines)<div style="font-size:.88rem;color:#444;margin:4px 0 8px">Either sign right on the screen, or print, sign and upload the scan/photo. Both save into this month under DCF/Licensing.</div>'
+ +'<label class="up" style="background:#6a1b9a">✍ Sign on screen<input type="file" hidden accept=".pdf,.jpg,.jpeg,.png" onchange="sgLoad(this)"></label> '
+ +'<label class="up" style="background:#00695c">⬆ Upload signed pages<input type="file" multiple hidden accept=".pdf,.jpg,.jpeg,.png" onchange="up(\'dcf\',this)"></label></div></div>';}
 let FAC={};
 
 
@@ -145,5 +148,49 @@ async function dl(m,cat,name){try{const j=await api('getfile',{month:m,cat,name}
 function openMonth(m){$('mon').value=m;MON=m;render();tab('m');window.scrollTo(0,0);}
 function tab(t){$('pM').style.display=t==='m'?'':'none';$('pV').style.display=t==='v'?'':'none';$('tM').className='m'+(t==='m'?' on':'');$('tV').className='v'+(t==='v'?' on':'');}
 load();
+
+/* ---- on-screen signing ---- */
+let SG={doc:null,bytes:null,img:null,name:'',page:1,n:1,marks:[],sig:null,mode:'sig',pw:612,ph:792};
+function sgEl(){let m=document.getElementById('sgm');if(!m){m=document.createElement('div');m.id='sgm';m.className='sgm';m.innerHTML='<div class="sgi"><b id="sgt"></b><div style="font-size:.88rem;color:#555;margin:4px 0">1) Tap <b>Make my signature</b> and sign with your finger. 2) Tap on the page where it goes. Add a date or name with <b>Stamp text</b>. 3) <b>Save signed copy</b>.</div><div><button onclick="sgPad()">✍ Make my signature</button><button onclick="sgMode(\'sig\')" id="sgb1" class="g">Tap = signature</button><button onclick="sgMode(\'txt\')" id="sgb2">Tap = stamp text</button> <input id="sgtx" style="padding:8px;border:1px solid #bbb;border-radius:8px;width:150px"> <button onclick="sgUndo()" class="x">Undo</button></div><div><button onclick="sgGo(-1)" class="x">◀ Page</button> <b id="sgpg"></b> <button onclick="sgGo(1)" class="x">Page ▶</button></div><canvas id="sgc"></canvas><div><button class="g" onclick="sgSave()">💾 Save signed copy to the vault</button><button class="x" onclick="sgClose()">Close</button></div></div><div id="sgpad" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:60;padding:14px"><div class="sgi" style="max-width:420px"><b>Sign here</b><canvas id="sgp" width="380" height="150"></canvas><button class="g" onclick="sgPadOk()">Use this signature</button><button onclick="sgPadClr()" class="x">Clear</button><button onclick="document.getElementById(\'sgpad\').style.display=\'none\'" class="x">Cancel</button></div></div>';document.body.appendChild(m);
+ const c=document.getElementById('sgp'),x=c.getContext('2d');let d=0;const pt=e=>{const r=c.getBoundingClientRect();return [(e.clientX-r.left)*c.width/r.width,(e.clientY-r.top)*c.height/r.height];};
+ x.lineWidth=3;x.lineCap='round';x.strokeStyle='#0d1b6b';
+ c.onpointerdown=e=>{d=1;c.setPointerCapture(e.pointerId);const [a,b]=pt(e);x.beginPath();x.moveTo(a,b);x.lineTo(a+.1,b+.1);x.stroke();};
+ c.onpointermove=e=>{if(!d)return;const [a,b]=pt(e);x.lineTo(a,b);x.stroke();};c.onpointerup=()=>{d=0;};
+ document.getElementById('sgc').onclick=sgTap;}
+ return m;}
+async function sgLoad(inp){const f=inp.files[0];inp.value='';if(!f)return;
+ if(f.size>12*1024*1024){say(f.name+' is over 12 MB.',true);return;}
+ try{pdfjsLib.GlobalWorkerOptions.workerSrc='pdfjs.worker.min.js?v=3111';
+  const buf=await f.arrayBuffer();SG={doc:null,bytes:new Uint8Array(buf),img:null,name:f.name,page:1,n:1,marks:[],sig:SG.sig,mode:'sig',pw:612,ph:792};
+  if(/\.pdf$/i.test(f.name)){SG.doc=await pdfjsLib.getDocument({data:SG.bytes.slice(0)}).promise;SG.n=SG.doc.numPages;}
+  else{const im=new Image();await new Promise((ok,no)=>{im.onload=ok;im.onerror=no;im.src=URL.createObjectURL(new Blob([SG.bytes],{type:/png$/i.test(f.name)?'image/png':'image/jpeg'}));});SG.img=im;SG.ph=612*im.height/im.width;}
+  const m=sgEl();m.style.display='block';document.getElementById('sgt').textContent='Sign: '+f.name;document.getElementById('sgtx').value=new Date().toLocaleDateString();await sgShow();}
+ catch(e){say('Could not open that file: '+e.message,true);}}
+async function sgShow(){const c=document.getElementById('sgc'),W=Math.min(720,window.innerWidth-50);let src;
+ if(SG.doc){const pg=await SG.doc.getPage(SG.page);const v0=pg.getViewport({scale:1});SG.pw=v0.width;SG.ph=v0.height;const sc=W/v0.width;const v=pg.getViewport({scale:sc});c.width=v.width;c.height=v.height;await pg.render({canvasContext:c.getContext('2d'),viewport:v}).promise;}
+ else{c.width=W;c.height=W*SG.img.height/SG.img.width;c.getContext('2d').drawImage(SG.img,0,0,c.width,c.height);}
+ const x=c.getContext('2d');SG.marks.filter(m=>m.p===SG.page).forEach(m=>{if(m.t==='sig'){const w=m.fw*c.width,h=w*m.ih;x.drawImage(m.im,m.fx*c.width-w/2,m.fy*c.height-h/2,w,h);}else{x.fillStyle='#0d1b6b';x.font='bold '+(11*c.width/SG.pw)+'px Arial';x.fillText(m.txt,m.fx*c.width,m.fy*c.height);}});
+ document.getElementById('sgpg').textContent='Page '+SG.page+' of '+SG.n;}
+function sgGo(d){const p=SG.page+d;if(p<1||p>SG.n)return;SG.page=p;sgShow();}
+function sgMode(m){SG.mode=m;document.getElementById('sgb1').className=m==='sig'?'g':'';document.getElementById('sgb2').className=m==='txt'?'g':'';}
+function sgPad(){document.getElementById('sgpad').style.display='block';}
+function sgPadClr(){const c=document.getElementById('sgp');c.getContext('2d').clearRect(0,0,c.width,c.height);}
+function sgPadOk(){const c=document.getElementById('sgp');const im=new Image();im.onload=()=>{SG.sig={im,data:c.toDataURL('image/png'),ih:c.height/c.width};document.getElementById('sgpad').style.display='none';sgMode('sig');say('Signature ready. Tap on the page where it goes.');};im.src=c.toDataURL('image/png');}
+function sgTap(e){const c=document.getElementById('sgc'),r=c.getBoundingClientRect();const fx=(e.clientX-r.left)/r.width,fy=(e.clientY-r.top)/r.height;
+ if(SG.mode==='sig'){if(!SG.sig){sgPad();return;}SG.marks.push({p:SG.page,t:'sig',fx,fy,fw:.22,im:SG.sig.im,data:SG.sig.data,ih:SG.sig.ih});}
+ else{const t=wa(document.getElementById('sgtx').value);if(!t)return;SG.marks.push({p:SG.page,t:'txt',fx,fy,txt:t});}sgShow();}
+function sgUndo(){SG.marks.pop();sgShow();}
+function sgClose(){document.getElementById('sgm').style.display='none';}
+async function sgSave(){if(!SG.marks.length){say('Tap the page to place a signature first.',true);return;}
+ try{say('Saving signed copy…');const {PDFDocument,StandardFonts,rgb}=PDFLib;let doc;
+  if(SG.doc)doc=await PDFDocument.load(SG.bytes,{ignoreEncryption:true});
+  else{doc=await PDFDocument.create();const png=/\.png$/i.test(SG.name);const im=png?await doc.embedPng(SG.bytes):await doc.embedJpg(SG.bytes);const pg=doc.addPage([612,SG.ph]);pg.drawImage(im,{x:0,y:0,width:612,height:SG.ph});}
+  const font=await doc.embedFont(StandardFonts.HelveticaBold);
+  for(const m of SG.marks){const pg=doc.getPage(m.p-1),{width,height}=pg.getSize();
+   if(m.t==='sig'){const png=await doc.embedPng(bytesOf(m.data.split(',')[1]));const w=m.fw*width,h=w*m.ih;pg.drawImage(png,{x:m.fx*width-w/2,y:height-m.fy*height-h/2,width:w,height:h});}
+   else pg.drawText(m.txt,{x:m.fx*width,y:height-m.fy*height,size:11,font,color:rgb(.05,.1,.42)});}
+  const b64=await doc.saveAsBase64();const name='SIGNED - '+SG.name.replace(/\.[^.]+$/,'')+'.pdf';
+  await api('upload',{month:MON,cat:'dcf',name,b64});sgClose();say('Saved ✔ '+name+' in '+lbl(MON)+' under DCF/Licensing.');await load();}
+ catch(e){say('Could not save: '+e.message,true);}}
 </script><script>try{if(sessionStorage.getItem('hiveOwner')){document.querySelectorAll('a.back').forEach(function(a){a.href='owner.html';a.textContent='← Owner Portal';});}}catch(e){}</script>
 </body></html>
