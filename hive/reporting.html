@@ -98,4 +98,5 @@ async function dl(m,cat,name){try{const j=await api('getfile',{month:m,cat,name}
  const u=URL.createObjectURL(new Blob([a],{type:mime}));if(ext==='pdf'||ext==='jpg'||ext==='png'){window.open(u,'_blank')||(location.href=u);}else{const l=document.createElement('a');l.href=u;l.download=name;l.click();}}catch(e){say(e.message,true);}}
 function tab(t){$('pM').style.display=t==='m'?'':'none';$('pV').style.display=t==='v'?'':'none';$('tM').className='m'+(t==='m'?' on':'');$('tV').className='v'+(t==='v'?' on':'');}
 load();
-</script></body></html>
+</script><script>try{if(sessionStorage.getItem('hiveOwner')){document.querySelectorAll('a.back').forEach(function(a){a.href='owner.html';a.textContent='← Owner Portal';});}}catch(e){}</script>
+</body></html>

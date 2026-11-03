@@ -1,0 +1,11 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><title>Opening…</title></head><body style="font-family:Arial;padding:30px;color:#4e342e">Opening your portal…
+<script>
+(function(){try{var q=new URLSearchParams(location.search),k=q.get('k'),to=q.get('to');
+ if(!k||!/^hiveHandoff_\d+$/.test(k)||!/^[a-z-]+\.html$/.test(to||'')){location.replace('owner.html');return;}
+ var p=JSON.parse(localStorage.getItem(k)||'null');localStorage.removeItem(k);
+ if(!p||!p.pin){location.replace('owner.html');return;}
+ sessionStorage.setItem('hiveOwner','1');
+ if(p.kind==='director'||p.kind==='teacher'){sessionStorage.setItem('hivePin',p.pin);sessionStorage.setItem('hiveRole',p.role);}
+ else{sessionStorage.setItem('hiveRoomsPin',p.pin);sessionStorage.setItem('hiveRoomsSchool',p.school);}
+ location.replace(to);}catch(e){location.replace('owner.html');}})();
+</script></body></html>

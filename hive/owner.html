@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Owner Portal - The Hive</title>
+<style>
+:root{--ink:#2b2118;--bg:#fbf6ea;--line:#e6dcc3}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--ink);padding:14px 16px 60px;max-width:720px;margin:0 auto}
+h1{font-size:1.6rem;margin:10px 0 2px}.sub{color:#6b5a4a;margin-bottom:14px}
+.gate{background:#fff;border:2px solid var(--line);border-radius:18px;padding:18px;margin-top:20px}
+.gate input{width:100%;padding:14px;font-size:1.3rem;text-align:center;letter-spacing:6px;border:2px solid var(--line);border-radius:12px;margin:10px 0}
+button.go{width:100%;padding:14px;border:0;border-radius:12px;background:#4e342e;color:#fff;font-weight:900;font-size:1.1rem;cursor:pointer}
+.err{color:#b71c1c;font-weight:700;min-height:22px;margin-top:6px}
+.school{background:#fff;border:2px solid var(--line);border-radius:18px;margin:16px 0;overflow:hidden}
+.school h2{margin:0;padding:14px 16px;color:#fff;font-size:1.25rem}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px}
+.grid button{border:0;border-radius:14px;padding:16px 10px;font-weight:900;font-size:1rem;color:#fff;cursor:pointer;line-height:1.25}
+.grid small{display:block;font-weight:400;opacity:.9;font-size:.78rem;margin-top:3px}
+.out{display:block;margin:20px auto;background:none;border:0;color:#7a6652;text-decoration:underline;cursor:pointer;font-size:.95rem}
+.note{font-size:.85rem;color:#7a6652;margin:6px 4px}
+@media(max-width:420px){.grid{grid-template-columns:1fr}}
+</style></head><body>
+<h1>👑 Owner Portal</h1><div class="sub">One PIN. Every school. Every portal.</div>
+<form class="gate" id="gate" onsubmit="event.preventDefault();login();" autocomplete="on">
+ <b>Owner PIN</b>
+ <input type="text" name="username" value="Owner Portal" autocomplete="username" readonly tabindex="-1" style="display:none">
+ <input id="pin" name="password" type="password" autocomplete="current-password" inputmode="numeric" maxlength="20" placeholder="••••••" required>
+ <label style="font-size:.9rem"><input type="checkbox" id="keep" checked style="width:auto;margin:0 6px 0 0;letter-spacing:0"> Keep me signed in on this device</label>
+ <div style="height:10px"></div><button class="go" type="submit">Open the Owner Portal</button>
+ <div class="err" id="err"></div>
+</form>
+<div id="main" style="display:none">
+ <div id="schools"></div>
+ <div class="note">Each button opens in its own tab, signed in for that school, so DeLand 2 and Sanford never get mixed up. You never need to type a director or teacher PIN.</div>
+ <button class="out" onclick="logout()">Sign out of the Owner Portal</button>
+</div>
+<script>
+const SCHOOLS=[
+ {n:'DeLand 2',c:'#1565c0',dir:'director-deland',tiles:[['👑 Director Portal','Daily briefing, forms, meetings','director','director.html'],['📁 DCF Binder','Inspector view','director','dcf.html'],['🗄️ Reporting & Vault','ELC · Food · DCF · 5-yr files','director','reporting.html'],['🏫 Attendance Board','Sign in/out, transitions','rooms-director','rooms.html'],['🍎 Teacher Portal','Lesson plans, forms','teacher','teacher.html'],['🏫 Teacher Attendance','Teacher view of the board','rooms-teacher','rooms.html']]},
+ {n:'Sanford',c:'#c62828',dir:'director-sanford',tiles:[['👑 Director Portal','Daily briefing, forms, meetings','director','director.html'],['📁 DCF Binder','Inspector view','director','dcf.html'],['🗄️ Reporting & Vault','ELC · Food · DCF · 5-yr files','director','reporting.html'],['🏫 Attendance Board','Sign in/out, transitions','rooms-director','rooms.html'],['🍎 Teacher Portal','Lesson plans, forms','teacher','teacher.html'],['🏫 Teacher Attendance','Teacher view of the board','rooms-teacher','rooms.html']]}];
+const $=id=>document.getElementById(id);
+async function api(action,x){const pin=sessionStorage.getItem('hiveOwnerPin');const r=await fetch('owner-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({pin,action},x||{}))});const j=await r.json().catch(()=>({error:'Server error'}));if(j.error)throw new Error(j.error);return j;}
+function show(){$('gate').style.display='none';$('main').style.display='block';
+ $('schools').innerHTML=SCHOOLS.map((s,i)=>'<div class="school"><h2 style="background:'+s.c+'">'+s.n+'</h2><div class="grid">'+s.tiles.map((t,j)=>'<button style="background:'+s.c+'" onclick="go('+i+','+j+')">'+t[0]+'<small>'+t[1]+'</small></button>').join('')+'</div></div>').join('');}
+async function login(){const pin=$('pin').value.trim().toUpperCase();$('err').textContent='';sessionStorage.setItem('hiveOwnerPin',pin);
+ try{await api('whoami');try{if($('keep').checked)localStorage.setItem('hiveKeep_owner',JSON.stringify({pin}));else localStorage.removeItem('hiveKeep_owner');}catch(e){}show();}
+ catch(e){sessionStorage.removeItem('hiveOwnerPin');try{localStorage.removeItem('hiveKeep_owner');}catch(x){}$('pin').value='';$('err').textContent=e.message;}}
+function logout(){sessionStorage.removeItem('hiveOwnerPin');try{localStorage.removeItem('hiveKeep_owner');}catch(e){}location.reload();}
+async function go(i,j){const s=SCHOOLS[i],t=s.tiles[j];const w=window.open('about:blank','_blank');
+ try{const kind=t[2];const door=kind==='teacher'||kind==='rooms-teacher'?'teacher':s.dir;const d=await api('door',{door});
+  // hand-off goes through the NEW tab's own storage (same origin), so tabs never overwrite each other
+  const payload={pin:d.pin,role:d.role,school:s.n,kind,hiveOwner:'1'};
+  const key='hiveHandoff_'+Date.now();localStorage.setItem(key,JSON.stringify(payload));
+  w.location.href='owner-go.html?k='+encodeURIComponent(key)+'&to='+encodeURIComponent(t[3]);
+ }catch(e){if(w)w.close();alert(e.message);}}
+try{const k=JSON.parse(localStorage.getItem('hiveKeep_owner')||'null');if(k&&k.pin){sessionStorage.setItem('hiveOwnerPin',k.pin);api('whoami').then(show).catch(()=>{});}}catch(e){}
+</script></body></html>

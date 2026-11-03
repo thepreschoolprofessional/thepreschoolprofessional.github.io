@@ -15,7 +15,7 @@ function todayISO(){ var d=new Date(); return d.getFullYear()+'-'+pad(d.getMonth
 function nowHM(){ var d=new Date(); return pad(d.getHours())+':'+pad(d.getMinutes()); }
 function isToday(){ return S.date===todayISO(); }
 function toMin(hm){ var p=hm.split(':'); return (+p[0])*60+(+p[1]); }
-function ls(k,v){ try{ if(v===undefined) return localStorage.getItem(k); if(v===null) localStorage.removeItem(k); else localStorage.setItem(k,v); }catch(e){ return null; } }
+function ls(k,v){ try{ if(v===undefined) return sessionStorage.getItem(k)||localStorage.getItem(k); if(v===null){ sessionStorage.removeItem(k); localStorage.removeItem(k); } else { sessionStorage.setItem(k,v); localStorage.setItem(k,v); } }catch(e){ return null; } }
 function niceDate(ds){ var d=new Date(ds+'T12:00:00'); return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}); }
 function shiftDate(n){ var d=new Date(S.date+'T12:00:00'); d.setDate(d.getDate()+n); S.date=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
 
