@@ -40,7 +40,7 @@ function fail($msg, $code = 400){ http_response_code($code); echo json_encode(['
 
 function at_request($method, $path, $query = null, $body = null){
 $url = 'https://api.airtable.com/v0/' . BASE_ID . '/' . rawurlencode($path[0]) . (isset($path[1]) ? '/'.$path[1] : '');
-if ($query) $url .= '?' . http_build_query($query);
+if ($query) $url .= '?' . (is_string($query) ? $query : http_build_query($query));
 $opts = ['http' => [
 'method' => $method,
 'header' => "Authorization: Bearer " . AIRTABLE_TOKEN . "\r\nContent-Type: application/json\r\n",
@@ -139,4 +139,25 @@ if (!empty($input['done'])) $ck[$key] = ['by'=>substr(preg_replace('/[^A-Za-z0-9
 file_put_contents($f, json_encode($ck), LOCK_EX);
 echo json_encode(['ok'=>true, 'checklist'=>$ck ?: new stdClass]); exit;
 }
+if ($action === 'facility'){
+// READ-ONLY: completed facility checklists (cleaning, bathroom, inspections, drills, incident) for this school + month, from Facility Submissions.
+$m = $input['month'] ?? '';
+if (!preg_match('/^\d{4}-\d{2}$/', $m)) fail('Bad month');
+$formula = "AND({School}='".str_replace("'", "", $school)."', DATETIME_FORMAT({Date},'YYYY-MM')='".$m."')";
+$rows = []; $offset = null; $guard = 0;
+do {
+$q = ['filterByFormula'=>$formula, 'pageSize'=>100, 'fields'=>['Form Type','Room / Classroom','Staff Name','Date','Drive Link','Overall Status','Status'], 'sort'=>[['field'=>'Date','direction'=>'asc']]];
+if ($offset) $q['offset'] = $offset;
+$qs = preg_replace('/fields%5B\d+%5D/', 'fields%5B%5D', http_build_query($q));
+$res = at_request('GET', ['Facility Submissions'], $qs);
+if (isset($res['error'])) fail('Could not read the facility checklists right now.', 502);
+foreach (($res['records'] ?? []) as $r){
+$f = $r['fields'];
+$rows[] = ['type'=>$f['Form Type'] ?? 'Other', 'room'=>$f['Room / Classroom'] ?? '', 'staff'=>$f['Staff Name'] ?? '', 'date'=>$f['Date'] ?? '', 'link'=>$f['Drive Link'] ?? '', 'overall'=>$f['Overall Status'] ?? ''];
+}
+$offset = $res['offset'] ?? null;
+} while ($offset && ++$guard < 20);
+echo json_encode(['month'=>$m, 'school'=>$school, 'rows'=>$rows]); exit;
+}
+
 fail('Unknown action');
