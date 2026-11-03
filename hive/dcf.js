@@ -263,7 +263,7 @@ function addDrill(){
 
 
 /* ---------- MONTH-END FOOD PROGRAM PACKET ---------- */
-var HDR={'DeLand 2':['KID CITY USA DELAND 2 INC.','238 S ARMELIA AVE.','DELAND, FL. 32724'],'Sanford':['KID CITY USA SANFORD','(confirm legal name + address)','']};
+var HDR={'DeLand 2':['KID CITY USA DELAND 2 INC.','238 S ARMELIA AVE.','DELAND, FL. 32724'],'Sanford':['KID CITY USA SANFORD','1320 HICKORY AVE.','SANFORD, FL. 32771']};
 var PAR_DEFAULT={'DeLand 2':'Madhumita Sahoo'};
 var CHK=['Monthly Provider Check list','Infant/Child Menus (NOT NECESSARY IF CLAIMING ON-LINE)','Receipts for Operating Expenses, including itemized food/non-food receipts, including CATERED MEAL RECEIPTS','CN labels or PFS (Product Formulation Statement) for processed/pre-cooked food packages','Personnel Activity Report (PAR) for Operating Labor Expenses','Free and Reduced-Price Meal Applications, DCF forms or Center Enrollment forms with Original Child Participation forms','Infant Feeding form, Medical Statement, Dietary Preference Request form','Monthly Entrances/Terminations form','Other (Please specify)'];
 var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -286,14 +286,14 @@ function loadPacket(){
 }
 function pkData(form,emp){ var r=S.pk.recs[pkKey(form,emp)]; if(!r) return null; try{ return JSON.parse(r.fields.Data||'{}'); }catch(e){ return null; } }
 function packView(){
-  var pk=S.pk, forms=(S.school==='DeLand 2')?[['CHECKLIST','Provider Check List'],['ENTRANCES','Monthly Entrances'],['PAR','Personnel Activity Report']]:[['PAR','Personnel Activity Report']];
+  var pk=S.pk, forms=[['CHECKLIST','Provider Check List'],['ENTRANCES','Monthly Entrances'],['PAR','Personnel Activity Report']];
   if(forms.every(function(f){return f[0]!==pk.form;})) pk.form=forms[0][0];
   if(pk.loaded!==pk.month) { if(!S.busy) setTimeout(loadPacket,0); return '<div class="card">Loading&hellip;</div>'; }
   var h='<div class="card noprint"><div class="ct">Month-end Food Program packet</div><div class="sub">Everything the sponsor needs at the end of the month. Fill in during the month; print or save at the end.</div>';
   h+='<div class="bar"><button class="btn sec sm" data-pf="prev">&lsaquo;</button><b>'+mLabel(pk.month)+'</b><button class="btn sec sm" data-pf="next">&rsaquo;</button></div><div class="tabs">';
   forms.forEach(function(f){ var saved=Object.keys(pk.recs).some(function(k){return k.split('|')[1]===f[0];}); h+='<button class="tab'+(pk.form===f[0]?' on':'')+'" data-pf="form" data-v="'+f[0]+'">'+f[1]+(saved?' &#10003;':'')+'</button>'; });
   h+='</div>';
-  if(S.school==='Sanford') h+='<div class="hint">Sanford (sponsor 4C): only the Personnel Activity Report is here for now. The other two sponsor forms get added as soon as they are uploaded.</div>';
+  if(S.school==='Sanford') h+='<div class="hint">Sanford (sponsor 4C): authorization number stays blank until 4C provides it.</div>';
   h+='</div><div class="card paper" id="paper">'+(pk.form==='CHECKLIST'?chkForm():pk.form==='ENTRANCES'?entForm():parForm())+'</div>';
   h+='<div class="mrow noprint"><button class="btn sec" data-pf="print">Print</button><button class="btn grn" data-pf="save">Save</button></div>';
   return h;
@@ -414,8 +414,7 @@ function formsView(){
   var d=pkData('PARENTFORMS')||{items:[]}, items=d.items||[];
   var h='<div class="card"><div class="ct">Forms to print</div><div class="sub">Everything for the month-end Food Program packet in one place. Prefilled forms open as PDFs: type in any blank (SNAP / case number, income, address, phone), print, and have the parent sign.</div>';
   h+='<div class="bar"><button class="btn sec sm" data-pf="prev">&lsaquo;</button><b>'+mLabel(pk.month)+'</b><button class="btn sec sm" data-pf="next">&rsaquo;</button></div></div>';
-  var mf=(S.school==='DeLand 2')?[['CHECKLIST','Monthly Provider Check List'],['ENTRANCES','Monthly Entrances']]:[];
-  mf.push(['PAR','Personnel Activity Report']);
+  var mf=[['CHECKLIST','Monthly Provider Check List'],['ENTRANCES','Monthly Entrances'],['PAR','Personnel Activity Report']];
   h+='<div class="card"><div class="ct">Month-end forms (filled in for you)</div>';
   mf.forEach(function(f){ var saved=Object.keys(pk.recs).some(function(k){return k.split('|')[1]===f[0];}); h+='<div class="line '+(saved?'ok':'bad')+'">'+(saved?'&#10003; ':'&#9679; ')+f[1]+' <button class="btn sec sm" data-goto="'+f[0]+'">open &amp; print</button></div>'; });
   h+='</div>';
@@ -425,8 +424,8 @@ function formsView(){
     h+='<div class="line '+(it.done?'ok':'bad')+'"><b>'+esc(it.child)+'</b> &middot; '+esc(it.type==='INFANT'?'Infant Feeding Form':'Free & Reduced Meal Application')+(it.why?'<div class="hint">'+esc(it.why)+'</div>':'')+'<div style="margin-top:6px"><a class="btn sm" target="_blank" href="'+esc(it.file)+'">Open &amp; print</a> <label style="margin-left:10px"><input type="checkbox" class="pfdone" data-i="'+i+'" '+(it.done?'checked':'')+'> Returned signed</label></div>'+signedBlock(it,i)+'</div>';
   });
   h+='</div>';
-  if(S.school==='DeLand 2'){
-    var RC=RECEIPTS[pk.month]||[];
+  {
+    var RC=(S.school==='DeLand 2'?RECEIPTS[pk.month]:RECEIPTS['S|'+pk.month])||[];
     h+='<div class="card"><div class="ct">Walmart receipts</div>';
     if(!RC.length) h+='<div class="hint">No receipts loaded for '+mLabel(pk.month)+' yet.</div>';
     RC.forEach(function(r){ h+='<div class="line"><a class="btn sm" target="_blank" href="'+r[1]+'">Open &amp; print</a> '+r[0]+'</div>'; });
