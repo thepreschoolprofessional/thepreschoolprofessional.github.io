@@ -139,6 +139,7 @@ function render(){
   $('app').innerHTML=h;
   $('prt').onclick=function(){ window.print(); };
   if(S.tab==='pack'&&S.pk.form==='PAR') parTotals();
+  if(S.tab==='pack') postPack();
   $('dt').onchange=function(){ if(this.value){ S.date=this.value; ensureData(); } };
 }
 function body(){
@@ -285,19 +286,132 @@ function loadPacket(){
   }).catch(function(e){ toast(e.message,true); }).then(function(){ S.busy--; render(); });
 }
 function pkData(form,emp){ var r=S.pk.recs[pkKey(form,emp)]; if(!r) return null; try{ return JSON.parse(r.fields.Data||'{}'); }catch(e){ return null; } }
+var PFORMS=[['SITEINFO','Site Information'],['CHECKLIST','Provider Check List'],['ENTRANCES','Entrances / Terminations'],['PAR','Personnel Activity (PAR)'],['INFANTFEED','Infant Feeding'],['MEDICAL','Medical Statement'],['DIETARY','Dietary Preference'],['EXPEND','Expenditure Worksheet'],['LABOR','Labor Summary'],['REVIEW','Review & Submit']];
+var KF={
+ INFANTFEED:{title:'Infant Feeding Form',fields:[['dob','Date of birth',1],['parent','Parent / guardian',1],['feed','Feeding type (breast milk / iron-fortified formula)',1],['brand','Formula brand & type (if formula)',0],['amt','Amount per feeding (oz)',1],['freq','How often (hours)',1],['solids','Solid foods already introduced (grains, fruits, vegetables, meats)',0],['allergy','Allergies / foods to avoid',0],['pdate','Parent signature date (sign on printed copy)',0]]},
+ MEDICAL:{title:'Medical Statement for Special Dietary Needs',fields:[['dob','Date of birth',1],['parent','Parent / guardian',1],['diag','Disability or medical condition requiring a special diet',1],['avoid','Foods to omit / avoid',1],['sub','Foods or substitutions to serve',1],['phys','Licensed physician / medical authority name',1],['physph','Physician phone',0],['sdate','Date signed by physician',1]]},
+ DIETARY:{title:'Dietary Preference Request',fields:[['dob','Date of birth',0],['parent','Parent / guardian',1],['reason','Reason (religious, ethical, personal preference)',1],['avoid','Foods the child does not eat',1],['sub','Acceptable substitutions the parent will supply or approve',0],['pdate','Parent signature date (sign on printed copy)',0]]}
+};
+var SITEF=[['sname','Site name',1],['saddr','Address',1],['sphone','Phone',1],['auth','Authorization / site number',1],['sponsor','Sponsor',1],['license','DCF license number',1],['dirn','Director name',1],['dire','Director email',1],['days','Days of operation',1],['hours','Hours of operation',1],['cap','Licensed capacity',0],['bt','Breakfast time',1],['lt','Lunch time',1],['st','PM snack time',1]];
+var SITEDEF={'Sanford':{sname:'Kid City USA Sanford',saddr:'1320 Hickory Ave., Sanford, FL 32771',phone:'',sphone:'(407) 942-3242',sponsor:'4C Florida',license:'C18SE0336',dirn:'Sanchita',dire:'Sanfordoffice@kidcityusa.com',days:'Monday - Friday',hours:'6:30 AM - 5:30 PM'},'DeLand 2':{sname:'Kid City USA DeLand 2 Inc.',saddr:'238 S Armelia Ave., DeLand, FL 32724',sponsor:'CCSWFL',auth:'4-2677',dirn:'Madhumita Sahoo',days:'Monday - Friday'}};
+function isLocked(){ return !!S.pk.recs[pkKey('SUBMITTED','')]; }
+function dayKidKey(c){ return c; }
 function packView(){
-  var pk=S.pk, forms=[['CHECKLIST','Provider Check List'],['ENTRANCES','Monthly Entrances'],['PAR','Personnel Activity Report']];
-  if(forms.every(function(f){return f[0]!==pk.form;})) pk.form=forms[0][0];
+  var pk=S.pk;
+  if(PFORMS.every(function(f){return f[0]!==pk.form;})) pk.form='SITEINFO';
   if(pk.loaded!==pk.month) { if(!S.busy) setTimeout(loadPacket,0); return '<div class="card">Loading&hellip;</div>'; }
-  var h='<div class="card noprint"><div class="ct">Month-end Food Program packet</div><div class="sub">Everything the sponsor needs at the end of the month. Fill in during the month; print or save at the end.</div>';
-  h+='<div class="bar"><button class="btn sec sm" data-pf="prev">&lsaquo;</button><b>'+mLabel(pk.month)+'</b><button class="btn sec sm" data-pf="next">&rsaquo;</button></div><div class="tabs">';
-  forms.forEach(function(f){ var saved=Object.keys(pk.recs).some(function(k){return k.split('|')[1]===f[0];}); h+='<button class="tab'+(pk.form===f[0]?' on':'')+'" data-pf="form" data-v="'+f[0]+'">'+f[1]+(saved?' &#10003;':'')+'</button>'; });
-  h+='</div>';
-  if(S.school==='Sanford') h+='<div class="hint">Sanford (sponsor 4C): authorization number stays blank until 4C provides it.</div>';
-  h+='</div><div class="card paper" id="paper">'+(pk.form==='CHECKLIST'?chkForm():pk.form==='ENTRANCES'?entForm():parForm())+'</div>';
-  h+='<div class="mrow noprint"><button class="btn sec" data-pf="print">Print</button><button class="btn grn" data-pf="save">Save</button></div>';
+  var lk=isLocked(), st=pkStatus();
+  var h='<div class="card noprint"><div class="ct">Month-end Food Program packet</div><div class="sub">Yellow boxes are required. Everything saves as you type. When all tabs show a check, open <b>Review &amp; Submit</b>.</div>';
+  h+='<div class="bar"><button class="btn sec sm" data-pf="prev">&lsaquo;</button><b>'+mLabel(pk.month)+'</b><button class="btn sec sm" data-pf="next">&rsaquo;</button><span id="svst" class="hint" style="margin-left:auto"></span></div>';
+  if(lk){ var sd=pkData('SUBMITTED')||{}; h+='<div class="okline">&#128274; Submitted'+(sd.by?' by '+esc(sd.by):'')+(sd.at?' on '+esc(new Date(sd.at).toLocaleDateString('en-US',{month:'short',day:'numeric'})):'')+'. This month is locked; Charles is preparing the email draft.</div>'; }
+  h+='<div class="tabs">';
+  PFORMS.forEach(function(f){ var s=st[f[0]]; var mark=s==null?'':(s.ok?' &#10003;':' <span class="red">&#9679;</span>'); h+='<button class="tab'+(pk.form===f[0]?' on':'')+'" data-pf="form" data-v="'+f[0]+'">'+f[1]+mark+'</button>'; });
+  h+='</div></div>';
+  var body;
+  if(pk.form==='CHECKLIST') body=chkForm(); else if(pk.form==='ENTRANCES') body=entForm(); else if(pk.form==='PAR') body=parForm(); else if(pk.form==='SITEINFO') body=siteForm(); else if(KF[pk.form]) body=kidForm(pk.form); else if(pk.form==='EXPEND') body=expForm(); else if(pk.form==='LABOR') body=labForm(); else body=reviewForm(st);
+  if(pk.form==='REVIEW') return h+'<div class="card" id="paper">'+body+'</div>';
+  h+='<div class="card paper" id="paper">'+body+'</div>';
+  h+='<div class="mrow noprint"><button class="btn sec" data-pf="print">Print / Save PDF</button>'+((pk.form==='EXPEND'||pk.form==='LABOR')?'':'<button class="btn grn" data-pf="save">Save now</button>')+'</div>';
   return h;
 }
+function fld(key,label,req,val,ph){ return '<label class="fl">'+esc(label)+(req?' <span class="rq">*</span>':'')+'<input class="fi'+(req?' rq-in':'')+'" data-f="'+key+'" data-req="'+(req?1:0)+'" value="'+esc(val||'')+'" placeholder="'+esc(ph||'')+'"></label>'; }
+function siteForm(){
+  var d=pkData('SITEINFO')||{}, df=SITEDEF[S.school]||{};
+  var h=letterhead()+'<h2 class="pt">CCFP Site Information</h2><div class="pm">'+mLabel(S.pk.month)+'</div><div class="fgrid">';
+  SITEF.forEach(function(f){ var v=d[f[0]]; if(v==null||v==='') v=df[f[0]]||(f[0]==='sphone'?df.sphone:'')||''; h+=fld(f[0],f[1],f[2],v); });
+  return h+'</div><div class="hint noprint">Pre-filled from what we know. Anything still yellow is something the sponsor needs.</div>';
+}
+function kidNames(){ var a=(S.pk.kids||[]).map(function(k){return k.fields.Child;}).filter(Boolean); a.sort(); return a; }
+function kidForm(form){
+  var def=KF[form], pk=S.pk, kid=pk.kid||'';
+  var names=kidNames(); if(!kid&&names.length) kid=pk.kid=names[0];
+  var d=pkData(form,kid)||{};
+  var h=letterhead()+'<h2 class="pt">'+esc(def.title)+'</h2><div class="pm">'+mLabel(pk.month)+'</div>';
+  h+='<label class="fl">Child <span class="rq">*</span><select id="kidSel" class="inp">'+names.map(function(n){return '<option'+(n===kid?' selected':'')+'>'+esc(n)+'</option>';}).join('')+'</select></label>';
+  var done=[]; Object.keys(pk.recs).forEach(function(k){ var p=k.split('|'); if(p[1]===form&&p[2]) done.push(p[2]); });
+  if(done.length) h+='<div class="hint noprint">Saved for: '+done.map(esc).join(', ')+'</div>';
+  h+='<div class="fgrid">';
+  def.fields.forEach(function(f){ h+=fld(f[0],f[1],f[2],d[f[0]]); });
+  return h+'</div><div class="hint noprint">Print this page for the parent / physician to sign, then upload the signed copy on the Forms tab.</div>';
+}
+function wsRows(n,cols){ var h=''; for(var i=0;i<n;i++){ h+='<tr>'+cols.map(function(c){ return '<td><input class="ws '+c+'" '+(/^c\d|lab/.test(c)?'inputmode="decimal"':'')+'></td>'; }).join('')+'</tr>'; } return h; }
+function expForm(){
+  return letterhead()+'<h2 class="pt">PROGRAM EXPENDITURES WORKSHEET</h2><div class="pm">Center: <b>'+esc((HDR[S.school]||[''])[0])+'</b> &nbsp; Month <b>'+MONTHS[+S.pk.month.slice(5)-1]+'</b> Year <b>'+S.pk.month.slice(0,4)+'</b></div><div class="warnbox noprint">Dollar amounts are <b>not saved</b> anywhere. Fill this in, then Print / Save PDF before you leave this page.</div><table class="pt2 wsx"><tr><th>Day of Month</th><th>Receipt Number</th><th>Name of Payee for Expenditures Claimed</th><th>Food Costs</th><th>Nonfood Supplies and Expendable Equipment Costs</th><th>Purchase Services &amp; Non-expendable Equipment Costs</th><th>Milk Amount (gallons)</th></tr>'+wsRows(24,['wd','wr','wv','c1','c2','c3','c4'])+'<tr><td colspan="3" style="text-align:right;font-weight:700;padding:6px">TOTAL</td><td id="et1" class="tt">0.00</td><td id="et2" class="tt">0.00</td><td id="et3" class="tt">0.00</td><td id="et4" class="tt">0</td></tr></table><div class="rev">Program Expenditures worksheet</div>';
+}
+function labForm(){
+  var h=letterhead()+'<h2 class="pt">Labor Summary Worksheet</h2><div class="pm">TOTAL LABOR COSTS FOR ALL STAFF WORKING ON THE FOOD PROGRAM</div><div class="pm" style="font-size:14px">Center: <b>'+esc((HDR[S.school]||[''])[0])+'</b> &nbsp; Month/Yr: <b>'+mLabel(S.pk.month)+'</b></div><div class="warnbox noprint">Pay amounts are <b>not saved</b>. Print / Save PDF before you leave this page.</div><table class="pt2 wsx"><tr><th style="width:44px">#</th><th>Employee</th><th>Total CCFP salary (admin + oper.) $</th></tr>';
+  for(var i=1;i<=25;i++) h+='<tr><td>#'+i+'</td><td><input class="ws wn"></td><td><input class="ws lab" inputmode="decimal"></td></tr>';
+  return h+'<tr><td colspan="2" style="text-align:right;font-weight:700;padding:6px">TOTAL Labor Costs For the Month</td><td id="labTot" class="tt">0.00</td></tr></table><div class="cert">Signature of center owner, director, or representative: ________________________________</div><div class="hint noprint">Complete this if you claim more than one person for labor. Add each employee&rsquo;s total operational + administrative salary together.</div><div class="rev">Rev 2/16/11 &nbsp; Labor Summary Worksheet for centers</div>';
+}
+function wsCalc(){
+  [1,2,3].forEach(function(n){ var t=0; document.querySelectorAll('input.c'+n).forEach(function(i){ var v=parseFloat(i.value); if(!isNaN(v)) t+=v; }); var e=$('et'+n); if(e) e.textContent=t.toFixed(2); });
+  var m=0; document.querySelectorAll('input.c4').forEach(function(i){ var v=parseFloat(i.value); if(!isNaN(v)) m+=v; }); var e4=$('et4'); if(e4) e4.textContent=(Math.round(m*100)/100);
+  var lt=0; document.querySelectorAll('input.lab').forEach(function(i){ var v=parseFloat(i.value); if(!isNaN(v)) lt+=v; }); var l=$('labTot'); if(l) l.textContent=lt.toFixed(2);
+}
+/* ----- status / review ----- */
+function pkStatus(){
+  var pk=S.pk, s={}, any=function(f){ return Object.keys(pk.recs).filter(function(k){return k.split('|')[1]===f;}); };
+  var si=pkData('SITEINFO'); s.SITEINFO={ok:!!si&&SITEF.filter(function(f){return f[2]&&!String(si[f[0]]||(SITEDEF[S.school]||{})[f[0]]||'').trim();}).length===0, why:'Site details incomplete'};
+  var ck=pkData('CHECKLIST'); var need=[0,2,4,5,6,7]; s.CHECKLIST={ok:!!ck&&need.every(function(i){return ck.c&&ck.c[i];}), why:'Check list items still unchecked'};
+  var en=pkData('ENTRANCES'); s.ENTRANCES={ok:!!en&&((en.rows&&en.rows.length)||en.none), why:'Entrances not reviewed (add rows or tick "none this month")'};
+  s.PAR={ok:any('PAR').length>0, why:'No Personnel Activity Report saved'};
+  var pf=pkData('PARENTFORMS')||{items:[]}; var openPF=(pf.items||[]).filter(function(i){return !i.done;});
+  s.INFANTFEED={ok:true}; s.MEDICAL={ok:true}; s.DIETARY={ok:true};
+  s.PARENTSIGN={ok:openPF.length===0, why:openPF.length+' parent form(s) not returned signed'};
+  var RC=(S.school==='DeLand 2'?RECEIPTS[pk.month]:RECEIPTS['S|'+pk.month])||[]; s.RECEIPTS={ok:RC.length>0, why:'No receipts loaded for the month'};
+  var ws=pkData('WORKSHEETS')||{}; s.EXPEND={ok:!!ws.expend, why:'Expenditure worksheet not marked printed'}; s.LABOR={ok:!!ws.labor, why:'Labor summary not marked printed'};
+  return s;
+}
+function reviewForm(st){
+  var lk=isLocked(), ws=pkData('WORKSHEETS')||{};
+  var rows=[['SITEINFO','Site Information'],['CHECKLIST','Monthly Provider Check List'],['ENTRANCES','Monthly Entrances / Terminations'],['PAR','Personnel Activity Reports'],['PARENTSIGN','Parent-signed forms'],['RECEIPTS','Receipts'],['EXPEND','Program Expenditures Worksheet'],['LABOR','Labor Summary Worksheet']];
+  var h='<div class="ct">Review &amp; Submit &mdash; '+mLabel(S.pk.month)+'</div><div class="sub">Green means ready. Red means the sponsor will be missing something.</div>';
+  var miss=[];
+  rows.forEach(function(r){ var s=st[r[0]]; if(!s.ok) miss.push(s.why); h+='<div class="line '+(s.ok?'ok':'bad')+'">'+(s.ok?'&#10003; ':'&#9679; ')+r[1]+(s.ok?'':' &mdash; '+esc(s.why))+(PFORMS.some(function(f){return f[0]===r[0];})?' <button class="btn sec sm" data-pf="form" data-v="'+r[0]+'">open</button>':'')+'</div>'; });
+  h+='<div class="card" style="margin-top:12px"><b>Worksheets (amounts are never saved)</b><label class="ck2"><input type="checkbox" class="wsflag" data-w="expend" '+(ws.expend?'checked':'')+(lk?' disabled':'')+'> <span>Expenditure worksheet is printed and in the packet</span></label><label class="ck2"><input type="checkbox" class="wsflag" data-w="labor" '+(ws.labor?'checked':'')+(lk?' disabled':'')+'> <span>Labor summary worksheet is printed and in the packet</span></label></div>';
+  if(lk) return h+'<div class="okline" style="margin-top:12px">&#128274; Submitted and locked.</div>';
+  h+='<div class="mrow"><button class="btn grn" data-pf="submit">Submit month-end packet</button></div><div class="hint">Submitting locks '+mLabel(S.pk.month)+' and tells Charles to build the Food Program email draft. It does not send anything to the sponsor.</div>';
+  return h;
+}
+function submitPacket(){
+  var st=pkStatus(), miss=[]; Object.keys(st).forEach(function(k){ if(st[k]&&!st[k].ok&&st[k].why) miss.push(st[k].why); });
+  var nm=directorName(); if(!nm) return toast('Enter your name first.',true);
+  if(miss.length && !confirm('Still missing:\n- '+miss.join('\n- ')+'\n\nSubmit anyway? The month will be locked.')) return;
+  if(!miss.length && !confirm('Submit '+mLabel(S.pk.month)+' and lock it?')) return;
+  flushSave();
+  var now=new Date().toISOString(), pk=S.pk, data={by:nm,at:now,missing:miss,school:S.school};
+  api('create','Monthly Forms',{fields:{Entry:S.school+' · '+pk.month+' · SUBMITTED',Month:pk.month,Form:'SUBMITTED',Employee:'',Data:JSON.stringify(data),'Updated By':nm,'Updated At':now}}).then(function(res){ var r=res.records?res.records[0]:res; if(r&&r.id){ pk.recs[pkKey('SUBMITTED','')]=r; toast('Submitted. Month locked.'); render(); } else toast('Did not submit',true); }).catch(function(e){ toast(e.message,true); });
+}
+/* ----- required highlighting + lock ----- */
+function postPack(){
+  var p=$('paper'); if(!p) return;
+  p.querySelectorAll('.rq-in').forEach(function(i){ i.classList.toggle('need',!String(i.value).trim()); });
+  if(S.pk.form==='EXPEND'||S.pk.form==='LABOR') wsCalc();
+  if(S.pk.form==='CHECKLIST'){ var NEED=[0,2,4,5,6,7]; p.querySelectorAll('.pc').forEach(function(c){ var l=c.closest('label'); if(l) l.classList.toggle('need',NEED.indexOf(+c.getAttribute('data-i'))>-1&&!c.checked); }); }
+  if(S.pk.form==='PAR'){ ['pAuth','pTitle'].forEach(function(id){ var e=$(id); if(e) e.classList.toggle('need',!e.value.trim()); }); }
+  if(S.pk.form==='ENTRANCES'){ var nn=$('entNone'), has=[].some.call(p.querySelectorAll('.en'),function(x){return x.value.trim();}); p.classList.toggle('needbox',!(nn&&nn.checked)&&!has); }
+  if(isLocked()) p.querySelectorAll('input,select,textarea').forEach(function(i){ if(!i.classList.contains('ws')) i.disabled=true; });
+}
+/* ----- saving ----- */
+function collect(form){
+  var pk=S.pk, data={}, emp='';
+  if(form==='CHECKLIST'){ data={c:[].map.call(document.querySelectorAll('.pc'),function(x){return x.checked;}),other:[].map.call(document.querySelectorAll('.po'),function(x){return x.value;}),sug:[].map.call(document.querySelectorAll('.ps'),function(x){return x.value;})}; }
+  else if(form==='ENTRANCES'){ var n=document.querySelectorAll('.en'), dd=document.querySelectorAll('.ed'), rows=[]; for(var i=0;i<n.length;i++) if(n[i].value.trim()||dd[i].value.trim()) rows.push({n:n[i].value.trim(),d:dd[i].value.trim()}); var nn=$('entNone'); data={rows:rows,none:!!(nn&&nn.checked)}; }
+  else if(form==='PAR'){ emp=pk.emp; var days={}; document.querySelectorAll('.pv').forEach(function(x){ if(x.value.trim()){ var k=x.getAttribute('data-d'); (days[k]=days[k]||{})[x.getAttribute('data-k')]=x.value.trim(); } }); data={auth:$('pAuth').value.trim(),title:$('pTitle').value.trim(),days:days}; }
+  else if(form==='SITEINFO'||KF[form]){ if(KF[form]) emp=pk.kid||''; document.querySelectorAll('#paper [data-f]').forEach(function(x){ data[x.getAttribute('data-f')]=x.value.trim(); }); if(KF[form]&&!emp) return null; }
+  else return null;
+  return {form:form,emp:emp,data:data};
+}
+function writeRec(c,silent){
+  var pk=S.pk, nm=directorName()||'Director', ex=pk.recs[pkKey(c.form,c.emp)], now=new Date().toISOString(), p;
+  if(ex) p=api('update','Monthly Forms',{recordId:ex.id,fields:{Data:JSON.stringify(c.data),'Updated By':nm,'Updated At':now}});
+  else p=api('create','Monthly Forms',{fields:{Entry:S.school+' · '+pk.month+' · '+c.form+(c.emp?' · '+c.emp:''),Month:pk.month,Form:c.form,Employee:c.emp,Data:JSON.stringify(c.data),'Updated By':nm,'Updated At':now}});
+  return p.then(function(res){ var r=res.records?res.records[0]:res; if(r&&r.id){ pk.recs[pkKey(c.form,c.emp)]=r; var e=$('svst'); if(e) e.textContent='Saved '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}); if(!silent){ toast('Saved.'); render(); } } else toast('Did not save',true); }).catch(function(e){ toast(e.message,true); });
+}
+var saveT=null;
+function flushSave(){ if(saveT){ clearTimeout(saveT); saveT=null; var c=collect(S.pk.form); if(c) return writeRec(c,true); } return Promise.resolve(); }
+function schedSave(){ if(isLocked()) return; var e=$('svst'); if(e) e.textContent='Saving…'; clearTimeout(saveT); saveT=setTimeout(function(){ saveT=null; var c=collect(S.pk.form); if(c) writeRec(c,true); },1200); }
+function savePacket(){ var nm=directorName(); if(!nm) return toast('Enter your name first.',true); clearTimeout(saveT); saveT=null; var c=collect(S.pk.form); if(!c) return toast('Nothing to save on this tab.'); writeRec(c,false); }
 function letterhead(){ var a=HDR[S.school]||[]; return '<div class="lh">'+a.map(esc).join('<br>')+'</div>'; }
 function chkForm(){
   var d=pkData('CHECKLIST')||{c:[],other:[],sug:[]}, m=S.pk.month;
@@ -318,7 +432,9 @@ function entForm(){
   var rows=entRows(), m=S.pk.month;
   var h=letterhead()+'<div class="pm">Month: <b>'+MONTHS[+m.slice(5)-1]+' '+m.slice(0,4)+'</b></div><h2 class="pt">Monthly Entrances</h2><table class="pt2"><tr><th>Childs Name</th><th>Entrance Date</th></tr>';
   for(var i=0;i<28;i++){ var r=rows[i]||{}; h+='<tr><td><input class="en" value="'+esc(r.n||'')+'"></td><td><input class="ed" value="'+esc(r.d||'')+'" placeholder="'+(i?'':'YYYY-MM-DD')+'"></td></tr>'; }
-  return h+'</table><div class="hint noprint">Pre-filled with children added through the Rooms board this month. Fix or add anyone else by typing.</div><div class="rev">Updated 6.18.19</div>';
+  var sv0=pkData('ENTRANCES')||{};
+  h+='</table><label class="ck2 noprint"><input type="checkbox" id="entNone" '+(sv0.none?'checked':'')+'> <span>No entrances or terminations this month</span></label>';
+  return h+'<div class="hint noprint">Pre-filled with children added through the Rooms board this month. Fix or add anyone else by typing.</div><div class="rev">Updated 6.18.19</div>';
 }
 function parForm(){
   var pk=S.pk, m=pk.month, d=pkData('PAR',pk.emp)||{days:{}}, dim=new Date(+m.slice(0,4),+m.slice(5),0).getDate();
@@ -349,19 +465,6 @@ function parTotals(){
   var t={a:0,o:0,r:0,p:0}; document.querySelectorAll('.pv').forEach(function(i){ var v=parseFloat(i.value); if(!isNaN(v)) t[i.getAttribute('data-k')]+=v; });
   ['a','o','r','p'].forEach(function(k){ var e=$('pt-'+k); if(e) e.textContent=Math.round(t[k]*100)/100; });
 }
-function savePacket(){
-  var pk=S.pk, nm=directorName(); if(!nm) return toast('Enter your name first.',true);
-  var form=pk.form, emp=(form==='PAR')?($('pEmp').value||pk.emp):'', data={};
-  if(form==='CHECKLIST'){ data={c:[].map.call(document.querySelectorAll('.pc'),function(x){return x.checked;}),other:[].map.call(document.querySelectorAll('.po'),function(x){return x.value;}),sug:[].map.call(document.querySelectorAll('.ps'),function(x){return x.value;})}; }
-  else if(form==='ENTRANCES'){ var n=document.querySelectorAll('.en'), dd=document.querySelectorAll('.ed'), rows=[]; for(var i=0;i<n.length;i++) if(n[i].value.trim()||dd[i].value.trim()) rows.push({n:n[i].value.trim(),d:dd[i].value.trim()}); data={rows:rows}; }
-  else { var days={}; document.querySelectorAll('.pv').forEach(function(x){ if(x.value.trim()){ var k=x.getAttribute('data-d'); (days[k]=days[k]||{})[x.getAttribute('data-k')]=x.value.trim(); } }); data={auth:$('pAuth').value.trim(),title:$('pTitle').value.trim(),days:days}; }
-  var ex=pk.recs[pkKey(form,emp)], now=new Date().toISOString(), p;
-  if(ex) p=api('update','Monthly Forms',{recordId:ex.id,fields:{Data:JSON.stringify(data),'Updated By':nm,'Updated At':now}});
-  else p=api('create','Monthly Forms',{fields:{Entry:S.school+' · '+pk.month+' · '+form+(emp?' · '+emp:''),Month:pk.month,Form:form,Employee:emp,Data:JSON.stringify(data),'Updated By':nm,'Updated At':now}});
-  p.then(function(res){ var r=res.records?res.records[0]:res; if(r&&r.id){ pk.recs[pkKey(form,emp)]=r; toast('Saved.'); render(); } else toast('Did not save',true); }).catch(function(e){ toast(e.message,true); });
-}
-
-
 /* ---------- FORMS TO PRINT (prefilled, fillable PDFs + month-end forms) ---------- */
 var RECEIPTS={'2026-10':[['Sep 30 order, delivered Oct 1 &middot; $813.01','files/food-program/receipt-2026-10-walmart-sep30-order.pdf'],['Sep 21 order, Oct 2 delivery only (It\'s Delish) &middot; $19.99','files/food-program/receipt-2026-10-walmart-sep21-itsdelish.pdf'],['Oct 15 order, delivered Oct 19 &middot; $564.65','files/food-program/receipt-2026-10-walmart-oct15-order.pdf'],['Oct 30 order, delivery Nov 3 &middot; $1,005.13','files/food-program/receipt-2026-10-walmart-oct30-order.pdf']]};
 var CNLABELS={};
@@ -441,13 +544,14 @@ function formsView(){
 }
 
 /* ---------- events ---------- */
-document.addEventListener('input',function(e){ if(e.target.classList.contains('pv')) parTotals(); });
-document.addEventListener('change',function(e){ if(e.target.classList&&e.target.classList.contains('pfup')){ var fl=e.target.files; uploadSigned(fl,+e.target.getAttribute('data-i')); return; } if(e.target.classList&&e.target.classList.contains('pfdone')){ var dd=pkData('PARENTFORMS')||{items:[]}; var it=dd.items[+e.target.getAttribute('data-i')]; if(it){ it.done=e.target.checked; savePF(dd); } return; } if(e.target.id==='pEmp'){ S.pk.emp=e.target.value; render(); } });
+document.addEventListener('input',function(e){ var t=e.target; if(t.classList.contains('pv')) parTotals(); if(t.closest&&t.closest('#paper')){ if(t.classList.contains('ws')){ wsCalc(); return; } postPack(); schedSave(); } });
+document.addEventListener('change',function(e){ var t=e.target; if(t.classList&&t.classList.contains('wsflag')){ var w=pkData('WORKSHEETS')||{}; w[t.getAttribute('data-w')]=t.checked; writeRec({form:'WORKSHEETS',emp:'',data:w},false); return; } if(t.id==='kidSel'){ flushSave().then(function(){ S.pk.kid=t.value; render(); }); return; } if(t.closest&&t.closest('#paper')&&(t.type==='checkbox')&&!t.classList.contains('ws')){ postPack(); schedSave(); } });
+document.addEventListener('change',function(e){ if(e.target.classList&&e.target.classList.contains('pfup')){ var fl=e.target.files; uploadSigned(fl,+e.target.getAttribute('data-i')); return; } if(e.target.classList&&e.target.classList.contains('pfdone')){ var dd=pkData('PARENTFORMS')||{items:[]}; var it=dd.items[+e.target.getAttribute('data-i')]; if(it){ it.done=e.target.checked; savePF(dd); } return; } if(e.target.id==='pEmp'){ var nv=e.target.value; flushSave().then(function(){ S.pk.emp=nv; render(); }); } });
 document.addEventListener('click',function(e){
   var dl=e.target.closest&&e.target.closest('[data-dl]'); if(dl){ e.preventDefault(); downloadSigned(dl.getAttribute('data-dl'),dl.getAttribute('data-nm')); return; }
   var el=e.target.closest('[data-cell],[data-tab],[data-a],[data-adddrill],[data-pf],[data-goto]'); if(!el) return;
   if(el.hasAttribute('data-goto')){ S.tab='pack'; S.pk.form=el.getAttribute('data-goto'); render(); return; }
-  if(el.hasAttribute('data-pf')){ var a2=el.getAttribute('data-pf'),pk=S.pk; if(a2==='prev'||a2==='next'){ pk.month=shiftMonth(pk.month,a2==='prev'?-1:1); pk.loaded=''; render(); } else if(a2==='form'){ pk.form=el.getAttribute('data-v'); render(); } else if(a2==='save') savePacket(); else if(a2==='print') window.print(); return; }
+  if(el.hasAttribute('data-pf')){ var a2=el.getAttribute('data-pf'),pk=S.pk; if(a2==='prev'||a2==='next'){ flushSave().then(function(){ pk.month=shiftMonth(pk.month,a2==='prev'?-1:1); pk.loaded=''; render(); }); } else if(a2==='form'){ var fv=el.getAttribute('data-v'); flushSave().then(function(){ pk.form=fv; render(); }); } else if(a2==='save') savePacket(); else if(a2==='submit') submitPacket(); else if(a2==='print') window.print(); return; }
   if(el.getAttribute('data-a')==='mclose' && e.target.closest('[data-stop]') && !e.target.classList.contains('btn')) return;
   if(el.hasAttribute('data-adddrill')){ addDrill(); return; }
   if(el.hasAttribute('data-cell')){ var p=el.getAttribute('data-cell').split('|'); openCell(p[0],p[1],p[2]); return; }
