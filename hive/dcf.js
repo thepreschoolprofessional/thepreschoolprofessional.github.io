@@ -267,6 +267,9 @@ function addDrill(){
 /* ---------- MONTH-END FOOD PROGRAM PACKET ---------- */
 var HDR={'DeLand 2':['KID CITY USA DELAND 2 INC.','238 S ARMELIA AVE.','DELAND, FL. 32724'],'Sanford':['KID CITY USA SANFORD','1320 HICKORY AVE.','SANFORD, FL. 32771']};
 var PAR_DEFAULT={'DeLand 2':'Madhumita Sahoo'};
+function wageFor(name){ var n=String(name||'').toLowerCase(); if(S.school==='DeLand 2') return /sahoo|madhumita|honey/.test(n)?20:15; if(S.school==='Sanford') return /sheena/.test(n)?21:15; return 15; }
+var PARB=['bah','bth','bap','bs','bap2','baa','boh','bth2','bop','bs2','bop2','boa'];
+function laborFor(name){ var d=pkData('PAR',name); if(!d) return null; var sp=d.sp||{}, a=0, o=0; Object.keys(d.days||{}).forEach(function(k){ var r=d.days[k]; a+=parseFloat(r.a)||0; o+=parseFloat(r.o)||0; }); var ah=parseFloat(sp.ah); if(isNaN(ah)) ah=a; var oh=parseFloat(sp.oh); if(isNaN(oh)) oh=o; var w=wageFor(name), aw=parseFloat(sp.aw), ow=parseFloat(sp.ow); if(isNaN(aw)) aw=w; if(isNaN(ow)) ow=w; var t=ah*aw+oh*ow; return t>0?Math.round(t*100)/100:null; }
 var CHK=['Monthly Provider Check list','Infant/Child Menus (NOT NECESSARY IF CLAIMING ON-LINE)','Receipts for Operating Expenses, including itemized food/non-food receipts, including CATERED MEAL RECEIPTS','CN labels or PFS (Product Formulation Statement) for processed/pre-cooked food packages','Personnel Activity Report (PAR) for Operating Labor Expenses','Free and Reduced-Price Meal Applications, DCF forms or Center Enrollment forms with Original Child Participation forms','Infant Feeding form, Medical Statement, Dietary Preference Request form','Monthly Entrances/Terminations form','Other (Please specify)'];
 var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 S.pk={month:defMonth(),form:'PAR',emp:'',staff:null,kids:null,recs:{},loaded:''};
@@ -354,15 +357,19 @@ function expOv(){
 }
 function labOv(){
   var rows=(pkData('LABOR')||{}).rows||[], m=S.pk.month;
-  var ld=pkData('LABOR')||{};
+  var ld=pkData('LABOR')||{}, auto=[];
+  (S.pk.staff||[]).forEach(function(n){ var c=laborFor(n); if(c!=null) auto.push([n,c]); });
+  var have=rows.some(function(r){ return r.some(function(v){return v;}); });
+  if(!have&&auto.length){ rows=auto.map(function(a){return [a[1].toFixed(2)];}); setTimeout(function(){ if(S.pk.form==='LABOR') schedSave(); },400); }
+  var note=auto.length?'<div class="hint noprint">Filled from each person&rsquo;s Personnel Activity Report (admin + operational hours &times; hourly wage): '+auto.map(function(a,i){return '#'+(i+1)+' '+esc(a[0])+' $'+a[1].toFixed(2);}).join(' &middot; ')+'. Type over any amount to change it.</div>':'<div class="hint noprint">Nothing to pull yet: save each employee&rsquo;s PAR hours first and the amounts fill in here.</div>';
   return ovForm('LABOR',function(id){return id==='sig'?(ld.sig||''):'';},{render:function(f){
     if(f.t==='s') return null;
     if(f.id==='center') return '<span class="ovs">'+esc((SITEDEF[S.school]||{}).sname||'')+'</span>';
     if(f.id==='month') return '<span class="ovs">'+MONTHS[+m.slice(5)-1]+' '+m.slice(0,4)+'</span>';
     if(f.id==='total') return '<div class="ovt" id="labTot">0.00</div>';
     var i=+f.id.slice(1)-1, r=rows[i]||[], v=r.length?r[r.length-1]:'';
-    return '<input class="ws lab ovi num" style="position:static;width:100%;height:100%" inputmode="decimal" value="'+esc(v||'')+'">';
-  }});
+    return '<input class="ws lab ovi num ovl" style="position:static;width:100%;height:100%" inputmode="decimal" value="'+esc(v||'')+'">';
+  }})+note;
 }
 function parQuick(){
   var dopt='<option value="wk">Every weekday (Mon&ndash;Fri)</option><option value="all">Every day of the month</option><option value="mwf">Mon / Wed / Fri</option><option value="tt">Tue / Thu</option><option value="cus">Specific days&hellip;</option>';
@@ -410,19 +417,21 @@ document.addEventListener('change',function(e){ var t=e.target; if(t.id&&/^qf-.-
 document.addEventListener('click',function(e){ var b=e.target.closest&&e.target.closest('.ovsig'); if(b) openPad(b); });
 function parOv(){
   var pk=S.pk, m=pk.month, d=pkData('PAR',pk.emp)||{days:{}}, sp=d.sp||{}, dim=new Date(+m.slice(0,4),+m.slice(5),0).getDate();
-  var h=parQuick()+'<label class="fl noprint">Employee <span class="rq">*</span><select id="pEmp" class="inp">'+(pk.staff||[]).map(function(n){return '<option'+(n===pk.emp?' selected':'')+'>'+esc(n)+'</option>';}).join('')+'</select></label>';
+  var h=parQuick()+'<label class="fl noprint">Employee <span class="rq">*</span> <span class="hint">(pick from the list or type any name, then press Enter)</span><input id="pEmp" class="inp" list="pEmpL" autocomplete="off" value="'+esc(pk.emp||'')+'"><datalist id="pEmpL">'+(pk.staff||[]).map(function(n){return '<option value="'+esc(n)+'">';}).join('')+'</datalist></label>';
   h+=ovForm('PAR',function(id){return sp[id]||'';},{render:function(f){
     if(f.t==='s') return null;
     if(f.id==='center') return '<span class="ovs">'+esc((SITEDEF[S.school]||{}).sname||'')+'</span>';
     if(f.id==='emp') return '<span class="ovs">'+esc(pk.emp||'')+'</span>';
     if(f.id==='month') return '<span class="ovs sm">'+m.slice(5)+'/'+m.slice(0,4)+'</span>';
-    if(f.id==='title') return '<input id="pTitle" class="ovi rq-in" style="position:static;width:100%;height:100%" value="'+esc(d.title||'')+'">';
+    if(f.id==='title') return '<input id="pTitle" class="ovi ovl rq-in" style="position:static;width:100%;height:100%" value="'+esc(d.title||'')+'">';
     if(f.tot) return '<div class="ovt" id="pt-'+f.tot+'">0</div>';
-    if(f.sp) return '<input class="ovi spi" data-sp="'+f.id+'" style="position:static;width:100%;height:100%" value="'+esc(sp[f.id]||'')+'">';
+    if(PARB.indexOf(f.id)>-1) return false;
+    if(f.sp){ var dv=sp[f.id]||''; if(!dv&&(f.id==='aw'||f.id==='ow')) dv=String(wageFor(pk.emp)); return '<input class="ovi ovl spi" data-sp="'+f.id+'" style="position:static;width:100%;height:100%" value="'+esc(dv)+'">'; }
     var r=(d.days||{})[f.day]||{}, off=f.day>dim;
     return '<input class="ovi pv num" data-d="'+f.day+'" data-k="'+f.k+'" inputmode="decimal" style="position:static;width:100%;height:100%" value="'+esc(r[f.k]||'')+'"'+(off?' disabled':'')+'>';
   }});
-  return h+'<div class="hint noprint">The pay section at the bottom fills in as you type; the sponsor/director signs the printed copy.</div>';
+  var li=h.lastIndexOf('</div>'); h=h.slice(0,li)+'<div class="ovx ovwhite" style="left:4.3%;top:'+(656/792*100).toFixed(3)+'%;width:91%;height:'+(62/792*100).toFixed(3)+'%"></div>'+h.slice(li);
+  return h+'<div class="hint noprint">Part A (hourly staff) fills in as you type; wages are filled in for you (type over them if one changes). Part B is not used. The sponsor/director signs the printed copy.</div>';
 }
 var SD={'Sanford':{cname:'Kid City USA Sanford',street:'1320 Hickory Ave.',city:'Sanford',state:'FL',zip:'32771',phone:'(407) 942-3242',m_br:'1',m_lu:'1',m_as:'1',sv0:'1',sv0_br:'1',sv0_lu:'1',sv0_as:'1'},'DeLand 2':{auth:'4-2677',cname:'Kid City USA DeLand 2',street:'238 S. Armelia Ave.',city:'DeLand',state:'FL',zip:'32724',phone:'386-279-7553',fn:'Shanika',ln:'Preston',title:'Owner',phone2:'386-279-7553',m_br:'1',m_lu:'1',m_as:'1',sv0:'1',sv0_br:'1',sv0_lu:'1',sv0_as:'1',ts_br:'7am',tf_br:'9am',ts_lu:'10:30',tf_lu:'12pm',ts_as:'2pm',tf_as:'4pm'}};
 
@@ -610,6 +619,7 @@ function spCalc(){
   var ah=g('ah'); if(ah&&!ah.value&&T.a) ah.value=Math.round(T.a*100)/100; var oh=g('oh'); if(oh&&!oh.value&&T.o) oh.value=Math.round(T.o*100)/100;
   var bah=g('bah'); if(bah&&!bah.value&&T.a) bah.value=Math.round(T.a*100)/100; var boh=g('boh'); if(boh&&!boh.value&&T.o) boh.value=Math.round(T.o*100)/100;
   var tot=T.r+T.p; ['bth','bth2'].forEach(function(k){ var e=g(k); if(e&&!e.value&&tot) e.value=Math.round(tot*100)/100; });
+  var wg=wageFor(S.pk.emp); ['aw','ow'].forEach(function(k){ var e=g(k); if(e&&!e.value) e.value=wg; });
   set('aa',v('ah')*v('aw'),2); set('oa',v('oh')*v('ow'),2);
   set('bap',v('bah')/v('bth')*100,2); set('bap2',v('bah')/v('bth')*100,2); set('baa',v('bs')*(v('bah')/v('bth')),2);
   set('bop',v('boh')/v('bth2')*100,2); set('bop2',v('boh')/v('bth2')*100,2); set('boa',v('bs2')*(v('boh')/v('bth2')),2);
