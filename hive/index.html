@@ -27,7 +27,9 @@ h1 .hive{background:linear-gradient(90deg,var(--orange),var(--pink),var(--purple
 .gate.show{display:block;}
 .gate h3{margin-bottom:12px;}
 .pinrow{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
-input#pin{font-size:1.4rem;letter-spacing:.15em;padding:12px 18px;border:3px solid var(--orange);border-radius:14px;width:230px;text-align:center;text-transform:uppercase;outline:none;}
+input#pin{font-size:1.4rem;letter-spacing:.15em;padding:12px 18px;border:3px solid var(--orange);border-radius:14px;width:230px;text-align:center;outline:none;}
+.keep{display:block;margin-top:12px;font-size:.9rem;color:#9b8576;cursor:pointer;}
+.keep input{width:auto;margin-right:6px;}
 button#go{font-size:1.1rem;font-weight:800;color:#fff;background:linear-gradient(90deg,var(--orange),var(--coral));border:none;border-radius:14px;padding:12px 28px;cursor:pointer;}
 button#go:hover{filter:brightness(1.08);}
 .err{color:var(--coral);font-weight:700;margin-top:12px;min-height:1.2em;}
@@ -58,24 +60,34 @@ footer{margin-top:34px;font-size:.8rem;color:#c9bcae;}
       <span class="tag">I'm a Parent →</span>
     </div>
   </div>
-  <div class="gate" id="gate">
+  <form class="gate" id="gate" onsubmit="event.preventDefault();enter();" autocomplete="on">
     <h3 id="gateTitle">Enter your PIN 🔑</h3>
+    <input type="text" id="user" name="username" autocomplete="username" value="" readonly tabindex="-1" aria-label="Door" style="border:none;background:transparent;text-align:center;color:#9b8576;font-size:.9rem;width:260px;margin-bottom:8px;">
     <div class="pinrow">
-      <input id="pin" placeholder="YOUR-PIN" autocomplete="off">
-      <button id="go" onclick="enter()">Let me in! 🎉</button>
+      <input id="pin" name="password" type="password" autocomplete="current-password" inputmode="numeric" maxlength="20" placeholder="6-digit PIN" required>
+      <button id="go" type="submit">Let me in! 🎉</button>
     </div>
+    <label class="keep"><input type="checkbox" id="keep" checked> Keep me signed in on this device</label>
     <div class="err" id="err"></div>
-  </div>
+  </form>
   <footer>The Hive · SanDelando Command Center · PINs change regularly — ask Mrs. Bear if yours stops working 💛</footer>
 </div>
 <script>
 let role = null;
 const TITLES = {director:'Director PIN, please 👑', teacher:'Teacher PIN, please 🍎', parent:'Parent PIN, please 🏠'};
 const DEST = {director:'director.html?v=20261019b', teacher:'teacher.html?v=20261019b', parent:'parent.html?v=20261019b'};
+const LABEL = {director:'Director Portal', teacher:'Teacher Portal', parent:'Parent Portal'};
 function pick(r){ role = r; document.getElementById('gate').classList.add('show');
   document.getElementById('gateTitle').textContent = TITLES[r] || 'Enter your PIN 🔑';
-  document.getElementById('pin').focus(); }
-async function enter(){
+  document.getElementById('user').value = LABEL[r] || r;
+  const p = document.getElementById('pin');
+  p.setAttribute('inputmode', r==='director' ? 'numeric' : 'text');
+  p.placeholder = r==='director' ? '6-digit PIN' : 'YOUR-PIN';
+  p.value=''; document.getElementById('err').textContent='';
+  let saved=null; try{ saved = JSON.parse(localStorage.getItem('hiveKeep_'+r)||'null'); }catch(e){}
+  if(saved && saved.pin){ p.value = saved.pin; enter(true); return; }
+  p.focus(); }
+async function enter(auto){
   const pin = document.getElementById('pin').value.trim().toUpperCase();
   const err = document.getElementById('err'); err.textContent = '';
   if(!pin){ err.textContent = 'Type your PIN first! 😊'; return; }
@@ -85,11 +97,15 @@ async function enter(){
     if(d.role){
       if(d.role !== role){ err.textContent = 'That PIN opens the ' + d.role + ' door — try that one! 😉'; return; }
       sessionStorage.setItem('hivePin', pin); sessionStorage.setItem('hiveRole', d.role);
+      try{ if(document.getElementById('keep').checked) localStorage.setItem('hiveKeep_'+role, JSON.stringify({pin})); else localStorage.removeItem('hiveKeep_'+role); }catch(e){}
       location.href = DEST[d.role] || 'index.html';
-    } else { err.textContent = d.error || 'Hmm, that PIN didn\'t work.'; }
+    } else {
+      try{ localStorage.removeItem('hiveKeep_'+role); }catch(e){}
+      document.getElementById('pin').value='';
+      err.textContent = (auto===true ? 'Your PIN was changed — type the new one. ' : '') + (d.error || 'Hmm, that PIN didn\'t work.');
+    }
   } catch(e){ err.textContent = 'Connection hiccup — try again.'; }
 }
-document.getElementById('pin')?.addEventListener('keydown', e => { if(e.key==='Enter') enter(); });
 </script>
 </body>
 </html>
