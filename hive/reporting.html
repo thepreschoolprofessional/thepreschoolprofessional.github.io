@@ -33,7 +33,7 @@ details.ydet>summary.yr{cursor:pointer;list-style:revert;padding:12px 8px;margin
 <div class="tabs"><button class="m on" id="tM" onclick="tab('m')">📋 Monthly Reporting</button><button class="v" id="tV" onclick="tab('v')">🏛️ Audit Vault</button></div>
 <div class="msg" id="msg"></div>
 <div id="pM">
- <div class="bar"><b>Reporting month:</b><select id="mon" onchange="render()"></select></div>
+ <div class="bar"><b>Reporting month:</b><select id="mon" onchange="render()"></select><span id="drv"></span></div>
  <div id="secs"></div>
 </div>
 <div id="pV" style="display:none">
@@ -70,7 +70,7 @@ const lbl=m=>MN[+m.slice(5)-1]+' '+m.slice(0,4);
 function say(t,err){const m=$('msg');m.textContent=t;m.className='msg'+(err?' err':'');m.style.display=t?'block':'none';}
 async function api(action,x){const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({pin:PIN,action},x||{}))});const j=await r.json().catch(()=>({error:'Server error'}));if(j.error)throw new Error(j.error);return j;}
 function monthsList(){const s=new Set(Object.keys(DATA.months));const d=new Date();for(let y=2021;y<=d.getFullYear();y++){for(let m=0;m<12;m++){if(y===d.getFullYear()&&m>d.getMonth())break;s.add(y+'-'+String(m+1).padStart(2,'0'));}}return [...s].sort().reverse();}
-async function load(){try{DATA=await api('list');$('sch').textContent=DATA.school;
+async function load(){try{DATA=await api('list');$('sch').textContent=DATA.school;{const P=PACKETS[DATA.school];$('drv').innerHTML=P?'<a class="lk" style="background:#00695c" target="_blank" rel="noopener" href="'+P.folder+'">📁 Facility packets (Drive)</a>':'';}
  const ms=monthsList();const cur=new Date();const prev=new Date(cur.getFullYear(),cur.getMonth()-1,1);const pm=prev.getFullYear()+'-'+String(prev.getMonth()+1).padStart(2,'0');
  const keep=MON||pm;let og='',yy='';ms.forEach(m=>{if(m.slice(0,4)!==yy){if(yy)og+='</optgroup>';yy=m.slice(0,4);og+='<optgroup label="'+yy+'">';}og+='<option value="'+m+'">'+lbl(m)+'</option>';});$('mon').innerHTML=og+'</optgroup>';
  MON=ms.includes(keep)?keep:ms[1]||ms[0];$('mon').value=MON;render();renderVault();say('');}catch(e){say(e.message,true);}}
