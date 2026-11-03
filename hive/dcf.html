@@ -76,7 +76,18 @@ table.pt2,table.par{width:100%;border-collapse:collapse}.pt2 th,.pt2 td,.par th,
 .pt2 input.ws{width:100%}
 @media print{.fi.need,.ln.need,.ck2.need{background:transparent;box-shadow:none;border-color:#333}.fi{border:0;border-bottom:1px solid #333;border-radius:0}.warnbox{display:none}}
 .sponsor .spi{border:0;border-bottom:1px solid #333;background:transparent;padding:2px 4px;font-size:13px;text-align:center}
+
+.ovwrap{padding:0!important;background:#fff}.ovp{position:relative;container-type:inline-size;width:100%;max-width:960px;margin:0 auto;font-size:var(--fs)}.ovp.land{max-width:1200px}.ovp>img{display:block;width:100%;height:auto}
+.ovp .ovi,.ovp .ovc,.ovp .ovx,.ovp .ovt{position:absolute;box-sizing:border-box}.ovp .ovx{display:block}.ovp .ovx>input,.ovp .ovx>div{position:static}
+.ovp input.ovi{background:transparent;border:0;border-bottom:1px solid rgba(0,0,0,.12);padding:0 .3em;margin:0;font:inherit;font-size:var(--fs);color:#0a2a8a;outline:0;border-radius:0;min-width:0}
+.ovp input.ovi:focus{background:rgba(80,140,255,.14)}.ovp input.ovi.num{text-align:center}
+.ovp input.ovi.need{background:rgba(255,226,60,.6)}.ovp input.ovc{margin:0;accent-color:#0a2a8a;width:1.5em;height:1.5em;transform:translate(-8%,-8%);}.ovp input.ovc.need{outline:2px solid #e0a800;background:#ffe58a}
+.ovp .ovs{display:flex;align-items:center;height:100%;padding:0 .3em;color:#0a2a8a;font-size:var(--fs);white-space:nowrap;overflow:hidden}.ovp .ovs.sm{font-size:calc(var(--fs)*.85)}
+.ovp .ovt{display:flex;align-items:center;justify-content:center;color:#0a2a8a;font-weight:700;width:100%;height:100%}
+.ovp input:disabled{background:rgba(0,0,0,.06)}
+@media print{.ovwrap{border:0!important;box-shadow:none!important;margin:0!important}.ovp{max-width:none!important;width:100%}.ovp input.ovi{border-bottom:0!important}.ovp input.ovi.need,.ovp input.ovc.need{background:transparent!important;outline:0!important}.ovp input:disabled{background:transparent}body.pl-land{} }
 </style></head>
 <body><div id="app"><div class="card">Loading&hellip;</div></div>
-<script src="dcf.js?v=8"></script>
+<script src="dcf-forms.js?v=12"></script>
+<script src="dcf.js?v=12"></script>
 </body></html>

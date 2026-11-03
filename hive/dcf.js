@@ -308,13 +308,75 @@ function packView(){
   PFORMS.forEach(function(f){ var s=st[f[0]]; var mark=s==null?'':(s.ok?' &#10003;':' <span class="red">&#9679;</span>'); h+='<button class="tab'+(pk.form===f[0]?' on':'')+'" data-pf="form" data-v="'+f[0]+'">'+f[1]+mark+'</button>'; });
   h+='</div></div>';
   var body;
-  if(pk.form==='CHECKLIST') body=chkForm(); else if(pk.form==='ENTRANCES') body=entForm(); else if(pk.form==='PAR') body=parForm(); else if(pk.form==='SITEINFO') body=siteForm(); else if(KF[pk.form]) body=kidForm(pk.form); else if(pk.form==='EXPEND') body=expForm(); else if(pk.form==='LABOR') body=labForm(); else body=reviewForm(st);
+  if(pk.form==='CHECKLIST') body=chkForm(); else if(pk.form==='ENTRANCES') body=entForm(); else if(pk.form==='PAR') body=parOv(); else if(pk.form==='SITEINFO') body=siteForm(); else if(KF[pk.form]) body=kidOv(pk.form); else if(pk.form==='EXPEND') body=expOv(); else if(pk.form==='LABOR') body=labOv(); else body=reviewForm(st);
   if(pk.form==='REVIEW') return h+'<div class="card" id="paper">'+body+'</div>';
-  h+='<div class="card paper" id="paper">'+body+'</div>';
+  h+='<div class="card paper'+(/^(MEDICAL|DIETARY|INFANTFEED|PAR|LABOR|EXPEND)$/.test(pk.form)?' ovwrap '+(pk.form==='EXPEND'?'land':'port'):'')+'" id="paper">'+body+'</div>';
   h+='<div class="mrow noprint"><button class="btn sec" data-pf="print">Print / Save PDF</button>'+'<button class="btn grn" data-pf="save">Save now</button>'+'</div>';
   return h;
 }
 function fld(key,label,req,val,ph){ return '<label class="fl">'+esc(label)+(req?' <span class="rq">*</span>':'')+'<input class="fi'+(req?' rq-in':'')+'" data-f="'+key+'" data-req="'+(req?1:0)+'" value="'+esc(val||'')+'" placeholder="'+esc(ph||'')+'"></label>'; }
+
+/* ----- exact official-form overlays ----- */
+var OVFS={MEDICAL:10,DIETARY:10,INFANTFEED:10,PAR:9,LABOR:10,EXPEND:11};
+function ovForm(key,get,opt){
+  opt=opt||{}; var sp=window.OVSPEC[key], h='<div class="ovp '+(sp.w>sp.h?'land':'port')+'" data-ovk="'+key+'" style="--fs:'+(OVFS[key]/sp.w*100).toFixed(3)+'cqw"><img src="files/food-program/forms/'+key.toLowerCase()+'.jpg" alt="">';
+  sp.f.forEach(function(f){
+    var st='left:'+(f.x/sp.w*100).toFixed(3)+'%;top:'+(f.y/sp.h*100).toFixed(3)+'%;width:'+(f.w/sp.w*100).toFixed(3)+'%;height:'+(f.h/sp.h*100).toFixed(3)+'%';
+    var o=opt.render&&opt.render(f); if(o===false) return; if(typeof o==='string'){ h+='<div class="ovx" style="'+st+'">'+o+'</div>'; return; }
+    var v=get(f.id), req=sp.req.indexOf(f.id)>-1;
+    if(f.t==='c') h+='<input type="checkbox" class="ovc'+(req?' rq-in':'')+'" data-f="'+f.id+'" style="'+st+'"'+(v?' checked':'')+'>';
+    else h+='<input class="ovi'+(req?' rq-in':'')+'" data-f="'+f.id+'" style="'+st+'" value="'+esc(v||'')+'">';
+  });
+  return h+'</div>';
+}
+function kidOv(form){
+  var pk=S.pk, kid=pk.kid||''; var names=kidNames(); if(!kid&&names.length) kid=pk.kid=names[0];
+  var d=pkData(form,kid)||{}, sn=(SITEDEF[S.school]||{}).sname||'';
+  var dflt=form==='INFANTFEED'?{facility:sn,infant:kid}:{child:kid,center:sn};
+  var h='<label class="fl noprint">Child <span class="rq">*</span><select id="kidSel" class="inp">'+names.map(function(n){return '<option'+(n===kid?' selected':'')+'>'+esc(n)+'</option>';}).join('')+'</select></label>';
+  var done=[]; Object.keys(pk.recs).forEach(function(k){ var p=k.split('|'); if(p[1]===form&&p[2]) done.push(p[2]); });
+  if(done.length) h+='<div class="hint noprint">Saved for: '+done.map(esc).join(', ')+'</div>';
+  h+=ovForm(form,function(id){ var v=d[id]; return (v==null||v==='')?(dflt[id]||''):v; });
+  return h+'<div class="hint noprint">This is the official form. Fill it in, then Print / Save PDF for the parent or physician to sign. Upload the signed copy on the Forms tab.</div>';
+}
+function expOv(){
+  var rows=(pkData('EXPEND')||{}).rows||[], m=S.pk.month, cn=['wd','wr','wv','c1','c2','c3','c4'];
+  return ovForm('EXPEND',function(){return '';},{render:function(f){
+    if(f.id==='center') return '<span class="ovs">'+esc((SITEDEF[S.school]||{}).sname||'')+'</span>';
+    if(f.id==='month') return '<span class="ovs">'+MONTHS[+m.slice(5)-1]+'</span>';
+    if(f.id==='year') return '<span class="ovs">'+m.slice(0,4)+'</span>';
+    if(f.tot){ var n={food:1,nonfood:2,serv:3,milk:4}[f.tot]; return '<div class="ovt" id="et'+n+'">'+(n===4?'0':'0.00')+'</div>'; }
+    var mm=/^r(\d+)_(\w+)$/.exec(f.id), r=+mm[1]-1, c=['day','rcpt','payee','food','nonfood','serv','milk'].indexOf(mm[2]);
+    return '<input class="ws ovi '+cn[c]+(c>2?' num':'')+'" style="position:static;width:100%;height:100%" '+(c>2?'inputmode="decimal" ':'')+'value="'+esc(((rows[r]||[])[c])||'')+'">';
+  }});
+}
+function labOv(){
+  var rows=(pkData('LABOR')||{}).rows||[], m=S.pk.month;
+  return ovForm('LABOR',function(){return '';},{render:function(f){
+    if(f.id==='center') return '<span class="ovs">'+esc((SITEDEF[S.school]||{}).sname||'')+'</span>';
+    if(f.id==='month') return '<span class="ovs">'+MONTHS[+m.slice(5)-1]+' '+m.slice(0,4)+'</span>';
+    if(f.id==='total') return '<div class="ovt" id="labTot">0.00</div>';
+    if(f.id==='sig') return false;
+    var i=+f.id.slice(1)-1, r=rows[i]||[], v=r.length?r[r.length-1]:'';
+    return '<input class="ws lab ovi num" style="position:static;width:100%;height:100%" inputmode="decimal" value="'+esc(v||'')+'">';
+  }});
+}
+function parOv(){
+  var pk=S.pk, m=pk.month, d=pkData('PAR',pk.emp)||{days:{}}, sp=d.sp||{}, dim=new Date(+m.slice(0,4),+m.slice(5),0).getDate();
+  var h='<label class="fl noprint">Employee <span class="rq">*</span><select id="pEmp" class="inp">'+(pk.staff||[]).map(function(n){return '<option'+(n===pk.emp?' selected':'')+'>'+esc(n)+'</option>';}).join('')+'</select></label>';
+  h+=ovForm('PAR',function(){return '';},{render:function(f){
+    if(f.id==='center') return '<span class="ovs">'+esc((SITEDEF[S.school]||{}).sname||'')+'</span>';
+    if(f.id==='emp') return '<span class="ovs">'+esc(pk.emp||'')+'</span>';
+    if(f.id==='month') return '<span class="ovs sm">'+m.slice(5)+'/'+m.slice(0,4)+'</span>';
+    if(f.id==='title') return '<input id="pTitle" class="ovi rq-in" style="position:static;width:100%;height:100%" value="'+esc(d.title||'')+'">';
+    if(f.id==='sigdate') return false;
+    if(f.tot) return '<div class="ovt" id="pt-'+f.tot+'">0</div>';
+    if(f.sp) return '<input class="ovi spi" data-sp="'+f.id+'" style="position:static;width:100%;height:100%" value="'+esc(sp[f.id]||'')+'">';
+    var r=(d.days||{})[f.day]||{}, off=f.day>dim;
+    return '<input class="ovi pv num" data-d="'+f.day+'" data-k="'+f.k+'" inputmode="decimal" style="position:static;width:100%;height:100%" value="'+esc(r[f.k]||'')+'"'+(off?' disabled':'')+'>';
+  }});
+  return h+'<div class="hint noprint">The pay section at the bottom fills in as you type; the sponsor/director signs the printed copy.</div>';
+}
 function siteForm(){
   var d=pkData('SITEINFO')||{}, df=SITEDEF[S.school]||{};
   var h=letterhead()+'<h2 class="pt">CCFP Site Information</h2><div class="pm">'+mLabel(S.pk.month)+'</div><div class="fgrid">';
@@ -396,9 +458,9 @@ function collect(form){
   var pk=S.pk, data={}, emp='';
   if(form==='CHECKLIST'){ data={c:[].map.call(document.querySelectorAll('.pc'),function(x){return x.checked;}),other:[].map.call(document.querySelectorAll('.po'),function(x){return x.value;}),sug:[].map.call(document.querySelectorAll('.ps'),function(x){return x.value;})}; }
   else if(form==='ENTRANCES'){ var n=document.querySelectorAll('.en'), dd=document.querySelectorAll('.ed'), rows=[]; for(var i=0;i<n.length;i++) if(n[i].value.trim()||dd[i].value.trim()) rows.push({n:n[i].value.trim(),d:dd[i].value.trim()}); var nn=$('entNone'); data={rows:rows,none:!!(nn&&nn.checked)}; }
-  else if(form==='PAR'){ emp=pk.emp; var days={}; document.querySelectorAll('.pv').forEach(function(x){ if(x.value.trim()){ var k=x.getAttribute('data-d'); (days[k]=days[k]||{})[x.getAttribute('data-k')]=x.value.trim(); } }); var sp={}; document.querySelectorAll('.spi').forEach(function(x){ if(x.value.trim()) sp[x.getAttribute('data-sp')]=x.value.trim(); }); data={auth:$('pAuth').value.trim(),title:$('pTitle').value.trim(),days:days,sp:sp}; }
-  else if(form==='SITEINFO'||KF[form]){ if(KF[form]) emp=pk.kid||''; document.querySelectorAll('#paper [data-f]').forEach(function(x){ data[x.getAttribute('data-f')]=x.value.trim(); }); if(KF[form]&&!emp) return null; }
-  else if(form==='EXPEND'||form==='LABOR'){ var trs=document.querySelectorAll('#paper table tr'), rows=[]; trs.forEach(function(tr){ var ins=tr.querySelectorAll('input.ws'); if(!ins.length) return; var r=[].map.call(ins,function(x){return x.value.trim();}); rows.push(r); }); data={rows:rows}; }
+  else if(form==='PAR'){ emp=pk.emp; var days={}; document.querySelectorAll('.pv').forEach(function(x){ if(x.value.trim()){ var k=x.getAttribute('data-d'); (days[k]=days[k]||{})[x.getAttribute('data-k')]=x.value.trim(); } }); var sp={}; document.querySelectorAll('.spi').forEach(function(x){ if(x.value.trim()) sp[x.getAttribute('data-sp')]=x.value.trim(); }); data={auth:'',title:($('pTitle')||{value:''}).value.trim(),days:days,sp:sp}; }
+  else if(form==='SITEINFO'||KF[form]){ if(KF[form]) emp=pk.kid||''; document.querySelectorAll('#paper [data-f]').forEach(function(x){ data[x.getAttribute('data-f')]=x.type==='checkbox'?(x.checked?'1':''):x.value.trim(); }); if(KF[form]&&!emp) return null; }
+  else if(form==='EXPEND'||form==='LABOR'){ var per=form==='EXPEND'?7:1, all=[].map.call(document.querySelectorAll('#paper input.ws'),function(x){return x.value.trim();}), rows=[]; for(var q=0;q<all.length;q+=per) rows.push(all.slice(q,q+per)); data={rows:rows}; }
   else return null;
   return {form:form,emp:emp,data:data};
 }
@@ -565,7 +627,7 @@ document.addEventListener('click',function(e){
   var dl=e.target.closest&&e.target.closest('[data-dl]'); if(dl){ e.preventDefault(); downloadSigned(dl.getAttribute('data-dl'),dl.getAttribute('data-nm')); return; }
   var el=e.target.closest('[data-cell],[data-tab],[data-a],[data-adddrill],[data-pf],[data-goto]'); if(!el) return;
   if(el.hasAttribute('data-goto')){ S.tab='pack'; S.pk.form=el.getAttribute('data-goto'); render(); return; }
-  if(el.hasAttribute('data-pf')){ var a2=el.getAttribute('data-pf'),pk=S.pk; if(a2==='prev'||a2==='next'){ flushSave().then(function(){ pk.month=shiftMonth(pk.month,a2==='prev'?-1:1); pk.loaded=''; render(); }); } else if(a2==='form'){ var fv=el.getAttribute('data-v'); flushSave().then(function(){ pk.form=fv; render(); }); } else if(a2==='save') savePacket(); else if(a2==='submit') submitPacket(); else if(a2==='print') window.print(); return; }
+  if(el.hasAttribute('data-pf')){ var a2=el.getAttribute('data-pf'),pk=S.pk; if(a2==='prev'||a2==='next'){ flushSave().then(function(){ pk.month=shiftMonth(pk.month,a2==='prev'?-1:1); pk.loaded=''; render(); }); } else if(a2==='form'){ var fv=el.getAttribute('data-v'); flushSave().then(function(){ pk.form=fv; render(); }); } else if(a2==='save') savePacket(); else if(a2==='submit') submitPacket(); else if(a2==='print'){ var ls=pk.form==='EXPEND', stt=$('pgst'); if(!stt){ stt=document.createElement('style'); stt.id='pgst'; document.head.appendChild(stt); } stt.textContent='@page{size:letter '+(ls?'landscape':'portrait')+';margin:'+(/^(MEDICAL|DIETARY|INFANTFEED|PAR|LABOR|EXPEND)$/.test(pk.form)?'0':'0.4in')+'}'; window.print(); } return; }
   if(el.getAttribute('data-a')==='mclose' && e.target.closest('[data-stop]') && !e.target.classList.contains('btn')) return;
   if(el.hasAttribute('data-adddrill')){ addDrill(); return; }
   if(el.hasAttribute('data-cell')){ var p=el.getAttribute('data-cell').split('|'); openCell(p[0],p[1],p[2]); return; }
