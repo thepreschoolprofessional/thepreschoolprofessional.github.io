@@ -174,7 +174,7 @@ $formula = "AND({School}='".str_replace("'", "", $school)."', IS_AFTER({Date},'"
 $byWeek = []; foreach ($mondays as $m) $byWeek[$m] = [];
 $offset = null; $guard = 0;
 do {
-$q = ['filterByFormula'=>$formula, 'pageSize'=>100, 'fields'=>['Form Type','Room / Classroom','Staff Name','Date','Overall Status']];
+$q = ['filterByFormula'=>$formula, 'pageSize'=>100, 'fields'=>['Form Type','Room / Classroom','Staff Name','Date','Overall Status','Items']];
 if ($offset) $q['offset'] = $offset;
 $qs = preg_replace('/fields%5B\d+%5D/', 'fields%5B%5D', http_build_query($q));
 $res = at_request('GET', ['Facility Submissions'], $qs);
@@ -184,7 +184,7 @@ $f = $r['fields']; $d = $f['Date'] ?? ''; if (!preg_match('/^\d{4}-\d{2}-\d{2}$/
 $m = date('Y-m-d', strtotime('monday this week', strtotime($d.' 12:00:00')));
 if ((int)date('N', strtotime($d.' 12:00:00')) === 7) $m = date('Y-m-d', strtotime($m.' -7 days'));
 if (!isset($byWeek[$m])) continue;
-$byWeek[$m][] = ['type'=>$f['Form Type'] ?? 'Other', 'room'=>$f['Room / Classroom'] ?? '', 'staff'=>$f['Staff Name'] ?? '', 'date'=>$d, 'overall'=>$f['Overall Status'] ?? ''];
+$byWeek[$m][] = ['type'=>$f['Form Type'] ?? 'Other', 'room'=>$f['Room / Classroom'] ?? '', 'staff'=>$f['Staff Name'] ?? '', 'date'=>$d, 'overall'=>$f['Overall Status'] ?? '', 'items'=>(preg_match('/Indoor Inspection|Playground|End of Day/u', $f['Form Type'] ?? '') ? substr($f['Items'] ?? '', 0, 3500) : '')];
 }
 $offset = $res['offset'] ?? null;
 } while ($offset && ++$guard < 30);
@@ -221,7 +221,7 @@ $drillMonths = []; foreach (($dr['records'] ?? []) as $r){ $dm = substr($r['fiel
 $monthly = [];
 if (!isset($drillMonths[$prevM])) $monthly[] = ['form'=>'drl', 'month'=>$prevM, 'label'=>'Fire / emergency drill'];
 if (!isset($drillMonths[$curM]) && (int)$today->format('j') >= 25) $monthly[] = ['form'=>'drl', 'month'=>$curM, 'label'=>'Fire / emergency drill'];
-echo json_encode(['school'=>$school, 'weeks'=>$weeks, 'monthly'=>$monthly]); exit;
+echo json_encode(['school'=>$school, 'weeks'=>$weeks, 'monthly'=>$monthly, 'rooms'=>($CLASSROOMS[$school] ?? []), 'closed'=>$CLOSED]); exit;
 }
 
 fail('Unknown action');
