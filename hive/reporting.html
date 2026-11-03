@@ -192,10 +192,17 @@ function sgPad(){document.getElementById('sgpad').style.display='block';}
 function sgPadClr(){const c=document.getElementById('sgp');c.getContext('2d').clearRect(0,0,c.width,c.height);}
 function sgPadOk(){const c=document.getElementById('sgp');const im=new Image();im.onload=()=>{SG.sig={im,data:c.toDataURL('image/png'),ih:c.height/c.width};document.getElementById('sgpad').style.display='none';sgMode('sig');say('Signature ready. Tap a purple box (or the page) to place it.');if(SG.pend){const t=SG.pend;SG.pend=null;sgPlace(t);}};im.src=c.toDataURL('image/png');}
 function sgPlace(t){const c=document.getElementById('sgc');
- if(t.k==='date'){SG.marks.push({p:SG.page,t:'txt',fx:t.x/c.width,fy:(t.y+t.h*.72)/c.height,txt:new Date().toLocaleDateString()});}
+ if(t.k==='date'){sgDate(t);return;}
  else if(t.k==='sig'){const fw=Math.min(.17,.9*t.w/c.width);const sh=fw*c.width*SG.sig.ih;SG.marks.push({p:SG.page,t:'sig',fx:(t.x+t.w/2)/c.width,fy:(t.y+t.h*.82-sh/2)/c.height,fw,im:SG.sig.im,data:SG.sig.data,ih:SG.sig.ih});}
  else if(SG.mode==='sig'){SG.marks.push({p:SG.page,t:'sig',fx:t.fx,fy:t.fy,fw:.22,im:SG.sig.im,data:SG.sig.data,ih:SG.sig.ih});}
  else{const tx=wa(document.getElementById('sgtx').value);if(!tx)return;SG.marks.push({p:SG.page,t:'txt',fx:t.fx,fy:t.fy,txt:tx});}sgShow();}
+
+function sgDate(t){let o=document.getElementById('sgd');if(!o){o=document.createElement('div');o.id='sgd';o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:70;padding:14px;overflow:auto';document.body.appendChild(o);}
+ const n=new Date(),z=v=>String(v).padStart(2,'0');o._t=t;
+ o.innerHTML='<div class="sgi" style="max-width:380px"><b>📅 Date for this line</b><div style="margin:10px 0"><label style="font-weight:700">Date<br><input type="date" id="sgdd" style="padding:10px;font-size:1.1rem;border:1px solid #bbb;border-radius:8px;width:100%" value="'+n.getFullYear()+'-'+z(n.getMonth()+1)+'-'+z(n.getDate())+'"></label></div><label style="display:block;margin:8px 0;font-weight:700"><input type="checkbox" id="sgdc" onchange="document.getElementById(\'sgdtw\').style.display=this.checked?\'block\':\'none\'"> Add a time stamp too</label><div id="sgdtw" style="display:none;margin:6px 0"><input type="time" id="sgdt" style="padding:10px;font-size:1.1rem;border:1px solid #bbb;border-radius:8px;width:100%" value="'+z(n.getHours())+':'+z(n.getMinutes())+'"></div><div><button class="g" onclick="sgDateOk()">Stamp it</button><button class="x" onclick="document.getElementById(\'sgd\').style.display=\'none\'">Cancel</button></div><div style="font-size:.82rem;color:#666;margin-top:6px">Today is already filled in, so one tap on Stamp it uses today. Tap the date box to pick a different day on the calendar.</div></div>';o.style.display='block';}
+function sgDateOk(){const o=document.getElementById('sgd'),t=o._t,c=document.getElementById('sgc');const v=document.getElementById('sgdd').value;if(!v)return;const [y,m,d]=v.split('-').map(Number);let txt=m+'/'+d+'/'+y;
+ if(document.getElementById('sgdc').checked){const tv=document.getElementById('sgdt').value;if(tv){let [h,mi]=tv.split(':').map(Number);const ap=h>=12?'PM':'AM';h=h%12||12;txt+=' '+h+':'+String(mi).padStart(2,'0')+' '+ap;}}
+ SG.marks.push({p:SG.page,t:'txt',fx:t.x/c.width,fy:(t.y+t.h*.72)/c.height,txt});o.style.display='none';sgShow();}
 function sgTap(e){const c=document.getElementById('sgc'),r=c.getBoundingClientRect();const px=(e.clientX-r.left)*c.width/r.width,py=(e.clientY-r.top)*c.height/r.height;
  const h=SG.hot.find(h=>px>=h.x&&px<=h.x+h.w&&py>=h.y&&py<=h.y+h.h);
  const t=h?{k:h.k,x:h.x,y:h.y,w:h.w,h:h.h}:{k:'free',fx:px/c.width,fy:py/c.height};
