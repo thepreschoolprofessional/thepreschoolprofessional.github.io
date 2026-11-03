@@ -188,11 +188,21 @@ $byWeek[$m][] = ['type'=>$f['Form Type'] ?? 'Other', 'room'=>$f['Room / Classroo
 }
 $offset = $res['offset'] ?? null;
 } while ($offset && ++$guard < 30);
+// Expected daily charts = any form+room that was filled on 3+ different days in at least one of these weeks (excludes incident reports).
+$expected = [];
+foreach ($byWeek as $m => $rs){ $days = [];
+foreach ($rs as $r){ if (strpos($r['type'], 'Incident') !== false) continue; $days[$r['type'].'|'.$r['room']][$r['date']] = 1; }
+foreach ($days as $k => $d){ if (count($d) >= 3) $expected[$k] = 1; } }
+$todayStr = $today->format('Y-m-d');
 $weeks = [];
 foreach ($mondays as $m){
 $fri = (new DateTime($m))->modify('+4 days')->format('Y-m-d');
 $signed = count(glob($base.'/'.substr($m,0,7).'/dcf/SIGNED - Weekly Sign-off - Week of '.$m.'*')) > 0;
-$weeks[] = ['monday'=>$m, 'friday'=>$fri, 'rows'=>$byWeek[$m], 'signed'=>$signed];
+$have = []; foreach ($byWeek[$m] as $r) $have[$r['type'].'|'.$r['room'].'|'.$r['date']] = 1;
+$missing = [];
+for ($d = 0; $d < 5; $d++){ $ds = (new DateTime($m))->modify('+'.$d.' days')->format('Y-m-d'); if ($ds > $todayStr) continue;
+foreach ($expected as $k => $_){ if (!isset($have[$k.'|'.$ds])){ list($t, $rm) = explode('|', $k, 2); $missing[] = ['type'=>$t, 'room'=>$rm, 'date'=>$ds]; } } }
+$weeks[] = ['monday'=>$m, 'friday'=>$fri, 'rows'=>$byWeek[$m], 'signed'=>$signed, 'missing'=>$missing];
 }
 echo json_encode(['school'=>$school, 'weeks'=>$weeks]); exit;
 }
