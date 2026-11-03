@@ -372,7 +372,7 @@ var ACT = {
  movego: function(el){ var to=decodeURIComponent(el.getAttribute('data-r')); var p={}; selNames().forEach(function(n){ p[n]={'Current Room':to}; }); patchAtt(p); S.sel={}; closeModal(); toast('Moved to '+to); },
  /* transitions + counts */
  leave: function(){ var r=roomObj(S.room), pres=presentIn(S.room); if(!pres.length){ toast('No children are signed in.',true); return; }
-   var dests=S.rooms.filter(function(x){return x.name!==S.room;}).map(function(x){return x.name;}).concat(['Playground','Office']);
+   var dests=S.rooms.filter(function(x){return x.name!==S.room;}).map(function(x){return x.name;}).concat(['Playground','Office']); dests=['Outside','Playroom'].concat(dests.filter(function(d){return d!=='Playground';}));
    openModal('<h3>Leaving the room</h3><p class="sub2">1) Count the children &nbsp;2) Do a sweep of the room &nbsp;3) Then go.</p><label class="lbl">Where are you going?</label><select class="inp" id="dest">'+dests.map(function(d){ return '<option>'+esc(d)+'</option>'; }).join('')+'</select>'
     +'<label class="lbl">Children counted leaving (expected '+pres.length+')</label><input class="inp" id="cnt" type="number" inputmode="numeric" value="'+pres.length+'">'
     +'<label class="lbl">Counted by</label>'+whoSelect(r.name,'by')
@@ -395,7 +395,7 @@ var ACT = {
    if(isNaN(cnt)){ err.textContent='Enter the count.'; return; }
    if(!chk('swp')){ err.textContent='Please sweep the area and tick the box.'; return; }
    if(cnt!==exp){ if(!confirm('Count is '+cnt+' but '+exp+' left. A child may be missing — keep looking and tell a director. Only continue if every child is accounted for. Continue?')) return; }
-   var day=ensureDay(S.room), ot=openTrans(day); if(ot){ ot.in=t; ot.inCount=cnt; ot.inBy=by; }
+   var day=ensureDay(S.room), ot=openTrans(day); if(ot){ ot.in=t; ot.inCount=cnt; ot.inBy=by; ot.kidsIn=presentIn(S.room).map(function(c){return c.name;}); }
    day.counts.push({t:t, count:cnt, by:by, kind:'sweep'}); saveDay(S.room); closeModal(); render(); toast('Back in room at '+fmt(t)); },
  count: function(){ var r=roomObj(S.room), pres=presentIn(S.room).length;
    openModal('<h3>Headcount</h3><p class="sub2">Children in the room right now (signed in: '+pres+').</p><input class="inp" id="cnt" type="number" inputmode="numeric" value="'+pres+'" autofocus><label class="lbl">Counted by</label>'+whoSelect(r.name,'by')+timeInput('ttime','Time')+'<div id="merr" class="err"></div><div class="mrow"><button class="btn sec" data-act="mclose2">Cancel</button><button class="btn" data-act="countgo" data-exp="'+pres+'">Save count</button></div>'); },
