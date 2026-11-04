@@ -46,6 +46,7 @@ $fields=[
  'Note Signature'=>$s('noteS'),
  'Sign In Signature'=>$s('inS'),
  'Sign Out Signature'=>$s('outS'),
+ 'Excuse Form'=>$s('exJ'),
  'Updated'=>$s('updated'),
 ];
 $date=$m[2].'-'.$m[4]; if (preg_match('/^\d{4}-\d{2}-\d{2}$/',$date)) $fields['Date']=$date;
