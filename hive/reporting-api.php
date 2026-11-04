@@ -1,6 +1,6 @@
 <?php
 /* ============================================================
-THE HIVE — Reporting & Audit Vault API, built 11/3/26. Directors only, own school only. Files live OUTSIDE public_html (hive-vault), never in GitHub. No delete action on purpose (5-year audit retention).
+THE HIVE — Reporting & Audit Vault API, built 11/3/26. Directors only, own school only. Files live OUTSIDE public_html (hive-vault), never in GitHub. Remove only moves a file to a _removed folder (5-year audit retention), never erases it.
 Separate from api.php and rooms-api.php on purpose: nothing here can affect the live portal pages.
 Same Airtable token (kept OUTSIDE public_html) + same Portal Access PINs.
 DIRECTOR PIN ONLY (director-sanford / director-deland). Each director is locked to their own school.
@@ -120,6 +120,17 @@ $p = $dir.'/'.$name;
 if (is_file($p)){ $name = preg_replace('/\.'.$ext.'$/', '', $name).' (v'.date('mdHi').').'.$ext; $p = $dir.'/'.$name; }
 if (file_put_contents($p, $raw) === false) fail('Could not save the file', 500);
 echo json_encode(['ok'=>true, 'name'=>$name]); exit;
+}
+
+if ($action === 'remove'){
+$m = $input['month'] ?? ''; $cat = $input['cat'] ?? ''; $name = basename($input['name'] ?? '');
+if (!preg_match('/^\d{4}-\d{2}$/', $m) || !in_array($cat, $CATS) || $name === '') fail('Bad file');
+$p = $base.'/'.$m.'/'.$cat.'/'.$name;
+if (!is_file($p)) fail('File not found', 404);
+$tr = $base.'/_removed'; if (!is_dir($tr) && !@mkdir($tr, 0750, true)) fail('Could not remove', 500);
+$dest = $tr.'/'.date('Ymd-His').'_'.$m.'_'.$cat.'_'.$name;
+if (!@rename($p, $dest)) fail('Could not remove the file', 500);
+echo json_encode(['ok'=>true]); exit;
 }
 
 if ($action === 'getfile'){

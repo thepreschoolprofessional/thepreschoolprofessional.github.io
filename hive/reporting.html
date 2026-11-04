@@ -76,7 +76,8 @@ async function load(){try{DATA=await api('list');$('sch').textContent=DATA.schoo
  const keep=MON||pm;let og='',yy='';ms.forEach(m=>{if(m.slice(0,4)!==yy){if(yy)og+='</optgroup>';yy=m.slice(0,4);og+='<optgroup label="'+yy+'">';}og+='<option value="'+m+'">'+lbl(m)+'</option>';});$('mon').innerHTML=og+'</optgroup>';
  MON=ms.includes(keep)?keep:ms[1]||ms[0];$('mon').value=MON;render();renderVault();renderWait();loadWeeks();say('');}catch(e){say(e.message,true);}}
 function mdata(m){return DATA.months[m]||{files:[],checklist:{}};}
-function fileRow(m,f){return '<div class="f"><span>'+(isDone(f)?'⭐ ':'📄 ')+esc(f.name)+' <small>('+Math.max(1,Math.round(f.size/1024))+' KB)</small></span><button onclick="dl(\''+m+'\',\''+f.cat+'\',decodeURIComponent(\''+encodeURIComponent(f.name)+'\'))">Open</button></div>';}
+function fileRow(m,f){return '<div class="f"><span>'+(isDone(f)?'⭐ ':'📄 ')+esc(f.name)+' <small>('+Math.max(1,Math.round(f.size/1024))+' KB)</small></span><button onclick="dl(\''+m+'\',\''+f.cat+'\',decodeURIComponent(\''+encodeURIComponent(f.name)+'\'))">Open</button> <button style="background:#b71c1c;color:#fff;border:0;border-radius:8px;padding:6px 10px" onclick="rm(\''+m+'\',\''+f.cat+'\',decodeURIComponent(\''+encodeURIComponent(f.name)+'\'))">Remove</button></div>';}
+async function rm(m,cat,name){if(!confirm('Remove "'+name+'" from the vault? It is set aside (not erased) and can be restored by Mrs. Bear.'))return;try{await api('remove',{month:m,cat,name});say('Removed ✔');await load();}catch(e){say(e.message,true);}}
 function render(){MON=$('mon').value;const d=mdata(MON);let h='';
  for(const c of Object.keys(CATS)){const its=ITEMS.filter(i=>i[0]===c);const done=its.filter(i=>d.checklist[i[1]]).length;
   h+='<div class="sec"><h2 style="background:'+CATS[c].c+'"><span>'+CATS[c].t+'</span>'+(its.length?'<span class="pill">'+done+' / '+its.length+' done</span>':'')+'</h2><div class="body">';

@@ -655,13 +655,13 @@ function signedFor(it){
 function signedBlock(it,i){
   var up=signedFor(it), h='<div class="noprint" style="margin-top:8px">';
   up.forEach(function(d,n){ h+='<div class="hint">&#10003; Signed copy '+(n+1)+' uploaded'+(d.at?' '+esc(new Date(d.at).toLocaleDateString('en-US',{month:'short',day:'numeric'})):'')+' &middot; <a href="#" data-dl="'+esc(d.file)+'" data-nm="'+esc((it.child||'form').replace(/[^A-Za-z0-9]+/g,'-')+'-signed-'+(n+1)+(/\.pdf$/.test(d.file)?'.pdf':/\.png$/.test(d.file)?'.png':'.jpg'))+'">download</a></div>'; });
-  h+='<label class="btn sm sec" style="display:inline-block;cursor:pointer">'+(up.length?'Add another page':'Upload signed copy')+'<input type="file" class="pfup" data-i="'+i+'" accept="image/*,application/pdf" multiple style="display:none"></label>';
+  h+='<label class="btn sm sec" style="display:inline-block;cursor:pointer">'+(up.length?'Add another page':'Upload signed copy')+'<input type="file" class="pfup" data-i="'+i+'" accept="image/*,.pdf,application/pdf" multiple style="display:none"></label>';
   if(S.upBusy===i) h+=' <span class="hint">Uploading&hellip;</span>';
   return h+'</div>';
 }
 function fileToB64(file){
   return new Promise(function(res,rej){
-    if(file.type==='application/pdf'){ if(file.size>5.5*1024*1024) return rej(new Error('That PDF is over 5 MB. Scan at a lower size.')); var fr=new FileReader(); fr.onload=function(){ res({b64:String(fr.result).split(',')[1],mime:'application/pdf'}); }; fr.onerror=function(){ rej(new Error('Could not read the file')); }; fr.readAsDataURL(file); return; }
+    if(file.type==='application/pdf'||/\.pdf$/i.test(file.name||'')){ if(file.size>5.5*1024*1024) return rej(new Error('That PDF is over 5 MB. Scan at a lower size, or file it in Monthly Reporting (Audit Vault) which takes up to 12 MB.')); var fr=new FileReader(); fr.onload=function(){ res({b64:String(fr.result).split(',')[1],mime:'application/pdf'}); }; fr.onerror=function(){ rej(new Error('Could not read the file')); }; fr.readAsDataURL(file); return; }
     var img=new Image(), u=URL.createObjectURL(file);
     img.onload=function(){ var mx=2200, sc=Math.min(1,mx/Math.max(img.width,img.height)), c=document.createElement('canvas'); c.width=Math.round(img.width*sc); c.height=Math.round(img.height*sc); var x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,c.width,c.height); x.drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(u); res({b64:c.toDataURL('image/jpeg',0.82).split(',')[1],mime:'image/jpeg'}); };
     img.onerror=function(){ URL.revokeObjectURL(u); rej(new Error('That photo could not be read. Try a JPG, PNG or PDF.')); };
@@ -767,6 +767,7 @@ css.textContent='\
 .rp td.x{font-weight:700;font-size:12px}.rp td.dsh{font-size:10px}\
 .rp .lab{text-align:left;font:12px Georgia,serif;padding:0 4px}.rp .labr{text-align:right;font:13px Georgia,serif;padding-right:8px}\
 .rp tr.tot td{height:24px;font-weight:700;font-size:11px}\
+.rp.rpblue{background:#cfe6f7!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.rp.rpblue td,.rp.rpblue th{background:transparent}\
 .rp .sq{position:absolute;width:22px;height:22px;background:#222}\
 .rp .ft{display:flex;gap:12px;align-items:flex-end;margin-top:6px;font:11px Georgia,serif}\
 .rp .ft .id{font:700 18px Georgia,serif;line-height:1.1;width:130px}\
@@ -825,7 +826,7 @@ function repPages(room,mon){
 function repPage(room,mon,kids,pg,np){
   var H=REPH[S.school]||REPH['Sanford'], days=[0,1,2,3,4].map(function(i){return addDays(mon,i);});
   var sat=addDays(mon,5), sun=addDays(mon,6);
-  var h='<div class="rp"><div class="sq" style="left:10px;top:92px"></div><div class="sq" style="right:10px;top:104px"></div>';
+  var h='<div class="rp'+(S.school==='DeLand 2'?' rpblue':'')+'"><div class="sq" style="left:10px;top:92px"></div><div class="sq" style="right:10px;top:104px"></div>';
   h+='<div class="hd"><div class="hl"><span>'+nowStamp()+'</span><b>'+esc(H.name)+'</b><i>'+esc(H.phone)+'</i></div>';
   h+='<div class="hc"><b>Weekly Attendance &amp; Meal Count Report</b><div>Week Of: '+fmtMD(mon,1)+'-'+fmtMD(sat,1)+' (Mon '+fmtMD(mon)+'-Sun '+fmtMD(sun)+')</div></div>';
   h+='<div class="hr"><b>Sponsor: '+esc(H.sponsor)+'</b><i>'+esc(H.sphone)+'</i></div></div>';

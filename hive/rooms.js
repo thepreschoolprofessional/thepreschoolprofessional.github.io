@@ -258,7 +258,8 @@ function staffTab(r){
   teachers.forEach(function(t){
     var s=day.staff[t]||[], last=s[s.length-1], k=encodeURIComponent(t);
     var btn = (last && last.in && !last.out) ? '<button class="btn org sm" data-act="stout" data-k="'+k+'">Time OUT</button>' : (s.length<3 ? '<button class="btn grn sm" data-act="stin" data-k="'+k+'">Time IN</button>' : '<small>3 of 3 used</small>');
-    h+='<div class="stl"><b>'+esc(t)+'</b><span>'+(s.map(function(x){ return fmt(x.in)+'–'+(x.out?fmt(x.out):'…'); }).join(' &nbsp; ')||'not in yet')+'</span>'+btn+'</div>';
+    var ed = s.length ? ' <button class="btn sec sm" data-act="stedit" data-k="'+k+'">Edit times</button>' : '';
+    h+='<div class="stl"><b>'+esc(t)+'</b><span>'+(s.map(function(x){ return fmt(x.in)+'–'+(x.out?fmt(x.out):'…'); }).join(' &nbsp; ')||'not in yet')+'</span>'+btn+ed+'</div>';
   });
   var have=teachers, opts=schoolTeachers().filter(function(t){return have.indexOf(t)<0;});
   h+='<label class="lbl">Teacher coming in? Pick their name (they are stamped IN at the time above)</label><select class="inp" id="tpick" data-act="pick"><option value="">Choose a teacher…</option>'+opts.map(function(t){return '<option>'+esc(t)+'</option>';}).join('')+'<option value="__other">Someone else (type a name)…</option></select></div>';
@@ -301,7 +302,7 @@ function withdrawnHTML(){
 
 /* ---------- director gate ---------- */
 function needDirector(cb){
-  if(S.role==='director'){ cb(S.pin); return; }
+  if(S.role==='director'||S.role==='owner'){ cb(S.pin); return; }
   if(S.dirPin && Date.now()-S.dirAt<10*60*1000){ cb(S.dirPin); return; }
   openModal('<h3>Director PIN needed</h3><p class="sub2">Only a director can do this. Enter the director PIN for '+esc(S.school)+'.</p><input class="inp" id="dpin" type="password" autocomplete="off" autocapitalize="characters" autofocus><div id="derr" class="err"></div><div class="mrow"><button class="btn sec" data-act="mclose2">Cancel</button><button class="btn" data-act="dpinok">Continue</button></div>');
   needDirector.cb=cb;
@@ -403,6 +404,8 @@ var ACT = {
    if(cnt!==exp && !confirm('You counted '+cnt+' but '+exp+' are signed in. Fix the sign-ins or re-count. Save anyway?')) return;
    var day=ensureDay(S.room); day.counts.push({t:t, count:cnt, by:val('by'), kind:'headcount'}); saveDay(S.room); closeModal(); render(); toast('Headcount saved'); },
  /* staff */
+ stedit: function(el){ var t=decodeURIComponent(el.getAttribute('data-k')); needDirector(function(){ var s=(dayOf(S.room).staff[t]||[]); if(!s.length) return; var h='<h3>Edit times — '+esc(t)+'</h3><p class="sub2">Change the time this person came in or went out. Leave Out empty if still here.</p>'; s.forEach(function(x,i){ h+='<div class="trow"><label class="lbl" style="min-width:60px">Shift '+(i+1)+'</label><input class="inp" type="time" id="sei'+i+'" value="'+esc(x['in']||'')+'"><input class="inp" type="time" id="seo'+i+'" value="'+esc(x.out||'')+'"></div>'; }); h+='<div id="merr" class="err"></div><div class="mrow"><button class="btn sec" data-act="mclose2">Cancel</button><button class="btn" data-act="stsave" data-k="'+encodeURIComponent(t)+'">Save times</button></div>'; openModal(h); }); },
+ stsave: function(el){ var t=decodeURIComponent(el.getAttribute('data-k')); var day=ensureDay(S.room); var s=day.staff[t]||[]; var err=document.getElementById('merr'); var upd=[]; for(var i=0;i<s.length;i++){ var a=val('sei'+i), b=val('seo'+i); if(!a){ err.textContent='Every shift needs an In time.'; return; } if(b && b<a){ err.textContent='Out time is before the in time.'; return; } upd.push([a,b]); } upd.forEach(function(u,i){ s[i]['in']=u[0]; s[i].out=u[1]; }); saveDay(S.room); closeModal(); toast('Times updated.'); },
  stin: function(el){ var t=decodeURIComponent(el.getAttribute('data-k')), tm=timeOrNow('stT'); var day=ensureDay(S.room); var s=day.staff[t]=day.staff[t]||[]; if(s.length<3) s.push({'in':tm,out:''}); saveDay(S.room); },
  stout: function(el){ var t=decodeURIComponent(el.getAttribute('data-k')), tm=timeOrNow('stT'); var day=ensureDay(S.room); var s=day.staff[t]||[]; var last=s[s.length-1]; if(last){ if(tm<last['in']){ toast('Out time is before the in time.',true); return; } last.out=tm; } saveDay(S.room); },
  pick: function(el){ var v=el.value; if(!v) return; if(v==='__other'){ el.value=''; ACT.addstaff(); return; } var tm=timeOrNow('stT'); var day=ensureDay(S.room); var st=day.staff[v]=day.staff[v]||[]; if(st.length<3 && !(st.length && !st[st.length-1].out)) st.push({'in':tm,out:''}); saveDay(S.room); toast(v+' in at '+fmt(tm)); },
