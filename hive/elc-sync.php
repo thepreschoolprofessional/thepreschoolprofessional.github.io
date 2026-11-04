@@ -43,6 +43,7 @@ $fields=[
  'Sign In Time'=>$s('inT'),
  'Sign Out Time'=>$s('outT'),
  'Note'=>$s('note'),
+ 'Note Signature'=>$s('noteS'),
  'Sign In Signature'=>$s('inS'),
  'Sign Out Signature'=>$s('outS'),
  'Updated'=>$s('updated'),
