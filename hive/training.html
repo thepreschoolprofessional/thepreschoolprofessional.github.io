@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Director Training - The Hive</title>
+<style>
+:root{--ink:#2b2b2b;--mut:#666;--bg:#faf6ec;--card:#fff;--line:#e6dfc9;--gold:#f2b705;--grn:#2e8b57;--red:#c62828}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:16px;line-height:1.5}
+#app{max-width:860px;margin:0 auto;padding:12px 16px 70px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0 10px}
+.top h1{font-size:22px;margin:0}
+.sch{font-size:13px;background:var(--gold);padding:2px 9px;border-radius:10px;margin-left:6px}
+a.btn,button.btn{display:inline-block;padding:10px 16px;border-radius:10px;border:0;background:var(--gold);color:var(--ink);font-size:15px;cursor:pointer;text-decoration:none;font-weight:600}
+.btn.sec{background:#fff;border:1px solid var(--line)}.btn.grn{background:var(--grn);color:#fff}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:10px}
+.tab{border:1px solid var(--line);background:#fff;border-radius:18px;padding:8px 14px;font-size:14px;white-space:nowrap;cursor:pointer}
+.tab.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.tab .dn{color:var(--grn);font-weight:700}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.card h2{margin:0 0 4px;font-size:19px}.card h3{margin:16px 0 6px;font-size:16px}
+.sub{color:var(--mut);font-size:14px;margin-bottom:8px}
+.who{display:inline-block;font-size:12px;font-weight:700;border-radius:8px;padding:1px 8px;margin-right:6px;color:#fff}
+.w-p{background:#8e6bd6}.w-t{background:#2e8b57}.w-d{background:#1565c0}.w-c{background:#e08a00}.w-o{background:#37474f}
+ol.steps{padding-left:22px;margin:6px 0}ol.steps li{margin:8px 0}
+ul.rec{padding-left:20px;margin:6px 0}ul.rec li{margin:4px 0}
+.stop{background:#fdecec;border:1px solid #f3b8b8;border-radius:10px;padding:10px 12px;margin:10px 0}
+.tip{background:#eef6ff;border:1px solid #bcd6f5;border-radius:10px;padding:10px 12px;margin:10px 0}
+.ask{background:#fff8dc;border:2px solid var(--gold);border-radius:12px;padding:14px;margin-top:16px}
+.ask h3{margin:0 0 6px}.ask ul{margin:6px 0 10px;padding-left:20px}
+.fi{display:block;width:100%;margin:4px 0 10px;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:16px;font-family:inherit}
+label.r{display:flex;gap:8px;align-items:flex-start;margin:6px 0}label.r input{width:20px;height:20px;margin-top:3px}
+.msg{min-height:20px;font-size:14px;margin:6px 0}.msg.bad{color:var(--red)}.msg.ok{color:var(--grn);font-weight:700}
+table.t{border-collapse:collapse;width:100%;font-size:14px}.t th,.t td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}.t th{background:#fbf8ee}
+.prev{border-top:1px dashed var(--line);margin-top:10px;padding-top:8px;font-size:14px}
+@media print{.tabs,.ask,.top .btn{display:none}}
+</style></head>
+<body><div id="app"><div class="card">Loading&hellip;</div></div>
+<script>
+const PIN=sessionStorage.getItem('hivePin');
+if(!PIN||sessionStorage.getItem('hiveRole')!=='director')location.href='index.html';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let SCHOOL='';
+const LINK={'Sanford':'https://bearphonicsacademy.com/elc-94f077be04/','DeLand 2':'https://bearphonicsacademy.com/elc-1ce53ee46c/'};
+const P=n=>({p:'Parent',t:'Teacher',d:'Director',c:'Charles',o:'Mrs. Bear'}[n]);
+const W=(k)=>'<span class="who w-'+k+'">'+P(k)+'</span>';
+
+const MODS=[
+{id:'elc',tab:'ELC Sign-In/Out',title:'🎓 ELC sign-in and sign-out (tablet)',
+ what:'ELC (School Readiness) pays for these children, and ELC requires a signed sign-in and sign-out for every child, every day. Parents now sign on a tablet at the front door instead of the paper sheet. Only ELC children are on the tablet. Every other child still signs in ProCare. The screen shows first name and last initial only.',
+ steps:[
+  [ 'p','Parent opens the tablet page, taps their child\'s name, taps Sign in, picks the time, signs with a finger. Same again at pick-up with Sign out.'],
+  [ 'p','If the child is not coming: day 1 to 3 in a row, the parent taps Quick reason, picks a reason, and signs. From day 4 on, the parent must fill out the Parent Excuse Note (full name, dates, reason, signature, date) on the tablet. One form covers all school days in a row. Weekends and closed days do not break the run. A school day with no absence starts a new form.'],
+  [ 'd','Weekly: open the tablet page, look at the month sheet, and check that every ELC child who was here has both a sign-in and a sign-out, and every absence has a reason with a signature.'],
+  [ 'd','Fix mistakes right on the page. Every time has a Change button and a Remove button. Remove asks you to confirm and has an Undo. Notes and excuse forms can be changed any time too. Whatever is saved last is what prints.'],
+  [ 'c','On the 1st of each month Charles builds the monthly sheet for each child (same layout as the paper sheet, with parent signatures) plus one Parent Excuse Note page for each form, and files the PDF in your Reporting vault under ELC.'],
+  [ 'd','Open the vault, check the PDF: every ELC child is there, signatures show, closed days are shaded, and excuse notes are attached.'],
+  [ 'd','Submit to ELC yourself (or send it to Mrs. Bear to submit). Charles never submits anything to ELC. Keep a printed copy in the binder.'],
+  [ 'd','Tick "Sign-in/out sheets for the month filed" in Reporting.']
+ ],
+ rec:['Child (first name, last initial), date, sign-in time and signature, sign-out time and signature.','Absence reason with the parent\'s signature, or a Parent Excuse Note with the full name the parent typed.','Every save is copied to Airtable (ELC Sign-Ins) so Charles can build the sheets.'],
+ stop:'Never share your school\'s tablet link with other schools or on social media. Never type or share PINs on the tablet. Nothing is submitted to ELC from the tablet.',
+ ask:['Does ELC need anything else on the sheet or form that we do not record? (for example a staff initial, a time the child left early, a reason code)','Is there a step you do each month that is not listed above?','What do you do today when a parent forgets to sign out, or cannot sign? We will add it as a step.','Which days or children are tricky (late pick-ups, split custody, early drop-offs)?']
+},
+{id:'food',tab:'Food Program',title:'🍽 Food Program (CACFP) from daily meals to the claim',
+ what:'The food program pays us back for meals served to eligible children. The state requires proof every month: meals counted every day, receipts, staff time, and forms. Everything below is what has to exist before the claim is sent. Rules are the same at both schools. Only the sponsor is different: Sanford goes through 4C, DeLand 2 through Child Care of Southwest Florida.',
+ steps:[
+  [ 't','Daily: teachers keep the meal counts accurate. Breakfast 7 to 9 AM, lunch 11 AM to 1 PM, PM snack 2 to 4 PM. A child who arrives after a window closes, or leaves before it opens, misses that meal.'],
+  [ 'c','Daily afternoon: Charles reads the day\'s check-in and check-out times from ProCare, records the meals in KidKare, and clicks Save only. Charles never clicks Submit.'],
+  [ 'd','Check KidKare for gaps. If a day is missing, tell Mrs. Bear or Charles and it gets filled from ProCare times.'],
+  [ 'd','Keep every receipt: food, non-food supplies, milk. Upload them in Reporting under Food Program for the month.'],
+  [ 'd','Enrollment: new children show as Pending in KidKare until paper forms (and the Infant Feeding Form for babies) reach the sponsor. Mail them on time. Infants, medical statements, and dietary requests each need their own form.'],
+  [ 'd','Free and Reduced applications: collect them, file the signed copies in Reporting under Food Program.'],
+  [ 'd','Month-End Packet (DCF Binder, Month-End Packet tab): fill every form that is highlighted yellow. Site Information, Provider Check List, Entrances and Terminations, Personnel Activity Report, Infant Feeding, Medical Statement, Dietary Preference, Expenditure Worksheet, Labor Summary. Everything saves by itself.'],
+  [ 'd','On the Review and Submit page, press Submit. This locks the month. Only Charles can unlock it.'],
+  [ 'c','Charles builds one Gmail draft with all the forms and receipts and puts it in front of you and Mrs. Bear. Nothing is sent to the sponsor automatically.'],
+  [ 'd','Check the draft, then send the packet to your sponsor by the 5th of the month. DeLand 2 also emails ccfp@ccswfl.org. For Sanford, confirm 4C\'s exact due date.'],
+  [ 'd','Submit the claim yourself in KidKare. Check 50% spend-down: food spending must be at least half of last month\'s reimbursement.'],
+  [ 'd','Tick the Food Program items in Reporting.']
+ ],
+ rec:['Daily meal counts by meal and child.','Receipts with payee, food, non-food, services, milk gallons.','Hours worked on the program (Personnel Activity Report, Labor Summary).','Signed parent forms. Records must be kept the current year plus 5 years.'],
+ stop:'Charles records and saves meals only. The director submits the claim. Never type a PIN or password into a form. No packet goes to the sponsor without a director sending it.',
+ ask:['Is any form or document your sponsor asks for missing from the Month-End Packet?','What do you do the last 3 days of the month that is not written here?','Where do receipts get lost or late?','Anything that changes between a regular month and a month with new enrollments or infants?']
+},
+{id:'vault',tab:'Reporting Vault',title:'🗄️ Reporting and Audit Vault',
+ what:'The vault is the one place every monthly file lives, back to January 2021. Nothing is ever deleted, because records must be kept 5 years and an inspector or auditor can ask for any month. Files are private. Only the director PIN for your school opens them.',
+ steps:[
+  [ 'd','Open Director Dashboard, tap Reporting. Pick the month at the top.'],
+  [ 'd','Each month has four sections: ELC / School Readiness, Food Program, DCF / Licensing, and Staff Meetings and Other.'],
+  [ 'd','Tap Add a file in the right section. PDF, photo (JPG or PNG), Word, or Excel, up to 12 MB.'],
+  [ 'd','If the same file name is uploaded again, the old one is kept and the new one gets a version stamp. Nothing is overwritten.'],
+  [ 'd','Look for the red banner "waiting for a signature". Tap Sign now, sign on the screen on the purple dashed lines, and save. The signed copy replaces the unsigned one in the list. The unsigned original stays on file, hidden.'],
+  [ 'd','Tick the checklist items as each one is done. The count at the top of each section shows how many are finished.'],
+  [ 'd','Months older than the last two: the orange banner offers to combine each section into one complete file. Do this once a month so the vault stays tidy.'],
+  [ 'c','Charles files the ELC sheets, the monthly facility packet, and other built PDFs here for you. You still check them.']
+ ],
+ rec:['Who ticked each checklist item and when.','Every uploaded file with its date, kept permanently.','Signed copies with the signer\'s typed name and date.'],
+ stop:'Never put a document anywhere else to "store" it (email, text, photo roll). Never share your PIN. If you uploaded the wrong file, tell Mrs. Bear. Nothing can be deleted by directors on purpose.',
+ ask:['Is there a category or kind of file you need that the four sections do not cover?','What would an inspector ask for that you could not find here quickly?','What is confusing about signing on the screen?']
+},
+{id:'monthly',tab:'Monthly Reporting',title:'📅 Monthly reporting checklist',
+ what:'At the top of the Reporting page each month there is a checklist of 16 things that must be done. It is how we know nothing was missed for ELC, the Food Program, and DCF. Do it every month for the month that just ended.',
+ steps:[
+  [ 'd','ELC: attendance submitted in the ELC portal. Sign-in/out sheets filed (the tablet PDF). ELC deposits and Tuition Express reconciled (the tuition audit). School Readiness and VPK monthly reports done.'],
+  [ 'd','Food Program: all meals recorded and saved in KidKare. Month-End Packet complete and submitted. Receipts uploaded. 50% spend-down checked. Claim submitted to the sponsor. Signed parent forms and Free and Reduced applications filed.'],
+  [ 'd','DCF / Licensing: Room sign-in/out rosters filed. Transportation logs filed. Facility checklists and the monthly compliance report filed. Incident and accident reports filed. Drills, staff certifications, and license dates checked. DCF binder complete for the month.'],
+  [ 'c','Charles reminds Mrs. Bear and runs the builders (ELC sheets on the 1st, the facility packet at the end of the month, the Month-End Packet draft after you submit).'],
+  [ 'd','Tick each item only when it is truly done. If something cannot be done, leave it unticked and tell Mrs. Bear why.'],
+  [ 'o','Mrs. Bear looks at both schools\' checklists and follows up on anything still open.']
+ ],
+ rec:['A tick, the name of who ticked, and the date, for every item.'],
+ stop:'Do not tick an item to make the list look done. A tick is a statement that the file is in the vault.',
+ ask:['Is any monthly task you do missing from these 16?','Is any item on the list not something you actually do or can do?','What is the order that works best for you? (We can reorder the list.)']
+},
+{id:'dcf',tab:'DCF Binder',title:'📁 DCF Binder (inspector view)',
+ what:'DCF (the state licensing office) can walk in at any time and ask to see proof of daily care. The DCF Binder replaces the paper binder. Everything an inspector asks for is in one place, by day, with red marks on anything missing.',
+ steps:[
+  [ 't','Daily, teachers fill in their room checklists in the Hive: classroom cleaning (Bee Clean chart), bathroom cleaning, indoor inspection, playground inspection, sanitation and safety, temperatures, doors and sign-in check, end of day building sweep. Drills are logged when done.'],
+  [ 'd','Open Director Dashboard, tap DCF Binder. The first tab, Missing, lists anything not turned in. Tap a red item to fill it in on the spot.'],
+  [ 'd','Tabs: Cleaning, Inspections, Temps and Security, End of Day, Drills, Transportation, Attendance, Food Program, Month-End Packet, Forms to Print. Use the date arrows to go back to any day.'],
+  [ 'd','Walk every classroom each day. If a teacher forgot to enter something but it was done, a director can add it (the record shows it was entered by a director).'],
+  [ 'd','Weekly: sign the weekly facility sign-off from Reporting (the red "waiting for a signature" banner). It lists everything teachers submitted that week.'],
+  [ 'c','End of month: Charles builds the Monthly Facility Packet, the real forms for every weekday. Days with no teacher entry are filled with the room\'s usual items so the packet is complete. Charles writes a list of every day that was filled in. No names, times, temperatures or incident details are ever invented, and flagged items stay blank. If you tell Charles a day was NOT done, that day stays blank.'],
+  [ 'd','Print only page 1 (cover with director signature line) and the End of Day Sweep page. Sign. File the signed pages in Reporting, DCF section.'],
+  [ 'd','If an inspector comes: open the binder on a tablet or print the Forms to Print tab. Show only what they ask for. Call Mrs. Bear.']
+ ],
+ rec:['Every checklist with who entered it, date, and time.','Transportation trips with riders in and out and driver and second staff signatures.','Drills, incident reports, and the monthly packet.'],
+ stop:'Never enter something that did not happen. Never edit another day to cover a missed one. Temperatures, security, sanitation, incidents, and transportation trips are never backfilled. Real readings and real events only.',
+ ask:['What does the DCF inspector ask for at your school that is not in the binder?','Which daily entries do teachers forget most? Which are hardest to enter?','Is there a form you print or sign every month that is not in the Forms to Print tab?']
+}
+];
+
+function overview(){
+ let h='<div class="card"><h2>Start here: how the month runs</h2><div class="sub">These five pages cover everything built for the Hive and the tablets. Read one page at a time. At the bottom of each one there is a short form: tell us it is right, or tell us what is missing. Your answers go straight to Mrs. Bear and Charles.</div>';
+ h+='<table class="t"><tr><th>When</th><th>What happens</th></tr>'
+ +'<tr><td>Every day</td><td>Parents sign ELC children in and out on the tablet. Teachers fill in room checklists. Charles records meals in KidKare (save only).</td></tr>'
+ +'<tr><td>Every week</td><td>Director checks the DCF Binder Missing tab, checks the ELC tablet sheet, and signs the weekly facility sign-off.</td></tr>'
+ +'<tr><td>Last days of the month</td><td>Director fills in the Month-End Packet and presses Submit. Charles builds the monthly facility packet.</td></tr>'
+ +'<tr><td>The 1st</td><td>Charles builds the ELC sheets and files them in the vault. Director checks them and submits to ELC.</td></tr>'
+ +'<tr><td>By the 5th</td><td>Director sends the food program packet to the sponsor and submits the claim in KidKare.</td></tr>'
+ +'<tr><td>After each</td><td>Director ticks the Reporting checklist and files signed pages in the vault.</td></tr></table>';
+ h+='<h3>Who does what</h3><p>'+W('p')+'signs on the tablet. '+W('t')+'does daily room checklists and meal counts. '+W('d')+'checks, fixes, signs, submits, and sends. '+W('c')+'builds drafts, PDFs, and records and saves meals. '+W('o')+'follows up and decides.</p>';
+ h+='<div class="stop"><b>Three rules that never change.</b> 1) Charles never submits anything to ELC, DCF, or the sponsor. Directors do. 2) Children\'s papers live only in the vault, never in email, text, or photos. 3) Never share a PIN.</div>';
+ h+='<div id="prevall"></div></div>';
+ return h;
+}
+
+function modHtml(m){
+ let h='<div class="card"><h2>'+m.title+'</h2><div class="sub">'+m.what+'</div>';
+ if(m.id==='elc'&&LINK[SCHOOL])h+='<div class="tip"><b>Your school\'s tablet page:</b> <a href="'+LINK[SCHOOL]+'" target="_blank" rel="noopener">'+LINK[SCHOOL]+'</a><br>Keep it for your own tablet only. Tip: Add to Home Screen.</div>';
+ h+='<h3>Step by step</h3><ol class="steps">'+m.steps.map(s=>'<li>'+W(s[0])+esc(s[1])+'</li>').join('')+'</ol>';
+ h+='<h3>What gets recorded</h3><ul class="rec">'+m.rec.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>';
+ h+='<div class="stop"><b>Do not:</b> '+esc(m.stop)+'</div>';
+ h+='<div class="ask"><h3>✋ Directors: is anything missing?</h3><div class="sub">Think about what you really do. Then tell us.</div><ul>'+m.ask.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>'
+ +'<label class="r"><input type="radio" name="v" value="ok"> Every step is right as written.</label>'
+ +'<label class="r"><input type="radio" name="v" value="miss"> A step is missing or wrong.</label>'
+ +'<textarea class="fi" id="ftx" rows="5" placeholder="What is missing or wrong? Be as plain as you like. Example: \'After step 4 we also have to...\'"></textarea>'
+ +'<input class="fi" id="fnm" placeholder="Your name" maxlength="60" value="'+esc(localStorage.getItem('hiveName')||'')+'">'
+ +'<button class="btn grn" onclick="send(\''+m.id+'\')">Send to Mrs. Bear</button><div class="msg" id="fmsg"></div>'
+ +'<div class="prev" id="prev"></div></div></div>';
+ return h;
+}
+
+let TAB='start',MINE=[];
+function titleOf(id){const m=MODS.find(x=>x.id===id);return m?m.tab:id;}
+function done(id){return MINE.some(x=>x.module===titleOf(id));}
+function render(){
+ let h='<div class="top"><h1>🎓 Director Training <span class="sch">'+esc(SCHOOL)+'</span></h1><div><a class="btn sec" href="director.html">‹ Director portal</a> <button class="btn sec" onclick="window.print()">Print</button></div></div>';
+ h+='<div class="tabs"><button class="tab'+(TAB==='start'?' on':'')+'" data-t="start">Start here</button>'+MODS.map(m=>'<button class="tab'+(TAB===m.id?' on':'')+'" data-t="'+m.id+'">'+m.tab+(done(m.id)?' <span class="dn">✓</span>':'')+'</button>').join('')+'</div>';
+ const m=MODS.find(x=>x.id===TAB);
+ h+=m?modHtml(m):overview();
+ $('app').innerHTML=h;
+ document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{TAB=b.dataset.t;render();window.scrollTo(0,0);});
+ if(m){const mine=MINE.filter(x=>x.module===m.tab);
+  if($('prev'))$('prev').innerHTML=mine.length?'<b>Already sent from '+esc(SCHOOL)+':</b>'+mine.map(x=>'<div style="margin-top:6px">'+(x.verdict==='All steps correct'?'✅ Confirmed':'📝 Reported')+' by '+esc(x.name)+(x.at?' on '+esc(x.at.slice(0,10)):'')+(x.text?': '+esc(x.text):'')+(x.status?' <i>('+esc(x.status)+')</i>':'')+'</div>').join(''):'';
+ }else if($('prevall')){const n=MODS.filter(x=>done(x.id)).length;$('prevall').innerHTML='<p><b>Progress for '+esc(SCHOOL)+':</b> '+n+' of '+MODS.length+' pages confirmed.</p>';}
+}
+async function api(x){const r=await fetch('training-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({pin:PIN},x))});const j=await r.json().catch(()=>({error:'Server error'}));if(j.error)throw new Error(j.error);return j;}
+async function send(id){
+ const m=MODS.find(x=>x.id===id),msg=$('fmsg');
+ const v=(document.querySelector('input[name=v]:checked')||{}).value,tx=$('ftx').value.trim(),nm=$('fnm').value.trim();
+ msg.className='msg bad';
+ if(!v){msg.textContent='Pick one: every step is right, or a step is missing.';return;}
+ if(v==='miss'&&!tx){msg.textContent='Please tell us what is missing or wrong.';return;}
+ if(!nm){msg.textContent='Please type your name.';return;}
+ try{msg.className='msg';msg.textContent='Sending…';localStorage.setItem('hiveName',nm);
+  await api({action:'submit',module:m.tab,verdict:v,text:tx,name:nm});
+  const j=await api({action:'mine'});MINE=j.items;render();
+  const mm=$('fmsg');if(mm){mm.className='msg ok';mm.textContent='Sent. Thank you!';}
+ }catch(e){msg.className='msg bad';msg.textContent=e.message;}
+}
+(async()=>{try{const w=await api({action:'whoami'});SCHOOL=w.school;try{MINE=(await api({action:'mine'})).items}catch(e){}render();}
+ catch(e){$('app').innerHTML='<div class="card">'+esc(e.message)+' <a href="director.html">Back</a></div>';}})();
+</script>
+</body></html>
