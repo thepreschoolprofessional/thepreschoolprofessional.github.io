@@ -828,7 +828,7 @@ function repPages(room,mon){
 function repPage(room,mon,kids,pg,np){
   var H=REPH[S.school]||REPH['Sanford'], days=[0,1,2,3,4].map(function(i){return addDays(mon,i);});
   var sat=addDays(mon,5), sun=addDays(mon,6);
-  var h='<div class="rp'+(S.school==='DeLand 2'?' rpblue':'')+'"><div class="sq" style="left:10px;top:92px"></div><div class="sq" style="right:10px;top:104px"></div>';
+  var h='<div class="rp"><div class="sq" style="left:10px;top:92px"></div><div class="sq" style="right:10px;top:104px"></div>';
   h+='<div class="hd"><div class="hl"><span>'+nowStamp()+'</span><b>'+esc(H.name)+'</b><i>'+esc(H.phone)+'</i></div>';
   h+='<div class="hc"><b>Weekly Attendance &amp; Meal Count Report</b><div>Week Of: '+fmtMD(mon,1)+'-'+fmtMD(sat,1)+' (Mon '+fmtMD(mon)+'-Sun '+fmtMD(sun)+')</div></div>';
   h+='<div class="hr"><b>Sponsor: '+esc(H.sponsor)+'</b><i>'+esc(H.sphone)+'</i></div></div>';
