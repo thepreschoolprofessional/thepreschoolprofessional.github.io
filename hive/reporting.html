@@ -76,7 +76,13 @@ async function load(){try{DATA=await api('list');$('sch').textContent=DATA.schoo
  const keep=MON||pm;let og='',yy='';ms.forEach(m=>{if(m.slice(0,4)!==yy){if(yy)og+='</optgroup>';yy=m.slice(0,4);og+='<optgroup label="'+yy+'">';}og+='<option value="'+m+'">'+lbl(m)+'</option>';});$('mon').innerHTML=og+'</optgroup>';
  MON=ms.includes(keep)?keep:ms[1]||ms[0];$('mon').value=MON;render();renderVault();renderWait();loadWeeks();say('');}catch(e){say(e.message,true);}}
 function mdata(m){return DATA.months[m]||{files:[],checklist:{}};}
-function fileRow(m,f){return '<div class="f"><span>'+(isDone(f)?'⭐ ':'📄 ')+esc(f.name)+' <small>('+Math.max(1,Math.round(f.size/1024))+' KB)</small></span><button onclick="dl(\''+m+'\',\''+f.cat+'\',decodeURIComponent(\''+encodeURIComponent(f.name)+'\'))">Open</button> <button style="background:#b71c1c;color:#fff;border:0;border-radius:8px;padding:6px 10px" onclick="rm(\''+m+'\',\''+f.cat+'\',decodeURIComponent(\''+encodeURIComponent(f.name)+'\'))">Remove</button></div>';}
+function fileRow(m,f){return '<div class="f"><span>'+(isDone(f)?'⭐ ':'📄 ')+esc(f.name)+' <small>('+Math.max(1,Math.round(f.size/1024))+' KB)</small></span><button onclick="dl(\''+m+'\',\''+f.cat+'\',decodeURIComponent(\''+encodeURIComponent(f.name)+'\'))">Open</button>'+(/^SIGNED - /.test(f.name)?' <button style="background:#6a1b9a;color:#fff;border:0;border-radius:8px;padding:6px 10px" onclick="redo(\''+m+'\',\''+f.cat+'\',decodeURIComponent(\''+encodeURIComponent(f.name)+'\'))">Start over</button>':'')+' <button style="background:#b71c1c;color:#fff;border:0;border-radius:8px;padding:6px 10px" onclick="rm(\''+m+'\',\''+f.cat+'\',decodeURIComponent(\''+encodeURIComponent(f.name)+'\'))">Remove</button></div>';}
+async function redo(m,cat,name){if(!confirm('Start over on this form?\n\nThis clears the signed copy (set aside, not erased) and opens the blank form again so it can be filled in and signed fresh.'))return;
+ try{const base=name.replace(/^SIGNED - /,'').replace(/\.[^.]+$/,'');await api('remove',{month:m,cat,name});await load();
+  const o=mdata(m).files.find(x=>x.cat===cat&&!/^SIGNED - /.test(x.name)&&x.name.replace(/\.[^.]+$/,'')===base);
+  if(!o){say('Cleared. The blank form is not in the list, so add it again with Add a file.');return;}
+  SGCAT=cat;MON=m;const j=await api('getfile',{month:m,cat,name:o.name});await sgStart(bytesOf(j.b64),o.name);}
+ catch(e){say('Could not start over: '+e.message,true);}}
 async function rm(m,cat,name){if(!confirm('Remove "'+name+'" from the vault? It is set aside (not erased) and can be restored by Mrs. Bear.'))return;try{await api('remove',{month:m,cat,name});say('Removed ✔');await load();}catch(e){say(e.message,true);}}
 
 const PF=[['SITEINFO','Site Information'],['CHECKLIST','Provider Check List'],['ENTRANCES','Entrances'],['TERMS','Terminations'],['PAR','Personnel Activity (PAR)'],['INFANTFEED','Infant Feeding'],['MEDICAL','Medical Statement'],['DIETARY','Dietary Preference'],['EXPEND','Expenditure Worksheet'],['LABOR','Labor Summary'],['REVIEW','Review & Submit']];
@@ -177,7 +183,7 @@ load();
 
 /* ---- on-screen signing ---- */
 let SG={doc:null,bytes:null,img:null,name:'',page:1,n:1,marks:[],sig:null,mode:'sig',pw:612,ph:792,hot:[]};
-function sgEl(){let m=document.getElementById('sgm');if(!m){m=document.createElement('div');m.id='sgm';m.className='sgm';m.innerHTML='<div class="sgi"><b id="sgt"></b><div style="font-size:.88rem;color:#555;margin:4px 0">Purple dashed boxes are the signature / date lines. <b>Tap a box</b> to sign it (first time it asks you to sign with your finger). You can also tap anywhere on the page. Then <b>Save signed copy</b>.</div><div><button onclick="sgPad()">✍ Redo my signature</button><button onclick="sgMode(\'sig\')" id="sgb1" class="g">Tap = signature</button><button onclick="sgMode(\'txt\')" id="sgb2">Tap = stamp text</button> <input id="sgtx" style="padding:8px;border:1px solid #bbb;border-radius:8px;width:130px"> <button onclick="sgUndo()" class="x">Undo</button></div><div><button onclick="sgGo(-1)" class="x">◀ Page</button> <b id="sgpg"></b> <button onclick="sgGo(1)" class="x">Page ▶</button></div><canvas id="sgc"></canvas><div><button class="g" onclick="sgSave()">💾 Save signed copy</button><button class="x" onclick="sgClose()">Close</button></div></div><div id="sgpad" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:60;padding:14px"><div class="sgi" style="max-width:420px"><b>Sign here</b><canvas id="sgp" width="380" height="150"></canvas><button class="g" onclick="sgPadOk()">Use this signature</button><button onclick="sgPadClr()" class="x">Clear</button><button onclick="document.getElementById(\'sgpad\').style.display=\'none\'" class="x">Cancel</button></div></div>';document.body.appendChild(m);
+function sgEl(){let m=document.getElementById('sgm');if(!m){m=document.createElement('div');m.id='sgm';m.className='sgm';m.innerHTML='<div class="sgi"><b id="sgt"></b><div style="font-size:.88rem;color:#555;margin:4px 0">Purple dashed boxes are the signature / date lines. <b>Tap a box</b> to sign it (first time it asks you to sign with your finger). You can also tap anywhere on the page. Then <b>Save signed copy</b>.</div><div><button onclick="sgPad()">✍ Redo my signature</button><button onclick="sgMode(\'sig\')" id="sgb1" class="g">Tap = signature</button><button onclick="sgMode(\'txt\')" id="sgb2">Tap = stamp text</button> <input id="sgtx" style="padding:8px;border:1px solid #bbb;border-radius:8px;width:130px"> <button onclick="sgUndo()" class="x">Undo</button></div><div><button class="g" onclick="sgFill()" id="sgfb" style="display:none">Fill in the form (name, phone, address, income)</button> <button class="x" onclick="sgClearFill()" id="sgfc" style="display:none">Clear typed answers</button></div><div><button onclick="sgGo(-1)" class="x">◀ Page</button> <b id="sgpg"></b> <button onclick="sgGo(1)" class="x">Page ▶</button></div><canvas id="sgc"></canvas><div><button class="g" onclick="sgSave()">💾 Save signed copy</button><button class="x" onclick="sgClose()">Close</button></div></div><div id="sgpad" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:60;padding:14px"><div class="sgi" style="max-width:420px"><b>Sign here</b><canvas id="sgp" width="380" height="150"></canvas><button class="g" onclick="sgPadOk()">Use this signature</button><button onclick="sgPadClr()" class="x">Clear</button><button onclick="document.getElementById(\'sgpad\').style.display=\'none\'" class="x">Cancel</button></div></div>';document.body.appendChild(m);
  const c=document.getElementById('sgp'),x=c.getContext('2d');let d=0;const pt=e=>{const r=c.getBoundingClientRect();return [(e.clientX-r.left)*c.width/r.width,(e.clientY-r.top)*c.height/r.height];};
  x.lineWidth=3;x.lineCap='round';x.strokeStyle='#0d1b6b';
  c.onpointerdown=e=>{d=1;c.setPointerCapture(e.pointerId);const [a,b]=pt(e);x.beginPath();x.moveTo(a,b);x.lineTo(a+.1,b+.1);x.stroke();};
@@ -284,8 +290,11 @@ async function sgStart(bytes,name){pdfjsLib.GlobalWorkerOptions.workerSrc='pdfjs
  SG={doc:null,bytes,img:null,name,page:1,n:1,marks:[],sig:SG.sig,mode:'sig',pw:612,ph:792,hot:[]};
  if(/\.pdf$/i.test(name)){SG.doc=await pdfjsLib.getDocument({data:bytes.slice(0)}).promise;SG.n=SG.doc.numPages;}
  else{const im=new Image();await new Promise((ok,no)=>{im.onload=ok;im.onerror=no;im.src=URL.createObjectURL(new Blob([bytes],{type:/png$/i.test(name)?'image/png':'image/jpeg'}));});SG.img=im;SG.ph=612*im.height/im.width;}
+ SG.tpl=!!(SG.doc&&/free.?reduced/i.test(name));
  document.getElementById('sgl')&&(document.getElementById('sgl').style.display='none');
- const m=sgEl();m.style.display='block';document.getElementById('sgt').textContent='Signing: '+name;document.getElementById('sgtx').value=new Date().toLocaleDateString();await sgShow();}
+ const m=sgEl();m.style.display='block';document.getElementById('sgt').textContent='Signing: '+name;document.getElementById('sgtx').value=new Date().toLocaleDateString();await sgShow();
+ if(SG.tpl&&(Math.abs(SG.pw-792)>3||Math.abs(SG.ph-612)>3))SG.tpl=false;
+ document.getElementById('sgfb').style.display=SG.tpl?'':'none';document.getElementById('sgfc').style.display=SG.tpl?'':'none';if(SG.tpl){await sgShow();sgFill();}}
 function sgHot(items,v,sc){const H=[];const P=(x,y)=>v.convertToViewportPoint(x,y);
  items.forEach(it=>{const t=it.str;if(!t.trim())return;const [x0,y0]=P(it.transform[4],it.transform[5]);const w=it.width*sc,fh=Math.max(10,Math.abs(it.transform[3])*sc);
   if(/(signature|review|initials?)\s*:\s*_{3,}/i.test(t)){const L=t.length;const di=t.search(/date\s*:/i);const c1=t.indexOf(':')+1;const e1=di>0?di:L;
@@ -296,9 +305,10 @@ async function sgShow(){const c=document.getElementById('sgc'),W=Math.min(720,wi
  if(SG.doc){const pg=await SG.doc.getPage(SG.page);const v0=pg.getViewport({scale:1});SG.pw=v0.width;SG.ph=v0.height;const D=Math.min(3,Math.max(1,window.devicePixelRatio||1))*1.5;const sc=W/v0.width*D;const v=pg.getViewport({scale:sc});c.width=v.width;c.height=v.height;c.style.width=W+'px';await pg.render({canvasContext:c.getContext('2d'),viewport:v}).promise;
   try{const tc=await pg.getTextContent();SG.hot=sgHot(tc.items,v,sc);}catch(e){}}
  else{const D=Math.min(3,Math.max(1,window.devicePixelRatio||1));c.width=W*D;c.height=c.width*SG.img.height/SG.img.width;c.style.width=W+'px';c.getContext('2d').drawImage(SG.img,0,0,c.width,c.height);}
+ if(SG.tpl&&SG.page===1){const k=c.width/SG.pw;SG.hot=SG.hot.concat([{k:'sig',x:192*k,y:439*k,w:184*k,h:20*k},{k:'date',x:672*k,y:441*k,w:76*k,h:18*k}]);}
  const x=c.getContext('2d');const pm=SG.marks.filter(m=>m.p===SG.page);
  SG.hot.forEach(h=>{if(pm.some(m=>{const px=m.fx*c.width,py=m.fy*c.height;return px>=h.x-4&&px<=h.x+h.w+4&&py>=h.y-8&&py<=h.y+h.h+8;}))return;x.save();x.setLineDash([6,4]);x.lineWidth=2;x.strokeStyle='#6a1b9a';x.fillStyle='rgba(106,27,154,.12)';x.fillRect(h.x,h.y,h.w,h.h);x.strokeRect(h.x,h.y,h.w,h.h);x.fillStyle='#6a1b9a';x.font='bold '+(11*c.width/W)+'px Arial';x.fillText(h.k==='sig'?'✍ sign':'📅 date',h.x+3,h.y+11);x.restore();});
- pm.forEach(m=>{if(m.t==='sig'){const w=m.fw*c.width,h=w*m.ih;x.drawImage(m.im,m.fx*c.width-w/2,m.fy*c.height-h/2,w,h);}else{x.fillStyle='#0d1b6b';x.font='bold '+(11*c.width/SG.pw)+'px Arial';x.fillText(m.txt,m.fx*c.width,m.fy*c.height);}});
+ pm.forEach(m=>{if(m.t==='sig'){const w=m.fw*c.width,h=w*m.ih;x.drawImage(m.im,m.fx*c.width-w/2,m.fy*c.height-h/2,w,h);}else if(m.t==='circ'){x.save();x.strokeStyle='#0d1b6b';x.lineWidth=Math.max(1.2,1.4*c.width/SG.pw);x.beginPath();x.ellipse(m.fx*c.width,m.fy*c.height,m.rw*c.width/SG.pw,m.rh*c.width/SG.pw,0,0,7);x.stroke();x.restore();}else{x.fillStyle='#0d1b6b';x.font='bold '+((m.sz||11)*c.width/SG.pw)+'px Arial';x.fillText(m.txt,m.fx*c.width,m.fy*c.height);}});
  document.getElementById('sgpg').textContent='Page '+SG.page+' of '+SG.n+(SG.hot.length?'  ·  '+SG.hot.length+' signature line'+(SG.hot.length===1?'':'s')+' found':'');}
 function sgGo(d){const p=SG.page+d;if(p<1||p>SG.n)return;SG.page=p;sgShow();}
 function sgMode(m){SG.mode=m;document.getElementById('sgb1').className=m==='sig'?'g':'';document.getElementById('sgb2').className=m==='txt'?'g':'';}
@@ -307,7 +317,7 @@ function sgPadClr(){const c=document.getElementById('sgp');c.getContext('2d').cl
 function sgPadOk(){const c=document.getElementById('sgp');const im=new Image();im.onload=()=>{SG.sig={im,data:c.toDataURL('image/png'),ih:c.height/c.width};document.getElementById('sgpad').style.display='none';sgMode('sig');say('Signature ready. Tap a purple box (or the page) to place it.');if(SG.pend){const t=SG.pend;SG.pend=null;sgPlace(t);}};im.src=c.toDataURL('image/png');}
 function sgPlace(t){const c=document.getElementById('sgc');
  if(t.k==='date'){sgDate(t);return;}
- else if(t.k==='sig'){const fw=Math.min(.17,.9*t.w/c.width);const sh=fw*c.width*SG.sig.ih;SG.marks.push({p:SG.page,t:'sig',fx:(t.x+t.w/2)/c.width,fy:(t.y+t.h*.82-sh/2)/c.height,fw,im:SG.sig.im,data:SG.sig.data,ih:SG.sig.ih});}
+ else if(t.k==='sig'){const fw=Math.min(.17,.9*t.w/c.width,t.h*1.25/(c.width*SG.sig.ih));const sh=fw*c.width*SG.sig.ih;SG.marks.push({p:SG.page,t:'sig',fx:(t.x+t.w/2)/c.width,fy:(t.y+t.h*.82-sh/2)/c.height,fw,im:SG.sig.im,data:SG.sig.data,ih:SG.sig.ih});}
  else if(SG.mode==='sig'){SG.marks.push({p:SG.page,t:'sig',fx:t.fx,fy:t.fy,fw:.22,im:SG.sig.im,data:SG.sig.data,ih:SG.sig.ih});}
  else{const tx=wa(document.getElementById('sgtx').value);if(!tx)return;SG.marks.push({p:SG.page,t:'txt',fx:t.fx,fy:t.fy,txt:tx});}sgShow();}
 
@@ -321,16 +331,55 @@ function sgTap(e){const c=document.getElementById('sgc'),r=c.getBoundingClientRe
  const h=SG.hot.find(h=>px>=h.x&&px<=h.x+h.w&&py>=h.y&&py<=h.y+h.h);
  const t=h?{k:h.k,x:h.x,y:h.y,w:h.w,h:h.h}:{k:'free',fx:px/c.width,fy:py/c.height};
  if((t.k==='sig'||(t.k==='free'&&SG.mode==='sig'))&&!SG.sig){SG.pend=t;sgPad();return;}sgPlace(t);}
+function sgClearFill(){SG.marks=SG.marks.filter(m=>!m.fill);sgShow();}
+function sgFill(){let o=document.getElementById('sgf');if(!o){o=document.createElement('div');o.id='sgf';o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:65;padding:12px;overflow:auto';document.body.appendChild(o);}
+ const I=(id,ph,w)=>'<input id="'+id+'" placeholder="'+ph+'" style="padding:8px;border:1px solid #bbb;border-radius:8px;margin:2px;'+(w?'width:'+w+';':'')+'box-sizing:border-box">';
+ const Y=(id,l)=>'<label style="margin:2px 8px 2px 0">'+l+' <select id="'+id+'" style="padding:7px;border-radius:8px"><option value="">-</option><option>Yes</option><option>No</option></select></label>';
+ const F=id=>'<select id="'+id+'" style="padding:7px;border-radius:8px;margin:2px"><option value="">How often?</option><option>Weekly</option><option>Biweekly</option><option>Monthly</option><option>Twice a Month</option><option>Annually</option></select>';
+ let kid='';for(let i=1;i<=3;i++)kid+='<div style="border-top:1px dashed #bbb;padding:6px 0"><b>Another child '+i+'</b> (brother, sister or any child under 19 in the home)<br>'+I('fk'+i+'n','Last name, First name','95%')+'<br>'+I('fk'+i+'d','Birth date (mm/dd/yyyy)','48%')+'<br>'+Y('fk'+i+'a','Goes to this school?')+Y('fk'+i+'f','Foster child?')+Y('fk'+i+'m','Migrant?')+Y('fk'+i+'h','Homeless / runaway?')+'</div>';
+ let ad='';for(let i=1;i<=2;i++)ad+='<div style="border-top:1px dashed #bbb;padding:6px 0"><b>Adult '+i+'</b><br>'+I('fa'+i+'n','Last name, First name','95%')+'<br>Earnings from work: '+I('fa'+i+'e','$ amount','90px')+F('fa'+i+'ef')+'<br>Public assistance / child support / alimony: '+I('fa'+i+'p','$ amount','90px')+F('fa'+i+'pf')+'<br>Pensions / retirement / other: '+I('fa'+i+'o','$ amount','90px')+F('fa'+i+'of')+'</div>';
+ o.innerHTML='<div class="sgi" style="max-width:640px;margin:0 auto;background:#fff;border-radius:14px;padding:14px"><b style="font-size:1.1rem">Parent: please fill in your information</b><div style="font-size:.88rem;color:#555;margin:4px 0">Type your answers. They are written onto the form. You will check the form and sign on the next screen. Skip anything that does not apply.</div>'
+ +'<b>1. About you</b><br>'+I('fpn','Your printed name','95%')+'<br>'+I('fph','Daytime phone (386-555-1234)','48%')+'<br>'+I('fad','Home address: street, city, state, zip','95%')
+ +'<br><br><b>2. Other children in your home</b>'+kid
+ +'<br><b>3. Food stamps (SNAP) or TANF</b><div style="font-size:.88rem;color:#555">If you get SNAP or TANF, type your case number here. Then skip step 4.</div>'+I('fsn','SNAP case number','48%')+I('ftn','TANF case number','48%')
+ +'<br><br><b>4. Only if you did NOT write a case number above</b><br>Total income received by all children: '+I('fci','$ amount','90px')+F('fcif')+'<div style="margin-top:6px">Adults in the household (age 19 and up). Write 0 for no income.</div>'+ad
+ +'<div style="border-top:1px dashed #bbb;padding:6px 0">'+I('fth','Total people in household','46%')+I('fss','Last 4 of Social Security # (or none)','48%')+'</div>'
+ +'<div style="margin-top:10px"><button class="g" onclick="sgFillOk()">Put my answers on the form</button> <button class="x" onclick="document.getElementById(\'sgf\').style.display=\'none\'">Skip for now</button></div></div>';
+ o.style.display='block';}
+function sgFillOk(){const g=id=>(document.getElementById(id)||{value:''}).value.trim();
+ const T=(x,y,t,sz)=>{t=wa(String(t));if(t)SG.marks.push({p:1,t:'txt',fx:x/792,fy:y/612,txt:t,sz:sz||9.5,fill:1});};
+ const C=(x,y,rw,rh)=>SG.marks.push({p:1,t:'circ',fx:x/792,fy:y/612,rw,rh,fill:1});
+ const X=(x,y)=>T(x-3,y+3.5,'X',10);
+ SG.marks=SG.marks.filter(m=>!m.fill);
+ T(445,451,g('fpn'),10.5);
+ const ph=g('fph').replace(/\D/g,'').slice(-10);if(ph.length===10){T(618,432,ph.slice(0,3),10);T(660,432,ph.slice(3,6),10);T(712,432,ph.slice(6),10);}else if(g('fph'))T(618,432,g('fph'),9);
+ T(148,432,g('fad'),9.5);
+ const cy=[144,158.5,173],ax=[[360,385],[475,500],[564,589],[668,693]];
+ for(let i=1;i<=3;i++){const y=cy[i-1];T(34,y,g('fk'+i+'n'),9);T(254,y,g('fk'+i+'d'),9);
+  ['a','f','m','h'].forEach((k,j)=>{const v=g('fk'+i+k);if(!v&&!(g('fk'+i+'n')&&j>0))return;const vv=v||'No';C(vv==='Yes'?ax[j][0]:ax[j][1],y-4,vv==='Yes'?11:9,6.5);});}
+ const sn=g('fsn').replace(/\D/g,'');if(sn)sn.slice(0,10).split('').forEach((d,i)=>T([144,164,185,205,225,245,266,289,310,330][i]-3,206,d,11));
+ const tn=g('ftn').replace(/\D/g,'');if(tn)tn.slice(0,10).split('').forEach((d,i)=>T(455+19.5*i-3,206,d,11));
+ if(g('fci')){T(153,246,g('fci'),10);const fx={Weekly:417.5,Biweekly:464,'Twice a Month':523,Monthly:597.5,Annually:647.5}[g('fcif')];if(fx)X(fx,245.5);}
+ const cols=[['e',218.5,{Weekly:[309,329,15],Biweekly:[334,329,17],Monthly:[360,329.5,17],'Twice a Month':[316,336.5,25],Annually:[346,337,17]}],
+  ['p',392.5,{Weekly:[482.5,330.5,15],Biweekly:[507.5,330.5,17],Monthly:[533.5,331,17],'Twice a Month':[493.5,338.5,25],Annually:[526.5,338.5,17]}],
+  ['o',574,{Weekly:[665,332,15],Biweekly:[690,332.5,17],Monthly:[715,333,17],'Twice a Month':[676,340,25],Annually:[707.5,340.5,17]}]];
+ for(let i=1;i<=2;i++){const d=(i-1)*17.5;T(34,336+d,g('fa'+i+'n'),9);
+  cols.forEach(([k,dx,fr])=>{const a=g('fa'+i+k);if(!a)return;T(dx+9,331+d,a,9);const q=fr[g('fa'+i+k+'f')];if(q)C(q[0],q[1]+d,q[2],4.6);});}
+ T(231,366,g('fth'),10);
+ const ss=g('fss'),sd=ss.replace(/\D/g,'').slice(-4);if(sd.length===4){[574,595.5,615.5,636].forEach((x,i)=>T(x-3,367,sd[i],11));}else if(ss)T(572,367,ss,10);
+ document.getElementById('sgf').style.display='none';
+ say('Answers are on the form. Check them, then tap the purple sign box to sign. Use "Fill in the form" to change anything.');sgShow();}
 function sgUndo(){SG.marks.pop();sgShow();}
 function sgClose(){document.getElementById('sgm').style.display='none';}
-async function sgSave(){if(!SG.marks.length){say('Tap a signature line first.',true);return;}
+async function sgSave(){if(!SG.marks.some(m=>m.t==='sig')){say('Tap a signature line first.',true);return;}
  try{say('Saving signed copy…');const {PDFDocument,StandardFonts,rgb}=PDFLib;let doc;
   if(SG.doc)doc=await PDFDocument.load(SG.bytes,{ignoreEncryption:true});
   else{doc=await PDFDocument.create();const png=/\.png$/i.test(SG.name);const im=png?await doc.embedPng(SG.bytes):await doc.embedJpg(SG.bytes);const pg=doc.addPage([612,SG.ph]);pg.drawImage(im,{x:0,y:0,width:612,height:SG.ph});}
   const font=await doc.embedFont(StandardFonts.HelveticaBold);
   for(const m of SG.marks){const pg=doc.getPage(m.p-1),{width,height}=pg.getSize();
    if(m.t==='sig'){const png=await doc.embedPng(bytesOf(m.data.split(',')[1]));const w=m.fw*width,h=w*m.ih;pg.drawImage(png,{x:m.fx*width-w/2,y:height-m.fy*height-h/2,width:w,height:h});}
-   else pg.drawText(m.txt,{x:m.fx*width,y:height-m.fy*height,size:11,font,color:rgb(.05,.1,.42)});}
+   else if(m.t==='circ')pg.drawEllipse({x:m.fx*width,y:height-m.fy*height,xScale:m.rw*width/792,yScale:m.rh*width/792,borderColor:rgb(.05,.1,.42),borderWidth:1.1});
+   else pg.drawText(m.txt,{x:m.fx*width,y:height-m.fy*height,size:m.sz||11,font,color:rgb(.05,.1,.42)});}
   const b64=await doc.saveAsBase64();const name='SIGNED - '+SG.name.replace(/\.[^.]+$/,'').replace(/^SIGNED - /,'')+'.pdf';
   await api('upload',{month:MON,cat:SGCAT,name,b64});sgClose();say('Saved ✔ '+name+'. It now replaces the unsigned copy in the list (the unsigned original is kept on file, hidden).');await load();}
  catch(e){say('Could not save: '+e.message,true);}}
