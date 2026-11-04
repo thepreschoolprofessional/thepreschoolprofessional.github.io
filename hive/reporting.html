@@ -344,6 +344,7 @@ function sgFill(){let o=document.getElementById('sgf');if(!o){o=document.createE
  +'<br><b>3. Food stamps (SNAP) or TANF</b><div style="font-size:.88rem;color:#555">If you get SNAP or TANF, type your case number here. Then skip step 4.</div>'+I('fsn','SNAP case number','48%')+I('ftn','TANF case number','48%')
  +'<br><br><b>4. Only if you did NOT write a case number above</b><br>Total income received by all children: '+I('fci','$ amount','90px')+F('fcif')+'<div style="margin-top:6px">Adults in the household (age 19 and up). Write 0 for no income.</div>'+ad
  +'<div style="border-top:1px dashed #bbb;padding:6px 0">'+I('fth','Total people in household','46%')+I('fss','Last 4 of Social Security # (or none)','48%')+'</div>'
+ +'<div style="border-top:1px dashed #bbb;padding:6px 0;margin-top:6px"><b>5. Child\'s ethnicity and race (optional)</b><div style="font-size:.88rem;color:#555">This is optional and does not affect eligibility.</div>Ethnicity (check one): <label style="margin-right:10px"><input type="checkbox" id="fe1"> Hispanic or Latino</label><label><input type="checkbox" id="fe2"> Not Hispanic or Latino</label><br>Race (check one or more):<br><label style="margin-right:10px"><input type="checkbox" id="fr1"> American Indian or Alaskan Native</label><label style="margin-right:10px"><input type="checkbox" id="fr2"> Asian</label><label style="margin-right:10px"><input type="checkbox" id="fr3"> Black or African American</label><label style="margin-right:10px"><input type="checkbox" id="fr4"> Native Hawaiian or Other Pacific Islander</label><label><input type="checkbox" id="fr5"> White</label></div>'
  +'<div style="margin-top:10px"><button class="g" onclick="sgFillOk()">Put my answers on the form</button> <button class="x" onclick="document.getElementById(\'sgf\').style.display=\'none\'">Skip for now</button></div></div>';
  o.style.display='block';}
 function sgFillOk(){const g=id=>(document.getElementById(id)||{value:''}).value.trim();
@@ -367,6 +368,8 @@ function sgFillOk(){const g=id=>(document.getElementById(id)||{value:''}).value.
   cols.forEach(([k,dx,fr])=>{const a=g('fa'+i+k);if(!a)return;T(dx+9,331+d,a,9);const q=fr[g('fa'+i+k+'f')];if(q)C(q[0],q[1]+d,q[2],4.6);});}
  T(231,366,g('fth'),10);
  const ss=g('fss'),sd=ss.replace(/\D/g,'').slice(-4);if(sd.length===4){[574,595.5,615.5,636].forEach((x,i)=>T(x-3,367,sd[i],11));}else if(ss)T(572,367,ss,10);
+ const ck=id=>(document.getElementById(id)||{}).checked;
+ [[ 'fe1',502.5,478.5],['fe2',595,478.5],['fr1',137.5,484.5],['fr2',287.5,484.5],['fr3',340,484.5],['fr4',462.5,484.5],['fr5',635,484.5]].forEach(([id,x,y])=>{if(ck(id))X(x,y);});
  document.getElementById('sgf').style.display='none';
  say('Answers are on the form. Check them, then tap the purple sign box to sign. Use "Fill in the form" to change anything.');sgShow();}
 function sgUndo(){SG.marks.pop();sgShow();}
