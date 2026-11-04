@@ -1105,13 +1105,13 @@ function needSign(form,mon,room){ return OFS[form].sign && mon>='2026-09-28' && 
 function signRooms(form){ return OFS[form].per==='room'?(CLASSROOMS[S.school]||[]):['Playground']; }
 
 /* ---- drawing ---- */
-function mkCtx(page,font,bold,doc){
+function mkCtx(page,font,bold,doc,collect){
   var H=page.getHeight(), rgb=PDFLib.rgb;
-  var c={page:page,H:H,doc:doc};
+  var c={page:page,H:H,doc:doc,texts:[]};
   c.check=function(cx,top,st,size){ if(st==='flag') return; var cy=H-top, s=(size||8)*0.5, col=rgb(.05,.45,.15);
     page.drawLine({start:{x:cx-s,y:cy},end:{x:cx-s*.25,y:cy-s*.7},thickness:1.4,color:col,lineCap:1}); page.drawLine({start:{x:cx-s*.25,y:cy-s*.7},end:{x:cx+s,y:cy+s*.8},thickness:1.4,color:col,lineCap:1}); };
   c.box=function(x,top,w,h){ page.drawRectangle({x:x,y:H-top-h,width:w,height:h,color:rgb(1,1,1)}); };
-  c.text=function(x,top,s,size,b,color,center,maxw){ s=clean(s); if(!s) return; size=size||8; var f=b?bold:font; if(maxw){ while(f.widthOfTextAtSize(s,size)>maxw&&size>5) size-=.5; } var w=f.widthOfTextAtSize(s,size); page.drawText(s,{x:center?x-w/2:x,y:H-top,size:size,font:f,color:rgb.apply(null,color||[0,0,0])}); };
+  c.text=function(x,top,s,size,b,color,center,maxw){ s=clean(s); if(!s) return; size=size||8; var f=b?bold:font; if(maxw){ while(f.widthOfTextAtSize(s,size)>maxw&&size>5) size-=.5; } var w=f.widthOfTextAtSize(s,size); var px=center?x-w/2:x; if(collect){ c.texts.push({x:px,top:top,s:s,size:size,b:!!b,color:color||[0,0,0]}); return; } page.drawText(s,{x:px,y:H-top,size:size,font:f,color:rgb.apply(null,color||[0,0,0])}); };
   return c;
 }
 function stampBee(c,room,ms){
@@ -1161,26 +1161,26 @@ function stampTrans(c,mon,combo){
     function us(s){ s=String(s||'').slice(0,10); return /^\d{4}-/.test(s)?fmtUS(s):''; }
     if(f['Driver Date']) c.text(x0+8,TL_DRIVER_TOP+1,us(f['Driver Date']),7.5); if(f['Second Staff Date']) c.text(x0+8,TL_SECOND_TOP+1,us(f['Second Staff Date']),7.5); });
 }
-function build(){
+function build(collect){
   var F=OFS[OF.form], mon=monday(S.date), ms=monthStart(S.date), room=OF.room, combo=null;
   return Promise.all([loadLibs(),loadBlank()]).then(function(){
     return PDFLib.PDFDocument.load(OF.blank);
   }).then(function(src){
     return PDFLib.PDFDocument.create().then(function(out){ return out.copyPages(src,[F.page]).then(function(pg){ out.addPage(pg[0]); return out.embedFont(PDFLib.StandardFonts.Helvetica).then(function(font){ return out.embedFont(PDFLib.StandardFonts.HelveticaBold).then(function(bold){ return {out:out,font:font,bold:bold}; }); }); }); });
   }).then(function(o){
-    var page=o.out.getPage(0), c=mkCtx(page,o.font,o.bold,o.out), p=Promise.resolve();
+    var page=o.out.getPage(0), c=mkCtx(page,o.font,o.bold,o.out,collect), p=Promise.resolve();
     if(OF.form==='bee') stampBee(c,room,ms); else if(OF.form==='bath') stampBath(c,room,ms);
     else if(OF.form==='ind'){ stampWeekly(c,'ind',room,mon,IND_ROWS,IND_DAY_COLS,IND_ITEMS,2,4,false); var d=sgData('ind',mon,room); if(d) p=o.out.embedPng(d.sig).then(function(im){ page.drawImage(im,{x:150,y:c.H-762,width:80,height:25}); c.text(410,749,d.date||'',9); }); }
     else if(OF.form==='out'){ stampWeekly(c,'out','Playground',mon,PLAY_ROWS,PLAY_DAY_COLS,PLAY_ITEMS,3,5,true); var d2_=sgData('out',mon,'Playground'); if(d2_) p=o.out.embedPng(d2_.sig).then(function(im){ page.drawImage(im,{x:100,y:c.H-668,width:80,height:25}); c.text(400,664,d2_.date||'',9); }); }
     else if(OF.form==='eod') stampEod(c,ms);
     else if(OF.form==='trans'){ var cs=tripCombos(mon); combo=cs[Math.min(OF.trip,cs.length-1)]; if(combo) stampTrans(c,mon,combo); }
-    return p.then(function(){ return o.out.save(); });
+    return p.then(function(){ return o.out.save(); }).then(function(bytes){ return {bytes:bytes,texts:c.texts}; });
   });
 }
-function paint(bytes){
+function paint(bytes,texts){
   return pdfjsLib.getDocument({data:bytes.slice(0)}).promise.then(function(doc){ return doc.getPage(1); }).then(function(pg){
     var vp=pg.getViewport({scale:3}), cv=document.createElement('canvas'); cv.width=vp.width; cv.height=vp.height;
-    return pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise.then(function(){ return {url:cv.toDataURL('image/jpeg',.92),landscape:vp.width>vp.height}; });
+    return pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise.then(function(){ var x=cv.getContext('2d'), sc=3; (texts||[]).forEach(function(t){ x.fillStyle='rgb('+Math.round(t.color[0]*255)+','+Math.round(t.color[1]*255)+','+Math.round(t.color[2]*255)+')'; x.font=(t.b?'bold ':'')+(t.size*sc)+'px Helvetica, Arial, sans-serif'; x.textBaseline='alphabetic'; x.fillText(t.s,t.x*sc,t.top*sc); }); return {url:cv.toDataURL('image/jpeg',.92),landscape:vp.width>vp.height}; });
   });
 }
 function hashOf(){
@@ -1213,7 +1213,7 @@ function ofView(){
 }
 function ofAfter(){
   var key=OF.want; if(!key||OF.cache[key]||OF.building===key) return; OF.building=key;
-  build().then(function(bytes){ return paint(bytes).then(function(r){ r.bytes=bytes; OF.cache[key]=r; OF.building=null; var keys=Object.keys(OF.cache); if(keys.length>12) delete OF.cache[keys[0]]; if(OF.want===key&&S.tab==='ofc') render(); }); })
+  Promise.all([build(true),build(false)]).then(function(b2){ return paint(b2[0].bytes,b2[0].texts).then(function(r){ r.bytes=b2[1].bytes; OF.cache[key]=r; OF.building=null; var keys=Object.keys(OF.cache); if(keys.length>12) delete OF.cache[keys[0]]; if(OF.want===key&&S.tab==='ofc') render(); }); })
    .catch(function(e){ OF.building=null; var b=$('ofbox'); if(b) b.innerHTML='<div class="miss">Could not draw the form: '+esc(e.message||e)+'</div>'; });
 }
 /* hooks */
