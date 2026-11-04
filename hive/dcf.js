@@ -1110,34 +1110,35 @@ function mkCtx(page,font,bold,doc){
   var c={page:page,H:H,doc:doc};
   c.check=function(cx,top,st,size){ if(st==='flag') return; var cy=H-top, s=(size||8)*0.5, col=rgb(.05,.45,.15);
     page.drawLine({start:{x:cx-s,y:cy},end:{x:cx-s*.25,y:cy-s*.7},thickness:1.4,color:col,lineCap:1}); page.drawLine({start:{x:cx-s*.25,y:cy-s*.7},end:{x:cx+s,y:cy+s*.8},thickness:1.4,color:col,lineCap:1}); };
+  c.box=function(x,top,w,h){ page.drawRectangle({x:x,y:H-top-h,width:w,height:h,color:rgb(1,1,1)}); };
   c.text=function(x,top,s,size,b,color,center,maxw){ s=clean(s); if(!s) return; size=size||8; var f=b?bold:font; if(maxw){ while(f.widthOfTextAtSize(s,size)>maxw&&size>5) size-=.5; } var w=f.widthOfTextAtSize(s,size); page.drawText(s,{x:center?x-w/2:x,y:H-top,size:size,font:f,color:rgb.apply(null,color||[0,0,0])}); };
   return c;
 }
 function stampBee(c,room,ms){
   var R=subsOf('cls',room,ms,monthEnd(ms));
-  c.text(150,mid(BEE_ROWS[1],BEE_ROWS[2])+3,d2(ms).toLocaleDateString('en-US',{month:'long',year:'numeric'}),8);
-  c.text(100,mid(BEE_ROWS[2],BEE_ROWS[3])+3,room+'  ·  '+S.school,8,true);
+  c.text(110,mid(BEE_ROWS[1],BEE_ROWS[2])+4,d2(ms).toLocaleDateString('en-US',{month:'long',year:'numeric'}),10,true);
+  c.text(108,mid(BEE_ROWS[2],BEE_ROWS[3])+4,room+'  ·  '+S.school,10,true,null,false,175);
   R.forEach(function(s){ var d=s.fields.Date, b=blockOf(d,ms), w=wdi(d); if(w>4||b<0||b>4) return; var col=b*5+w;
     items(s.fields.Items).forEach(function(it){ var key=bestMatch(it[0],Object.keys(BEE_ITEM_ROWS)); if(!key) return; var r=BEE_ITEM_ROWS[key]; c.check(mid(BEE_COLS[col],BEE_COLS[col+1]),mid(BEE_ROWS[r],BEE_ROWS[r+1]),it[1],8); }); });
 }
 function stampBath(c,room,ms){
   var R=subsOf('bath',room,ms,monthEnd(ms));
-  c.text(95,mid(BATH_ROWS[0],BATH_ROWS[1])+3,room+' · '+S.school,8,true,null,false,70);
-  c.text(80,mid(BATH_ROWS[1],BATH_ROWS[2])+3,d2(ms).toLocaleDateString('en-US',{month:'long',year:'numeric'}),8);
+  c.text(100,mid(BATH_ROWS[0],BATH_ROWS[1])+4,room,9,true,null,false,75);
+  c.text(80,mid(BATH_ROWS[1],BATH_ROWS[2])+4,d2(ms).toLocaleDateString('en-US',{month:'long',year:'numeric'}),9,true);
   R.forEach(function(s){ var d=s.fields.Date, b=blockOf(d,ms), w=wdi(d); if(w>4||b<0||b>4) return; var col=b*5+w;
     items(s.fields.Items).forEach(function(it){ var key=bestMatch(it[0],Object.keys(BATH_ITEM_ROWS)); if(!key) return; var r=BATH_ITEM_ROWS[key]; c.check(BATH_DAY_X[col]+4.5,mid(BATH_ROWS[r],BATH_ROWS[r+1]),it[1],8); }); });
 }
 function stampWeekly(c,fk,room,mon,ROWS,COLS,LIST,dateRow,firstRow,withInit){
   var days=[0,1,2,3,4].map(function(i){return addDays(mon,i);});
-  c.text(36,50,S.school+'  ·  '+(fk==='ind'?'Room: ':'')+room+'  ·  Week of '+fmtUS(mon),9,true);
-  days.forEach(function(d,i){ c.text(mid(COLS[i][0],COLS[i][1]),mid(ROWS[dateRow],ROWS[dateRow+1])+3,d.slice(5).replace('-','/'),7,false,null,true); });
+  c.text(36,38,S.school,11,true); c.text(36,52,(fk==='ind'?'Room: '+room+'   ':'Playground   ')+'Week of '+fmtUS(mon),10,true,null,false,225);
+  days.forEach(function(d,i){ c.text(mid(COLS[i][0],COLS[i][1]),mid(ROWS[dateRow],ROWS[dateRow+1])+3,d.slice(5).replace('-','/'),9,true,null,true); });
   subsOf(fk,room,mon,addDays(mon,4)).forEach(function(s){ var i=wdi(s.fields.Date); if(i>4) return;
     items(s.fields.Items).forEach(function(it){ var key=bestMatch(it[0],LIST); if(!key) return; var r=firstRow+LIST.indexOf(key); c.check(mid(COLS[i][0],COLS[i][1]),mid(ROWS[r],ROWS[r+1]),it[1],8); });
-    if(withInit) c.text(mid(COLS[i][0],COLS[i][1]),mid(ROWS[25],ROWS[26])+3,String(s.fields['Staff Name']||'').slice(0,12),6,false,null,true); });
+    if(withInit) c.text(mid(COLS[i][0],COLS[i][1]),mid(ROWS[25],ROWS[26])+3,String(s.fields['Staff Name']||'').slice(0,12),7,false,null,true); });
 }
 function stampEod(c,ms){
   var R=subsOf('eod',null,ms,monthEnd(ms)).sort(function(a,b){ return a.fields.Date<b.fields.Date?-1:1; });
-  c.text(165,152,S.school,9,true); c.text(480,152,d2(ms).toLocaleDateString('en-US',{month:'long',year:'numeric'}),9,true);
+  c.text(165,152,S.school,11,true); c.text(480,152,d2(ms).toLocaleDateString('en-US',{month:'long',year:'numeric'}),11,true);
   var by={}, order=[]; R.forEach(function(s){ var d=s.fields.Date; if(!by[d]){ by[d]=[]; order.push(d); } by[d].push(s); });
   order.forEach(function(d,k){ var r=k+1; if(r>=EOD_ROWS.length-1) return; var ty=mid(EOD_ROWS[r],EOD_ROWS[r+1])+3, st=[]; by[d].forEach(function(s){ var n=String(s.fields['Staff Name']||'').trim(); if(n&&st.indexOf(n)<0) st.push(n); });
     c.text(mid(EOD_COLS[0],EOD_COLS[1]),ty,d.slice(5).replace('-','/'),7,false,null,true); if(st[0]) c.text(EOD_COLS[1]+4,ty,st[0],7,false,null,false,195); if(st[1]) c.text(EOD_COLS[2]+4,ty,st[1],7,false,null,false,140); });
@@ -1146,7 +1147,7 @@ function tripsOf(mon){ var we=addDays(mon,4); return S.trips.filter(function(t){
 function tripCombos(mon){ var seen={}, out=[]; tripsOf(mon).forEach(function(t){ var dest=sv(t.fields.Destination), run=sv(t.fields.Run); var k=dest+'|'+run; if(!seen[k]){ seen[k]=1; out.push({dest:dest,run:run}); } }); return out.sort(function(a,b){ return (a.dest+a.run)<(b.dest+b.run)?-1:1; }); }
 function stampTrans(c,mon,combo){
   var TR=tripsOf(mon).filter(function(t){ return sv(t.fields.Destination)===combo.dest&&sv(t.fields.Run)===combo.run; });
-  c.text(36,30,S.school+'  ·  '+combo.dest+'  ·  '+combo.run+' run  ·  Week of '+fmtUS(mon),9,true);
+  c.text(36,26,S.school+'  ·  '+combo.dest+'  ·  '+combo.run+' run',10,true,null,false,330); c.text(36,38,'Week of '+fmtUS(mon),10,true);
   var days=[0,1,2,3,4].map(function(i){return addDays(mon,i);}), kid='Kid City USA '+S.school, dd=combo.run==='PM'?[combo.dest,kid]:[kid,combo.dest];
   function tr(d){ return TR.filter(function(t){ return t.fields.Date===d; })[0]; }
   days.forEach(function(d,i){ var t=tr(d); if(!t) return; var f=t.fields, x0=TL_COL_X0[i]; c.text(x0+12,TL_DATE_TOP,d.slice(5,7)+'  '+d.slice(8)+'  '+d.slice(2,4),7.5);
@@ -1178,7 +1179,7 @@ function build(){
 }
 function paint(bytes){
   return pdfjsLib.getDocument({data:bytes.slice(0)}).promise.then(function(doc){ return doc.getPage(1); }).then(function(pg){
-    var vp=pg.getViewport({scale:2.2}), cv=document.createElement('canvas'); cv.width=vp.width; cv.height=vp.height;
+    var vp=pg.getViewport({scale:3}), cv=document.createElement('canvas'); cv.width=vp.width; cv.height=vp.height;
     return pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise.then(function(){ return {url:cv.toDataURL('image/jpeg',.92),landscape:vp.width>vp.height}; });
   });
 }
@@ -1207,7 +1208,7 @@ function ofView(){
   if(F.sign){ var sr=OF.form==='out'?'Playground':OF.room, d=sgData(OF.form,mon,sr), ended=addDays(mon,4)<=todayNY();
     h+='<div class="wkbar'+(d||!ended?'':' bad')+'">'+(d?'<b style="color:#2e7d32">&#10003; Director signed '+esc(d.date||'')+' by '+esc(d.by||'')+'</b>':'<b'+(ended?' style="color:#c62828"':'')+'>'+(ended?'&#9679; ':'')+'Director signature and date '+(ended?'needed for this week':'(sign at the end of the week)')+'</b>')+' <button class="btn grn sm" data-of="sign">'+(d?'Re-sign':'Sign')+'</button>'+(d?' <button class="btn sec sm" data-of="sdate">Change date</button> <button class="btn sec sm" data-of="sclear">Clear</button>':'')+'<div class="hint">Directors sign, change the date or clear the sign-off. Staff fill in the daily checklists on their phones; a director fixes a day with the buttons above.</div></div>'; }
   var key=hashOf(), cached=OF.cache[key];
-  h+='<div class="rpbar"><button class="btn grn sm" data-of="print">Print this form</button><button class="btn sec sm" data-of="dl">Download PDF</button></div><div class="rpscroll" id="ofbox">'+(cached?'<img src="'+cached.url+'" style="width:100%;max-width:1000px;display:block;margin:auto;background:#fff">':'<div class="sub">Drawing the form&hellip;</div>')+'</div></div>';
+  h+='<div class="sub"><b>'+esc(S.school)+'</b>'+(F.per==='room'&&OF.room?' &middot; <b>'+esc(OF.room)+'</b>':'')+' &middot; '+(F.span==='month'?d2(monthStart(S.date)).toLocaleDateString('en-US',{month:'long',year:'numeric'}):'week of '+fmtUS(mon)+' to '+fmtUS(addDays(mon,4)))+' &mdash; on a phone, slide the form left and right to see all of it.</div><div class="rpbar"><button class="btn grn sm" data-of="print">Print this form</button><button class="btn sec sm" data-of="dl">Download PDF</button></div><div class="rpscroll" id="ofbox">'+(cached?'<img src="'+cached.url+'" style="width:100%;min-width:900px;max-width:1100px;display:block;margin:auto;background:#fff">':'<div class="sub">Drawing the form&hellip;</div>')+'</div></div>';
   OF.want=key; return h;
 }
 function ofAfter(){
