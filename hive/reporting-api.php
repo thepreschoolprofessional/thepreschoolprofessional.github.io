@@ -194,7 +194,34 @@ $elc = ['entries'=>count($er), 'children'=>count($kids), 'days'=>count($days), '
 $meal = null;
 $mr = ms_all('Daily Meal Counts', "AND({School}='".$sc."', DATETIME_FORMAT({Date},'YYYY-MM')='".$m."')", ['Date']);
 if ($mr !== null){ $dd = []; foreach ($mr as $f){ if (!empty($f['Date'])) $dd[$f['Date']] = 1; } $meal = ['days'=>count($dd)]; }
-echo json_encode(['month'=>$m, 'school'=>$school, 'forms'=>$forms ?: new stdClass, 'submitted'=>$submitted, 'elc'=>$elc, 'meals'=>$meal]); exit;
+$wk = null;
+$ms0 = $m.'-01'; $prevD = date('Y-m-d', strtotime($ms0.' -7 days')); $me0 = date('Y-m-t', strtotime($ms0));
+$ar = ms_all('Room Attendance', "AND({School}='".$sc."', IS_AFTER({Date},'".date('Y-m-d', strtotime($prevD.' -1 day'))."'), IS_BEFORE({Date},'".date('Y-m-d', strtotime($me0.' +1 day'))."'))", ['Date','Home Room','Current Room','Arrival']);
+$sg = ms_all('Monthly Forms', "AND(FIND('".$sc."',{Entry})>0, {Form}='WKSIGN', OR({Month}='".$m."', {Month}='".substr($prevD,0,7)."'))", ['Employee','Data']);
+if ($ar !== null && $sg !== null){
+$today = (new DateTime('now', new DateTimeZone('America/New_York')))->format('Y-m-d');
+$signed = [];
+foreach ($sg as $f){ $d = json_decode($f['Data'] ?? '{}', true); if (!empty($d['sig'])) $signed[$f['Employee'] ?? ''] = 1; }
+$weeks = [];
+foreach ($ar as $f){
+if (empty($f['Arrival']) || empty($f['Date'])) continue;
+$room = $f['Home Room'] ?? ($f['Current Room'] ?? ''); if (is_array($room)) $room = $room['name'] ?? ''; if ($room === '') continue;
+$w = (int)date('N', strtotime($f['Date'])); if ($w > 5) continue;
+$mon = date('Y-m-d', strtotime($f['Date'].' -'.($w-1).' days'));
+$weeks[$mon.' '.$room] = [$mon, $room];
+}
+$need = 0; $open = [];
+foreach ($weeks as $k => $v){
+$mon = $v[0]; $fri = date('Y-m-d', strtotime($mon.' +4 days'));
+if ($mon < '2026-09-28' || $fri > $today) continue;
+$inM = false; for ($i = 0; $i < 5; $i++){ if (substr(date('Y-m-d', strtotime($mon.' +'.$i.' days')), 0, 7) === $m) $inM = true; }
+if (!$inM) continue;
+$need++; if (!isset($signed[$k])) $open[] = ['week'=>$mon, 'room'=>$v[1]];
+}
+usort($open, function($a, $b){ return strcmp($a['week'].$a['room'], $b['week'].$b['room']); });
+$wk = ['need'=>$need, 'signed'=>$need - count($open), 'open'=>$open];
+}
+echo json_encode(['month'=>$m, 'school'=>$school, 'forms'=>$forms ?: new stdClass, 'submitted'=>$submitted, 'elc'=>$elc, 'meals'=>$meal, 'wksign'=>$wk]); exit;
 }
 if ($action === 'facility'){
 // READ-ONLY: completed facility checklists (cleaning, bathroom, inspections, drills, incident) for this school + month, from Facility Submissions.

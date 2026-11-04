@@ -186,6 +186,7 @@ function missingView(){
     var pmIso=addDays(monthStart(t),-1); if(p[0]==='This month'&&drillMissing(pmIso)) h+='<button class="line bad" data-tab="drill" data-d="'+pmIso+'">&#9679; No fire/emergency drill logged for LAST month ('+d2(pmIso).toLocaleDateString('en-US',{month:'long'})+') &rsaquo;</button>';
     list.forEach(function(m){
       if(m.kind==='form') h+='<button class="line bad" data-cell="'+m.form+'|'+m.date+'|'+esc(m.room)+'">&#9679; '+nice(m.date)+' &middot; '+esc(FORMS[m.form].label)+(m.room==='(building)'?'':' &middot; '+esc(m.room))+' &rsaquo;</button>';
+      else if(m.kind==='wk') h+='<button class="line bad" data-tab="att" data-d="'+m.mon+'" data-wkroom="'+esc(m.room)+'">&#9679; Week of '+nice(m.mon)+' &middot; '+esc(m.room)+' &middot; attendance &amp; meal count report not signed &rsaquo;</button>';
       else if(m.kind==='att') h+='<button class="line bad" data-tab="att" data-d="'+m.date+'">&#9679; '+nice(m.date)+' &middot; no attendance recorded &rsaquo;</button>';
       else h+='<button class="line bad" data-tab="food" data-d="'+m.date+'">&#9679; '+nice(m.date)+' &middot; no meal counts recorded &rsaquo;</button>';
     });
@@ -520,10 +521,10 @@ function pkStatus(){
 }
 function reviewForm(st){
   var lk=isLocked(), ws=pkData('WORKSHEETS')||{};
-  var rows=[['SITEINFO','Site Information'],['CHECKLIST','Monthly Provider Check List'],['ENTRANCES','Monthly Entrances'],['TERMS','Monthly Terminations'],['PAR','Personnel Activity Reports'],['PARENTSIGN','Parent-signed forms'],['RECEIPTS','Receipts'],['EXPEND','Program Expenditures Worksheet'],['LABOR','Labor Summary Worksheet']];
+  var rows=[['SITEINFO','Site Information'],['CHECKLIST','Monthly Provider Check List'],['ENTRANCES','Monthly Entrances'],['TERMS','Monthly Terminations'],['PAR','Personnel Activity Reports'],['PARENTSIGN','Parent-signed forms'],['WEEKSIGN','Weekly Attendance & Meal Count reports signed & dated'],['RECEIPTS','Receipts'],['EXPEND','Program Expenditures Worksheet'],['LABOR','Labor Summary Worksheet']];
   var h='<div class="ct">Review &amp; Submit &mdash; '+mLabel(S.pk.month)+'</div><div class="sub">Green means ready. Red means the sponsor will be missing something.</div>';
   var miss=[];
-  rows.forEach(function(r){ var s=st[r[0]]; if(!s.ok) miss.push(s.why); h+='<div class="line '+(s.ok?'ok':'bad')+'">'+(s.ok?'&#10003; ':'&#9679; ')+r[1]+(s.ok?'':' &mdash; '+esc(s.why))+(PFORMS.some(function(f){return f[0]===r[0];})?' <button class="btn sec sm" data-pf="form" data-v="'+r[0]+'">open</button>':'')+'</div>'; });
+  rows.forEach(function(r){ var s=st[r[0]]; if(!s.ok) miss.push(s.why); h+='<div class="line '+(s.ok?'ok':'bad')+'">'+(s.ok?'&#10003; ':'&#9679; ')+r[1]+(s.ok?'':' &mdash; '+esc(s.why))+(PFORMS.some(function(f){return f[0]===r[0];})?' <button class="btn sec sm" data-pf="form" data-v="'+r[0]+'">open</button>':'')+(r[0]==='WEEKSIGN'&&s.first?' <button class="btn sec sm" data-tab="att" data-d="'+s.first.mon+'" data-wkroom="'+esc(s.first.room)+'">open</button>':'')+'</div>'; });
   if(lk) return h+'<div class="okline" style="margin-top:12px">&#128274; Submitted and locked.</div>';
   h+='<div class="mrow"><button class="btn grn" data-pf="submit">Submit month-end packet</button></div><div class="hint">Submitting locks '+mLabel(S.pk.month)+' and tells Charles to build the Food Program email draft. It does not send anything to the sponsor.</div>';
   return h;
@@ -774,7 +775,11 @@ css.textContent='\
 .rp .ft{display:flex;gap:12px;align-items:flex-end;margin-top:6px;font:11px Georgia,serif}\
 .rp .ft .id{font:700 18px Georgia,serif;line-height:1.1;width:130px}\
 .rp .ft .cert{flex:1;font-size:10.5px;line-height:1.3}\
-.rp .ft .sg{width:390px;white-space:nowrap;text-align:right;font:700 13px Georgia,serif}\
+.rp .ft .sg{width:500px;white-space:nowrap;text-align:right;font:700 13px Georgia,serif}\
+.rp .ft .sg span.wsig{position:relative;width:210px;height:24px;vertical-align:bottom}.rp .ft .sg span.wsig img{position:absolute;left:6px;bottom:1px;height:30px}\
+.rp .ft .sg span.wdt{width:92px;text-align:center;font-weight:400}\
+.rpscroll .wsig,.rpscroll .wdt{cursor:pointer}.rpscroll .wsig:hover,.rpscroll .wdt:hover{outline:2px solid #1565c0}.rpscroll .wsig.need{outline:2px dashed #c62828;background:#fff1f1}\
+.wkbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0;padding:8px 10px;border-radius:10px;font-size:14px}.wkbar.bad{background:#ffebee;border:1px solid #ef9a9a}.wkbar.ok{background:#e8f5e9;border:1px solid #a5d6a7}\
 .rp .ft .sg span{display:inline-block;border-bottom:1px solid #000;width:150px;margin-left:4px}\
 .rp .pg{position:absolute;right:14px;bottom:62px;font:11px Arial}\
 #repprint{display:none}\
@@ -851,7 +856,7 @@ function repPage(room,mon,kids,pg,np){
   h+='<tr class="tot"><td colspan="3" class="labr">Daily Totals:</td>'; days.forEach(function(d,i){ var t=tot[i], has=kids.length&&(t.a||t.b||t.l||t.p); [t.a,t.b,'',t.l,t.p,'',''].forEach(function(v,j){ h+='<td'+(j===0?' class="dg"':'')+'>'+(v===''?'':(has?v:''))+'</td>'; }); }); h+='</tr>';
   h+='<tr class="tot"><td colspan="3" class="labr" style="font-weight:400">Total Nbr of Program Staff Meals:</td>'; days.forEach(function(){ for(var j=0;j<7;j++) h+='<td class="dsh'+(j===0?' dg':'')+'" style="font-weight:400">-</td>'; }); h+='</tr></table>';
   h+='<div class="sq" style="left:10px;bottom:46px"></div><div class="sq" style="right:10px;bottom:46px"></div>';
-  h+='<div class="ft"><div class="id">CXFORMID1008</div><div class="cert">I certify that the information on this form is true and correct to the best of my knowledge and that I will claim reimbursement only for eligible meals served to eligible participants. I understand that misrepresentation may result in prosecution under applicable state or federal statutes. &nbsp; <b>Mark only an &ldquo;X&rdquo; within the lines!</b> &nbsp;This may be read by a machine.</div><div class="sg">Teacher:<span></span> &nbsp; Date:<span style="width:90px"></span></div></div>';
+  h+='<div class="ft"><div class="id">CXFORMID1008</div><div class="cert">I certify that the information on this form is true and correct to the best of my knowledge and that I will claim reimbursement only for eligible meals served to eligible participants. I understand that misrepresentation may result in prosecution under applicable state or federal statutes. &nbsp; <b>Mark only an &ldquo;X&rdquo; within the lines!</b> &nbsp;This may be read by a machine.</div>'+wkFoot(room,mon)+'</div>';
   h+='<div class="pg">Page '+pg+' of '+np+'</div></div>';
   return h;
 }
@@ -883,9 +888,10 @@ attView=function(){
   var mon=monday(S.date), sat=addDays(mon,5);
   var h='<div class="card"><div class="ct">Weekly Attendance &amp; Meal Count Reports</div><div class="sub">Same form as the KidKare report, one per classroom. Tap any box to add or remove a mark. Tap a classroom to see it filled in. Print any time.</div>';
   h+='<div class="rpbar"><button class="btn sec sm" data-rep="prev">&lsaquo;</button><span class="b">Week of '+fmtMD(mon,1)+' &ndash; '+fmtMD(addDays(mon,4),1)+'</span><button class="btn sec sm" data-rep="next">&rsaquo;</button><button class="btn sec sm" data-rep="thisweek">This week</button></div><div class="rpbar">';
-  S.rep.rooms.forEach(function(r){ h+='<button class="btn'+(S.rep.room===r.Room?'':' sec')+'" data-rep="room" data-v="'+esc(r.Room)+'">'+esc(r.Room)+'</button>'; });
+  wkLoad(mon.slice(0,7)); var wkOpen=0; S.rep.rooms.forEach(function(r){ var nd=wkNeed(mon,r.Room), sg=!!wkData(mon,r.Room); if(nd) wkOpen++; h+='<button class="btn'+(S.rep.room===r.Room?'':' sec')+'" data-rep="room" data-v="'+esc(r.Room)+'">'+esc(r.Room)+(nd?' <span style="color:#ff5252">&#9679;</span>':(sg?' <span style="color:#2e7d32">&#10003;</span>':''))+'</button>'; });
   h+='</div><div class="rpbar"><button class="btn grn sm" data-rep="print"'+(S.rep.room?'':' disabled')+'>Print this classroom</button><button class="btn sec sm" data-rep="printall">Print all classrooms</button></div></div>';
-  if(S.rep.room){ var pgs=repPages(S.rep.room,mon); h+='<div class="rpscroll" id="reppage">'+pgs.join('<div style="height:14px"></div>')+'</div>'; }
+  if(wkOpen) h=h.replace('<div class="rpbar"><button class="btn sec sm" data-rep="prev">','<div class="wkbar bad"><b style="color:#c62828">&#9679; '+wkOpen+' classroom report'+(wkOpen===1?'':'s')+' this week still need'+(wkOpen===1?'s':'')+' a director/staff signature and date.</b> Tap a classroom marked with a red dot.</div><div class="rpbar"><button class="btn sec sm" data-rep="prev">');
+  if(S.rep.room){ var pgs=repPages(S.rep.room,mon); h+=wkBar(S.rep.room,mon)+'<div class="rpscroll" id="reppage">'+pgs.join('<div style="height:14px"></div>')+'</div>'; }
   return base+h;
 };
 document.addEventListener('click',function(e){
@@ -907,6 +913,97 @@ function doPrint(orient){
   window.addEventListener('afterprint',done); setTimeout(function(){ window.print(); },60);
 }
 window.repDoPrint=doPrint;
+
+/* ---------- weekly sign-off (11/4/26): every Weekly Attendance & Meal Count report must be signed + dated by a director/staff ---------- */
+var WK_START='2026-09-28';
+S.wks={}; S.wksLoaded={};
+function wkKey(mon,room){ return mon+'|'+room; }
+function wkData(mon,room){ var r=S.wks[wkKey(mon,room)]; if(!r) return null; try{ var d=JSON.parse(r.fields.Data||'{}'); return d&&d.sig?d:null; }catch(e){ return null; } }
+function wkSplit(k){ var i=k.indexOf('|'); return [k.slice(0,i),k.slice(i+1)]; }
+function wkLoad(m){
+  if(S.wksLoaded[m]) return Promise.resolve(); S.wksLoaded[m]='loading';
+  return api('list','Monthly Forms',{month:m}).then(function(res){ (res.records||[]).forEach(function(x){ if(x.fields.Form!=='WKSIGN') return; var e=String(x.fields.Employee||''), i=e.indexOf(' '); if(i<0) return; S.wks[wkKey(e.slice(0,i),e.slice(i+1))]=x; }); S.wksLoaded[m]=true; render(); }).catch(function(e){ S.wksLoaded[m]='err'; toast(e.message,true); });
+}
+function wkPrev(m){ return monthStart(addDays(m+'-01',-1)).slice(0,7); }
+function wkEnsure(m){ var pm=wkPrev(m), ms=m+'-01', ps=pm+'-01'; S.wkReq=S.wkReq||{}; wkLoad(m); wkLoad(pm); [[ms,monthEnd(ms)],[ps,monthEnd(ps)]].forEach(function(r){ var k=rangeKey(r[0],r[1]); if(S.wkReq[k]||S.loaded[k]) return; S.wkReq[k]=1; loadRange(r[0],r[1]); }); }
+function wkRooms(mon){
+  var days=[0,1,2,3,4].map(function(i){return addDays(mon,i);}), seen={}, out=[], ok=null;
+  if(S.rep&&S.rep.rooms&&S.rep.rooms.length){ ok={}; S.rep.rooms.forEach(function(r){ ok[r.Room]=1; }); }
+  S.att.forEach(function(a){ var f=a.fields; if(days.indexOf(f.Date)<0||!f.Arrival) return; var r=f['Home Room']||f['Current Room']; if(!r||seen[r]) return; if(ok&&!ok[r]) return; seen[r]=1; out.push(r); });
+  return out.sort();
+}
+function wkEnded(mon){ return mon>=WK_START && addDays(mon,4)<=todayNY(); }
+function wkNeed(mon,room){ return wkEnded(mon) && S.wksLoaded[mon.slice(0,7)]===true && wkRooms(mon).indexOf(room)>=0 && !wkData(mon,room); }
+function wkWeeksOf(M){
+  var ms=M+'-01', me=monthEnd(ms), seen={}, out=[];
+  for(var d=ms; d<=me; d=addDays(d,1)){ if(!isSchoolDay(d)) continue; var mon=monday(d); if(seen[mon]) continue; seen[mon]=1; if(wkEnded(mon)) out.push(mon); }
+  return out;
+}
+function wkMonth(M){
+  var pm=wkPrev(M), ready=S.wksLoaded[M]===true&&S.wksLoaded[pm]===true&&!!S.loaded[rangeKey(M+'-01',monthEnd(M+'-01'))]&&!!S.loaded[rangeKey(pm+'-01',monthEnd(pm+'-01'))];
+  var open=[], need=0; if(ready) wkWeeksOf(M).forEach(function(mon){ wkRooms(mon).forEach(function(r){ need++; if(!wkData(mon,r)) open.push({mon:mon,room:r}); }); });
+  return {ready:ready,need:need,open:open};
+}
+function wkOpenInRange(from,to){
+  var out=[], seen={};
+  for(var d=from; d<=to; d=addDays(d,1)){ var mon=monday(d), fri=addDays(mon,4); if(seen[mon]) continue; seen[mon]=1; if(fri<from||fri>to) continue; if(!wkEnded(mon)||S.wksLoaded[mon.slice(0,7)]!==true) continue; wkRooms(mon).forEach(function(r){ if(!wkData(mon,r)) out.push({mon:mon,room:r}); }); }
+  return out;
+}
+function wkFoot(room,mon){
+  var d=wkData(mon,room), k=wkKey(mon,room);
+  return '<div class="sg">Director / Staff:<span class="wsig'+(d||!wkEnded(mon)?'':' need')+'" data-wsig="'+esc(k)+'">'+(d?'<img src="'+d.sig+'" alt="signature">':'')+'</span> &nbsp; Date:<span class="wdt" data-wdt="'+esc(k)+'">'+(d?esc(d.date||''):'')+'</span></div>';
+}
+function wkPad(cb){
+  var ov=document.createElement('div'); ov.className='padov'; ov.innerHTML='<div class="padbox"><div class="ct">Sign the weekly report</div><canvas width="700" height="220"></canvas><div class="mrow"><button class="btn sec" data-pad="clear">Clear</button><button class="btn sec" data-pad="cancel">Cancel</button><button class="btn grn" data-pad="save">Use this signature</button></div><div class="hint">Use your finger or mouse. Today&rsquo;s date fills in next to it (you can change it afterward).</div></div>';
+  document.body.appendChild(ov);
+  var c=ov.querySelector('canvas'), x=c.getContext('2d'), dr=false, any=false; x.lineWidth=3; x.lineCap='round'; x.lineJoin='round'; x.strokeStyle='#0a2a8a';
+  function pos(e){ var r=c.getBoundingClientRect(); return [(e.clientX-r.left)*c.width/r.width,(e.clientY-r.top)*c.height/r.height]; }
+  c.style.touchAction='none';
+  c.addEventListener('pointerdown',function(e){ dr=true; any=true; var p=pos(e); x.beginPath(); x.moveTo(p[0],p[1]); c.setPointerCapture(e.pointerId); e.preventDefault(); });
+  c.addEventListener('pointermove',function(e){ if(!dr) return; var p=pos(e); x.lineTo(p[0],p[1]); x.stroke(); });
+  ['pointerup','pointercancel'].forEach(function(t){ c.addEventListener(t,function(){ dr=false; }); });
+  ov.addEventListener('click',function(e){ var a=e.target.getAttribute&&e.target.getAttribute('data-pad'); if(!a) return;
+    if(a==='clear'){ x.clearRect(0,0,c.width,c.height); any=false; }
+    else if(a==='cancel') ov.remove();
+    else if(a==='save'){ if(!any) return toast('Draw your signature first.',true); var t=document.createElement('canvas'); t.width=350; t.height=110; t.getContext('2d').drawImage(c,0,0,350,110); ov.remove(); cb(t.toDataURL('image/png')); } });
+}
+function wkSave(k,data){
+  var sp=wkSplit(k), mon=sp[0], room=sp[1], nm=directorName()||'Director', ex=S.wks[k], now=new Date().toISOString(), p;
+  if(ex) p=api('update','Monthly Forms',{recordId:ex.id,fields:{Data:JSON.stringify(data),'Updated By':nm,'Updated At':now}});
+  else p=api('create','Monthly Forms',{fields:{Entry:S.school+' · '+mon+' · WKSIGN · '+room,Month:mon.slice(0,7),Form:'WKSIGN',Employee:mon+' '+room,Data:JSON.stringify(data),'Updated By':nm,'Updated At':now}});
+  return p.then(function(res){ var r=res.records?res.records[0]:res; if(r&&r.id){ S.wks[k]=r; toast(data.sig?'Signed and dated.':'Signature cleared.'); render(); } else toast('Did not save',true); }).catch(function(e){ toast(e.message||'Did not save',true); });
+}
+function wkSign(k){
+  var nm=directorName(); if(!nm) return;
+  wkPad(function(url){ wkSave(k,{sig:url,date:todayUS(),by:nm,at:new Date().toISOString()}); });
+}
+function wkDate(k){
+  var d=wkData.apply(null,wkSplit(k)); if(!d) return toast('Sign first, then the date can be changed.',true);
+  var v=prompt('Date signed (mm/dd/yyyy):',d.date||todayUS()); if(v===null) return; v=v.trim(); var m=v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); if(!m) return toast('Enter the date like 11/02/2026',true);
+  d.date=('0'+m[1]).slice(-2)+'/'+('0'+m[2]).slice(-2)+'/'+m[3]; d.by=directorName()||d.by; wkSave(k,d);
+}
+function wkClear(k){
+  if(!wkData.apply(null,wkSplit(k))) return;
+  if(!confirm('Clear this signature and date? The report will show as NOT signed until it is signed again.')) return;
+  wkSave(k,{});
+}
+function wkBar(room,mon){
+  var k=wkKey(mon,room), d=wkData(mon,room), ended=wkEnded(mon), loaded=S.wksLoaded[mon.slice(0,7)]===true;
+  if(!loaded) return '<div class="wkbar">Checking sign-off&hellip;</div>';
+  if(d) return '<div class="wkbar ok">&#10003; <b>Signed &amp; dated</b> &mdash; '+esc(d.by||'')+' &middot; '+esc(d.date||'')+' <button class="btn sec sm" data-wk="sign" data-k="'+esc(k)+'">Sign again</button><button class="btn sec sm" data-wk="date" data-k="'+esc(k)+'">Change date</button><button class="btn sec sm" data-wk="clear" data-k="'+esc(k)+'">Clear signature</button></div>';
+  return '<div class="wkbar '+(ended?'bad':'')+'">'+(ended?'<b style="color:#c62828">&#9679; Not signed yet.</b> A director or staff member must sign and date this report.':'This week is not over yet. Sign it once the week ends (it becomes required after Friday).')+' <button class="btn grn sm" data-wk="sign" data-k="'+esc(k)+'">&#9998; Sign &amp; date</button></div>';
+}
+document.addEventListener('click',function(e){
+  var s=e.target.closest&&e.target.closest('.rpscroll .wsig'); if(s){ wkSign(s.getAttribute('data-wsig')); return; }
+  var dd=e.target.closest&&e.target.closest('.rpscroll .wdt'); if(dd){ wkDate(dd.getAttribute('data-wdt')); return; }
+  var b=e.target.closest&&e.target.closest('[data-wk]'); if(b){ var a=b.getAttribute('data-wk'), k=b.getAttribute('data-k'); if(a==='sign') wkSign(k); else if(a==='date') wkDate(k); else if(a==='clear') wkClear(k); return; }
+  var r=e.target.closest&&e.target.closest('[data-wkroom]'); if(r){ S.rep.room=r.getAttribute('data-wkroom'); render(); }
+});
+/* hook into the existing screens */
+var _ed=ensureData; ensureData=function(){ var p=_ed(); wkEnsure(S.date.slice(0,7)); wkEnsure(todayNY().slice(0,7)); return p; };
+var _lp=loadPacket; loadPacket=function(){ var p=_lp(); wkEnsure(S.pk.month); return p; };
+var _ps=pkStatus; pkStatus=function(){ var s=_ps(), w=wkMonth(S.pk.month); s.WEEKSIGN=w.ready?{ok:!w.open.length,why:w.open.length+' weekly attendance & meal count report(s) not signed & dated',first:w.open[0]}:{ok:false,why:'Still checking the weekly report sign-offs'}; return s; };
+var _ml=missingList; missingList=function(from,to){ var out=_ml(from,to); try{ wkOpenInRange(from,to).forEach(function(x){ out.push({kind:'wk',mon:x.mon,room:x.room}); }); }catch(e){} return out; };
 
 /* ---------- Monthly Terminations (packet tab) ---------- */
 function fmtUS(s){ if(!s) return ''; var p=s.split('-'); return p.length===3?(+p[1])+'/'+(+p[2])+'/'+p[0]:s; }
