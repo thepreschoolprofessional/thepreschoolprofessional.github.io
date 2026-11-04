@@ -290,7 +290,7 @@ function loadPacket(){
   }).catch(function(e){ toast(e.message,true); }).then(function(){ S.busy--; render(); });
 }
 function pkData(form,emp){ var r=S.pk.recs[pkKey(form,emp)]; if(!r) return null; try{ return JSON.parse(r.fields.Data||'{}'); }catch(e){ return null; } }
-var PFORMS=[['SITEINFO','Site Information'],['CHECKLIST','Provider Check List'],['ENTRANCES','Entrances / Terminations'],['PAR','Personnel Activity (PAR)'],['INFANTFEED','Infant Feeding'],['MEDICAL','Medical Statement'],['DIETARY','Dietary Preference'],['EXPEND','Expenditure Worksheet'],['LABOR','Labor Summary'],['REVIEW','Review & Submit']];
+var PFORMS=[['SITEINFO','Site Information'],['CHECKLIST','Provider Check List'],['ENTRANCES','Entrances'],['TERMS','Terminations'],['PAR','Personnel Activity (PAR)'],['INFANTFEED','Infant Feeding'],['MEDICAL','Medical Statement'],['DIETARY','Dietary Preference'],['EXPEND','Expenditure Worksheet'],['LABOR','Labor Summary'],['REVIEW','Review & Submit']];
 var KF={
  INFANTFEED:{title:'Infant Feeding Form',fields:[['dob','Date of birth',1],['parent','Parent / guardian',1],['feed','Feeding type (breast milk / iron-fortified formula)',1],['brand','Formula brand & type (if formula)',0],['amt','Amount per feeding (oz)',1],['freq','How often (hours)',1],['solids','Solid foods already introduced (grains, fruits, vegetables, meats)',0],['allergy','Allergies / foods to avoid',0],['pdate','Parent signature date (sign on printed copy)',0]]},
  MEDICAL:{title:'Medical Statement for Special Dietary Needs',fields:[['dob','Date of birth',1],['parent','Parent / guardian',1],['diag','Disability or medical condition requiring a special diet',1],['avoid','Foods to omit / avoid',1],['sub','Foods or substitutions to serve',1],['phys','Licensed physician / medical authority name',1],['physph','Physician phone',0],['sdate','Date signed by physician',1]]},
@@ -312,7 +312,7 @@ function packView(){
   PFORMS.forEach(function(f){ var s=st[f[0]]; var mark=s==null?'':(s.ok?' &#10003;':' <span class="red">&#9679;</span>'); h+='<button class="tab'+(pk.form===f[0]?' on':'')+'" data-pf="form" data-v="'+f[0]+'">'+f[1]+mark+'</button>'; });
   h+='</div></div>';
   var body;
-  if(pk.form==='CHECKLIST') body=chkOv(); else if(pk.form==='ENTRANCES') body=entOv(); else if(pk.form==='PAR') body=parOv(); else if(pk.form==='SITEINFO') body=siteOv(); else if(KF[pk.form]) body=kidOv(pk.form); else if(pk.form==='EXPEND') body=expOv(); else if(pk.form==='LABOR') body=labOv(); else body=reviewForm(st);
+  if(pk.form==='CHECKLIST') body=chkOv(); else if(pk.form==='ENTRANCES') body=entOv(); else if(pk.form==='TERMS') body=termForm(); else if(pk.form==='PAR') body=parOv(); else if(pk.form==='SITEINFO') body=siteOv(); else if(KF[pk.form]) body=kidOv(pk.form); else if(pk.form==='EXPEND') body=expOv(); else if(pk.form==='LABOR') body=labOv(); else body=reviewForm(st);
   if(pk.form==='REVIEW') return h+'<div class="card" id="paper">'+body+'</div>';
   h+='<div class="card paper'+(/^(SITEINFO|CHECKLIST|ENTRANCES|MEDICAL|DIETARY|INFANTFEED|PAR|LABOR|EXPEND)$/.test(pk.form)?' ovwrap '+(pk.form==='EXPEND'?'land':'port'):'')+'" id="paper">'+body+'</div>';
   h+='<div class="mrow noprint"><button class="btn sec" data-pf="print">Print / Save PDF</button>'+'<button class="btn grn" data-pf="save">Save now</button>'+'</div>';
@@ -508,6 +508,7 @@ function pkStatus(){
   var si=pkData('SITEINFO'); var SREQ=window.OVSPEC.SITEINFO.req, sdf=SD[S.school]||{}; s.SITEINFO={ok:!!si&&SREQ.every(function(k){ var v=si[k]; return String((v==null||v==='')?(sdf[k]||''):v).trim(); }), why:'Site Information still has yellow boxes'};
   var ck=pkData('CHECKLIST'); var need=[0,2,4,5,6,7]; s.CHECKLIST={ok:!!ck&&need.every(function(i){return ck.c&&ck.c[i];}), why:'Check list items still unchecked'};
   var en=pkData('ENTRANCES'); s.ENTRANCES={ok:!!en&&((en.rows&&en.rows.length)||en.none), why:'Entrances not reviewed (add rows or tick "none this month")'};
+  var tm=pkData('TERMS'); s.TERMS={ok:!!tm&&((tm.rows&&tm.rows.length)||tm.none), why:'Terminations not reviewed (add rows or tick "none this month")'};
   s.PAR={ok:any('PAR').length>0, why:'No Personnel Activity Report saved'};
   var pf=pkData('PARENTFORMS')||{items:[]}; var openPF=(pf.items||[]).filter(function(i){return !i.done;});
   s.INFANTFEED={ok:true}; s.MEDICAL={ok:true}; s.DIETARY={ok:true};
@@ -518,7 +519,7 @@ function pkStatus(){
 }
 function reviewForm(st){
   var lk=isLocked(), ws=pkData('WORKSHEETS')||{};
-  var rows=[['SITEINFO','Site Information'],['CHECKLIST','Monthly Provider Check List'],['ENTRANCES','Monthly Entrances / Terminations'],['PAR','Personnel Activity Reports'],['PARENTSIGN','Parent-signed forms'],['RECEIPTS','Receipts'],['EXPEND','Program Expenditures Worksheet'],['LABOR','Labor Summary Worksheet']];
+  var rows=[['SITEINFO','Site Information'],['CHECKLIST','Monthly Provider Check List'],['ENTRANCES','Monthly Entrances'],['TERMS','Monthly Terminations'],['PAR','Personnel Activity Reports'],['PARENTSIGN','Parent-signed forms'],['RECEIPTS','Receipts'],['EXPEND','Program Expenditures Worksheet'],['LABOR','Labor Summary Worksheet']];
   var h='<div class="ct">Review &amp; Submit &mdash; '+mLabel(S.pk.month)+'</div><div class="sub">Green means ready. Red means the sponsor will be missing something.</div>';
   var miss=[];
   rows.forEach(function(r){ var s=st[r[0]]; if(!s.ok) miss.push(s.why); h+='<div class="line '+(s.ok?'ok':'bad')+'">'+(s.ok?'&#10003; ':'&#9679; ')+r[1]+(s.ok?'':' &mdash; '+esc(s.why))+(PFORMS.some(function(f){return f[0]===r[0];})?' <button class="btn sec sm" data-pf="form" data-v="'+r[0]+'">open</button>':'')+'</div>'; });
@@ -550,6 +551,7 @@ function collect(form){
   var pk=S.pk, data={}, emp='';
   if(form==='CHECKLIST'){ data={c:[].map.call(document.querySelectorAll('.pc'),function(x){return x.checked;}),other:[].map.call(document.querySelectorAll('.po'),function(x){return x.value;}),sug:[].map.call(document.querySelectorAll('.ps'),function(x){return x.value;})}; }
   else if(form==='ENTRANCES'){ var n=document.querySelectorAll('.en'), dd=document.querySelectorAll('.ed'), rows=[]; for(var i=0;i<n.length;i++) if(n[i].value.trim()||dd[i].value.trim()) rows.push({n:n[i].value.trim(),d:dd[i].value.trim()}); var nn=$('entNone'); data={rows:rows,none:!!(nn&&nn.checked)}; }
+  else if(form==='TERMS'){ data=termCollect(); }
   else if(form==='PAR'){ emp=pk.emp; var days={}; document.querySelectorAll('.pv').forEach(function(x){ if(x.value.trim()){ var k=x.getAttribute('data-d'); (days[k]=days[k]||{})[x.getAttribute('data-k')]=x.value.trim(); } }); var sp={}; document.querySelectorAll('.spi').forEach(function(x){ if(x.value.trim()) sp[x.getAttribute('data-sp')]=x.value.trim(); }); data={auth:'',title:($('pTitle')||{value:''}).value.trim(),days:days,sp:sp}; }
   else if(form==='SITEINFO'||KF[form]){ if(KF[form]) emp=pk.kid||''; document.querySelectorAll('#paper [data-f]').forEach(function(x){ data[x.getAttribute('data-f')]=x.type==='checkbox'?(x.checked?'1':''):x.value.trim(); }); if(KF[form]&&!emp) return null; }
   else if(form==='EXPEND'||form==='LABOR'){ var per=form==='EXPEND'?7:1, all=[].map.call(document.querySelectorAll('#paper input.ws'),function(x){return x.value.trim();}), rows=[]; for(var q=0;q<all.length;q+=per) rows.push(all.slice(q,q+per)); data={rows:rows}; var sgl=document.querySelector('#paper [data-f=sig]'); if(sgl&&form==='LABOR') data.sig=sgl.value; }
@@ -686,7 +688,7 @@ function formsView(){
   var d=pkData('PARENTFORMS')||{items:[]}, items=d.items||[];
   var h='<div class="card"><div class="ct">Forms to print</div><div class="sub">Everything for the month-end Food Program packet in one place. Prefilled forms open as PDFs: type in any blank (SNAP / case number, income, address, phone), print, and have the parent sign.</div>';
   h+='<div class="bar"><button class="btn sec sm" data-pf="prev">&lsaquo;</button><b>'+mLabel(pk.month)+'</b><button class="btn sec sm" data-pf="next">&rsaquo;</button></div></div>';
-  var mf=[['CHECKLIST','Monthly Provider Check List'],['ENTRANCES','Monthly Entrances'],['PAR','Personnel Activity Report']];
+  var mf=[['CHECKLIST','Monthly Provider Check List'],['ENTRANCES','Monthly Entrances'],['TERMS','Monthly Terminations'],['PAR','Personnel Activity Report']];
   h+='<div class="card"><div class="ct">Month-end forms (filled in for you)</div>';
   mf.forEach(function(f){ var saved=Object.keys(pk.recs).some(function(k){return k.split('|')[1]===f[0];}); h+='<div class="line '+(saved?'ok':'bad')+'">'+(saved?'&#10003; ':'&#9679; ')+f[1]+' <button class="btn sec sm" data-goto="'+f[0]+'">open &amp; print</button></div>'; });
   h+='</div>';
@@ -734,5 +736,178 @@ document.addEventListener('click',function(e){
 
 /* ---------- boot ---------- */
 api('whoami').then(function(w){ S.school=w.school; try{var q=new URLSearchParams(location.search);if(q.get('date')&&/^\d{4}-\d{2}-\d{2}$/.test(q.get('date')))S.date=q.get('date');if(q.get('tab'))S.tab=q.get('tab');}catch(e){} render(); return ensureData(); }).then(function(){ try{var c=new URLSearchParams(location.search).get('cell');if(c){var p=c.split('|');if(FORMS[p[0]])openCell(p[0],p[1],p[2]);}}catch(e){} }).catch(function(e){ document.getElementById('app').innerHTML='<div class="card"><b>'+esc(e.message)+'</b><br><a class="btn" href="index.html">Back to sign in</a></div>'; });
+/* ===== add-on 11/4/26: weekly attendance & meal count reports + monthly terminations ===== */
+/* DCF Binder add-on (11/4/26): Weekly Attendance & Meal Count Reports per classroom + Monthly Terminations form.
+   Loaded after dcf.js. Uses dcf.js globals (S, api, esc, addDays, monday, MONTHS, HDR, pkData ...). */
+(function(){
+var LOGO='data:image/png;base64,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';
+var REPH={'DeLand 2':{name:'Kid City USA Deland 2 Inc (573)',phone:'(386) 279-7553',sponsor:'Child Care of Southwest Florida (U-2677)',sphone:'(239) 936-0899'},
+          'Sanford':{name:'Kid City USA Sanford',phone:'(407) 942-3242',sponsor:'Community Coordinated Child Care (4C)',sphone:'(407) 522-2252'}};
+var ROWS=22;
+S.rep={rooms:null,kids:null,room:'',loading:false};
+var css=document.createElement('style');
+css.textContent='\
+.rpbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:8px 0}\
+.rpbar .b{font-weight:700}\
+.rpscroll{overflow-x:auto;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px;margin-top:8px}\
+.rp{position:relative;width:1060px;margin:0 auto;font:11px Arial,Helvetica,sans-serif;color:#000;background:#fff;padding:6px 10px 4px 30px}.rp td.age{overflow:visible}\
+.rp .hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;min-height:58px}\
+.rp .hl{width:32%;font-size:10px}.rp .hl b{font:700 17px Georgia,serif;display:block;margin-top:6px}.rp .hl i{font:12px Georgia,serif;font-style:normal;display:block;margin-left:60px}\
+.rp .hc{width:36%;text-align:center}.rp .hc b{font:700 19px Georgia,serif;text-decoration:underline}.rp .hc div{font-size:14px;margin-top:2px}\
+.rp .hr{width:32%;text-align:right}.rp .hr b{font:700 14px Georgia,serif}.rp .hr i{font:12px Georgia,serif;font-style:normal;display:block}\
+.rp table{border-collapse:collapse;width:100%;table-layout:fixed;border:2px solid #000}\
+.rp td,.rp th{border:1px solid #000;padding:0;text-align:center;font-weight:400;overflow:hidden;white-space:nowrap}\
+.rp .dg{border-left:2px solid #000}\
+.rp th.dayh{font:13px Georgia,serif;line-height:1.25;height:38px}\
+.rp th.dayh small{display:block;font-size:12px}\
+.rp .cl{text-align:left;font:13px Georgia,serif;padding:0 4px;height:38px;vertical-align:bottom}\
+.rp .sh th{font:11px Georgia,serif;height:19px}\
+.rp tr.kid td{height:19px;font-size:11px}.rp td.nm{text-align:left;padding-left:3px;font:12px Georgia,serif}.rp td.age{font-size:10px;text-align:left;padding-left:2px}.rp td.nbr{font:12px Georgia,serif}\
+.rp td.rn{border:0;border-right:1px solid #000;font-size:10px;text-align:right;padding-right:2px;background:#fff;width:20px}\
+.rp td.x{font-weight:700;font-size:12px}.rp td.dsh{font-size:10px}\
+.rp .lab{text-align:left;font:12px Georgia,serif;padding:0 4px}.rp .labr{text-align:right;font:13px Georgia,serif;padding-right:8px}\
+.rp tr.tot td{height:24px;font-weight:700;font-size:11px}\
+.rp .sq{position:absolute;width:22px;height:22px;background:#222}\
+.rp .ft{display:flex;gap:12px;align-items:flex-end;margin-top:6px;font:11px Georgia,serif}\
+.rp .ft .id{font:700 18px Georgia,serif;line-height:1.1;width:130px}\
+.rp .ft .cert{flex:1;font-size:10.5px;line-height:1.3}\
+.rp .ft .sg{width:390px;white-space:nowrap;text-align:right;font:700 13px Georgia,serif}\
+.rp .ft .sg span{display:inline-block;border-bottom:1px solid #000;width:150px;margin-left:4px}\
+.rp .pg{position:absolute;right:14px;bottom:62px;font:11px Arial}\
+#repprint{display:none}\
+.tf{max-width:760px;margin:0 auto;font-family:Georgia,"Times New Roman",serif;color:#000}\
+.tf .lh2{font:600 14px Arial,sans-serif;text-align:center;line-height:1.35;margin-bottom:12px}\
+.tf .row1{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:2px}.tf .row1 img{height:70px}\
+.tf .mo{font-size:19px}.tf .mo input{border:0;border-bottom:1px solid #000;font:19px Georgia,serif;width:230px;background:transparent}\
+.tf h2.tt{text-align:center;font:400 21px Georgia,serif;margin:0 0 -2px 70px}\
+.tf table{border-collapse:collapse;width:100%;border:1px solid #000}.tf th{font:400 20px Georgia,serif;border:1px solid #000;padding:2px}\
+.tf td{border:1px solid #000;padding:0;height:29px}.tf td input{width:100%;height:100%;border:0;background:transparent;font:15px Georgia,serif;padding:0 6px}\
+.tf .upd{font:13px Calibri,Arial,sans-serif;margin-top:34px}\
+@media print{body.repmode #app,body.repmode .toast{display:none!important}body.repmode{background:#fff}body.repmode #repprint{display:block}#repprint .rp{width:100%;max-width:none;page-break-after:always;break-after:page}#repprint .rp:last-child{page-break-after:auto;break-after:auto}.rpscroll{border:0;padding:0}}';
+document.head.appendChild(css);
+var pc=document.createElement('div'); pc.id='repprint'; document.body.appendChild(pc);
+
+/* ---------- helpers ---------- */
+function fmtMD(s,yy){ var p=s.split('-'); return (+p[1])+'/'+(+p[2])+(yy?'/'+p[0].slice(2):''); }
+function fmtFull(s){ var p=s.split('-'); return p[1]+'/'+p[2]+'/'+p[0]; }
+var DN=['MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY'];
+function ageOf(dob,asOf){ if(!dob) return ''; var a=dob.split('-'), b=asOf.split('-'); var m=(+b[0]-+a[0])*12+(+b[1]-+a[1]); if(+b[2]<+a[2]) m--; if(m<0) return ''; return Math.floor(m/12)+'y '+(m%12)+'m'; }
+function nowStamp(){ var d=new Date(), o={timeZone:'America/New_York'}; var dt=d.toLocaleDateString('en-US',Object.assign({year:'numeric',month:'2-digit',day:'2-digit'},o)); var t=d.toLocaleTimeString('en-US',Object.assign({hour:'numeric',minute:'2-digit'},o)).toLowerCase(); var tz=(d.toLocaleTimeString('en-US',Object.assign({timeZoneName:'short'},o)).split(' ').pop()); return dt+'<br>'+t.replace(' ',' ')+' '+tz; }
+function nkey(n){ return String(n||'').trim().toLowerCase(); }
+function loadRep(){
+  if(S.rep.loading||S.rep.rooms) return; S.rep.loading=true;
+  Promise.all([api('list','Rooms'),api('list','Room Children')]).then(function(r){
+    S.rep.rooms=(r[0].records||[]).map(function(x){return x.fields;}).filter(function(f){return f.Room&&f.Active!==false;}).sort(function(a,b){return (a.Order||99)-(b.Order||99);});
+    S.rep.kids=(r[1].records||[]).map(function(x){return x.fields;});
+  }).catch(function(e){ toast(e.message,true); S.rep.rooms=[]; S.rep.kids=[]; }).then(function(){ S.rep.loading=false; render(); });
+}
+function kidsFor(room,mon){
+  var days=[0,1,2,3,4].map(function(i){return addDays(mon,i);}), seen={}, out=[];
+  (S.rep.kids||[]).forEach(function(k){
+    if(k.Room!==room) return;
+    var st=(k.Status&&k.Status.name)||k.Status||''; var wd=k['Withdrawn Date']||'';
+    if(/withdr/i.test(st)&&(!wd||wd<mon)) return;
+    var key=nkey(k.Child); if(!key||seen[key]) return; seen[key]=1; out.push({n:k.Child,dob:k.DOB||''});
+  });
+  S.att.forEach(function(a){ var f=a.fields; if(days.indexOf(f.Date)<0) return; if((f['Home Room']||f['Current Room'])!==room) return; var key=nkey(f.Child); if(!key||seen[key]) return; seen[key]=1; out.push({n:f.Child,dob:''}); });
+  out.sort(function(a,b){return nkey(a.n)<nkey(b.n)?-1:1;});
+  return out;
+}
+function markFor(name,date){
+  var key=nkey(name), r=null; S.att.forEach(function(a){ var f=a.fields; if(f.Date===date&&nkey(f.Child)===key) r=f; });
+  if(!r) return null; return {att:!!(r.Arrival), b:!!r.B, l:!!r.L, p:!!r.P};
+}
+function repPages(room,mon){
+  var kids=kidsFor(room,mon), n=Math.max(1,Math.ceil(kids.length/ROWS)), pages=[];
+  for(var p=0;p<n;p++) pages.push(repPage(room,mon,kids.slice(p*ROWS,(p+1)*ROWS),p+1,n));
+  return pages;
+}
+function repPage(room,mon,kids,pg,np){
+  var H=REPH[S.school]||REPH['Sanford'], days=[0,1,2,3,4].map(function(i){return addDays(mon,i);});
+  var sat=addDays(mon,5), sun=addDays(mon,6);
+  var h='<div class="rp"><div class="sq" style="left:10px;top:92px"></div><div class="sq" style="right:10px;top:104px"></div>';
+  h+='<div class="hd"><div class="hl"><span>'+nowStamp()+'</span><b>'+esc(H.name)+'</b><i>'+esc(H.phone)+'</i></div>';
+  h+='<div class="hc"><b>Weekly Attendance &amp; Meal Count Report</b><div>Week Of: '+fmtMD(mon,1)+'-'+fmtMD(sat,1)+' (Mon '+fmtMD(mon)+'-Sun '+fmtMD(sun)+')</div></div>';
+  h+='<div class="hr"><b>Sponsor: '+esc(H.sponsor)+'</b><i>'+esc(H.sphone)+'</i></div></div>';
+  h+='<table><colgroup><col style="width:5%"><col style="width:4%"><col style="width:20%">'; for(var c=0;c<35;c++) h+='<col>'; h+='</colgroup>';
+  h+='<tr><th colspan="3" class="cl">CLASSROOM #: &nbsp; <span style="font:14px Georgia">'+esc(room)+'</span></th>';
+  days.forEach(function(d,i){ h+='<th colspan="7" class="dayh dg">'+fmtFull(d)+'<small>'+DN[i]+'</small></th>'; }); h+='</tr>';
+  h+='<tr class="sh"><th>AGE</th><th>NBR</th><th>CHILD NAME</th>';
+  days.forEach(function(){ ['Att','B','','L','P','',''].forEach(function(t,j){ h+='<th'+(j===0?' class="dg"':'')+'>'+t+'</th>'; }); }); h+='</tr>';
+  var tot=days.map(function(){return {a:0,b:0,l:0,p:0};});
+  for(var r=0;r<ROWS;r++){
+    var k=kids[r]; h+='<tr class="kid"><td class="age" style="position:relative"><span class="rn" style="position:absolute;left:-22px;top:3px;width:18px;text-align:right;font-size:10px">'+(r+1)+'</span>'+(k?esc(ageOf(k.dob,mon)):'')+'</td><td class="nbr"></td><td class="nm">'+(k?esc(String(k.n).toUpperCase()):'')+'</td>';
+    days.forEach(function(d,i){
+      var m=k?markFor(k.n,d):null; if(m&&m.att){tot[i].a++;} if(m&&m.b)tot[i].b++; if(m&&m.l)tot[i].l++; if(m&&m.p)tot[i].p++;
+      h+='<td class="x dg">'+(m&&m.att?'X':'')+'</td><td class="x">'+(m&&m.b?'X':'')+'</td><td class="dsh">-</td><td class="x">'+(m&&m.l?'X':'')+'</td><td class="x">'+(m&&m.p?'X':'')+'</td><td class="dsh">-</td><td class="dsh">-</td>';
+    });
+    h+='</tr>';
+  }
+  h+='<tr><td colspan="3" class="lab" style="height:24px;border-top:2px solid #000">* Special Diet</td>'; days.forEach(function(){ h+='<td colspan="7" class="dg" style="border-top:2px solid #000"></td>'; }); h+='</tr>';
+  h+='<tr class="tot"><td colspan="3" class="labr">Daily Totals:</td>'; days.forEach(function(d,i){ var t=tot[i], has=kids.length&&(t.a||t.b||t.l||t.p); [t.a,t.b,'',t.l,t.p,'',''].forEach(function(v,j){ h+='<td'+(j===0?' class="dg"':'')+'>'+(v===''?'':(has?v:''))+'</td>'; }); }); h+='</tr>';
+  h+='<tr class="tot"><td colspan="3" class="labr" style="font-weight:400">Total Nbr of Program Staff Meals:</td>'; days.forEach(function(){ for(var j=0;j<7;j++) h+='<td class="dsh'+(j===0?' dg':'')+'" style="font-weight:400">-</td>'; }); h+='</tr></table>';
+  h+='<div class="sq" style="left:10px;bottom:46px"></div><div class="sq" style="right:10px;bottom:46px"></div>';
+  h+='<div class="ft"><div class="id">CXFORMID1008</div><div class="cert">I certify that the information on this form is true and correct to the best of my knowledge and that I will claim reimbursement only for eligible meals served to eligible participants. I understand that misrepresentation may result in prosecution under applicable state or federal statutes. &nbsp; <b>Mark only an &ldquo;X&rdquo; within the lines!</b> &nbsp;This may be read by a machine.</div><div class="sg">Teacher:<span></span> &nbsp; Date:<span style="width:90px"></span></div></div>';
+  h+='<div class="pg">Page '+pg+' of '+np+'</div></div>';
+  return h;
+}
+
+/* ---------- Attendance tab ---------- */
+var oldAtt=attView;
+attView=function(){
+  var base=oldAtt?oldAtt():'';
+  base=base.replace(/<div class="hint">Full rosters[\s\S]*$/,'<div class="hint">Weekly forms are below. Room times and ratios print from the Rooms board.</div><a class="btn sec" href="rooms.html">Open Rooms board</a></div>');
+  if(!S.rep.rooms){ loadRep(); return base+'<div class="card">Loading classrooms&hellip;</div>'; }
+  var mon=monday(S.date), sat=addDays(mon,5);
+  var h='<div class="card"><div class="ct">Weekly Attendance &amp; Meal Count Reports</div><div class="sub">Same form as the KidKare report, one per classroom. Tap a classroom to see it filled in. Print any time.</div>';
+  h+='<div class="rpbar"><button class="btn sec sm" data-rep="prev">&lsaquo;</button><span class="b">Week of '+fmtMD(mon,1)+' &ndash; '+fmtMD(addDays(mon,4),1)+'</span><button class="btn sec sm" data-rep="next">&rsaquo;</button><button class="btn sec sm" data-rep="thisweek">This week</button></div><div class="rpbar">';
+  S.rep.rooms.forEach(function(r){ h+='<button class="btn'+(S.rep.room===r.Room?'':' sec')+'" data-rep="room" data-v="'+esc(r.Room)+'">'+esc(r.Room)+'</button>'; });
+  h+='</div><div class="rpbar"><button class="btn grn sm" data-rep="print"'+(S.rep.room?'':' disabled')+'>Print this classroom</button><button class="btn sec sm" data-rep="printall">Print all classrooms</button></div></div>';
+  if(S.rep.room){ var pgs=repPages(S.rep.room,mon); h+='<div class="rpscroll" id="reppage">'+pgs.join('<div style="height:14px"></div>')+'</div>'; }
+  return base+h;
+};
+document.addEventListener('click',function(e){
+  var el=e.target.closest&&e.target.closest('[data-rep]'); if(!el) return; var a=el.getAttribute('data-rep');
+  if(a==='prev'||a==='next'){ S.date=addDays(S.date,a==='prev'?-7:7); ensureData(); render(); }
+  else if(a==='thisweek'){ S.date=todayNY(); ensureData(); render(); }
+  else if(a==='room'){ S.rep.room=el.getAttribute('data-v'); render(); }
+  else if(a==='print'||a==='printall'){
+    var mon=monday(S.date), rooms=a==='print'?[S.rep.room]:S.rep.rooms.map(function(r){return r.Room;}), html='';
+    rooms.forEach(function(r){ html+=repPages(r,mon).join(''); });
+    $('repprint').innerHTML=html; doPrint('landscape');
+  }
+});
+function doPrint(orient){
+  var st=document.createElement('style'); st.textContent='@page{size:'+orient+';margin:.25in}'; document.head.appendChild(st);
+  document.body.classList.add('repmode');
+  var done=function(){ document.body.classList.remove('repmode'); st.remove(); $('repprint').innerHTML=''; window.removeEventListener('afterprint',done); };
+  window.addEventListener('afterprint',done); setTimeout(function(){ window.print(); },60);
+}
+window.repDoPrint=doPrint;
+
+/* ---------- Monthly Terminations (packet tab) ---------- */
+function fmtUS(s){ if(!s) return ''; var p=s.split('-'); return p.length===3?(+p[1])+'/'+(+p[2])+'/'+p[0]:s; }
+window.termRows=function(){
+  var pk=S.pk, saved=pkData('TERMS'); if(saved&&saved.rows) return saved.rows;
+  var m=pk.month, out=[];
+  (pk.kids||[]).forEach(function(k){ var f=k.fields, st=(f.Status&&f.Status.name)||f.Status||''; var wd=f['Withdrawn Date']||''; if(/withdr/i.test(st)&&wd.slice(0,7)===m) out.push({n:f.Child,d:fmtUS(wd),s:wd}); });
+  return out.sort(function(a,b){return a.s<b.s?-1:1;}).map(function(r){return {n:r.n,d:r.d};});
+};
+window.termForm=function(){
+  var rows=termRows(), m=S.pk.month, sv0=pkData('TERMS')||{}, H=HDR[S.school]||[];
+  var h='<label class="ck2 noprint"><input type="checkbox" id="termNone" '+(sv0.none?'checked':'')+'> <span>No terminations this month</span></label><div class="tf">';
+  h+='<div class="lh2">'+H.map(esc).join('<br>')+'</div>';
+  h+='<div class="row1">'+(S.school==='DeLand 2'?'<img src="'+LOGO+'" alt="Child Care of Southwest Florida">':'<span></span>')+'<div class="mo">Month: <input value="'+MONTHS[+m.slice(5)-1]+' '+m.slice(0,4)+'" readonly></div></div>';
+  h+='<h2 class="tt">Monthly Terminations</h2><table><tr><th style="width:52%">Childs Name</th><th>Termination Date</th></tr>';
+  for(var i=0;i<26;i++){ var r=rows[i]||{}; h+='<tr><td><input class="tn" value="'+esc(r.n||'')+'"></td><td><input class="td" value="'+esc(r.d||'')+'"></td></tr>'; }
+  h+='</table><div class="upd">Updated 6.18.19</div></div>';
+  return h+(rows.length>26?'<div class="warnbox">More than 26 terminations &mdash; only the first 26 fit on this page. Tell Charles to add a second page.</div>':'')+'<div class="hint noprint">Pre-filled with children withdrawn through the Rooms board this month. Type to fix or add anyone else.</div>';
+};
+window.termCollect=function(){
+  var n=document.querySelectorAll('.tn'), d=document.querySelectorAll('.td'), rows=[]; for(var i=0;i<n.length;i++) if(n[i].value.trim()||d[i].value.trim()) rows.push({n:n[i].value.trim(),d:d[i].value.trim()});
+  var nn=document.getElementById('termNone'); return {rows:rows,none:!!(nn&&nn.checked)};
+};
+})();
+
 window.__dcf={S:S,cellState:cellState,missingList:missingList,drillMissing:drillMissing,parseItems:parseItems};
 })();
