@@ -135,7 +135,7 @@ function render(){
   h+='<div class="bar"><button class="btn sec sm" data-a="prev">&lsaquo;</button><input type="date" id="dt" value="'+S.date+'"><button class="btn sec sm" data-a="next">&rsaquo;</button><button class="btn sec sm" data-a="today">Today</button>'+(S.busy?'<span class="load">loading&hellip;</span>':'')+'</div>';
   var wk=monday(S.date), t=todayNY();
   var mt=missingList(monthStart(t),t).length+(drillMissing(t)?1:0)+(drillMissing(addDays(monthStart(t),-1))?1:0);
-  h+='<div class="tabs">'+TABS.filter(function(x){ return FROMREP || !(x.id==='food'||x.id==='pack'||S.tab===x.id); }).map(function(x){ return '<button class="tab'+(S.tab===x.id?' on':'')+'" data-tab="'+x.id+'">'+x.label+(x.id==='miss'&&mt?' <span class="red">'+mt+'</span>':'')+'</button>'; }).join('')+'</div>';
+  h+='<div class="tabs">'+TABS.filter(function(x){ return FROMREP || S.tab===x.id || !(x.id==='food'||x.id==='pack'); }).map(function(x){ return '<button class="tab'+(S.tab===x.id?' on':'')+'" data-tab="'+x.id+'">'+x.label+(x.id==='miss'&&mt?' <span class="red">'+mt+'</span>':'')+'</button>'; }).join('')+'</div>';
   h+='<div class="body">'+body()+'</div><div id="toast" class="toast"></div><div id="modal"></div>';
   $('app').innerHTML=h;
   $('prt').onclick=function(){ window.print(); };
@@ -186,6 +186,7 @@ function missingView(){
     var pmIso=addDays(monthStart(t),-1); if(p[0]==='This month'&&drillMissing(pmIso)) h+='<button class="line bad" data-tab="drill" data-d="'+pmIso+'">&#9679; No fire/emergency drill logged for LAST month ('+d2(pmIso).toLocaleDateString('en-US',{month:'long'})+') &rsaquo;</button>';
     list.forEach(function(m){
       if(m.kind==='form') h+='<button class="line bad" data-cell="'+m.form+'|'+m.date+'|'+esc(m.room)+'">&#9679; '+nice(m.date)+' &middot; '+esc(FORMS[m.form].label)+(m.room==='(building)'?'':' &middot; '+esc(m.room))+' &rsaquo;</button>';
+      else if(m.kind==='of') h+='<button class="line bad" data-tab="ofc" data-d="'+m.mon+'">&#9679; Week of '+nice(m.mon)+' &middot; '+esc(m.room)+' &middot; official '+(m.form==='ind'?'indoor':'playground')+' inspection needs the director signature &rsaquo;</button>';
       else if(m.kind==='wk') h+='<button class="line bad" data-tab="att" data-d="'+m.mon+'" data-wkroom="'+esc(m.room)+'">&#9679; Week of '+nice(m.mon)+' &middot; '+esc(m.room)+' &middot; attendance &amp; meal count report not signed &rsaquo;</button>';
       else if(m.kind==='att') h+='<button class="line bad" data-tab="att" data-d="'+m.date+'">&#9679; '+nice(m.date)+' &middot; no attendance recorded &rsaquo;</button>';
       else h+='<button class="line bad" data-tab="food" data-d="'+m.date+'">&#9679; '+nice(m.date)+' &middot; no meal counts recorded &rsaquo;</button>';
@@ -1027,6 +1028,212 @@ window.termCollect=function(){
   var n=document.querySelectorAll('.tn'), d=document.querySelectorAll('.td'), rows=[]; for(var i=0;i<n.length;i++) if(n[i].value.trim()||d[i].value.trim()) rows.push({n:n[i].value.trim(),d:d[i].value.trim()});
   var nn=document.getElementById('termNone'); return {rows:rows,none:!!(nn&&nn.checked)};
 };
+})();
+
+/* ===== add-on 11/4/26: OFFICIAL FORMS tab - the real Kid City / Bee System paper forms, filled in from the portal records ===== */
+(function(){
+var OF={form:'bee',room:null,trip:0,signs:{},loaded:{},cache:{},tok:0,blank:null,libs:null,last:null};
+var BEE_ROWS=[88.6,106.3,119.1,131.9,144.6,157.5,170.3,195.4,208.2,221.1,233.9,246.8,271.8,284.7,297.5,310.3,323.1,335.9,348.8,361.6,374.3,390.2,405.9,421.6,437.4,453.2,468.9,484.7,500.4,516.2,531.9,547.7,563.5];
+var BEE_COLS=[289.3,307.3,323.4,345.9,363.5,380.4,402.2,419.8,442.3,460.0,477.0,498.7,516.4,539.0,556.7,573.7,595.4,613.2,635.7,653.5,670.3,692.1,709.9,732.5,750.2,767.1];
+var BEE_ITEM_ROWS={"wipe door knobs":4,"clean cubbies":5,"sanitize cots cribs tables high chairs":6,"sanitize bottles cups":7,"sanitize toys":8,"clean sinks":9,"clean refrigerator":10,"clean bathroom changing table diaper can":11,"mop":12,"take garbage out sanitize trash can":13,"deep clean language center":15,"deep clean writing center":16,"deep clean math center":18,"deep clean music center":19,"deep clean dramatic play":21,"deep clean art center":22,"deep clean cars blocks center":24,"deep clean lego table":25,"deep clean discovery center":27,"wash trash cans":28};
+var BATH_ROWS=[203.6,219.4,235.5,251.6,267.6,283.8,299.9,316.0,332.1,348.2];
+var BATH_DAY_X=[183,207,227,254,278,300,323,344,371,395,416,440,461,488,512,533,557,578,605,629,650,674,695,722,746];
+var BATH_ITEM_ROWS={"8 00 am cleaning":3,"10 00 am cleaning":4,"12 00 pm cleaning":5,"2 00 pm cleaning":6,"4 00 pm cleaning":7,"6 00 pm cleaning":8};
+var IND_ROWS=[65.0,84.6,98.3,112.1,125.7,139.5,153.1,180.0,206.9,220.6,247.5,274.4,301.2,328.1,341.8,355.5,369.2,396.0,409.7,423.4,450.3,477.2,517.3,544.1,571.0,584.9,611.7,638.6,665.5,679.2,706.1,732.9];
+var IND_DAY_COLS=[[320.2,358.9],[369.7,408.8],[419.6,472.8],[483.6,528.2],[539.0,570.5]];
+var IND_ITEMS=["all entrances exits are kept clear of clutter","hallways and tops of walls are kept clean and clutter free","bathrooms are clean and well stocked with toilet paper soap and paper towels","staff purses and personal items are locked out of reach of children","cell phones are not in classroom","hands are washed by staff and children upon arrival to classroom","each child has brief health check by classroom teacher includes parent caregiver communication","all hygiene supplies are available soap paper towels toilet paper lined garbage can warm water","all areas are clean and clutter free garbage emptied floors swept toys and workspace bathroom clean","all chemicals are locked out of reach of children","air fresheners are not used","all electrical outlets are covered","furniture and equipment is in good repair check for broken toys accessories wrinkled disrepair rugs carpet","heavy toys items are stored on lowest shelf","window cords are adjusted to prevent strangulation","children s personal nap items are kept separated use of cubbies bags or storage containers","tables and chairs are not stacked while children are present","diapering supplies are gathered and within reach before beginning including a lined and covered foot operated garbage can","changing table is clean and free of any obstructions only changing pad","first aid kit is available in each room appropriately stocked","bottles sippy cups are labeled with first and last name","infants always placed on their back to sleep in cribs pack n plays","infant room all bottles have full name date and refrigerated immediately","cribs are free of soft bedding bumper pads pillows and stuffed toys","cribs have tight fitting mattress and a secure fitted sheet","highchairs are in good repair and cleaned and sanitized before after use","safety restraints are used on infant seats swings strollers and highchairs"];
+var PLAY_ROWS=[102.9,119.9,124.3,130.9,158.1,192.1,245.3,272.2,287.2,302.1,329.0,343.8,370.7,385.6,412.5,439.4,454.3,481.2,496.0,522.9,549.8,564.7,579.6,594.5,609.3,624.3,639.2];
+var PLAY_DAY_COLS=[[287.0,345.3],[345.3,404.1],[404.1,463.7],[463.7,522.4],[522.4,569.5]];
+var PLAY_ITEMS=["surfacing is free from broken glass nails trash and animal excrement","there are no visible cracks bending or warping rusting or breakage of any equipment","toys are clean and in good repair","there are no worn swing hangers or chains","there are no missing damaged or loose swing seats","there are no broken supports or anchors","there are no cement support footings that are exposed cracked or loose in the ground","there are no accessible sharp edges or points","there are no protruding bolt ends that have lost caps or covers","there are no loose bolts nuts and so forth that require tightening","there are no nails that have become loose","there are no splintered cracked or otherwise deteriorating wood","there is no chipped or peeling paint","trees shade covering maintained and in good repair","play areas free of foreign objects that may injure children","no unsafe equipment","ground cover adequate in play areas","ground free from debris litter rusted equipment","area free of any insect nest or infestation","equipment age appropriate and accessible"];
+var EOD_ROWS=[194.9,210.4,225.9,241.5,257.0,272.5,287.9,303.4,318.9,334.4,349.8,365.3,380.9,396.4,411.9,427.4,442.9,458.3,473.8,489.3,504.8,520.4,535.9,551.4,566.8,582.3,597.8,613.3,634.5,650.0,665.5,681.0,696.4];
+var EOD_COLS=[36.3,86.4,288.9,437.4,575.8];
+var TL_COL_X0=[144.0,243.1,342.1,441.1,540.1,639.1], TL_IN_DX=18, TL_OUT_DX=54, TL_DATE_TOP=158, TL_DEPLOC_TOP=182, TL_DEST_TOP=205, TL_DEPTIME_TOP=220, TL_ARRTIME_TOP=232;
+var TL_ROWS=[250.5,264.6,281.6,295.5,309.7,326.6,340.7,357.7,374.6,388.6,405.6,424.9,441.8,460.7,477.5,494.3], TL_NAME_X=40, TL_DRIVER_TOP=533, TL_SECOND_TOP=560;
+var OFS={
+ bee:{label:'Bee Clean Chart',page:0,fk:'cls',per:'room',span:'month',sign:false},
+ bath:{label:'Bathroom Cleaning Log',page:1,fk:'bath',per:'room',span:'month',sign:false},
+ ind:{label:'Daily Indoor Inspection',page:2,fk:'ind',per:'room',span:'week',sign:true},
+ out:{label:'Daily Playground Inspection',page:3,fk:'out',per:'one',span:'week',sign:true},
+ eod:{label:'End of Day Building Sweep',page:4,fk:'eod',per:'one',span:'month',sign:false},
+ trans:{label:'Transportation Log',page:5,per:'trip',span:'week',sign:false}
+};
+function mid(a,b){return (a+b)/2;}
+function norm(s){ s=String(s||'').toLowerCase().replace(/[’']/g,' ').replace(/[^a-z0-9]+/g,' ').trim(); return s.replace(/\s+/g,' '); }
+function bestMatch(label,cands){ var n=norm(label); if(cands.indexOf(n)>=0) return n; var head=n.split(' ').slice(0,5).join(' '); for(var i=0;i<cands.length;i++){ var c=cands[i]; if(c.indexOf(head)===0 || n.indexOf(c.split(' ').slice(0,5).join(' '))===0) return c; } return null; }
+function clean(s){ return String(s||'').replace(/[^\x20-\x7E -ÿ–—’‘“”·]/g,'').replace(/\s{2,}/g,' ').trim(); }
+function items(text){ var out=[]; String(text||'').split(/\r?\n/).forEach(function(l){ l=l.trim(); if(!l) return; var flag=/^(⚠|❌|🚨)/.test(l); out.push([l.replace(/^[^\w]+/,''),flag?'flag':'ok']); }); return out; }
+function wdi(s){ return (d2(s).getDay()+6)%7; }
+function blockOf(d,ms){ var fm=addDays(ms,-wdi(ms)), m=addDays(d,-wdi(d)); return Math.round((d2(m)-d2(fm))/604800000); }
+function subsOf(fk,room,from,to){ var out=[]; for(var id in S.subs){ var x=S.subs[id].fields; if(x.Date<from||x.Date>to) continue; if(sv(x['Form Type'])!==FORMS[fk].type) continue; if(room && FORMS[fk].per==='room' && sv(x['Room / Classroom'])!==room) continue; out.push(S.subs[id]); } return out; }
+function fmtUS(s){ var p=s.split('-'); return p[1]+'/'+p[2]+'/'+p[0]; }
+function loadLibs(){
+  if(OF.libs) return OF.libs;
+  function sc(src){ return new Promise(function(res,rej){ var s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=function(){ rej(new Error('Could not load '+src)); }; document.head.appendChild(s); }); }
+  OF.libs=(window.PDFLib&&window.pdfjsLib?Promise.resolve():sc('pdf-lib.min.js?v=117').then(function(){ return sc('pdfjs.min.js?v=3111'); })).then(function(){ pdfjsLib.GlobalWorkerOptions.workerSrc='pdfjs.worker.min.js?v=3111'; });
+  return OF.libs;
+}
+function loadBlank(){ if(OF.blank) return Promise.resolve(OF.blank); return fetch('files/facility-forms-blank.pdf?v=1').then(function(r){ if(!r.ok) throw new Error('Blank forms file not found'); return r.arrayBuffer(); }).then(function(b){ OF.blank=b; return b; }); }
+
+/* ---- signatures (weekly sign-off on Indoor + Playground inspections; Director's line on the paper form) ---- */
+function sgKey(form,mon,room){ return mon+' '+form+' '+room; }
+function sgData(form,mon,room){ var r=OF.signs[sgKey(form,mon,room)]; if(!r) return null; try{ var d=JSON.parse(r.fields.Data||'{}'); return d&&d.sig?d:null; }catch(e){ return null; } }
+function sgLoad(m){
+  if(OF.loaded[m]) return Promise.resolve(); OF.loaded[m]='loading';
+  return api('list','Monthly Forms',{month:m}).then(function(res){ (res.records||[]).forEach(function(x){ if(x.fields.Form!=='OFSIGN') return; var e=String(x.fields.Employee||''), a=e.indexOf(' '), b=e.indexOf(' ',a+1); if(a<0||b<0) return; OF.signs[sgKey(e.slice(a+1,b),e.slice(0,a),e.slice(b+1))]=x; }); OF.loaded[m]=true; render(); }).catch(function(e){ OF.loaded[m]=false; });
+}
+function sgEnsure(){ var mon=monday(S.date); sgLoad(S.date.slice(0,7)); sgLoad(mon.slice(0,7)); }
+function sgSave(form,mon,room,data){
+  var k=sgKey(form,mon,room), ex=OF.signs[k], nm=directorName()||'Director', now=new Date().toISOString(), p;
+  if(ex) p=api('update','Monthly Forms',{recordId:ex.id,fields:{Data:JSON.stringify(data),'Updated By':nm,'Updated At':now}});
+  else p=api('create','Monthly Forms',{fields:{Entry:S.school+' · '+mon+' · OFSIGN · '+form+' '+room,Month:mon.slice(0,7),Form:'OFSIGN',Employee:k,Data:JSON.stringify(data),'Updated By':nm,'Updated At':now}});
+  return p.then(function(res){ var r=res.records?res.records[0]:res; if(r&&r.id){ OF.signs[k]=r; toast(data.sig?'Signed and dated.':'Signature cleared.'); render(); } else toast('Did not save',true); }).catch(function(e){ toast(e.message||'Did not save',true); });
+}
+function sgPad(cb){
+  var ov=document.createElement('div'); ov.className='padov'; ov.innerHTML='<div class="padbox"><div class="ct">Sign the official form</div><canvas width="700" height="220"></canvas><div class="mrow"><button class="btn sec" data-pad="clear">Clear</button><button class="btn sec" data-pad="cancel">Cancel</button><button class="btn grn" data-pad="save">Save signature</button></div></div>';
+  document.body.appendChild(ov);
+  var c=ov.querySelector('canvas'), x=c.getContext('2d'), dr=false, any=false; x.lineWidth=3; x.lineCap='round'; x.lineJoin='round'; x.strokeStyle='#0a2a8a'; c.style.touchAction='none';
+  function pos(e){ var r=c.getBoundingClientRect(); return [(e.clientX-r.left)*c.width/r.width,(e.clientY-r.top)*c.height/r.height]; }
+  c.addEventListener('pointerdown',function(e){ dr=true; any=true; var p=pos(e); x.beginPath(); x.moveTo(p[0],p[1]); c.setPointerCapture(e.pointerId); e.preventDefault(); });
+  c.addEventListener('pointermove',function(e){ if(!dr) return; var p=pos(e); x.lineTo(p[0],p[1]); x.stroke(); });
+  ['pointerup','pointercancel'].forEach(function(t){ c.addEventListener(t,function(){ dr=false; }); });
+  ov.addEventListener('click',function(e){ var a=e.target.getAttribute&&e.target.getAttribute('data-pad'); if(!a) return;
+    if(a==='clear'){ x.clearRect(0,0,c.width,c.height); any=false; }
+    else if(a==='cancel') ov.remove();
+    else if(a==='save'){ if(!any) return toast('Draw your signature first.',true); var t=document.createElement('canvas'); t.width=350; t.height=110; t.getContext('2d').drawImage(c,0,0,350,110); ov.remove(); cb(t.toDataURL('image/png')); } });
+}
+function needSign(form,mon,room){ return OFS[form].sign && mon>='2026-09-28' && addDays(mon,4)<=todayNY() && OF.loaded[mon.slice(0,7)]===true && !sgData(form,mon,room) && subsOf(OFS[form].fk,room,mon,addDays(mon,4)).length>0; }
+function signRooms(form){ return OFS[form].per==='room'?(CLASSROOMS[S.school]||[]):['Playground']; }
+
+/* ---- drawing ---- */
+function mkCtx(page,font,bold,doc){
+  var H=page.getHeight(), rgb=PDFLib.rgb;
+  var c={page:page,H:H,doc:doc};
+  c.check=function(cx,top,st,size){ if(st==='flag') return; var cy=H-top, s=(size||8)*0.5, col=rgb(.05,.45,.15);
+    page.drawLine({start:{x:cx-s,y:cy},end:{x:cx-s*.25,y:cy-s*.7},thickness:1.4,color:col,lineCap:1}); page.drawLine({start:{x:cx-s*.25,y:cy-s*.7},end:{x:cx+s,y:cy+s*.8},thickness:1.4,color:col,lineCap:1}); };
+  c.text=function(x,top,s,size,b,color,center,maxw){ s=clean(s); if(!s) return; size=size||8; var f=b?bold:font; if(maxw){ while(f.widthOfTextAtSize(s,size)>maxw&&size>5) size-=.5; } var w=f.widthOfTextAtSize(s,size); page.drawText(s,{x:center?x-w/2:x,y:H-top,size:size,font:f,color:rgb.apply(null,color||[0,0,0])}); };
+  return c;
+}
+function stampBee(c,room,ms){
+  var R=subsOf('cls',room,ms,monthEnd(ms));
+  c.text(150,mid(BEE_ROWS[1],BEE_ROWS[2])+3,d2(ms).toLocaleDateString('en-US',{month:'long',year:'numeric'}),8);
+  c.text(100,mid(BEE_ROWS[2],BEE_ROWS[3])+3,room+'  ·  '+S.school,8,true);
+  R.forEach(function(s){ var d=s.fields.Date, b=blockOf(d,ms), w=wdi(d); if(w>4||b<0||b>4) return; var col=b*5+w;
+    items(s.fields.Items).forEach(function(it){ var key=bestMatch(it[0],Object.keys(BEE_ITEM_ROWS)); if(!key) return; var r=BEE_ITEM_ROWS[key]; c.check(mid(BEE_COLS[col],BEE_COLS[col+1]),mid(BEE_ROWS[r],BEE_ROWS[r+1]),it[1],8); }); });
+}
+function stampBath(c,room,ms){
+  var R=subsOf('bath',room,ms,monthEnd(ms));
+  c.text(95,mid(BATH_ROWS[0],BATH_ROWS[1])+3,room+' · '+S.school,8,true,null,false,70);
+  c.text(80,mid(BATH_ROWS[1],BATH_ROWS[2])+3,d2(ms).toLocaleDateString('en-US',{month:'long',year:'numeric'}),8);
+  R.forEach(function(s){ var d=s.fields.Date, b=blockOf(d,ms), w=wdi(d); if(w>4||b<0||b>4) return; var col=b*5+w;
+    items(s.fields.Items).forEach(function(it){ var key=bestMatch(it[0],Object.keys(BATH_ITEM_ROWS)); if(!key) return; var r=BATH_ITEM_ROWS[key]; c.check(BATH_DAY_X[col]+4.5,mid(BATH_ROWS[r],BATH_ROWS[r+1]),it[1],8); }); });
+}
+function stampWeekly(c,fk,room,mon,ROWS,COLS,LIST,dateRow,firstRow,withInit){
+  var days=[0,1,2,3,4].map(function(i){return addDays(mon,i);});
+  c.text(36,50,S.school+'  ·  '+(fk==='ind'?'Room: ':'')+room+'  ·  Week of '+fmtUS(mon),9,true);
+  days.forEach(function(d,i){ c.text(mid(COLS[i][0],COLS[i][1]),mid(ROWS[dateRow],ROWS[dateRow+1])+3,d.slice(5).replace('-','/'),7,false,null,true); });
+  subsOf(fk,room,mon,addDays(mon,4)).forEach(function(s){ var i=wdi(s.fields.Date); if(i>4) return;
+    items(s.fields.Items).forEach(function(it){ var key=bestMatch(it[0],LIST); if(!key) return; var r=firstRow+LIST.indexOf(key); c.check(mid(COLS[i][0],COLS[i][1]),mid(ROWS[r],ROWS[r+1]),it[1],8); });
+    if(withInit) c.text(mid(COLS[i][0],COLS[i][1]),mid(ROWS[25],ROWS[26])+3,String(s.fields['Staff Name']||'').slice(0,12),6,false,null,true); });
+}
+function stampEod(c,ms){
+  var R=subsOf('eod',null,ms,monthEnd(ms)).sort(function(a,b){ return a.fields.Date<b.fields.Date?-1:1; });
+  c.text(165,152,S.school,9,true); c.text(480,152,d2(ms).toLocaleDateString('en-US',{month:'long',year:'numeric'}),9,true);
+  var by={}, order=[]; R.forEach(function(s){ var d=s.fields.Date; if(!by[d]){ by[d]=[]; order.push(d); } by[d].push(s); });
+  order.forEach(function(d,k){ var r=k+1; if(r>=EOD_ROWS.length-1) return; var ty=mid(EOD_ROWS[r],EOD_ROWS[r+1])+3, st=[]; by[d].forEach(function(s){ var n=String(s.fields['Staff Name']||'').trim(); if(n&&st.indexOf(n)<0) st.push(n); });
+    c.text(mid(EOD_COLS[0],EOD_COLS[1]),ty,d.slice(5).replace('-','/'),7,false,null,true); if(st[0]) c.text(EOD_COLS[1]+4,ty,st[0],7,false,null,false,195); if(st[1]) c.text(EOD_COLS[2]+4,ty,st[1],7,false,null,false,140); });
+}
+function tripsOf(mon){ var we=addDays(mon,4); return S.trips.filter(function(t){ return t.fields.Date>=mon&&t.fields.Date<=we&&t.fields.Destination; }); }
+function tripCombos(mon){ var seen={}, out=[]; tripsOf(mon).forEach(function(t){ var dest=sv(t.fields.Destination), run=sv(t.fields.Run); var k=dest+'|'+run; if(!seen[k]){ seen[k]=1; out.push({dest:dest,run:run}); } }); return out.sort(function(a,b){ return (a.dest+a.run)<(b.dest+b.run)?-1:1; }); }
+function stampTrans(c,mon,combo){
+  var TR=tripsOf(mon).filter(function(t){ return sv(t.fields.Destination)===combo.dest&&sv(t.fields.Run)===combo.run; });
+  c.text(36,30,S.school+'  ·  '+combo.dest+'  ·  '+combo.run+' run  ·  Week of '+fmtUS(mon),9,true);
+  var days=[0,1,2,3,4].map(function(i){return addDays(mon,i);}), kid='Kid City USA '+S.school, dd=combo.run==='PM'?[combo.dest,kid]:[kid,combo.dest];
+  function tr(d){ return TR.filter(function(t){ return t.fields.Date===d; })[0]; }
+  days.forEach(function(d,i){ var t=tr(d); if(!t) return; var f=t.fields, x0=TL_COL_X0[i]; c.text(x0+12,TL_DATE_TOP,d.slice(5,7)+'  '+d.slice(8)+'  '+d.slice(2,4),7.5);
+    c.text(x0+4,TL_DEPLOC_TOP,f['Departure Location']||dd[0],6.5,false,null,false,90); c.text(x0+4,TL_DEST_TOP,dd[1],6.5,false,null,false,90);
+    c.text(x0+50,TL_DEPTIME_TOP,f['Departure Time']||'',6.5,false,null,false,46); c.text(x0+47,TL_ARRTIME_TOP,f['Arrival Time']||'',6.5,false,null,false,49); });
+  var names=[]; TR.forEach(function(t){ String(t.fields['Riders In']||'').split(/\r?\n/).concat(String(t.fields['Riders Out']||'').split(/\r?\n/)).forEach(function(n){ n=n.trim(); if(n&&names.indexOf(n)<0) names.push(n); }); });
+  names=names.sort().slice(0,TL_ROWS.length-1);
+  names.forEach(function(n,r){ c.text(TL_NAME_X,mid(TL_ROWS[r],TL_ROWS[r+1])+3,n,7.5,false,null,false,100); });
+  days.forEach(function(d,i){ var t=tr(d); if(!t) return; var f=t.fields, x0=TL_COL_X0[i], ins=String(f['Riders In']||'').split(/\r?\n/).map(function(s){return s.trim();}), outs=String(f['Riders Out']||'').split(/\r?\n/).map(function(s){return s.trim();});
+    names.forEach(function(n,r){ var cy=mid(TL_ROWS[r],TL_ROWS[r+1]); if(ins.indexOf(n)>=0) c.text(x0+TL_IN_DX,cy+3,'X',8,true,null,true); if(outs.indexOf(n)>=0) c.text(x0+TL_OUT_DX,cy+3,'X',8,true,null,true); });
+    function us(s){ s=String(s||'').slice(0,10); return /^\d{4}-/.test(s)?fmtUS(s):''; }
+    if(f['Driver Date']) c.text(x0+8,TL_DRIVER_TOP+1,us(f['Driver Date']),7.5); if(f['Second Staff Date']) c.text(x0+8,TL_SECOND_TOP+1,us(f['Second Staff Date']),7.5); });
+}
+function build(){
+  var F=OFS[OF.form], mon=monday(S.date), ms=monthStart(S.date), room=OF.room, combo=null;
+  return Promise.all([loadLibs(),loadBlank()]).then(function(){
+    return PDFLib.PDFDocument.load(OF.blank);
+  }).then(function(src){
+    return PDFLib.PDFDocument.create().then(function(out){ return out.copyPages(src,[F.page]).then(function(pg){ out.addPage(pg[0]); return out.embedFont(PDFLib.StandardFonts.Helvetica).then(function(font){ return out.embedFont(PDFLib.StandardFonts.HelveticaBold).then(function(bold){ return {out:out,font:font,bold:bold}; }); }); }); });
+  }).then(function(o){
+    var page=o.out.getPage(0), c=mkCtx(page,o.font,o.bold,o.out), p=Promise.resolve();
+    if(OF.form==='bee') stampBee(c,room,ms); else if(OF.form==='bath') stampBath(c,room,ms);
+    else if(OF.form==='ind'){ stampWeekly(c,'ind',room,mon,IND_ROWS,IND_DAY_COLS,IND_ITEMS,2,4,false); var d=sgData('ind',mon,room); if(d) p=o.out.embedPng(d.sig).then(function(im){ page.drawImage(im,{x:150,y:c.H-762,width:80,height:25}); c.text(410,749,d.date||'',9); }); }
+    else if(OF.form==='out'){ stampWeekly(c,'out','Playground',mon,PLAY_ROWS,PLAY_DAY_COLS,PLAY_ITEMS,3,5,true); var d2_=sgData('out',mon,'Playground'); if(d2_) p=o.out.embedPng(d2_.sig).then(function(im){ page.drawImage(im,{x:100,y:c.H-668,width:80,height:25}); c.text(400,664,d2_.date||'',9); }); }
+    else if(OF.form==='eod') stampEod(c,ms);
+    else if(OF.form==='trans'){ var cs=tripCombos(mon); combo=cs[Math.min(OF.trip,cs.length-1)]; if(combo) stampTrans(c,mon,combo); }
+    return p.then(function(){ return o.out.save(); });
+  });
+}
+function paint(bytes){
+  return pdfjsLib.getDocument({data:bytes.slice(0)}).promise.then(function(doc){ return doc.getPage(1); }).then(function(pg){
+    var vp=pg.getViewport({scale:2.2}), cv=document.createElement('canvas'); cv.width=vp.width; cv.height=vp.height;
+    return pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise.then(function(){ return {url:cv.toDataURL('image/jpeg',.92),landscape:vp.width>vp.height}; });
+  });
+}
+function hashOf(){
+  var mon=monday(S.date), ms=monthStart(S.date), F=OFS[OF.form], bits=[OF.form,OF.room,OF.trip,S.school,S.date];
+  if(F.fk){ var from=F.span==='month'?ms:mon, to=F.span==='month'?monthEnd(ms):addDays(mon,4); subsOf(F.fk,OF.room,from,to).forEach(function(s){ bits.push(s.id+(s.fields.Items||'').length+(s.fields['Staff Name']||'')); }); }
+  else tripsOf(mon).forEach(function(t){ bits.push(t.id+JSON.stringify(t.fields).length); });
+  if(F.sign){ var d=sgData(OF.form,mon,OF.form==='out'?'Playground':OF.room); bits.push(d?d.date+d.sig.length:'nosig'); }
+  var s=bits.join('~'), h=5381; for(var i=0;i<s.length;i++) h=((h<<5)+h+s.charCodeAt(i))|0; return String(h);
+}
+function missRows(){
+  var F=OFS[OF.form]; if(!F.fk) return []; var mon=monday(S.date), ms=monthStart(S.date), from=F.span==='month'?ms:mon, to=F.span==='month'?monthEnd(ms):addDays(mon,4), t=todayNY(), out=[];
+  for(var d=from; d<=to&&d<t; d=addDays(d,1)){ if(!isSchoolDay(d)) continue; var r=F.per==='room'?OF.room:(F.fk==='out'?'Playground':'(building)'); if(cellState(F.fk,d,r).s==='miss') out.push({d:d,r:r}); }
+  return out;
+}
+function ofView(){
+  var F=OFS[OF.form], mon=monday(S.date); sgEnsure();
+  var rooms=CLASSROOMS[S.school]||[]; if(F.per==='room'&&(!OF.room||rooms.indexOf(OF.room)<0)) OF.room=rooms[0];
+  var h='<div class="card"><div class="ct">Official forms &mdash; the real paper forms, filled in</div><div class="sub">These are the same Kid City / Bee System forms DCF expects to see, filled in from what staff entered on the portal. Blank = not done or not entered yet. Use the &lsaquo; &rsaquo; buttons above for the week or month.</div><div class="rpbar">';
+  Object.keys(OFS).forEach(function(k){ h+='<button class="btn'+(OF.form===k?'':' sec')+' sm" data-of="form" data-v="'+k+'">'+OFS[k].label+'</button>'; });
+  h+='</div>';
+  if(F.per==='room'){ h+='<div class="rpbar">'; rooms.forEach(function(r){ var nd=F.sign&&needSign(OF.form,mon,r); h+='<button class="btn'+(OF.room===r?'':' sec')+' sm" data-of="room" data-v="'+esc(r)+'">'+esc(r)+(nd?' <span style="color:#ff5252">&#9679;</span>':'')+'</button>'; }); h+='</div>'; }
+  if(OF.form==='trans'){ var cs=tripCombos(mon); if(!cs.length) h+='<div class="sub">No bus trips logged for this week.</div>'; else { h+='<div class="rpbar">'; cs.forEach(function(c,i){ h+='<button class="btn'+(OF.trip===i?'':' sec')+' sm" data-of="trip" data-v="'+i+'">'+esc(c.dest)+' &middot; '+esc(c.run)+'</button>'; }); h+='</div>'; } }
+  h+='<div class="sub"><b>'+(F.span==='month'?d2(monthStart(S.date)).toLocaleDateString('en-US',{month:'long',year:'numeric'}):'Week of '+nice(mon))+'</b></div>';
+  var mr=missRows(); if(mr.length){ h+='<div class="wkbar bad"><b style="color:#c62828">&#9679; Not updated yet ('+mr.length+'):</b> '; mr.forEach(function(m){ h+='<button class="btn sec sm" data-cell="'+F.fk+'|'+m.d+'|'+esc(m.r)+'">'+nice(m.d)+'</button> '; }); h+='<div class="hint">Tap a day to fill it in or fix it. It stays blank on the form until it is entered.</div></div>'; }
+  if(F.sign){ var sr=OF.form==='out'?'Playground':OF.room, d=sgData(OF.form,mon,sr), ended=addDays(mon,4)<=todayNY();
+    h+='<div class="wkbar'+(d||!ended?'':' bad')+'">'+(d?'<b style="color:#2e7d32">&#10003; Director signed '+esc(d.date||'')+' by '+esc(d.by||'')+'</b>':'<b'+(ended?' style="color:#c62828"':'')+'>'+(ended?'&#9679; ':'')+'Director signature and date '+(ended?'needed for this week':'(sign at the end of the week)')+'</b>')+' <button class="btn grn sm" data-of="sign">'+(d?'Re-sign':'Sign')+'</button>'+(d?' <button class="btn sec sm" data-of="sdate">Change date</button> <button class="btn sec sm" data-of="sclear">Clear</button>':'')+'<div class="hint">Directors sign, change the date or clear the sign-off. Staff fill in the daily checklists on their phones; a director fixes a day with the buttons above.</div></div>'; }
+  var key=hashOf(), cached=OF.cache[key];
+  h+='<div class="rpbar"><button class="btn grn sm" data-of="print">Print this form</button><button class="btn sec sm" data-of="dl">Download PDF</button></div><div class="rpscroll" id="ofbox">'+(cached?'<img src="'+cached.url+'" style="width:100%;max-width:1000px;display:block;margin:auto;background:#fff">':'<div class="sub">Drawing the form&hellip;</div>')+'</div></div>';
+  OF.want=key; return h;
+}
+function ofAfter(){
+  var key=OF.want; if(!key||OF.cache[key]||OF.building===key) return; OF.building=key;
+  build().then(function(bytes){ return paint(bytes).then(function(r){ r.bytes=bytes; OF.cache[key]=r; OF.building=null; var keys=Object.keys(OF.cache); if(keys.length>12) delete OF.cache[keys[0]]; if(OF.want===key&&S.tab==='ofc') render(); }); })
+   .catch(function(e){ OF.building=null; var b=$('ofbox'); if(b) b.innerHTML='<div class="miss">Could not draw the form: '+esc(e.message||e)+'</div>'; });
+}
+/* hooks */
+TABS.splice(7,0,{id:'ofc',label:'Official Forms',forms:[]});
+var oldBody=body; body=function(){ return S.tab==='ofc'?ofView():oldBody(); };
+var oldRender=render; render=function(){ oldRender(); if(S.tab==='ofc') ofAfter(); };
+var oldMissing=missingList;
+missingList=function(from,to){ var out=oldMissing(from,to); try{ ['ind','out'].forEach(function(f){ var seen={}; for(var d=from; d<=to; d=addDays(d,1)){ var mon=monday(d); if(seen[mon]||addDays(mon,4)<from||addDays(mon,4)>to) continue; seen[mon]=1; signRooms(f).forEach(function(r){ if(needSign(f,mon,r)) out.push({kind:'of',form:f,mon:mon,room:r}); }); } }); }catch(e){} return out; };
+document.addEventListener('click',function(e){
+  var el=e.target.closest&&e.target.closest('[data-of]'); if(!el) return; var a=el.getAttribute('data-of'), v=el.getAttribute('data-v'), mon=monday(S.date), F=OFS[OF.form], sr=OF.form==='out'?'Playground':OF.room;
+  if(a==='form'){ OF.form=v; OF.trip=0; render(); }
+  else if(a==='room'){ OF.room=v; render(); }
+  else if(a==='trip'){ OF.trip=+v; render(); }
+  else if(a==='sign'){ var nm=directorName(); if(!nm) return; sgPad(function(url){ sgSave(OF.form,mon,sr,{sig:url,date:todayUS(),by:nm,at:new Date().toISOString()}); }); }
+  else if(a==='sdate'){ var d=sgData(OF.form,mon,sr); if(!d) return; var s=prompt('Date signed (mm/dd/yyyy):',d.date||todayUS()); if(s===null) return; var m=s.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); if(!m) return toast('Enter the date like 11/02/2026',true); d.date=('0'+m[1]).slice(-2)+'/'+('0'+m[2]).slice(-2)+'/'+m[3]; sgSave(OF.form,mon,sr,d); }
+  else if(a==='sclear'){ if(!sgData(OF.form,mon,sr)) return; if(!confirm('Clear this signature and date? The form will show as NOT signed until it is signed again.')) return; sgSave(OF.form,mon,sr,{}); }
+  else if(a==='print'||a==='dl'){ var c=OF.cache[OF.want]; if(!c) return toast('The form is still drawing.',true);
+    if(a==='dl'){ var b=new Blob([c.bytes],{type:'application/pdf'}), u=URL.createObjectURL(b), l=document.createElement('a'); l.href=u; l.download=(S.school+' - '+F.label+' - '+(F.span==='month'?monthStart(S.date).slice(0,7):mon)+(OF.room?' - '+OF.room:'')+'.pdf').replace(/[\/\\]/g,'-'); document.body.appendChild(l); l.click(); l.remove(); setTimeout(function(){ URL.revokeObjectURL(u); },4000); }
+    else { $('repprint').innerHTML='<img src="'+c.url+'" style="width:100%;display:block">'; window.repDoPrint(c.landscape?'landscape':'portrait'); } }
+});
+window.__dcfOf={OF:OF,build:build};
 })();
 
 window.__dcf={S:S,cellState:cellState,missingList:missingList,drillMissing:drillMissing,parseItems:parseItems};
