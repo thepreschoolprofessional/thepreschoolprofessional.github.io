@@ -293,11 +293,11 @@ function sgHot(items,v,sc){const H=[];const P=(x,y)=>v.convertToViewportPoint(x,
   else if(/^signature of/i.test(t.trim())){H.push({k:'sig',x:x0+w+6,y:y0-fh*2.2,w:Math.min(230*sc,w*3),h:fh*3});}
   else if(/signature\s*$/i.test(t.trim())&&!/_/.test(t)){H.push({k:'sig',x:x0,y:y0-fh*3.2,w:Math.max(w,110*sc),h:fh*3});}});return H;}
 async function sgShow(){const c=document.getElementById('sgc'),W=Math.min(720,window.innerWidth-50);SG.hot=[];
- if(SG.doc){const pg=await SG.doc.getPage(SG.page);const v0=pg.getViewport({scale:1});SG.pw=v0.width;SG.ph=v0.height;const sc=W/v0.width;const v=pg.getViewport({scale:sc});c.width=v.width;c.height=v.height;await pg.render({canvasContext:c.getContext('2d'),viewport:v}).promise;
+ if(SG.doc){const pg=await SG.doc.getPage(SG.page);const v0=pg.getViewport({scale:1});SG.pw=v0.width;SG.ph=v0.height;const D=Math.min(3,Math.max(1,window.devicePixelRatio||1))*1.5;const sc=W/v0.width*D;const v=pg.getViewport({scale:sc});c.width=v.width;c.height=v.height;c.style.width=W+'px';await pg.render({canvasContext:c.getContext('2d'),viewport:v}).promise;
   try{const tc=await pg.getTextContent();SG.hot=sgHot(tc.items,v,sc);}catch(e){}}
- else{c.width=W;c.height=W*SG.img.height/SG.img.width;c.getContext('2d').drawImage(SG.img,0,0,c.width,c.height);}
+ else{const D=Math.min(3,Math.max(1,window.devicePixelRatio||1));c.width=W*D;c.height=c.width*SG.img.height/SG.img.width;c.style.width=W+'px';c.getContext('2d').drawImage(SG.img,0,0,c.width,c.height);}
  const x=c.getContext('2d');const pm=SG.marks.filter(m=>m.p===SG.page);
- SG.hot.forEach(h=>{if(pm.some(m=>{const px=m.fx*c.width,py=m.fy*c.height;return px>=h.x-4&&px<=h.x+h.w+4&&py>=h.y-8&&py<=h.y+h.h+8;}))return;x.save();x.setLineDash([6,4]);x.lineWidth=2;x.strokeStyle='#6a1b9a';x.fillStyle='rgba(106,27,154,.12)';x.fillRect(h.x,h.y,h.w,h.h);x.strokeRect(h.x,h.y,h.w,h.h);x.fillStyle='#6a1b9a';x.font='bold 11px Arial';x.fillText(h.k==='sig'?'✍ sign':'📅 date',h.x+3,h.y+11);x.restore();});
+ SG.hot.forEach(h=>{if(pm.some(m=>{const px=m.fx*c.width,py=m.fy*c.height;return px>=h.x-4&&px<=h.x+h.w+4&&py>=h.y-8&&py<=h.y+h.h+8;}))return;x.save();x.setLineDash([6,4]);x.lineWidth=2;x.strokeStyle='#6a1b9a';x.fillStyle='rgba(106,27,154,.12)';x.fillRect(h.x,h.y,h.w,h.h);x.strokeRect(h.x,h.y,h.w,h.h);x.fillStyle='#6a1b9a';x.font='bold '+(11*c.width/W)+'px Arial';x.fillText(h.k==='sig'?'✍ sign':'📅 date',h.x+3,h.y+11);x.restore();});
  pm.forEach(m=>{if(m.t==='sig'){const w=m.fw*c.width,h=w*m.ih;x.drawImage(m.im,m.fx*c.width-w/2,m.fy*c.height-h/2,w,h);}else{x.fillStyle='#0d1b6b';x.font='bold '+(11*c.width/SG.pw)+'px Arial';x.fillText(m.txt,m.fx*c.width,m.fy*c.height);}});
  document.getElementById('sgpg').textContent='Page '+SG.page+' of '+SG.n+(SG.hot.length?'  ·  '+SG.hot.length+' signature line'+(SG.hot.length===1?'':'s')+' found':'');}
 function sgGo(d){const p=SG.page+d;if(p<1||p>SG.n)return;SG.page=p;sgShow();}
