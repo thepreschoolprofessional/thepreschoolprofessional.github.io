@@ -25,6 +25,7 @@ var FORMS = {
  eod:{type:'🌙 End of Day Building Sweep',label:'End-of-day building sweep',room:BLDG,items:function(){return ['End-of-day visual sweep of entire building & all playgrounds completed by 2 closing staff.'];}},
  drl:{type:'🧯 Drills & Emergency',label:'Fire / emergency drill',room:BLDG,monthly:true,items:function(){return ['Fire/emergency drill conducted & logged'];}}
 };
+var FROMREP=false; try{ FROMREP=new URLSearchParams(location.search).get('from')==='rep'; }catch(e){}
 var TABS = [
  {id:'miss',label:'Missing'},
  {id:'clean',label:'Cleaning',forms:['bath','cls']},
@@ -130,11 +131,11 @@ function drillMissing(monthIso){
 /* ---------- render ---------- */
 function render(){
   var h='';
-  h+='<div class="hdr"><div><b>DCF Binder</b> <span class="sch">'+esc(S.school)+'</span></div><div class="hbtn"><a class="btn sec sm" href="director.html">&lsaquo; Director portal</a> <button class="btn sec sm" id="prt">Print</button></div></div>';
+  h+='<div class="hdr"><div><b>DCF Binder</b> <span class="sch">'+esc(S.school)+'</span></div><div class="hbtn">'+(FROMREP?'<a class="btn sec sm" href="reporting.html">&lsaquo; Monthly Reporting</a>':'<a class="btn sec sm" href="director.html">&lsaquo; Director portal</a>')+' <button class="btn sec sm" id="prt">Print</button></div></div>';
   h+='<div class="bar"><button class="btn sec sm" data-a="prev">&lsaquo;</button><input type="date" id="dt" value="'+S.date+'"><button class="btn sec sm" data-a="next">&rsaquo;</button><button class="btn sec sm" data-a="today">Today</button>'+(S.busy?'<span class="load">loading&hellip;</span>':'')+'</div>';
   var wk=monday(S.date), t=todayNY();
   var mt=missingList(monthStart(t),t).length+(drillMissing(t)?1:0)+(drillMissing(addDays(monthStart(t),-1))?1:0);
-  h+='<div class="tabs">'+TABS.map(function(x){ return '<button class="tab'+(S.tab===x.id?' on':'')+'" data-tab="'+x.id+'">'+x.label+(x.id==='miss'&&mt?' <span class="red">'+mt+'</span>':'')+'</button>'; }).join('')+'</div>';
+  h+='<div class="tabs">'+TABS.filter(function(x){ return FROMREP || !(x.id==='food'||x.id==='pack'||S.tab===x.id); }).map(function(x){ return '<button class="tab'+(S.tab===x.id?' on':'')+'" data-tab="'+x.id+'">'+x.label+(x.id==='miss'&&mt?' <span class="red">'+mt+'</span>':'')+'</button>'; }).join('')+'</div>';
   h+='<div class="body">'+body()+'</div><div id="toast" class="toast"></div><div id="modal"></div>';
   $('app').innerHTML=h;
   $('prt').onclick=function(){ window.print(); };
@@ -735,7 +736,7 @@ document.addEventListener('click',function(e){
 });
 
 /* ---------- boot ---------- */
-api('whoami').then(function(w){ S.school=w.school; try{var q=new URLSearchParams(location.search);if(q.get('date')&&/^\d{4}-\d{2}-\d{2}$/.test(q.get('date')))S.date=q.get('date');if(q.get('tab'))S.tab=q.get('tab');}catch(e){} render(); return ensureData(); }).then(function(){ try{var c=new URLSearchParams(location.search).get('cell');if(c){var p=c.split('|');if(FORMS[p[0]])openCell(p[0],p[1],p[2]);}}catch(e){} }).catch(function(e){ document.getElementById('app').innerHTML='<div class="card"><b>'+esc(e.message)+'</b><br><a class="btn" href="index.html">Back to sign in</a></div>'; });
+api('whoami').then(function(w){ S.school=w.school; try{var q=new URLSearchParams(location.search);if(q.get('date')&&/^\d{4}-\d{2}-\d{2}$/.test(q.get('date')))S.date=q.get('date');if(q.get('tab'))S.tab=q.get('tab');if(q.get('form')&&S.pk&&PFORMS.some(function(p){return p[0]===q.get('form');}))S.pk.form=q.get('form');}catch(e){} render(); return ensureData(); }).then(function(){ try{var c=new URLSearchParams(location.search).get('cell');if(c){var p=c.split('|');if(FORMS[p[0]])openCell(p[0],p[1],p[2]);}}catch(e){} }).catch(function(e){ document.getElementById('app').innerHTML='<div class="card"><b>'+esc(e.message)+'</b><br><a class="btn" href="index.html">Back to sign in</a></div>'; });
 /* ===== add-on 11/4/26: weekly attendance & meal count reports + monthly terminations ===== */
 /* DCF Binder add-on (11/4/26): Weekly Attendance & Meal Count Reports per classroom + Monthly Terminations form.
    Loaded after dcf.js. Uses dcf.js globals (S, api, esc, addDays, monday, MONTHS, HDR, pkData ...). */
@@ -768,6 +769,7 @@ css.textContent='\
 .rp .lab{text-align:left;font:12px Georgia,serif;padding:0 4px}.rp .labr{text-align:right;font:13px Georgia,serif;padding-right:8px}\
 .rp tr.tot td{height:24px;font-weight:700;font-size:11px}\
 .rp.rpblue{background:#cfe6f7!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.rp.rpblue td,.rp.rpblue th{background:transparent}\
+.rpscroll .rp td[data-ed]{cursor:pointer}.rpscroll .rp td[data-ed]:hover{outline:2px solid #1565c0;background:rgba(21,101,192,.12)}\
 .rp .sq{position:absolute;width:22px;height:22px;background:#222}\
 .rp .ft{display:flex;gap:12px;align-items:flex-end;margin-top:6px;font:11px Georgia,serif}\
 .rp .ft .id{font:700 18px Georgia,serif;line-height:1.1;width:130px}\
@@ -840,7 +842,8 @@ function repPage(room,mon,kids,pg,np){
     var k=kids[r]; h+='<tr class="kid"><td class="age" style="position:relative"><span class="rn" style="position:absolute;left:-22px;top:3px;width:18px;text-align:right;font-size:10px">'+(r+1)+'</span>'+(k?esc(ageOf(k.dob,mon)):'')+'</td><td class="nbr"></td><td class="nm">'+(k?esc(String(k.n).toUpperCase()):'')+'</td>';
     days.forEach(function(d,i){
       var m=k?markFor(k.n,d):null; if(m&&m.att){tot[i].a++;} if(m&&m.b)tot[i].b++; if(m&&m.l)tot[i].l++; if(m&&m.p)tot[i].p++;
-      h+='<td class="x dg">'+(m&&m.att?'X':'')+'</td><td class="x">'+(m&&m.b?'X':'')+'</td><td class="dsh">-</td><td class="x">'+(m&&m.l?'X':'')+'</td><td class="x">'+(m&&m.p?'X':'')+'</td><td class="dsh">-</td><td class="dsh">-</td>';
+      var ed=function(col){ return k?' data-ed="'+esc(k.n)+'|'+d+'|'+col+'|'+esc(room)+'"':''; };
+      h+='<td class="x dg"'+ed('a')+'>'+(m&&m.att?'X':'')+'</td><td class="x"'+ed('B')+'>'+(m&&m.b?'X':'')+'</td><td class="dsh">-</td><td class="x"'+ed('L')+'>'+(m&&m.l?'X':'')+'</td><td class="x"'+ed('P')+'>'+(m&&m.p?'X':'')+'</td><td class="dsh">-</td><td class="dsh">-</td>';
     });
     h+='</tr>';
   }
@@ -853,6 +856,24 @@ function repPage(room,mon,kids,pg,np){
   return h;
 }
 
+
+/* ---------- editable weekly report: click a cell to add/remove a mark (director only, saves to the Rooms board data) ---------- */
+function repEdit(spec){
+  var p=spec.split('|'), name=p[0], date=p[1], col=p[2], room=p[3], key=nkey(name), rec=null;
+  S.att.forEach(function(a){ var f=a.fields; if(f.Date===date&&nkey(f.Child)===key) rec=a; });
+  var done=function(res){ var r=res&&res.records?res.records[0]:res; if(r&&r.id){ S.att=S.att.filter(function(t){return t.id!==r.id;}); S.att.push(r); toast('Saved.'); render(); } else toast('Did not save',true); };
+  var fail=function(e){ toast(e.message||'Did not save',true); };
+  if(col==='a'){
+    if(rec&&rec.fields.Arrival){ if(!confirm('Remove the attendance mark for '+name+' on '+date+'? (Clears the arrival time)')) return; api('update','Room Attendance',{recordId:rec.id,fields:{Arrival:'','Arrival By':'Director edit'}}).then(done).catch(fail); return; }
+    var t=prompt('Arrival time for '+name+' (24-hour, like 07:30):','07:30'); if(!t) return; if(!/^\d{1,2}:\d{2}$/.test(t.trim())){ toast('Enter a time like 07:30',true); return; } t=('0'+t.trim()).slice(-5);
+    if(rec) api('update','Room Attendance',{recordId:rec.id,fields:{Arrival:t,'Arrival By':'Director edit'}}).then(done).catch(fail);
+    else api('create','Room Attendance',{fields:{Key:S.school+'|'+date+'|'+name,Child:name,Date:date,'Home Room':room,Arrival:t,'Arrival By':'Director edit'}}).then(done).catch(fail);
+    return;
+  }
+  var nv=!(rec&&rec.fields[col]), fields={}; fields[col]=nv;
+  if(rec) api('update','Room Attendance',{recordId:rec.id,fields:fields}).then(done).catch(fail);
+  else { fields.Key=S.school+'|'+date+'|'+name; fields.Child=name; fields.Date=date; fields['Home Room']=room; api('create','Room Attendance',{fields:fields}).then(done).catch(fail); }
+}
 /* ---------- Attendance tab ---------- */
 var oldAtt=attView;
 attView=function(){
@@ -860,7 +881,7 @@ attView=function(){
   base=base.replace(/<div class="hint">Full rosters[\s\S]*$/,'<div class="hint">Weekly forms are below. Room times and ratios print from the Rooms board.</div><a class="btn sec" href="rooms.html">Open Rooms board</a></div>');
   if(!S.rep.rooms){ loadRep(); return base+'<div class="card">Loading classrooms&hellip;</div>'; }
   var mon=monday(S.date), sat=addDays(mon,5);
-  var h='<div class="card"><div class="ct">Weekly Attendance &amp; Meal Count Reports</div><div class="sub">Same form as the KidKare report, one per classroom. Tap a classroom to see it filled in. Print any time.</div>';
+  var h='<div class="card"><div class="ct">Weekly Attendance &amp; Meal Count Reports</div><div class="sub">Same form as the KidKare report, one per classroom. Tap any box to add or remove a mark. Tap a classroom to see it filled in. Print any time.</div>';
   h+='<div class="rpbar"><button class="btn sec sm" data-rep="prev">&lsaquo;</button><span class="b">Week of '+fmtMD(mon,1)+' &ndash; '+fmtMD(addDays(mon,4),1)+'</span><button class="btn sec sm" data-rep="next">&rsaquo;</button><button class="btn sec sm" data-rep="thisweek">This week</button></div><div class="rpbar">';
   S.rep.rooms.forEach(function(r){ h+='<button class="btn'+(S.rep.room===r.Room?'':' sec')+'" data-rep="room" data-v="'+esc(r.Room)+'">'+esc(r.Room)+'</button>'; });
   h+='</div><div class="rpbar"><button class="btn grn sm" data-rep="print"'+(S.rep.room?'':' disabled')+'>Print this classroom</button><button class="btn sec sm" data-rep="printall">Print all classrooms</button></div></div>';
@@ -868,6 +889,7 @@ attView=function(){
   return base+h;
 };
 document.addEventListener('click',function(e){
+  var ce=e.target.closest&&e.target.closest('.rpscroll td[data-ed]'); if(ce){ repEdit(ce.getAttribute('data-ed')); return; }
   var el=e.target.closest&&e.target.closest('[data-rep]'); if(!el) return; var a=el.getAttribute('data-rep');
   if(a==='prev'||a==='next'){ S.date=addDays(S.date,a==='prev'?-7:7); ensureData(); render(); }
   else if(a==='thisweek'){ S.date=todayNY(); ensureData(); render(); }

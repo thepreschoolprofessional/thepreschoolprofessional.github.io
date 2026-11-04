@@ -52,7 +52,7 @@ const ITEMS=[
 ['elc','elc_tuition','ELC deposits & Tuition Express reconciled (tuition audit)',''],
 ['elc','elc_sr','School Readiness and VPK monthly reports done',''],
 ['food','food_meals','All daily meals recorded and saved in KidKare','Save only, never submit'],
-['food','food_packet','Month-End Packet complete and submitted','Opens the DCF Binder','dcf.html'],
+['food','food_packet','Month-End Packet complete and submitted','Opens the Month-End Packet','dcf.html?tab=pack&from=rep'],
 ['food','food_receipts','Receipts uploaded (food, supplies, milk)',''],
 ['food','food_spend','50% spend-down checked',''],
 ['food','food_claim','Claim submitted to the sponsor (director, in KidKare)',''],
@@ -78,14 +78,36 @@ async function load(){try{DATA=await api('list');$('sch').textContent=DATA.schoo
 function mdata(m){return DATA.months[m]||{files:[],checklist:{}};}
 function fileRow(m,f){return '<div class="f"><span>'+(isDone(f)?'⭐ ':'📄 ')+esc(f.name)+' <small>('+Math.max(1,Math.round(f.size/1024))+' KB)</small></span><button onclick="dl(\''+m+'\',\''+f.cat+'\',decodeURIComponent(\''+encodeURIComponent(f.name)+'\'))">Open</button> <button style="background:#b71c1c;color:#fff;border:0;border-radius:8px;padding:6px 10px" onclick="rm(\''+m+'\',\''+f.cat+'\',decodeURIComponent(\''+encodeURIComponent(f.name)+'\'))">Remove</button></div>';}
 async function rm(m,cat,name){if(!confirm('Remove "'+name+'" from the vault? It is set aside (not erased) and can be restored by Mrs. Bear.'))return;try{await api('remove',{month:m,cat,name});say('Removed ✔');await load();}catch(e){say(e.message,true);}}
+
+const PF=[['SITEINFO','Site Information'],['CHECKLIST','Provider Check List'],['ENTRANCES','Entrances'],['TERMS','Terminations'],['PAR','Personnel Activity (PAR)'],['INFANTFEED','Infant Feeding'],['MEDICAL','Medical Statement'],['DIETARY','Dietary Preference'],['EXPEND','Expenditure Worksheet'],['LABOR','Labor Summary'],['REVIEW','Review & Submit']];
+const STAT={};
+async function loadStatus(m){let s=STAT[m];if(!s){try{s=await api('monthstatus',{month:m});STAT[m]=s;}catch(e){s={error:e.message};}}
+ if(MON!==m)return;paintStatus(m,s);}
+function paintStatus(m,s){const fe=$('auto_food'),ee=$('auto_elc');
+ if(s.error){[fe,ee].forEach(e=>{if(e)e.innerHTML='<div class="none">Could not load the automatic status ('+esc(s.error)+').</div>';});return;}
+ const L=(k)=>'dcf.html?tab=pack&form='+k+'&from=rep';
+ if(fe){const f=s.forms||{};const doneN=PF.filter(p=>f[p[0]]).length;
+  let x='<div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:12px;padding:12px;margin-bottom:12px"><b>📦 Month-End Packet for '+esc(lbl(m))+'</b> <span class="pill" style="background:#2e7d32;color:#fff">'+doneN+' / '+PF.length+' started</span>'
+  +(s.submitted?'<div style="margin:6px 0"><b>✅ Submitted</b> by '+esc(s.submitted.by||'')+' '+(s.submitted.at?new Date(s.submitted.at).toLocaleDateString():'')+'</div>':'<div style="margin:6px 0;color:#b71c1c"><b>Not submitted yet</b></div>')
+  +'<div style="display:flex;flex-wrap:wrap;gap:6px;margin:6px 0">'+PF.map(p=>{const r=f[p[0]];return '<a href="'+L(p[0])+'" style="text-decoration:none;padding:6px 10px;border-radius:999px;font-size:.85rem;background:'+(r?'#c8e6c9':'#ffe0b2')+';color:#222">'+(r?'✅ ':'⬜ ')+esc(p[1])+(r&&r.by?' · '+esc(r.by):'')+'</a>';}).join('')+'</div>'
+  +'<div style="margin-top:8px">Daily meal counts saved: <b>'+(s.meals?s.meals.days:'?')+'</b> day'+((s.meals&&s.meals.days===1)?'':'s')+'</div>'
+  +'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px"><a class="lk" style="background:#2e7d32" href="dcf.html?tab=pack&from=rep">Open the Month-End Packet →</a><a class="lk" style="background:#1565c0" href="dcf.html?tab=att&from=rep">Weekly Attendance &amp; Meal Count →</a><a class="lk" style="background:#6d4c41" href="dcf.html?tab=food&from=rep">Daily meal counts →</a><a class="lk" style="background:#546e7a" href="dcf.html?tab=forms&from=rep">Forms to print →</a></div></div>';
+  fe.innerHTML=x;}
+ if(ee){const e=s.elc;const sheets=(mdata(m).files||[]).filter(f=>f.cat==='elc'&&/sign|attend/i.test(f.name));
+  let x='<div style="background:#f3e5f5;border:1px solid #ce93d8;border-radius:12px;padding:12px;margin-bottom:12px"><b>🖊 ELC tablet sign-ins for '+esc(lbl(m))+'</b>';
+  if(!e)x+='<div class="none">No ELC tablet data found for this month yet.</div>';
+  else x+='<div style="margin:6px 0"><b>'+e.children+'</b> children · <b>'+e.entries+'</b> sign-in/out entries across <b>'+e.days+'</b> days · notes: '+e.notes+(e.incomplete?' · <span style="color:#b71c1c"><b>'+e.incomplete+'</b> entries missing a sign-in or sign-out time</span>':' · all entries have both times ✅')+'</div>';
+  x+='<div style="margin-top:6px">Month-end sheets in the vault: '+(sheets.length?'<b>✅ '+sheets.length+' filed</b> ('+sheets.map(f=>esc(f.name)).join(', ')+')':'<b style="color:#b71c1c">not filed yet</b> (Charles builds them on the 1st; they appear here automatically)')+'</div></div>';
+  ee.innerHTML=x;}}
 function render(){MON=$('mon').value;const d=mdata(MON);let h='';
  for(const c of Object.keys(CATS)){const its=ITEMS.filter(i=>i[0]===c);const done=its.filter(i=>d.checklist[i[1]]).length;
   h+='<div class="sec"><h2 style="background:'+CATS[c].c+'"><span>'+CATS[c].t+'</span>'+(its.length?'<span class="pill">'+done+' / '+its.length+' done</span>':'')+'</h2><div class="body">';
+  if(c==='elc'||c==='food')h+='<div id="auto_'+c+'" class="autobox">Checking what the system already has for '+esc(lbl(MON))+'…</div>';
   its.forEach(i=>{const ck=d.checklist[i[1]];h+='<div class="item"><input type="checkbox" '+(ck?'checked':'')+' onchange="tick(\''+i[1]+'\',this.checked)"><label>'+esc(i[2])+(i[3]?'<small>'+esc(i[3])+'</small>':'')+(ck?'<small>✔ '+esc(ck.by||'')+' · '+new Date(ck.at).toLocaleDateString()+'</small>':'')+'</label>'+(i[4]?'<a href="'+i[4]+'">Open →</a>':'')+'</div>';});
   const fl=d.files.filter(f=>f.cat===c&&!sup(MON,f));
   h+='<div class="files"><h3>Files for '+esc(lbl(MON))+'</h3>'+(c==='food'?'<div class="hint" style="font-size:13px;color:#555;margin:2px 0 6px">Keep every month here: Walmart receipts, signed Free &amp; Reduced applications, signed Month-End Packet forms, and copies of the claim.</div>':'')+(fl.length?fl.map(f=>fileRow(MON,f)).join(''):'<div class="none">Nothing filed yet</div>')+'<label class="up">⬆ Add a file<input type="file" multiple hidden accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx" onchange="up(\''+c+'\',this)"></label></div></div></div>';}
  h+='<div class="sec"><h2 style="background:#00695c"><span>🧹 Facility Packet (cleaning, bathroom, inspections)</span></h2><div class="body"><div id="pk">'+packetBox(MON)+'</div></div></div>';
- $('secs').innerHTML=h;}
+ $('secs').innerHTML=h;loadStatus(MON);}
 const PACKETS={'Sanford':{folder:'https://drive.google.com/drive/folders/1osFBQYpGMPHm1UeSMGy9vrD9jJXFk4P_',months:{'2026-10':'https://drive.google.com/file/d/1lRje3A6-Uf9oXEcyqct8RxbI2dXXmzXy/view'}},
  'DeLand 2':{folder:'https://drive.google.com/drive/folders/1VV2I_yKsE2d44FNTMB4lY-ZkE5mw9LO5',months:{'2026-10':'https://drive.google.com/file/d/1ZFUr9_YVQ-D3xEFw2avQAsQz6YQS4TO5/view'}}};
 function packetBox(m){const P=PACKETS[DATA.school];if(!P)return '';const u=P.months[m];

@@ -150,6 +150,52 @@ if (!empty($input['done'])) $ck[$key] = ['by'=>substr(preg_replace('/[^A-Za-z0-9
 file_put_contents($f, json_encode($ck), LOCK_EX);
 echo json_encode(['ok'=>true, 'checklist'=>$ck ?: new stdClass]); exit;
 }
+if ($action === 'monthstatus'){
+// READ-ONLY: everything the system already holds for this school + month (Monthly Forms packet, ELC tablet sign-ins, daily meal counts).
+$m = $input['month'] ?? '';
+if (!preg_match('/^\d{4}-\d{2}$/', $m)) fail('Bad month');
+$sc = str_replace("'", "", $school);
+function ms_all($table, $formula, $fields){
+$rows = []; $offset = null; $guard = 0;
+do {
+$q = ['filterByFormula'=>$formula, 'pageSize'=>100, 'fields'=>$fields];
+if ($offset) $q['offset'] = $offset;
+$qs = preg_replace('/fields%5B\d+%5D/', 'fields%5B%5D', http_build_query($q));
+$res = at_request('GET', [$table], $qs);
+if (isset($res['error'])) return null;
+foreach (($res['records'] ?? []) as $r) $rows[] = $r['fields'];
+$offset = $res['offset'] ?? null;
+} while ($offset && ++$guard < 30);
+return $rows;
+}
+$forms = []; $submitted = null;
+$mf = ms_all('Monthly Forms', "AND(FIND('".$sc."',{Entry})>0, {Month}='".$m."')", ['Entry','Form','Employee','Updated By','Updated At']);
+if ($mf !== null){
+foreach ($mf as $f){
+$k = $f['Form'] ?? ''; if ($k === '') continue;
+if ($k === 'SUBMITTED'){ $submitted = ['by'=>$f['Updated By'] ?? '', 'at'=>$f['Updated At'] ?? '']; continue; }
+if (!isset($forms[$k])) $forms[$k] = ['count'=>0, 'by'=>'', 'at'=>''];
+$forms[$k]['count']++;
+if (($f['Updated At'] ?? '') >= $forms[$k]['at']){ $forms[$k]['at'] = $f['Updated At'] ?? ''; $forms[$k]['by'] = $f['Updated By'] ?? ''; }
+}
+}
+$elc = null;
+$er = ms_all('ELC Sign-Ins', "AND({School}='".$sc."', {Month}='".$m."')", ['Entry ID','Date','Sign In Time','Sign Out Time','Note','Excuse Form']);
+if ($er !== null){
+$kids = []; $days = []; $unsigned = 0; $notes = 0;
+foreach ($er as $f){
+$id = $f['Entry ID'] ?? ''; $parts = explode('__', $id); if (count($parts) >= 3) $kids[$parts[2]] = 1;
+if (!empty($f['Date'])) $days[$f['Date']] = 1;
+if (empty($f['Sign In Time']) || empty($f['Sign Out Time'])) $unsigned++;
+if (!empty($f['Note'])) $notes++;
+}
+$elc = ['entries'=>count($er), 'children'=>count($kids), 'days'=>count($days), 'incomplete'=>$unsigned, 'notes'=>$notes];
+}
+$meal = null;
+$mr = ms_all('Daily Meal Counts', "AND({School}='".$sc."', DATETIME_FORMAT({Date},'YYYY-MM')='".$m."')", ['Date']);
+if ($mr !== null){ $dd = []; foreach ($mr as $f){ if (!empty($f['Date'])) $dd[$f['Date']] = 1; } $meal = ['days'=>count($dd)]; }
+echo json_encode(['month'=>$m, 'school'=>$school, 'forms'=>$forms ?: new stdClass, 'submitted'=>$submitted, 'elc'=>$elc, 'meals'=>$meal]); exit;
+}
 if ($action === 'facility'){
 // READ-ONLY: completed facility checklists (cleaning, bathroom, inspections, drills, incident) for this school + month, from Facility Submissions.
 $m = $input['month'] ?? '';
