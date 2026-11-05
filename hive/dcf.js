@@ -407,7 +407,7 @@ function labOv(){
 function parQuick(){
   var dopt='<option value="wk">Every weekday (Mon&ndash;Fri)</option><option value="all">Every day of the month</option><option value="mwf">Mon / Wed / Fri</option><option value="tt">Tue / Thu</option><option value="cus">Specific days&hellip;</option>';
   function row(k,lab,def){ return '<div class="qfrow"><b>'+lab+'</b><input class="inp qh" id="qf-'+k+'-h" inputmode="decimal" placeholder="hrs/day" value="'+def+'"><select class="inp" id="qf-'+k+'-d">'+dopt+'</select><input class="inp" id="qf-'+k+'-c" placeholder="e.g. 1,2,5-9" style="display:none"></div>'; }
-  return '<div class="card noprint qf"><div class="ct">Quick fill this month</div><div class="sub">Type the hours per day and pick which days. Leave hours blank to skip a column. It only fills the days you pick, so you can still change any box afterward.</div>'+row('a','Admin hours','')+row('o','Operational hours','')+row('r','Regular hours worked','')+row('p','Paid leave hours','')+'<div class="mrow"><button class="btn grn" data-pf="parfill">Fill the table</button><button class="btn sec" data-pf="parclear">Clear this month</button></div></div>';
+  return '<div class="card noprint qf"><div class="ct">Quick fill this month</div><div class="sub">Type the hours per day and pick which days. Leave hours blank to skip a column. It only fills the days you pick, so you can still change any box afterward.</div>'+row('a','Admin hours','')+row('o','Operational hours','')+row('r','Regular hours worked','')+row('p','Paid leave hours','')+'<div class="mrow"><button class="btn grn" data-pf="parfill">Fill the table</button><button class="btn sec" data-pf="parclear">Clear this month</button></div><div class="mrow"><button class="btn" style="background:#2e7d32;color:#fff" data-pf="parmulti">Fill sheets for several staff&hellip;</button></div></div>';
 }
 function parDays(sel,txt,dim,y,m){
   var out=[]; for(var d=1;d<=dim;d++){ var w=new Date(y,m-1,d).getDay();
@@ -423,6 +423,36 @@ function parFill(){
   parTotals(); postPack(); schedSave(); toast(n?('Filled '+n+' boxes.'):'Nothing to fill - enter hours first.',!n);
 }
 function parClear(){ if(isLocked()) return; if(!confirm('Clear every hours box on this form?')) return; document.querySelectorAll('.pv').forEach(function(i){ i.value=''; }); parTotals(); postPack(); schedSave(); }
+
+/* ----- fill several staff PAR sheets at once (pop-up) ----- */
+function parMulti(){
+  var pk=S.pk, names=pk.staff||[]; if(isLocked()) return toast('This month is locked.',true);
+  if(!names.length) return toast('No staff list loaded yet. Open the PAR tab and try again.',true);
+  var m=pk.month, h='<div class="mback" data-a="mclose"><div class="mbox" data-stop="1" style="max-width:640px"><h3>Fill Personnel Activity Reports &mdash; '+MONTHS[+m.slice(5)-1]+' '+m.slice(0,4)+'</h3>';
+  h+='<div class="sub">Pick who worked on the Food Program. Weekends and closed days are filled in as <b>Closed</b> automatically. Each person gets their own saved sheet, kept in this month&rsquo;s Food Program packet.</div>';
+  h+='<div class="qfrow"><b>Same for everyone</b></div><div style="display:flex;flex-wrap:wrap;gap:8px"><label>Operational hrs Mon&ndash;Thu<input class="inp" id="pm-o" value="3" inputmode="decimal"></label><label>Operational hrs Friday<input class="inp" id="pm-f" value="4" inputmode="decimal"></label><label>Regular hrs / day<input class="inp" id="pm-r" value="8" inputmode="decimal"></label><label>Admin hrs / day (optional)<input class="inp" id="pm-a" value="" inputmode="decimal"></label><label>Title<input class="inp" id="pm-t" value="Teacher"></label></div>';
+  h+='<div style="margin:8px 0"><button class="btn sec sm" onclick="document.querySelectorAll(\'.pm-ck\').forEach(function(c){c.checked=true})">Select all</button> <button class="btn sec sm" onclick="document.querySelectorAll(\'.pm-ck\').forEach(function(c){c.checked=false})">Select none</button></div>';
+  h+='<div style="max-height:260px;overflow:auto;border:1px solid #ccc;border-radius:8px;padding:6px">'+names.map(function(n,i){ var have=pkData('PAR',n)&&Object.keys((pkData('PAR',n)||{}).days||{}).length; return '<div style="display:flex;gap:6px;align-items:center;padding:3px 0"><label style="flex:1"><input type="checkbox" class="pm-ck" data-n="'+esc(n)+'"> '+esc(n)+(have?' <small style="color:#2e7d32">(has a sheet &mdash; will be replaced)</small>':'')+'</label><input class="inp pm-tt" placeholder="title (optional)" style="width:130px"></div>'; }).join('')+'</div>';
+  h+='<div id="merr" class="err"></div><div class="mrow"><button class="btn sec" data-a="mclose">Cancel</button><button class="btn grn" data-pf="pmgo" id="pmgo">Create the sheets</button></div></div></div>';
+  $('modal').innerHTML=h;
+}
+function parMultiGo(){
+  var pk=S.pk, m=pk.month, y=+m.slice(0,4), mo=+m.slice(5), dim=new Date(y,mo,0).getDate();
+  var o=$('pm-o').value.trim(), f=$('pm-f').value.trim(), r=$('pm-r').value.trim(), a=$('pm-a').value.trim(), t0=$('pm-t').value.trim();
+  var rows=[].filter.call(document.querySelectorAll('.pm-ck'),function(c){return c.checked;}).map(function(c){ return {n:c.getAttribute('data-n'),t:(c.parentNode.parentNode.querySelector('.pm-tt').value.trim()||t0)}; });
+  if(!rows.length){ $('merr').textContent='Pick at least one person.'; return; }
+  if(!directorName()){ $('merr').textContent='Enter your name first.'; return; }
+  var btn=$('pmgo'); btn.disabled=true; btn.textContent='Creating 0 of '+rows.length+'…'; var i=0;
+  (function next(){
+    if(i>=rows.length){ $('modal').innerHTML=''; pk.emp=rows[0].n; toast(rows.length+' sheet'+(rows.length===1?'':'s')+' saved to '+MONTHS[mo-1]+'.'); render(); return; }
+    var q=rows[i], ex=pkData('PAR',q.n)||{}, days={};
+    for(var d=1;d<=dim;d++){ var iso=m+'-'+(d<10?'0':'')+d, w=new Date(y,mo-1,d).getDay();
+      if(w===0||w===6||!isSchoolDay(iso)){ days[d]={o:'Closed'}; continue; }
+      var rec={}; if(a) rec.a=a; var ov=(w===5&&f!=='')?f:o; if(ov!=='') rec.o=ov; if(r!=='') rec.r=r; days[d]=rec; }
+    var data={auth:ex.auth||'',title:q.t,days:days,sp:ex.sp||{}};
+    writeRec({form:'PAR',emp:q.n,data:data},true).then(function(){ i++; btn.textContent='Creating '+i+' of '+rows.length+'…'; next(); });
+  })();
+}
 /* ----- signature pad ----- */
 var SIGDATE={MEDICAL:{sig:'f:sdate'},DIETARY:{psig:'f:pdate'},INFANTFEED:{psig:'f:pdate'},SITEINFO:{sig:'f:sdate'},PAR:{sigE:'s:sigdate',sigD:'s:sd'}};
 function todayUS(){ var d=new Date(); return ('0'+(d.getMonth()+1)).slice(-2)+'/'+('0'+d.getDate()).slice(-2)+'/'+d.getFullYear(); }
@@ -750,7 +780,7 @@ document.addEventListener('click',function(e){
   var dl=e.target.closest&&e.target.closest('[data-dl]'); if(dl){ e.preventDefault(); downloadSigned(dl.getAttribute('data-dl'),dl.getAttribute('data-nm')); return; }
   var el=e.target.closest('[data-cell],[data-tab],[data-a],[data-adddrill],[data-pf],[data-goto]'); if(!el) return;
   if(el.hasAttribute('data-goto')){ S.tab='pack'; S.pk.form=el.getAttribute('data-goto'); render(); return; }
-  if(el.hasAttribute('data-pf')){ var a2=el.getAttribute('data-pf'),pk=S.pk; if(a2==='prev'||a2==='next'){ flushSave().then(function(){ pk.month=shiftMonth(pk.month,a2==='prev'?-1:1); pk.loaded=''; render(); }); } else if(a2==='form'){ var fv=el.getAttribute('data-v'); flushSave().then(function(){ pk.form=fv; render(); }); } else if(a2==='save') savePacket(); else if(a2==='submit') submitPacket(); else if(a2==='parfill') parFill(); else if(a2==='parclear') parClear(); else if(a2==='print'){ var ls=pk.form==='EXPEND', stt=$('pgst'); if(!stt){ stt=document.createElement('style'); stt.id='pgst'; document.head.appendChild(stt); } stt.textContent='@page{size:letter '+(ls?'landscape':'portrait')+';margin:'+(/^(SITEINFO|CHECKLIST|ENTRANCES|MEDICAL|DIETARY|INFANTFEED|PAR|LABOR|EXPEND)$/.test(pk.form)?'0':'0.4in')+'}'; window.print(); } return; }
+  if(el.hasAttribute('data-pf')){ var a2=el.getAttribute('data-pf'),pk=S.pk; if(a2==='prev'||a2==='next'){ flushSave().then(function(){ pk.month=shiftMonth(pk.month,a2==='prev'?-1:1); pk.loaded=''; render(); }); } else if(a2==='form'){ var fv=el.getAttribute('data-v'); flushSave().then(function(){ pk.form=fv; render(); }); } else if(a2==='save') savePacket(); else if(a2==='submit') submitPacket(); else if(a2==='parfill') parFill(); else if(a2==='parmulti') parMulti(); else if(a2==='pmgo') parMultiGo(); else if(a2==='parclear') parClear(); else if(a2==='print'){ var ls=pk.form==='EXPEND', stt=$('pgst'); if(!stt){ stt=document.createElement('style'); stt.id='pgst'; document.head.appendChild(stt); } stt.textContent='@page{size:letter '+(ls?'landscape':'portrait')+';margin:'+(/^(SITEINFO|CHECKLIST|ENTRANCES|MEDICAL|DIETARY|INFANTFEED|PAR|LABOR|EXPEND)$/.test(pk.form)?'0':'0.4in')+'}'; window.print(); } return; }
   if(el.getAttribute('data-a')==='mclose' && e.target.closest('[data-stop]') && !e.target.classList.contains('btn')) return;
   if(el.hasAttribute('data-adddrill')){ var ad=el.getAttribute('data-adddrill'); addDrill(ad.length===7?ad+'-'+todayNY().slice(8):ad); return; }
   if(el.hasAttribute('data-cell')){ var p=el.getAttribute('data-cell').split('|'); openCell(p[0],p[1],p[2],p[3]); return; }
