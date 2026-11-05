@@ -70,6 +70,9 @@ $DEFS = [
  'disab' => ['Disabilities training (operators/directors)', true, false, 'Operators: within 5 years. Enter the next due date'],
  'civ'   => ['Civil Rights training (Food Program)', true, false, 'Staff who serve or record meals. Renew every year'],
  'srori' => ['School Readiness orientation / health & safety training', false, false, 'Only staff who care for School Readiness (ELC) children'],
+ 'f5131' => ['Personnel file form CF-FSP 5131 (Background Screening and Personnel File Requirements)', false, true, ''],
+ 'oos'   => ['Out-of-state registry searches (lived outside Florida in last 5 years)', false, false, 'Only if they did'],
+ 'vol'   => ['Volunteer acknowledgment CF-FSP 5217', false, false, 'Volunteers only, before they start'],
  'ce'    => ['Other training certificates (outside classes)', false, false, 'Hive lesson certificates are added automatically below'],
 ],
 'student' => [
@@ -95,6 +98,8 @@ $DEFS = [
  'dmed'  => ['Medical statement / dietary request (meal changes)', false, false, 'Only if the child needs a meal substitution'],
  'tcons' => ['Emergency medical consent for transport', false, false, 'Only if the child rides the vehicle or goes on trips'],
  'sleep' => ['Physician authorization (sleep position / feeding device)', false, false, 'Only if a doctor requires one'],
+ 'broch' => ['Know Your Child Care Facility brochure receipt (CF/PI 175-24)', false, true, 'Signed by parent'],
+ 'medauth'=> ['Medication authorization (signed, dated, dose and time)', false, false, 'Only if we give any medication. Keep 12 months after the last dose'],
  'elc'   => ['4C / ELC voucher', false, false, 'Only if the family has one'],
  'cust'  => ['Custody / court papers', false, false, 'Only if any'],
 ],
