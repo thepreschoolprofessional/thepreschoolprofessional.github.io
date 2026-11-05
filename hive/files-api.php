@@ -169,20 +169,45 @@ if ($exp <= date('Y-m-d', strtotime($today.' +30 days'))) return 'soon';
 }
 return 'ok';
 }
+
+/* Drive fallback: one private Drive folder per person (table "File Drive Links"). Doc Links JSON = {docKey:{url,label,verified}} */
+function drive_links($school){
+static $mem = [];
+if (isset($mem[$school])) return $mem[$school];
+$cache = sys_get_temp_dir().'/hive_drive_'.preg_replace('/[^a-z0-9]/', '', strtolower($school)).'.json';
+if (is_file($cache) && time() - filemtime($cache) < 60){ $mem[$school] = json_decode(file_get_contents($cache), true) ?: []; return $mem[$school]; }
+$out = []; $off = null;
+do {
+$q = ['filterByFormula'=>"{School}='".str_replace("'", "", $school)."'", 'pageSize'=>100]; if ($off) $q['offset'] = $off;
+$res = at_request('GET', ['File Drive Links'], http_build_query($q));
+if (!is_array($res) || isset($res['error'])) { $mem[$school] = []; return []; }
+foreach (($res['records'] ?? []) as $r){
+$f = $r['fields'] ?? []; $k = $f['Key'] ?? ''; if ($k === '') continue;
+$dl = json_decode($f['Doc Links'] ?? '', true); if (!is_array($dl)) $dl = [];
+$out[$k] = ['rid'=>$r['id'], 'folder'=>($f['Folder URL'] ?? ''), 'docs'=>$dl, 'sort'=>!empty($f['Needs Sorting'])];
+}
+$off = $res['offset'] ?? null;
+} while ($off);
+@file_put_contents($cache, json_encode($out));
+$mem[$school] = $out; return $out;
+}
+function drive_cache_clear($school){ @unlink(sys_get_temp_dir().'/hive_drive_'.preg_replace('/[^a-z0-9]/', '', strtolower($school)).'.json'); }
 function person_view($school, $kind, $id, $p){
 global $DEFS, $CE_GOAL;
 $d = pdir($school, $kind, $id); $meta = jread($d.'/meta.json', ['docs'=>new stdClass, 'files'=>[]]);
 $today = date('Y-m-d'); $docs = []; $red = 0; $amber = 0;
 $mdocs = (array)($meta['docs'] ?? []);
+$dv = drive_links($school)[$kind.':'.$id] ?? null;
 foreach ($DEFS[$kind] as $k => $def){
 $fl = []; foreach (($meta['files'] ?? []) as $f){ if (($f['doc'] ?? '') === $k) $fl[] = $f; }
 $exp = $mdocs[$k]['exp'] ?? '';
 $dn = !empty($mdocs[$k]['done']);
-$st = status_for($def, $fl, $exp, $today, $dn);
+$dl = $dv['docs'][$k] ?? null; $dok = ($dl && !empty($dl['url']) && !empty($dl['verified']));
+$st = status_for($def, $fl, $exp, $today, $dn || $dok);
 if ($st === 'missing' || $st === 'expired') $red++; elseif ($st === 'soon' || $st === 'needdate') $amber++;
-$docs[] = ['key'=>$k, 'label'=>$def[0], 'needsExp'=>$def[1], 'req'=>$def[2], 'hint'=>($def[3] ?? ''), 'status'=>$st, 'exp'=>$exp, 'files'=>$fl, 'marked'=>($dn && !$fl), 'nodate'=>($def[1] && !$exp && ($fl || $dn))];
+$docs[] = ['key'=>$k, 'label'=>$def[0], 'needsExp'=>$def[1], 'req'=>$def[2], 'hint'=>($def[3] ?? ''), 'status'=>$st, 'exp'=>$exp, 'files'=>$fl, 'marked'=>($dn && !$fl && !$dok), 'nodate'=>($def[1] && !$exp && ($fl || $dn || $dok)), 'drive'=>(($dl && !empty($dl['url'])) ? ['url'=>$dl['url'], 'label'=>($dl['label'] ?? 'Page in Drive'), 'verified'=>$dok] : null)];
 }
-$out = ['id'=>$id, 'name'=>$p['name'], 'sub'=>$p['sub'], 'dob'=>$p['dob'], 'red'=>$red, 'amber'=>$amber, 'docs'=>$docs, 'former'=>!empty($p['former']), 'left'=>($meta['left'] ?? null), 'practice'=>(strpos($id, 'recTEST') === 0)];
+$out = ['id'=>$id, 'name'=>$p['name'], 'sub'=>$p['sub'], 'dob'=>$p['dob'], 'red'=>$red, 'amber'=>$amber, 'docs'=>$docs, 'former'=>!empty($p['former']), 'left'=>($meta['left'] ?? null), 'practice'=>(strpos($id, 'recTEST') === 0), 'driveFolder'=>($dv['folder'] ?? ''), 'driveSort'=>!empty($dv['sort'])];
 if ($kind === 'staff'){
 $certs = jread($d.'/certs.json', []); $sign = 0; $hrs = [];
 foreach ($certs as &$c){ if (empty($c['signedAt'])) $sign++; $y = $c['year'] ?? substr($c['date'] ?? '', 0, 4); $hrs[$y] = round(($hrs[$y] ?? 0) + (float)($c['hrs'] ?? 0), 2); } unset($c);
@@ -245,7 +270,7 @@ if ($action === 'roster'){
 $inact = !empty($input['former']);
 $r = roster($school, $kind, $inact); if ($r === null) fail('Could not read the roster right now.', 502);
 $list = [];
-foreach ($r as $p){ $v = person_view($school, $kind, $p['id'], $p); $list[] = ['id'=>$p['id'], 'name'=>$p['name'], 'sub'=>$p['sub'], 'red'=>$v['red'], 'amber'=>$v['amber'], 'sign'=>$v['sign'] ?? 0, 'left'=>$v['left']]; }
+foreach ($r as $p){ $v = person_view($school, $kind, $p['id'], $p); $list[] = ['id'=>$p['id'], 'name'=>$p['name'], 'sub'=>$p['sub'], 'red'=>$v['red'], 'amber'=>$v['amber'], 'sign'=>$v['sign'] ?? 0, 'left'=>$v['left'], 'driveSort'=>$v['driveSort']]; }
 echo json_encode(['school'=>$school, 'kind'=>$kind, 'people'=>$list]); exit;
 }
 
@@ -284,6 +309,16 @@ $p = find_person($school, $kind, $id);
 if (!$p && !in_array($action, ['getfile'], true)) fail('That person is not on this school\'s roster.', 404);
 
 if ($action === 'person'){ echo json_encode(person_view($school, $kind, $id, $p)); exit; }
+
+if ($action === 'drive_sort'){
+$dv = drive_links($school)[$kind.':'.$id] ?? null;
+if (!$dv) fail('This person does not have a Drive folder yet. Ask Mrs. Bear to add one.', 404);
+$on = !empty($input['on']);
+$res = at_request('PATCH', ['File Drive Links', $dv['rid']], null, ['fields'=>['Needs Sorting'=>$on]]);
+if (!isset($res['id'])) fail('Could not save that right now.', 502);
+drive_cache_clear($school);
+echo json_encode(['ok'=>true, 'on'=>$on]); exit;
+}
 
 if ($action === 'upload'){
 $doc = $input['doc'] ?? ''; if (!isset($DEFS[$kind][$doc])) fail('Pick which document this is');
