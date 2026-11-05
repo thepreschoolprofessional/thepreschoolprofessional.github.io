@@ -18,6 +18,7 @@ body{margin:0;background:linear-gradient(160deg,#fff7ef,#ffe7d4);color:var(--ink
 .bar{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.bar .fi{flex:1;min-width:180px;margin:0}
 .pr{background:#fff;border-radius:14px;padding:12px 14px;box-shadow:0 3px 10px rgba(74,58,48,.1);display:flex;gap:10px;align-items:center;cursor:pointer;border:0;text-align:left;width:100%;margin:8px 0}
 .pr b{display:block}.pr small{color:var(--soft)}
+.pbtn{border:0;cursor:pointer;font-family:inherit}
 .pill{display:inline-block;border-radius:999px;padding:3px 10px;font-weight:800;font-size:.8rem;color:#fff;white-space:nowrap}
 .p-red{background:var(--red)}.p-amb{background:var(--amb)}.p-ok{background:var(--grn)}.p-opt{background:#a99b90}
 .pr .pills{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
@@ -104,9 +105,9 @@ function pView(){
  h+='<div class="card"><h3>'+(ST?'What this file needs':'What this folder needs')+'</h3><div class="sub" style="margin-bottom:6px">Tap Take photo for each page (or choose a PDF). Red means it is missing or out of date.</div>';
  c.docs.forEach(function(d){
   const s=LBL[d.status];
-  h+='<div class="doc'+((d.status==='missing'||d.status==='expired')?' bad':'')+'"><div class="hd"><b>'+esc(d.label)+(d.req?'':' <small style="color:var(--soft);font-weight:600">(only if it applies)</small>')+'</b><span class="pill '+s[1]+'">'+s[0]+'</span></div>';
+  h+='<div class="doc'+((d.status==='missing'||d.status==='expired')?' bad':'')+'"><div class="hd"><b>'+esc(d.label)+(d.req?'':' <small style="color:var(--soft);font-weight:600">(only if it applies)</small>')+'</b>'+pillHtml(d,s)+'</div>';
   if(d.hint)h+='<div class="sub" style="font-size:.82rem">'+esc(d.hint)+'</div>';
-  if(d.needsExp)h+='<div class="ex">Expires: <input type="date" value="'+esc(d.exp)+'" onchange="setExp(\''+d.key+'\',this.value)"></div>';
+  if(d.needsExp)h+='<div class="ex">Expires: <input type="date" value="'+esc(d.exp)+'" onchange="setExp(\''+d.key+'\',this.value)">'+(d.nodate?' <span style="color:var(--amb)">add the date so it can be tracked</span>':'')+'</div>';
   if(d.files.length)h+='<div class="fl">'+d.files.map(function(f,i){return '<span><button class="lk" onclick="view(\''+esc(f.name)+'\')">Page '+(i+1)+'</button> <button class="lk" style="color:#999" onclick="rm(\''+esc(f.name)+'\')">remove</button></span>';}).join('')+'</div>';
   h+='<div class="fl"><label class="btn sm blu" style="margin:0">📷 Take photo<input type="file" accept="image/*" capture="environment" style="display:none" onchange="up(\''+d.key+'\',this)"></label>'
    +'<label class="btn sm sec" style="margin:0">📎 Choose file or PDF<input type="file" accept="image/*,application/pdf" multiple style="display:none" onchange="up(\''+d.key+'\',this)"></label></div></div>';});
@@ -114,6 +115,13 @@ function pView(){
  if(!c.former&&!c.practice)h+='<div style="text-align:center;margin:18px 0"><button class="btn sm sec" style="color:var(--red)" onclick="remOpen()">Remove '+(ST?'this staff member':'this child')+' from the '+(ST?'staff list':'roster')+'</button></div>';
  $('app').innerHTML=h;}
 async function refresh(){CUR=await api('person',{id:CUR.id});pView();}
+function pillHtml(d,s){
+ if(d.status==='missing'||d.status==='optional')return '<button class="pill pbtn '+s[1]+'" onclick="markDoc(\''+d.key+'\',1)">'+(d.status==='missing'?'Missing · tap if you have it':'Tap if you have it')+'</button>';
+ if(d.marked)return '<span class="pill p-ok">On file (marked)</span> <button class="lk" style="background:none;border:0;color:#999;text-decoration:underline;font-size:.8rem;cursor:pointer" onclick="markDoc(\''+d.key+'\',0)">undo</button>';
+ return '<span class="pill '+s[1]+'">'+s[0]+'</span>';}
+async function markDoc(doc,on){
+ if(on&&!confirm('Mark this as on file? Use this when you have the paper copy. You can still add photos any time.'))return;
+ try{await api('mark',{id:CUR.id,doc,on});await refresh();say('gm',on?'Marked on file.':'Marked missing again.');}catch(e){say('gm',e.message,1);}}
 async function setExp(doc,v){try{await api('setexp',{id:CUR.id,doc,exp:v});await refresh();say('gm','Saved.');}catch(e){say('gm',e.message,1);}}
 
 /* photos are shrunk before sending so they upload fast on a phone */

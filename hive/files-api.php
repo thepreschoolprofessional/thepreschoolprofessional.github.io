@@ -158,12 +158,12 @@ if (!preg_match('/^rec[A-Za-z0-9]{10,20}$/', $id)) fail('Bad person');
 $d = $b.'/people/'.$kind.'/'.$id; if (!is_dir($d) && !@mkdir($d, 0750, true)) fail('Could not create the folder', 500);
 return $d;
 }
-function status_for($def, $files, $exp, $today){
+function status_for($def, $files, $exp, $today, $done = false){
 // returns [status, label]. red: missing / expired. amber: expires soon / date needed. ok / optional.
 $label = $def[0]; $needsExp = $def[1]; $req = $def[2];
-if (!$files) return $req ? 'missing' : 'optional';
+if (!$files && !$done) return $req ? 'missing' : 'optional';
 if ($needsExp){
-if (!$exp) return 'needdate';
+if (!$exp) return 'ok';
 if ($exp < $today) return 'expired';
 if ($exp <= date('Y-m-d', strtotime($today.' +30 days'))) return 'soon';
 }
@@ -177,9 +177,10 @@ $mdocs = (array)($meta['docs'] ?? []);
 foreach ($DEFS[$kind] as $k => $def){
 $fl = []; foreach (($meta['files'] ?? []) as $f){ if (($f['doc'] ?? '') === $k) $fl[] = $f; }
 $exp = $mdocs[$k]['exp'] ?? '';
-$st = status_for($def, $fl, $exp, $today);
+$dn = !empty($mdocs[$k]['done']);
+$st = status_for($def, $fl, $exp, $today, $dn);
 if ($st === 'missing' || $st === 'expired') $red++; elseif ($st === 'soon' || $st === 'needdate') $amber++;
-$docs[] = ['key'=>$k, 'label'=>$def[0], 'needsExp'=>$def[1], 'req'=>$def[2], 'hint'=>($def[3] ?? ''), 'status'=>$st, 'exp'=>$exp, 'files'=>$fl];
+$docs[] = ['key'=>$k, 'label'=>$def[0], 'needsExp'=>$def[1], 'req'=>$def[2], 'hint'=>($def[3] ?? ''), 'status'=>$st, 'exp'=>$exp, 'files'=>$fl, 'marked'=>($dn && !$fl), 'nodate'=>($def[1] && !$exp && ($fl || $dn))];
 }
 $out = ['id'=>$id, 'name'=>$p['name'], 'sub'=>$p['sub'], 'dob'=>$p['dob'], 'red'=>$red, 'amber'=>$amber, 'docs'=>$docs, 'former'=>!empty($p['former']), 'left'=>($meta['left'] ?? null), 'practice'=>(strpos($id, 'recTEST') === 0)];
 if ($kind === 'staff'){
@@ -299,16 +300,26 @@ $fname = date('Ymd-His').'_'.$doc.'_p'.$pg.'_'.($base !== '' ? $base : 'page').'
 if (file_put_contents($d.'/'.$fname, $raw) === false) fail('Could not save the file', 500);
 $meta['files'][] = ['doc'=>$doc, 'name'=>$fname, 'at'=>gmdate('c'), 'size'=>strlen($raw)];
 if (!is_array($meta['docs'])) $meta['docs'] = [];
-if ($exp !== '') $meta['docs'][$doc] = ['exp'=>$exp];
+if ($exp !== '') $meta['docs'][$doc] = array_merge((array)($meta['docs'][$doc] ?? []), ['exp'=>$exp]);
 jwrite($mf, $meta);
 echo json_encode(['ok'=>true, 'name'=>$fname]); exit;
+}
+if ($action === 'mark'){
+$doc = $input['doc'] ?? ''; if (!isset($DEFS[$kind][$doc])) fail('Bad document');
+$d = pdir($school, $kind, $id); $mf = $d.'/meta.json'; $meta = jread($mf, ['docs'=>[], 'files'=>[]]);
+if (!is_array($meta['docs'])) $meta['docs'] = [];
+$cur = (array)($meta['docs'][$doc] ?? []);
+if (!empty($input['on'])){ $cur['done'] = true; $cur['doneAt'] = gmdate('c'); } else { unset($cur['done'], $cur['doneAt']); }
+$exp = $input['exp'] ?? null; if ($exp !== null && $exp !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $exp)) $cur['exp'] = $exp;
+$meta['docs'][$doc] = $cur; jwrite($mf, $meta);
+echo json_encode(['ok'=>true]); exit;
 }
 if ($action === 'setexp'){
 $doc = $input['doc'] ?? ''; if (!isset($DEFS[$kind][$doc])) fail('Bad document');
 $exp = $input['exp'] ?? ''; if ($exp !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $exp)) fail('That expiration date is not a real date');
 $d = pdir($school, $kind, $id); $mf = $d.'/meta.json'; $meta = jread($mf, ['docs'=>[], 'files'=>[]]);
 if (!is_array($meta['docs'])) $meta['docs'] = [];
-$meta['docs'][$doc] = ['exp'=>$exp]; jwrite($mf, $meta);
+$meta['docs'][$doc] = array_merge((array)($meta['docs'][$doc] ?? []), ['exp'=>$exp]); jwrite($mf, $meta);
 echo json_encode(['ok'=>true]); exit;
 }
 if ($action === 'getfile'){
