@@ -193,6 +193,40 @@ const LESSONS=[
   {q:'You did the room inspection but forgot to enter it. What do you do?',a:['Enter it now','Ignore it','Tell the parent'],c:0,w:'Enter it. It will show when it was entered.'}]}
 ];
 
+
+/* ---- continuing-education certificate: goes to the staff member's file; the director or owner signs it there ---- */
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function fmtD(d){if(!d)return '';var p=d.split('-');return p[1]+'/'+p[2]+'/'+p[0];}
+function durH(h){h=Number(h);return h<1?Math.round(h*60)+' minutes':(Math.round(h*100)/100)+' hours';}
+function ls(k){try{return localStorage.getItem(k)||''}catch(e){return ''}}
+function certSent(id){try{return JSON.parse(localStorage.getItem('hiveCertSent')||'{}')[id+'-'+new Date().getFullYear()]||null}catch(e){return null}}
+function markSent(id,c){try{var d=JSON.parse(localStorage.getItem('hiveCertSent')||'{}');d[id+'-'+new Date().getFullYear()]=c;localStorage.setItem('hiveCertSent',JSON.stringify(d))}catch(e){}}
+function certHtml(name,school,t){
+ return '<!doctype html><meta charset="utf-8"><title>Certificate</title><style>body{font-family:Georgia,serif;margin:0;padding:30px;text-align:center;color:#2b2b2b}.b{border:8px double #1d4e89;padding:40px 30px;max-width:760px;margin:0 auto}h1{font-size:34px;margin:0 0 6px;color:#1d4e89}.n{font-size:30px;margin:16px 0;border-bottom:2px solid #999;display:inline-block;padding:0 24px}.sm{color:#555;font-size:14px}.sg{margin-top:34px}.sg div{border-top:1px solid #444;padding-top:6px;font-size:13px;max-width:380px;margin:0 auto}@media print{button{display:none}}</style>'
+ +'<div class="b"><div class="sm">Kid City USA — '+esc(school)+'</div><h1>Certificate of In-Service Training</h1><div class="sm">This certifies that</div><div class="n">'+esc(name)+'</div><div class="sm">completed the training lesson</div><h2 style="margin:10px 0">'+esc(t.title)+'</h2><div>'+durH(t.hrs)+' of in-service training · '+fmtD(t.date)+'</div>'
+ +'<div class="sm" style="margin-top:8px">In-house training at Kid City USA. Keep in the staff file.</div><div class="sg"><div>Director / Owner signature (signed in the staff file)</div></div></div><p><button onclick="print()">Print</button></p>';}
+function certBox(){
+ var l=CUR,c=certSent(l.id);
+ if(c){return '<div class="card" style="background:#f6fbf7;border:2px solid #7fc79a"><b>🎓 Certificate sent to '+esc(c.name)+'\'s file.</b><div style="color:var(--soft)">Your director or Mrs. Bear signs it there. You cannot change it after it is sent.</div><button class="btn sec" onclick="showCert()">Print my copy</button></div>';}
+ return '<div class="card" style="background:#fffbea;border:2px solid #f0c040"><b>🎓 Get my certificate</b> <span style="color:var(--soft)">('+durH(l.min/60)+' of in-service training)</span><div style="color:var(--soft);font-size:.9rem;margin:4px 0">It goes into your staff file so you do not have to keep paper. Pick your name, then send.</div>'
+  +(ROLE==='teacher'?'<select class="fi" id="cs" onchange="loadNames()"><option value="">Which school?</option><option>Sanford</option><option>DeLand 2</option></select>':'')
+  +'<select class="fi" id="cn"><option value="">'+(ROLE==='teacher'?'Pick your school first':'Loading names…')+'</option></select><button class="btn grn" id="cb" onclick="sendCert()">Send certificate to my file</button><div class="msg" id="cm"></div></div>';}
+var NAMES=[];
+function loadNames(){
+ var sc=$('cs')?$('cs').value:'';var s=$('cn');if(!s)return;if(ROLE==='teacher'&&!sc){s.innerHTML='<option value="">Pick your school first</option>';return;}
+ s.innerHTML='<option value="">Loading names…</option>';
+ fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:PIN,action:'staff_names',school:sc})}).then(r=>r.json()).then(function(j){if(j.error)throw new Error(j.error);NAMES=j.staff;
+  s.innerHTML='<option value="">Pick your name</option>'+NAMES.map(function(p){return '<option value="'+p.id+'">'+esc(p.name)+'</option>'}).join('');
+ }).catch(function(e){s.innerHTML='<option value="">Could not load names</option>';if($('cm')){$('cm').style.color='#c62828';$('cm').textContent=e.message||'Could not load names.';}});}
+function sendCert(){
+ var id=$('cn').value,m=$('cm'),sc=$('cs')?$('cs').value:'';m.style.color='#c62828';
+ if(ROLE==='teacher'&&!sc){m.textContent='Pick your school.';return;}if(!id){m.textContent='Pick your name.';return;}
+ $('cb').disabled=true;m.style.color='';m.textContent='Sending…';
+ fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:PIN,action:'cert_submit',school:sc,id:id,lesson:CUR.id,title:'Lesson '+CUR.id+': '+CUR.title,hrs:Math.round(CUR.min/60*100)/100})}).then(r=>r.json()).then(function(j){
+  if(j.error)throw new Error(j.error);markSent(CUR.id,j.cert);$('cert').innerHTML=certBox();
+ }).catch(function(e){$('cb').disabled=false;m.style.color='#c62828';m.textContent=e.message||'Could not send. Try again.';});}
+function showCert(){var c=certSent(CUR.id);if(!c)return;var w=window.open('about:blank','_blank');if(!w)return;w.document.write(certHtml(c.name,c.school,c));w.document.close();}
+
 let CUR=null;
 function home(){
  var d=dn(),secs={},html='<div class="top"><h1>🎓 Lessons</h1><div><a class="btn sec" href="'+HOME+'">‹ Back to portal</a></div></div><div style="color:var(--soft);font-weight:600;margin-bottom:8px">Short lessons. Each has steps, a practice, and a quick check.</div>';
@@ -209,15 +243,16 @@ function open_(id){
  if(pr)h+=pr.html;
  l.quiz.forEach(function(q){q._o=q.a.map(function(_,k){return k}).sort(function(){return Math.random()-.5})});
  h+='<h3>Quick check</h3>'+l.quiz.map(function(q,i){return '<div class="q" id="q'+i+'"><b>'+(i+1)+'. '+q.q+'</b>'+q._o.map(function(j){return '<label onclick="ans('+i+','+j+')">'+q.a[j]+'</label>'}).join('')+'<div class="msg" id="qm'+i+'"></div></div>'}).join('');
- h+='<button class="btn grn" onclick="finish()">✓ Mark lesson complete</button><div class="msg" id="fin"></div>';
+ h+='<button class="btn grn" onclick="finish()">✓ Mark lesson complete</button><div class="msg" id="fin"></div><div id="cert"></div>';
  h+='<h3>Is a step missing or wrong?</h3><textarea class="fi" id="fb" rows="3" placeholder="Tell Mrs. Bear what is missing or confusing"></textarea><input class="fi" id="fn" placeholder="Your name" maxlength="60"><button class="btn sec" onclick="sendFb()">Send to Mrs. Bear</button><div class="msg" id="fbm"></div></div>';
  $('app').innerHTML=h;window.scrollTo(0,0);if(pr)pr.init();
+ if(dn()[l.id]){$('cert').innerHTML=certBox();if(!certSent(l.id)&&ROLE!=='teacher')loadNames();}
  try{$('fn').value=localStorage.getItem('hiveName')||''}catch(e){}
 }
 var ANS={};
 function ans(i,j){var q=CUR.quiz[i];var labs=document.querySelectorAll('#q'+i+' label');labs.forEach(function(x,k){var jj=q._o[k];x.className=jj===q.c?'good':(jj===j?'bad':'')});ANS[CUR.id+i]=(j===q.c);$('qm'+i).textContent=j===q.c?'Correct!':q.w;$('qm'+i).style.color=j===q.c?'':'#c62828';}
 function finish(){var ok=CUR.quiz.every((q,i)=>ANS[CUR.id+i]);if(!ok){$('fin').style.color='#c62828';$('fin').textContent='Answer every quick-check question correctly first.';return;}
- setDone(CUR.id);$('fin').style.color='';$('fin').textContent='Lesson complete. Great job!';}
+ setDone(CUR.id);$('fin').style.color='';$('fin').textContent='Lesson complete. Great job!';$('cert').innerHTML=certBox();if(!certSent(CUR.id)&&ROLE!=='teacher')loadNames();}
 function sendFb(){var tx=$('fb').value.trim(),nm=$('fn').value.trim();var m=$('fbm');m.style.color='#c62828';
  if(!tx||!nm){m.textContent='Type your note and your name.';return;}
  try{localStorage.setItem('hiveName',nm)}catch(e){}

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Hive Files</title>
+<style>
+:root{--ink:#4a3a30;--soft:#9b8576;--line:#eadfce;--grn:#2e8b57;--blu:#1565c0;--org:#ef6c00;--red:#d32f2f;--amb:#e08a00}
+*{box-sizing:border-box;font-family:'Segoe UI',system-ui,sans-serif}
+body{margin:0;background:linear-gradient(160deg,#fff7ef,#ffe7d4);color:var(--ink);min-height:100vh;padding-bottom:80px;line-height:1.45}
+#app{max-width:860px;margin:0 auto;padding:12px 14px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0 10px}
+.top h1{font-size:1.4rem;margin:0}.sub{color:var(--soft);font-weight:700;font-size:.9rem}
+.btn{border:0;border-radius:12px;padding:10px 16px;font-weight:800;font-size:.95rem;cursor:pointer;background:var(--ink);color:#fff;text-decoration:none;display:inline-block}
+.btn.sec{background:#fff;color:var(--ink);border:1px solid var(--line)}.btn.grn{background:var(--grn)}.btn.blu{background:var(--blu)}.btn.red{background:var(--red)}
+.btn.sm{padding:7px 12px;font-size:.85rem;border-radius:10px}
+.btn[disabled]{opacity:.5}
+.fi{width:100%;padding:11px;border:1px solid var(--line);border-radius:10px;font-size:16px;margin:4px 0}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.bar .fi{flex:1;min-width:180px;margin:0}
+.pr{background:#fff;border-radius:14px;padding:12px 14px;box-shadow:0 3px 10px rgba(74,58,48,.1);display:flex;gap:10px;align-items:center;cursor:pointer;border:0;text-align:left;width:100%;margin:8px 0}
+.pr b{display:block}.pr small{color:var(--soft)}
+.pill{display:inline-block;border-radius:999px;padding:3px 10px;font-weight:800;font-size:.8rem;color:#fff;white-space:nowrap}
+.p-red{background:var(--red)}.p-amb{background:var(--amb)}.p-ok{background:var(--grn)}.p-opt{background:#a99b90}
+.pr .pills{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.signpill{background:var(--red);animation:pls 1.4s infinite}
+@keyframes pls{0%,100%{box-shadow:0 0 0 0 rgba(211,47,47,.5)}50%{box-shadow:0 0 0 7px rgba(211,47,47,0)}}
+.card{background:#fff;border-radius:16px;padding:14px;margin:12px 0;box-shadow:0 3px 10px rgba(74,58,48,.1)}
+.card h3{margin:0 0 6px}
+.doc{border-top:1px solid #f1e7d8;padding:12px 0}.doc:first-of-type{border-top:0}
+.doc .hd{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.doc .hd b{flex:1;min-width:180px}
+.doc.bad{background:#fff3f3;margin:0 -8px;padding:12px 8px;border-radius:10px}
+.fl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;font-size:.88rem}
+.fl a,.fl button.lk{color:var(--blu);font-weight:700;cursor:pointer;background:none;border:0;padding:0;text-decoration:underline;font-size:.88rem}
+.ex{display:flex;gap:6px;align-items:center;margin-top:6px;font-size:.88rem;font-weight:700}.ex input{padding:6px;border:1px solid var(--line);border-radius:8px;font-size:15px}
+.msg{min-height:20px;font-weight:700;color:var(--grn);margin:6px 0}.msg.bad{color:var(--red)}
+.cert{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.cert.need{border:2px solid var(--red);background:#fff3f3}
+.cert .t{flex:1;min-width:180px}.cert small{color:var(--soft);display:block}
+.sigimg{height:34px;border-bottom:1px solid #999}
+.hrs{height:12px;background:#eee;border-radius:7px;overflow:hidden;margin:6px 0}.hrs i{display:block;height:100%;background:var(--grn)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:50;padding:12px}
+.modal .box{background:#fff;border-radius:16px;padding:16px;max-width:520px;width:100%}
+#sg{width:100%;height:170px;border:2px dashed #999;border-radius:10px;touch-action:none;background:#fff}
+</style></head>
+<body><div id="app"><div class="sub">Loading…</div></div>
+<div class="modal" id="mod"><div class="box" id="modbox"></div></div>
+<script>
+(function(){var V='20261105a';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+location.search+(location.search?'&':'?')+'v='+m[1]);}});}catch(e){}})();
+</script>
+<script>
+const PIN=sessionStorage.getItem('hivePin');
+if(!PIN) location.href='index.html';
+const KIND=/kind=student/.test(location.search)?'student':'staff';
+const ST=KIND==='staff';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let SCHOOL='',PEOPLE=[],FILTER='all',Q='',CUR=null;
+async function api(action,x){
+ const r=await fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({pin:PIN,action,kind:KIND},x||{}))});
+ const j=await r.json().catch(()=>({error:'Server error. Try again in a minute.'}));
+ if(j.error)throw new Error(j.error);return j;}
+function say(id,t,bad){const m=$(id);if(!m)return;m.textContent=t||'';m.className='msg'+(bad?' bad':'');}
+const LBL={missing:['Missing','p-red'],expired:['Expired','p-red'],soon:['Expires soon','p-amb'],needdate:['Add expiration date','p-amb'],ok:['On file','p-ok'],optional:['Not needed unless it applies','p-opt']};
+function dur(h){h=Number(h);return h<1?Math.round(h*60)+' min':(Math.round(h*100)/100)+' hr';}
+function fmt(d){if(!d)return '';const p=d.split('-');return p[1]+'/'+p[2]+'/'+p[0];}
+
+/* ---------- list ---------- */
+async function boot(){
+ try{const w=await api('whoami');SCHOOL=w.school;if(w.role!=='director'){throw new Error('Files are only available to directors and the owner.');}}
+ catch(e){$('app').innerHTML='<div class="card"><b>'+esc(e.message)+'</b><p><a class="btn" href="index.html">Back to sign in</a></p></div>';return;}
+ listView();}
+async function listView(){
+ CUR=null;
+ $('app').innerHTML='<div class="top"><div><h1>'+(ST?'🗂️ Staff Files':'🧒 Student Files')+'</h1><div class="sub">'+esc(SCHOOL)+'</div></div><a class="btn sec" href="'+(sessionStorage.getItem('hiveOwner')?'owner.html':'director.html')+'">‹ Back to portal</a></div>'
+ +'<div class="bar"><input class="fi" id="q" placeholder="Search '+(ST?'staff':'students')+'…" oninput="Q=this.value;draw()"><button class="btn sm sec" id="fa" onclick="setF(\'all\')">All</button><button class="btn sm sec" id="fn" onclick="setF(\'need\')">Needs attention</button></div><div id="plist"><div class="sub">Loading…</div></div>';
+ try{const j=await api('roster');PEOPLE=j.people;draw();}catch(e){$('plist').innerHTML='<div class="msg bad">'+esc(e.message)+'</div>';}}
+function setF(f){FILTER=f;draw();}
+function draw(){
+ const q=Q.trim().toLowerCase();
+ let l=PEOPLE.filter(p=>(!q||p.name.toLowerCase().indexOf(q)>=0)&&(FILTER==='all'||p.red||p.amber||p.sign));
+ l.sort((a,b)=>(b.sign?1:0)-(a.sign?1:0)||(b.red-a.red)||a.name.localeCompare(b.name));
+ if($('fa')){$('fa').className='btn sm '+(FILTER==='all'?'':'sec');$('fn').className='btn sm '+(FILTER==='need'?'':'sec');}
+ const tot=PEOPLE.reduce((a,p)=>a+p.red,0),sg=PEOPLE.reduce((a,p)=>a+(p.sign||0),0);
+ $('plist').innerHTML='<div class="sub" style="margin:4px 0">'+PEOPLE.length+' '+(ST?'staff':'students')+' · '+tot+' missing or expired item'+(tot===1?'':'s')+(ST&&sg?' · <span style="color:var(--red)">'+sg+' certificate'+(sg===1?'':'s')+' to sign</span>':'')+'</div>'
+ +(l.length?l.map(p=>'<button class="pr" onclick="openP(\''+p.id+'\')"><span><b>'+esc(p.name)+'</b><small>'+esc(p.sub||'')+'</small></span><span class="pills">'
+   +(p.sign?'<span class="pill signpill">✍ '+p.sign+' to sign</span>':'')
+   +(p.red?'<span class="pill p-red">'+p.red+' missing</span>':'')
+   +(p.amber?'<span class="pill p-amb">'+p.amber+' check</span>':'')
+   +(!p.red&&!p.amber&&!p.sign?'<span class="pill p-ok">Complete</span>':'')+'</span></button>').join(''):'<div class="card">Nobody matches.</div>');}
+
+/* ---------- one person ---------- */
+async function openP(id){
+ $('app').innerHTML='<div class="sub">Opening…</div>';
+ try{CUR=await api('person',{id});}catch(e){$('app').innerHTML='<div class="card msg bad">'+esc(e.message)+'</div><button class="btn sec" onclick="listView()">‹ Back</button>';return;}
+ pView();window.scrollTo(0,0);}
+function pView(){
+ const c=CUR;let h='<div class="top"><div><h1>'+esc(c.name)+'</h1><div class="sub">'+esc(SCHOOL)+(c.sub?' · '+esc(c.sub):'')+(c.dob?' · born '+fmt(c.dob):'')+'</div></div><button class="btn sec" onclick="listView()">‹ '+(ST?'All staff':'All students')+'</button></div>';
+ h+='<div class="msg" id="gm"></div>';
+ if(ST&&c.certs){h+=certBlock(c);}
+ h+='<div class="card"><h3>'+(ST?'What this file needs':'What this folder needs')+'</h3><div class="sub" style="margin-bottom:6px">Tap Take photo for each page (or choose a PDF). Red means it is missing or out of date.</div>';
+ c.docs.forEach(function(d){
+  const s=LBL[d.status];
+  h+='<div class="doc'+((d.status==='missing'||d.status==='expired')?' bad':'')+'"><div class="hd"><b>'+esc(d.label)+(d.req?'':' <small style="color:var(--soft);font-weight:600">(only if it applies)</small>')+'</b><span class="pill '+s[1]+'">'+s[0]+'</span></div>';
+  if(d.needsExp)h+='<div class="ex">Expires: <input type="date" value="'+esc(d.exp)+'" onchange="setExp(\''+d.key+'\',this.value)"></div>';
+  if(d.files.length)h+='<div class="fl">'+d.files.map(function(f,i){return '<span><button class="lk" onclick="view(\''+esc(f.name)+'\')">Page '+(i+1)+'</button> <button class="lk" style="color:#999" onclick="rm(\''+esc(f.name)+'\')">remove</button></span>';}).join('')+'</div>';
+  h+='<div class="fl"><label class="btn sm blu" style="margin:0">📷 Take photo<input type="file" accept="image/*" capture="environment" style="display:none" onchange="up(\''+d.key+'\',this)"></label>'
+   +'<label class="btn sm sec" style="margin:0">📎 Choose file or PDF<input type="file" accept="image/*,application/pdf" multiple style="display:none" onchange="up(\''+d.key+'\',this)"></label></div></div>';});
+ h+='</div>';
+ $('app').innerHTML=h;}
+async function refresh(){CUR=await api('person',{id:CUR.id});pView();}
+async function setExp(doc,v){try{await api('setexp',{id:CUR.id,doc,exp:v});await refresh();say('gm','Saved.');}catch(e){say('gm',e.message,1);}}
+
+/* photos are shrunk before sending so they upload fast on a phone */
+function shrink(file){return new Promise(function(ok){
+ if(!/^image\//.test(file.type)){const r=new FileReader();r.onload=()=>ok({b64:r.result.split(',')[1],name:file.name});r.onerror=()=>ok(null);r.readAsDataURL(file);return;}
+ const u=URL.createObjectURL(file),im=new Image();
+ im.onload=function(){const M=1800,k=Math.min(1,M/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
+  const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);
+  ok({b64:c.toDataURL('image/jpeg',0.82).split(',')[1],name:file.name.replace(/\.\w+$/,'')+'.jpg'});};
+ im.onerror=function(){URL.revokeObjectURL(u);const r=new FileReader();r.onload=()=>ok({b64:r.result.split(',')[1],name:file.name});r.onerror=()=>ok(null);r.readAsDataURL(file);};
+ im.src=u;});}
+async function up(doc,inp){
+ const fs=[].slice.call(inp.files);inp.value='';if(!fs.length)return;
+ let n=0;
+ for(const f of fs){
+  say('gm','Saving page '+(n+1)+' of '+fs.length+'…');
+  const s=await shrink(f);if(!s){say('gm','Could not read that file.',1);return;}
+  try{await api('upload',{id:CUR.id,doc,name:s.name,b64:s.b64});n++;}catch(e){say('gm',(e.message||'Upload failed')+(n?' ('+n+' saved)':''),1);if(n)await refresh();return;}}
+ await refresh();say('gm',n+' page'+(n===1?'':'s')+' saved to '+CUR.name+'\'s file.');}
+async function view(name){
+ const w=window.open('about:blank','_blank');
+ try{const j=await api('getfile',{id:CUR.id,name});const bin=atob(j.b64),a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);
+  const t=/\.pdf$/i.test(name)?'application/pdf':(/\.png$/i.test(name)?'image/png':'image/jpeg');
+  const url=URL.createObjectURL(new Blob([a],{type:t}));if(w)w.location.href=url;else location.href=url;}
+ catch(e){if(w)w.close();say('gm',e.message,1);}}
+async function rm(name){
+ if(!confirm('Remove this page from the file? It is kept in the audit folder, not erased.'))return;
+ try{await api('remove',{id:CUR.id,name});await refresh();say('gm','Removed.');}catch(e){say('gm',e.message,1);}}
+
+/* ---------- certificates (staff) ---------- */
+function certBlock(c){
+ const yr=String(new Date().getFullYear()),hrs=c.hours[yr]||0,pct=Math.min(100,Math.round(hrs/c.goal*100));
+ let h='<div class="card"><h3>🎓 Training certificates</h3><div class="sub">'+yr+': <b>'+(Math.round(hrs*100)/100)+'</b> of '+c.goal+' hours</div><div class="hrs"><i style="width:'+pct+'%"></i></div>';
+ if(!c.certs.length)h+='<div class="sub">No lesson certificates yet. They appear here when staff finish a lesson and tap Get my certificate.</div>';
+ c.certs.slice().reverse().forEach(function(t){
+  const signed=!!t.signedAt;
+  h+='<div class="cert'+(signed?'':' need')+'"><div class="t"><b>'+esc(t.title)+'</b><small>'+dur(t.hrs)+' · completed '+fmt(t.date)+'</small>'+(signed?'<small>Signed by '+esc(t.signer)+' on '+fmt(t.signedAt.slice(0,10))+'</small>':'')+'</div>'
+   +(signed?'<img class="sigimg" src="'+t.sig+'" alt="signature"> <button class="btn sm sec" onclick="printCert(\''+t.cid+'\')">🖨 Print</button>'
+          :'<button class="btn sm red" onclick="signOpen(\''+t.cid+'\')">✍ Sign now</button> <button class="btn sm sec" onclick="printCert(\''+t.cid+'\')">Preview</button>')+'</div>';});
+ return h+'</div>';}
+let SGD=null;
+function signOpen(cid){
+ const m=$('mod');$('modbox').innerHTML='<h3 style="margin:0 0 6px">Sign this certificate</h3><div class="sub">Sign with your finger or mouse. After you save, nobody can change it.</div><canvas id="sg"></canvas>'
+ +'<input class="fi" id="sn" placeholder="Print your name" maxlength="60"><div class="msg" id="sm"></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn grn" onclick="signSave(\''+cid+'\')">Save signature</button><button class="btn sec" onclick="padClear()">Clear</button><button class="btn sec" onclick="$(\'mod\').style.display=\'none\'">Cancel</button></div>';
+ m.style.display='flex';try{$('sn').value=localStorage.getItem('hiveName')||'';}catch(e){}
+ const cv=$('sg'),r=cv.getBoundingClientRect(),D=Math.max(1,window.devicePixelRatio||1);cv.width=r.width*D;cv.height=r.height*D;
+ const x=cv.getContext('2d');x.scale(D,D);x.lineWidth=2.4;x.lineCap='round';x.strokeStyle='#0d1b6b';SGD={on:false,ink:false};
+ function pt(e){const b=cv.getBoundingClientRect();return [e.clientX-b.left,e.clientY-b.top];}
+ cv.onpointerdown=function(e){e.preventDefault();cv.setPointerCapture(e.pointerId);SGD.on=true;const p=pt(e);x.beginPath();x.moveTo(p[0],p[1]);};
+ cv.onpointermove=function(e){if(!SGD.on)return;const p=pt(e);x.lineTo(p[0],p[1]);x.stroke();SGD.ink=true;};
+ cv.onpointerup=cv.onpointercancel=function(){SGD.on=false;};}
+function padClear(){const cv=$('sg'),x=cv.getContext('2d');x.save();x.setTransform(1,0,0,1,0,0);x.clearRect(0,0,cv.width,cv.height);x.restore();SGD.ink=false;}
+async function signSave(cid){
+ const nm=$('sn').value.trim();if(!SGD.ink){say('sm','Please sign in the box first.',1);return;}if(!nm){say('sm','Print your name too.',1);return;}
+ try{localStorage.setItem('hiveName',nm);}catch(e){}
+ const cv=$('sg'),o=document.createElement('canvas');o.width=500;o.height=Math.round(500*cv.height/cv.width);o.getContext('2d').drawImage(cv,0,0,o.width,o.height);
+ try{await api('cert_sign',{id:CUR.id,cid,signer:nm,sig:o.toDataURL('image/png')});$('mod').style.display='none';await refresh();say('gm','Signed and locked. It is now in '+CUR.name+'\'s file.');}
+ catch(e){say('sm',e.message,1);}}
+function printCert(cid){
+ const t=CUR.certs.find(x=>x.cid===cid);if(!t)return;const w=window.open('about:blank','_blank');if(!w)return;
+ w.document.write(certHtml(CUR.name,SCHOOL,t));w.document.close();}
+function certHtml(name,school,t){
+ return '<!doctype html><meta charset="utf-8"><title>Certificate</title><style>body{font-family:Georgia,serif;margin:0;padding:30px;text-align:center;color:#2b2b2b}.b{border:8px double #1d4e89;padding:40px 30px;max-width:760px;margin:0 auto}h1{font-size:34px;margin:0 0 6px;color:#1d4e89}.n{font-size:30px;margin:16px 0;border-bottom:2px solid #999;display:inline-block;padding:0 24px}.sm{color:#555;font-size:14px}.sg{margin-top:34px;display:flex;justify-content:space-around;gap:20px}.sg div{flex:1;border-top:1px solid #444;padding-top:6px;font-size:13px}.sg img{height:46px;display:block;margin:0 auto -6px}@media print{button{display:none}}</style>'
+ +'<div class="b"><div class="sm">Kid City USA — '+esc(school)+'</div><h1>Certificate of In-Service Training</h1><div class="sm">This certifies that</div><div class="n">'+esc(name)+'</div><div class="sm">completed the training lesson</div><h2 style="margin:10px 0">'+esc(t.title)+'</h2><div>'+dur(t.hrs)+' of in-service training · '+fmt(t.date)+'</div>'
+ +'<div class="sm" style="margin-top:8px">In-house training at Kid City USA. Keep in the staff file.</div>'
+ +'<div class="sg"><div>'+(t.signedAt?'<img src="'+t.sig+'">'+esc(t.signer)+' · Director / Owner · '+fmt(t.signedAt.slice(0,10)):'Director / Owner signature')+'</div></div></div><p><button onclick="print()">Print</button></p>';}
+boot();
+</script></body></html>
