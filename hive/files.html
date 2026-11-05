@@ -71,17 +71,21 @@ async function boot(){
 async function listView(){
  CUR=null;
  $('app').innerHTML='<div class="top"><div><h1>'+(ST?'🗂️ Staff Files':'🧒 Student Files')+'</h1><div class="sub">'+esc(SCHOOL)+'</div></div><a class="btn sec" href="'+(sessionStorage.getItem('hiveOwner')?'owner.html':'director.html')+'">‹ Back to portal</a></div>'
- +'<div class="bar"><input class="fi" id="q" placeholder="Search '+(ST?'staff':'students')+'…" oninput="Q=this.value;draw()"><button class="btn sm sec" id="fa" onclick="setF(\'all\')">All</button><button class="btn sm sec" id="fn" onclick="setF(\'need\')">Needs attention</button></div><div id="plist"><div class="sub">Loading…</div></div>';
+ +'<div class="bar"><input class="fi" id="q" placeholder="Search '+(ST?'staff':'students')+'…" oninput="Q=this.value;draw()"><button class="btn sm sec" id="fa" onclick="setF(\'all\')">All</button><button class="btn sm sec" id="fn" onclick="setF(\'need\')">Needs attention</button><button class="btn sm sec" id="ff" onclick="setF(\'former\')">'+(ST?'Former staff':'Withdrawn')+'</button><button class="btn sm grn" onclick="addOpen()">➕ Add '+(ST?'staff':'child')+'</button></div><div id="plist"><div class="sub">Loading…</div></div>';
  try{const j=await api('roster');PEOPLE=j.people;draw();}catch(e){$('plist').innerHTML='<div class="msg bad">'+esc(e.message)+'</div>';}}
-function setF(f){FILTER=f;draw();}
+async function setF(f){FILTER=f;
+ if(f==='former'){$('plist').innerHTML='<div class="sub">Loading…</div>';try{FORMER=(await api('roster',{former:true})).people;}catch(e){$('plist').innerHTML='<div class="msg bad">'+esc(e.message)+'</div>';return;}}
+ draw();}
+let FORMER=[];
 function draw(){
  const q=Q.trim().toLowerCase();
- let l=PEOPLE.filter(p=>(!q||p.name.toLowerCase().indexOf(q)>=0)&&(FILTER==='all'||p.red||p.amber||p.sign));
+ let SRC=FILTER==='former'?FORMER:PEOPLE;
+ let l=SRC.filter(p=>(!q||p.name.toLowerCase().indexOf(q)>=0)&&(FILTER==='all'||FILTER==='former'||p.red||p.amber||p.sign));
  l.sort((a,b)=>(b.sign?1:0)-(a.sign?1:0)||(b.red-a.red)||a.name.localeCompare(b.name));
- if($('fa')){$('fa').className='btn sm '+(FILTER==='all'?'':'sec');$('fn').className='btn sm '+(FILTER==='need'?'':'sec');}
+ if($('fa')){$('fa').className='btn sm '+(FILTER==='all'?'':'sec');$('fn').className='btn sm '+(FILTER==='need'?'':'sec');$('ff').className='btn sm '+(FILTER==='former'?'':'sec');}
  const tot=PEOPLE.reduce((a,p)=>a+p.red,0),sg=PEOPLE.reduce((a,p)=>a+(p.sign||0),0);
  $('plist').innerHTML='<div class="sub" style="margin:4px 0">'+PEOPLE.length+' '+(ST?'staff':'students')+' · '+tot+' missing or expired item'+(tot===1?'':'s')+(ST&&sg?' · <span style="color:var(--red)">'+sg+' certificate'+(sg===1?'':'s')+' to sign</span>':'')+'</div>'
- +(l.length?l.map(p=>'<button class="pr" onclick="openP(\''+p.id+'\')"><span><b>'+esc(p.name)+'</b><small>'+esc(p.sub||'')+'</small></span><span class="pills">'
+ +(FILTER==='former'?'<div class="sub" style="margin:4px 0">Their files are kept. Tap a name to open the file or put them back.</div>':'')+(l.length?l.map(p=>'<button class="pr" onclick="openP(\''+p.id+'\')"><span><b>'+esc(p.name)+'</b><small>'+esc(p.sub||'')+'</small></span><span class="pills">'
    +(p.sign?'<span class="pill signpill">✍ '+p.sign+' to sign</span>':'')
    +(p.red?'<span class="pill p-red">'+p.red+' missing</span>':'')
    +(p.amber?'<span class="pill p-amb">'+p.amber+' check</span>':'')
@@ -95,6 +99,7 @@ async function openP(id){
 function pView(){
  const c=CUR;let h='<div class="top"><div><h1>'+esc(c.name)+'</h1><div class="sub">'+esc(SCHOOL)+(c.sub?' · '+esc(c.sub):'')+(c.dob?' · born '+fmt(c.dob):'')+'</div></div><button class="btn sec" onclick="listView()">‹ '+(ST?'All staff':'All students')+'</button></div>';
  h+='<div class="msg" id="gm"></div>';
+ if(c.former){h+='<div class="card" style="border:2px solid var(--amb);background:#fff8e6"><b>'+(ST?'No longer on the staff list':'Withdrawn')+'</b>'+(c.left&&c.left.date?' · '+fmt(c.left.date):'')+(c.left&&c.left.reason?' · '+esc(c.left.reason):'')+'<div class="sub">Their file is kept. You can still add pages.</div><button class="btn sm grn" onclick="reinst()">↩ Put back on the '+(ST?'staff list':'roster')+'</button></div>';}
  if(ST&&c.certs){h+=certBlock(c);}
  h+='<div class="card"><h3>'+(ST?'What this file needs':'What this folder needs')+'</h3><div class="sub" style="margin-bottom:6px">Tap Take photo for each page (or choose a PDF). Red means it is missing or out of date.</div>';
  c.docs.forEach(function(d){
@@ -105,6 +110,7 @@ function pView(){
   h+='<div class="fl"><label class="btn sm blu" style="margin:0">📷 Take photo<input type="file" accept="image/*" capture="environment" style="display:none" onchange="up(\''+d.key+'\',this)"></label>'
    +'<label class="btn sm sec" style="margin:0">📎 Choose file or PDF<input type="file" accept="image/*,application/pdf" multiple style="display:none" onchange="up(\''+d.key+'\',this)"></label></div></div>';});
  h+='</div>';
+ if(!c.former&&!c.practice)h+='<div style="text-align:center;margin:18px 0"><button class="btn sm sec" style="color:var(--red)" onclick="remOpen()">Remove '+(ST?'this staff member':'this child')+' from the '+(ST?'staff list':'roster')+'</button></div>';
  $('app').innerHTML=h;}
 async function refresh(){CUR=await api('person',{id:CUR.id});pView();}
 async function setExp(doc,v){try{await api('setexp',{id:CUR.id,doc,exp:v});await refresh();say('gm','Saved.');}catch(e){say('gm',e.message,1);}}
@@ -135,6 +141,32 @@ async function view(name){
 async function rm(name){
  if(!confirm('Remove this page from the file? It is kept in the audit folder, not erased.'))return;
  try{await api('remove',{id:CUR.id,name});await refresh();say('gm','Removed.');}catch(e){say('gm',e.message,1);}}
+
+
+/* ---------- add / remove people ---------- */
+function showMod(h){$('modbox').innerHTML=h;$('mod').style.display='flex';}
+function closeMod(){$('mod').style.display='none';}
+async function addOpen(){
+ let rooms=[];
+ if(!ST){try{rooms=(await api('rooms')).rooms;}catch(e){alert(e.message);return;}}
+ showMod('<h3 style="margin:0 0 6px">Add '+(ST?'a staff member':'a child')+' · '+esc(SCHOOL)+'</h3>'
+ +(ST?'<input class="fi" id="an" placeholder="First and last name" maxlength="60"><select class="fi" id="ar"><option>Teacher</option><option>Director</option><option>Support</option></select>'
+      :'<input class="fi" id="af" placeholder="Child first name" maxlength="30"><input class="fi" id="al" placeholder="Last name (only the first letter is kept)" maxlength="30"><label class="sub">Date of birth</label><input class="fi" id="ad" type="date"><select class="fi" id="aroom"><option value="">Which room?</option>'+rooms.map(r=>'<option>'+esc(r)+'</option>').join('')+'</select>')
+ +'<div class="sub">'+(ST?'They are added to the staff list. Then you can add their package.':'They are added to the room roster and the Rooms board. Then you can add the registration packet. To also add them in KidKare, use Classroom Attendance → Add child (it collects the KidKare details).')+'</div><div class="msg" id="am"></div>'
+ +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn grn" id="ab" onclick="addGo()">Add and open file</button><button class="btn sec" onclick="closeMod()">Cancel</button></div>');}
+async function addGo(){
+ const b={};
+ if(ST){b.name=$('an').value;b.role=$('ar').value;}else{b.first=$('af').value;b.last=$('al').value;b.dob=$('ad').value;b.room=$('aroom').value;}
+ $('ab').disabled=true;say('am','Adding…');
+ try{const j=await api('add_person',b);closeMod();const r=await api('roster');PEOPLE=r.people;await openP(j.id);say('gm',j.name+' added. Add their package below.');}
+ catch(e){$('ab').disabled=false;say('am',e.message,1);}}
+function remOpen(){
+ showMod('<h3 style="margin:0 0 6px">Remove '+esc(CUR.name)+'?</h3><div class="sub">'+(ST?'They come off the staff list and dropdowns.':'They come off every room sheet. Charles removes them from KidKare at the next check, and the Rooms board reminds you to remove them from ProCare.')+' <b>Their file is kept</b> and you can put them back any time.</div>'
+ +'<select class="fi" id="rr">'+(ST?'<option>Resigned</option><option>Let go</option><option>Moved away</option><option>Other</option>':'<option>Moved away</option><option>Changed schools / programs</option><option>Aged out / started kindergarten</option><option>Family decision</option><option>Other</option>')+'</select>'
+ +'<label class="sub">Last day</label><input class="fi" id="rd" type="date" value="'+new Date().toISOString().slice(0,10)+'"><div class="msg" id="rm"></div>'
+ +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn red" id="rb" onclick="remGo()">Remove</button><button class="btn sec" onclick="closeMod()">Cancel</button></div>');}
+async function remGo(){$('rb').disabled=true;try{await api('remove_person',{id:CUR.id,reason:$('rr').value,date:$('rd').value});closeMod();FILTER='all';await listView();say('gm','');}catch(e){$('rb').disabled=false;say('rm',e.message,1);}}
+async function reinst(){if(!confirm('Put '+CUR.name+' back on the '+(ST?'staff list':'room roster')+'?'))return;try{await api('reinstate_person',{id:CUR.id});FILTER='all';await listView();}catch(e){say('gm',e.message,1);}}
 
 /* ---------- certificates (staff) ---------- */
 function certBlock(c){

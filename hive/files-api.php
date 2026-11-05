@@ -88,12 +88,14 @@ function jread($f, $def){ return is_file($f) ? (json_decode(file_get_contents($f
 function jwrite($f, $v){ file_put_contents($f, json_encode($v), LOCK_EX); }
 
 /* Roster comes from Airtable (Staff Roster / Room Children); the files themselves never touch Airtable. */
-function roster($school, $kind){
-$cache = sys_get_temp_dir().'/hive_people_'.preg_replace('/[^a-z0-9]/', '', strtolower($school)).'_'.$kind.'.json';
+function roster_cache_clear($school){ foreach (glob(sys_get_temp_dir().'/hive_people_'.preg_replace('/[^a-z0-9]/', '', strtolower($school)).'_*.json') ?: [] as $f) @unlink($f); }
+function roster($school, $kind, $inactive = false){
+$cache = sys_get_temp_dir().'/hive_people_'.preg_replace('/[^a-z0-9]/', '', strtolower($school)).'_'.$kind.($inactive ? '_former' : '').'.json';
 if (file_exists($cache) && time() - filemtime($cache) < 60){ $c = json_decode(file_get_contents($cache), true); if (is_array($c)) return $c; }
 $sc = str_replace("'", "", $school);
 $table = $kind === 'staff' ? 'Staff Roster' : 'Room Children';
-$formula = $kind === 'staff' ? "AND({School}='".$sc."',{Active})" : "AND({School}='".$sc."',{Status}='Active')";
+if ($inactive) $formula = $kind === 'staff' ? "AND({School}='".$sc."',NOT({Active}))" : "AND({School}='".$sc."',{Status}='Withdrawn')";
+else $formula = $kind === 'staff' ? "AND({School}='".$sc."',{Active})" : "AND({School}='".$sc."',{Status}='Active')";
 $out = []; $offset = null; $guard = 0;
 do {
 $q = ['filterByFormula'=>$formula, 'pageSize'=>100]; if ($offset) $q['offset'] = $offset;
@@ -104,17 +106,17 @@ $f = $r['fields'];
 if ($kind === 'staff'){ $nm = trim($f['Name'] ?? ''); $sub = $f['Role'] ?? ''; }
 else { $nm = trim($f['Child'] ?? ''); $sub = $f['Room'] ?? ''; if (is_array($sub)) $sub = $sub['name'] ?? ''; }
 if ($nm === '') continue;
-$out[] = ['id'=>$r['id'], 'name'=>$nm, 'sub'=>(string)$sub, 'dob'=>$f['DOB'] ?? ''];
+$out[] = ['id'=>$r['id'], 'name'=>$nm, 'sub'=>(string)$sub, 'dob'=>$f['DOB'] ?? '', 'former'=>$inactive];
 }
 $offset = $res['offset'] ?? null;
 } while ($offset && ++$guard < 10);
-// practice person (not in Airtable, never counted on the card badges) so directors can try everything safely
+if (!$inactive) // practice person (not in Airtable, never counted on the card badges) so directors can try everything safely
 $out[] = $kind === 'staff' ? ['id'=>'recTESTSTAFF00001', 'name'=>'Test Teacher (practice)', 'sub'=>'Practice only', 'dob'=>''] : ['id'=>'recTESTSTUDENT001', 'name'=>'Test Student (practice)', 'sub'=>'Practice only', 'dob'=>'2022-01-15'];
 usort($out, function($a, $b){ return strcasecmp($a['name'], $b['name']); });
 file_put_contents($cache, json_encode($out));
 return $out;
 }
-function find_person($school, $kind, $id){ $r = roster($school, $kind); if ($r === null) fail('Could not read the roster right now. Try again in a minute.', 502); foreach ($r as $p){ if ($p['id'] === $id) return $p; } return null; }
+function find_person($school, $kind, $id){ foreach ([false, true] as $inact){ $r = roster($school, $kind, $inact); if ($r === null) fail('Could not read the roster right now. Try again in a minute.', 502); foreach ($r as $p){ if ($p['id'] === $id) return $p; } } return null; }
 function pdir($school, $kind, $id){
 $b = school_dir($school); if (!$b) fail('The server could not open the vault. Tell Mrs. Bear.', 500);
 if (!preg_match('/^rec[A-Za-z0-9]{10,20}$/', $id)) fail('Bad person');
@@ -144,7 +146,7 @@ $st = status_for($def, $fl, $exp, $today);
 if ($st === 'missing' || $st === 'expired') $red++; elseif ($st === 'soon' || $st === 'needdate') $amber++;
 $docs[] = ['key'=>$k, 'label'=>$def[0], 'needsExp'=>$def[1], 'req'=>$def[2], 'status'=>$st, 'exp'=>$exp, 'files'=>$fl];
 }
-$out = ['id'=>$id, 'name'=>$p['name'], 'sub'=>$p['sub'], 'dob'=>$p['dob'], 'red'=>$red, 'amber'=>$amber, 'docs'=>$docs];
+$out = ['id'=>$id, 'name'=>$p['name'], 'sub'=>$p['sub'], 'dob'=>$p['dob'], 'red'=>$red, 'amber'=>$amber, 'docs'=>$docs, 'former'=>!empty($p['former']), 'left'=>($meta['left'] ?? null), 'practice'=>(strpos($id, 'recTEST') === 0)];
 if ($kind === 'staff'){
 $certs = jread($d.'/certs.json', []); $sign = 0; $hrs = [];
 foreach ($certs as &$c){ if (empty($c['signedAt'])) $sign++; $y = $c['year'] ?? substr($c['date'] ?? '', 0, 4); $hrs[$y] = round(($hrs[$y] ?? 0) + (float)($c['hrs'] ?? 0), 2); } unset($c);
@@ -204,10 +206,41 @@ $out[$k] = ['people'=>count($r), 'peopleMissing'=>$people, 'missing'=>$red, 'soo
 echo json_encode(['school'=>$school, 'summary'=>$out]); exit;
 }
 if ($action === 'roster'){
-$r = roster($school, $kind); if ($r === null) fail('Could not read the roster right now.', 502);
+$inact = !empty($input['former']);
+$r = roster($school, $kind, $inact); if ($r === null) fail('Could not read the roster right now.', 502);
 $list = [];
-foreach ($r as $p){ $v = person_view($school, $kind, $p['id'], $p); $list[] = ['id'=>$p['id'], 'name'=>$p['name'], 'sub'=>$p['sub'], 'red'=>$v['red'], 'amber'=>$v['amber'], 'sign'=>$v['sign'] ?? 0]; }
+foreach ($r as $p){ $v = person_view($school, $kind, $p['id'], $p); $list[] = ['id'=>$p['id'], 'name'=>$p['name'], 'sub'=>$p['sub'], 'red'=>$v['red'], 'amber'=>$v['amber'], 'sign'=>$v['sign'] ?? 0, 'left'=>$v['left']]; }
 echo json_encode(['school'=>$school, 'kind'=>$kind, 'people'=>$list]); exit;
+}
+
+if ($action === 'rooms'){
+$res = at_request('GET', ['Rooms'], http_build_query(['filterByFormula'=>"AND({School}='".str_replace("'", "", $school)."',{Active})", 'pageSize'=>50]));
+if (isset($res['error'])) fail('Could not read the rooms right now.', 502);
+$rows = []; foreach (($res['records'] ?? []) as $r){ $rows[] = [(float)($r['fields']['Order'] ?? 99), (string)($r['fields']['Room'] ?? '')]; }
+usort($rows, function($a, $b){ return $a[0] <=> $b[0]; });
+echo json_encode(['rooms'=>array_values(array_filter(array_map(function($x){ return $x[1]; }, $rows)))]); exit;
+}
+if ($action === 'add_person'){
+$sc = str_replace("'", "", $school);
+if ($kind === 'staff'){
+$name = trim(preg_replace('/\s+/', ' ', preg_replace('/[^A-Za-z0-9 .\'-]/', '', $input['name'] ?? '')));
+$rl = $input['role'] ?? 'Teacher'; if (!in_array($rl, ['Teacher', 'Director', 'Support'], true)) fail('Pick a role');
+if (strlen($name) < 3 || strpos($name, ' ') === false) fail('Enter the first AND last name.');
+foreach (roster($school, 'staff') ?: [] as $p){ if (strcasecmp($p['name'], $name) === 0) fail($name.' is already on the staff list.'); }
+$res = at_request('POST', ['Staff Roster'], null, ['fields'=>['Name'=>$name, 'School'=>$school, 'Role'=>$rl, 'Active'=>true]]);
+} else {
+$fn = trim(preg_replace('/[^A-Za-z\'-]/', '', $input['first'] ?? '')); $ln = trim(preg_replace('/[^A-Za-z]/', '', $input['last'] ?? ''));
+$dob = $input['dob'] ?? ''; $room = trim($input['room'] ?? '');
+if ($fn === '' || $ln === '') fail('Enter the child\'s first name and last name.');
+if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dob)) fail('Enter the date of birth.');
+if ($room === '') fail('Pick the room.');
+$name = ucfirst($fn).' '.strtoupper(substr($ln, 0, 1)).'.';
+foreach (roster($school, 'student') ?: [] as $p){ if (strcasecmp($p['name'], $name) === 0) fail($name.' is already on the roster. Use a different last initial or letter.'); }
+$res = at_request('POST', ['Room Children'], null, ['fields'=>['Child'=>$name, 'School'=>$school, 'Room'=>$room, 'DOB'=>$dob, 'Status'=>'Active', 'Order'=>99]]);
+}
+if (!isset($res['id'])) fail('Could not add them: '.($res['error']['message'] ?? 'the roster did not accept it').'.', 502);
+roster_cache_clear($school);
+echo json_encode(['ok'=>true, 'id'=>$res['id'], 'name'=>$name]); exit;
 }
 
 $id = $input['id'] ?? '';
@@ -257,6 +290,26 @@ if (!$hit || !is_file($d.'/'.$name)) fail('File not found', 404);
 $tr = school_dir($school).'/_removed'; if (!is_dir($tr) && !@mkdir($tr, 0750, true)) fail('Could not remove', 500);
 if (!@rename($d.'/'.$name, $tr.'/'.date('Ymd-His').'_'.$kind.'_'.$id.'_'.$name)) fail('Could not remove the file', 500);
 $meta['files'] = $keep; jwrite($mf, $meta);
+echo json_encode(['ok'=>true]); exit;
+}
+
+if ($action === 'remove_person' || $action === 'reinstate_person'){
+if (strpos($id, 'recTEST') === 0) fail('The practice person cannot be removed. They are only for trying things out.');
+$d = pdir($school, $kind, $id); $mf = $d.'/meta.json'; $meta = jread($mf, ['docs'=>[], 'files'=>[]]);
+if ($action === 'remove_person'){
+$why = substr(preg_replace('/[^A-Za-z0-9 \/.,\'-]/', '', $input['reason'] ?? ''), 0, 60); $dt = $input['date'] ?? date('Y-m-d');
+if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dt)) $dt = date('Y-m-d');
+if ($kind === 'staff') $f = ['Active'=>false];
+else $f = ['Status'=>'Withdrawn', 'Withdrawn Date'=>$dt, 'Withdrawn From Room'=>$p['sub'], 'Withdraw Reason'=>$why, 'KidKare Action'=>'Needs Remove'];
+$meta['left'] = ['date'=>$dt, 'reason'=>$why, 'at'=>gmdate('c')];
+} else {
+if ($kind === 'staff') $f = ['Active'=>true];
+else $f = ['Status'=>'Active', 'Withdrawn Date'=>null, 'Withdrawn From Room'=>'', 'Withdraw Reason'=>'', 'KidKare Action'=>null];
+unset($meta['left']);
+}
+$res = at_request('PATCH', [$kind === 'staff' ? 'Staff Roster' : 'Room Children', $id], null, ['fields'=>$f]);
+if (!isset($res['id'])) fail('Could not update the roster: '.($res['error']['message'] ?? 'not accepted').'.', 502);
+jwrite($mf, $meta); roster_cache_clear($school);
 echo json_encode(['ok'=>true]); exit;
 }
 if ($action === 'cert_sign'){
