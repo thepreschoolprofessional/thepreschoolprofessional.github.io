@@ -153,6 +153,7 @@ function render(){
   else if(S.view==='room') h+=roomHTML();
   else if(S.view==='dcf') h+=dcfHTML();
   else if(S.view==='withdrawn') h+=withdrawnHTML();
+  else if(S.view==='flags') h+=flagsHTML();
   APP.innerHTML=h;
   window.scrollTo(0,y);
   paintSaving();
@@ -173,7 +174,7 @@ function headerHTML(){
 }
 function boardHTML(){
   var h='<div class="pad"><div class="act2"><button class="btn sec" data-act="gotodcf">&#128196; All rooms — paper form (DCF)</button>'
-   +(S.role==='director'?'<button class="btn sec" data-act="gotowd">Withdrawn children</button>':'<button class="btn sec" data-act="gotowd">Withdrawn (director)</button>')+'</div>';
+   +(S.role==='director'?'<button class="btn sec" data-act="gotoflags">&#10067; Questions to answer'+(S.flagN?' ('+S.flagN+')':'')+'</button><button class="btn sec" data-act="gotowd">Withdrawn children</button>':'<button class="btn sec" data-act="gotowd">Withdrawn (director)</button>')+'</div>';
   if(!S.rooms.length) h+='<div class="card">No rooms are set up for '+esc(S.school)+' yet.</div>';
   h+='<div class="tiles">';
   S.rooms.forEach(function(r){
@@ -310,6 +311,30 @@ function needDirector(cb){
 
 /* ---------- actions ---------- */
 function keyOf(el){ return decodeURIComponent(el.getAttribute('data-k')||''); }
+/* school-age lunch confirmation (Mrs. Bear 11/4/26): Worker Bees never get lunch unless a director/teacher confirms they were here and whether it was a holiday */
+function isSchoolager(n){ var k=kidByName(n); var r=(k&&k.room)||''; return /^Schoolagers/i.test(r) || /^Schoolagers/i.test(effRoom(k||{name:n,room:''})||''); }
+function askLunch(names, then){
+  S.lunchAsk=names;
+  openModal('<h3>Lunch for school-age children</h3><p>School-agers do not normally get lunch. Please confirm for <b>'+esc(names.join(', '))+'</b>:</p><p><b>Were they here for lunch?</b> And <b>was today a school holiday</b> (no school)?</p><div class="mrow" style="flex-direction:column;gap:8px"><button class="btn grn" data-act="lunchyes" data-h="1">Yes, here for lunch &mdash; school holiday / no school</button><button class="btn" data-act="lunchyes" data-h="0">Yes, here for lunch &mdash; NOT a holiday</button><button class="btn sec" data-act="mclose2">No / Cancel</button></div>');
+}
+function flagsHTML(){
+  var L=S.flags||[], h='<div class="pad"><button class="btn sec sm" data-act="back">&lsaquo; Rooms</button> <b>Questions to answer &mdash; '+esc(S.school)+'</b> <button class="btn sec sm" data-act="roster">Add / remove children (Roster)</button>';
+  if(!L.length) return h+'<div class="card">Nothing waiting. All flagged questions are answered.</div></div>';
+  h+='<p class="sub2">Answer each one, or fix it: add lunch if the school-ager was here and it was a holiday, or remove the child from that day. Your answer clears the flag.</p>';
+  L.forEach(function(x){ var f=x.fields, isHol=/school holiday/i.test(f['Director Flag']||'');
+    h+='<div class="card"><div><b>'+esc(f.Child||'')+'</b> &middot; '+esc(f.Date||'')+' &middot; <small>'+esc(f['Current Room']||'')+(f.Arrival?' &middot; in '+esc(f.Arrival):'')+(f.Departure?' out '+esc(f.Departure):'')+'</small></div>'
+     +'<div class="sub2">'+esc(f['Director Flag']||'')+'</div>'
+     +'<input class="inp" id="fa'+x.id+'" placeholder="Your answer / note">'
+     +'<div class="mrow" style="flex-wrap:wrap;gap:6px"><button class="btn sm" data-act="flagsubmit" data-id="'+x.id+'">Submit answer</button>'
+     +(isHol?'<button class="btn grn sm" data-act="flaglunch" data-id="'+x.id+'">Holiday &mdash; add lunch</button>':'')
+     +'<button class="btn org sm" data-act="flagremove" data-id="'+x.id+'">Remove child from this day</button></div></div>';
+  });
+  return h+'</div>';
+}
+function flagRec(id){ for(var i=0;i<(S.flags||[]).length;i++) if(S.flags[i].id===id) return S.flags[i]; return null; }
+function flagSave(id, fields, msg){
+  api('update','Room Attendance',{recordId:id, fields:fields}).then(function(){ S.flags=(S.flags||[]).filter(function(x){return x.id!==id;}); toast(msg); render(); }).catch(function(e){ toast('Could not save: '+e.message, true); });
+}
 function selNames(){ return Object.keys(S.sel).filter(function(k){ return S.sel[k]; }); }
 
 function signIn(names, time){
@@ -359,10 +384,17 @@ var ACT = {
  bin: function(){ var t=val('bt')||nowHM(); S.bulkTime=''; var n=selNames(); signIn(n,t); S.sel={}; render(); toast(n.length+' signed IN at '+fmt(t)); },
  bout: function(){ var t=val('bt')||nowHM(); S.bulkTime=''; var n=selNames(); signOut(n,t); S.sel={}; render(); },
  allin: function(){ var n=roomKids(S.room).filter(function(c){ return !attOf(c.name).Arrival; }).map(function(c){return c.name;}); if(!n.length){ toast('Everyone is already signed in.'); return; } if(confirm('Sign in '+n.length+' children who are not in yet, at '+fmt(nowHM())+'?')) signIn(n, nowHM()); },
- mealone: function(el){ toggleMeal([keyOf(el)], el.getAttribute('data-m'), 'toggle'); },
+ mealone: function(el){ var n=keyOf(el), m=el.getAttribute('data-m'); if(m==='L' && !attOf(n).L && isSchoolager(n)){ askLunch([n]); return; } toggleMeal([n], m, 'toggle'); },
+ lunchyes: function(el){ var hol=el.getAttribute('data-h')==='1', names=S.lunchAsk||[], p={}; var note='Lunch confirmed '+S.date+': here for lunch; '+(hol?'school holiday / no school':'not a holiday')+' ('+(S.role==='director'?'director':'teacher')+')'; names.forEach(function(n){ p[n]={L:true,'Lunch Note':note}; }); closeModal(); patchAtt(p); toast('Lunch added for '+names.length+' school-ager'+(names.length>1?'s':'')); },
+ gotoflags: function(){ api('listFlags','').then(function(r){ S.flags=r.records||[]; S.flagN=S.flags.length; S.view='flags'; render(); window.scrollTo(0,0); }).catch(function(e){ toast(e.message,true); }); },
+ flagsubmit: function(el){ var id=el.getAttribute('data-id'), v=val('fa'+id).trim(); if(!v){ toast('Type your answer first.', true); return; } flagSave(id,{'Director Answer': v+' ('+S.date+')'},'Answer saved'); },
+ flaglunch: function(el){ var id=el.getAttribute('data-id'); flagSave(id,{L:true,'Lunch Note':'Lunch added by director '+S.date+': school holiday, here for lunch','Director Answer':'Holiday: lunch added ('+S.date+')'},'Lunch added'); },
+ flagremove: function(el){ var id=el.getAttribute('data-id'); if(!confirm('Remove this child from that day (clears sign-in/out and meals)?')) return; flagSave(id,{Arrival:'',Departure:'',B:false,L:false,P:false,'Director Answer':'Removed from this day by director ('+S.date+')'},'Removed from that day'); },
  meal: function(el){ var m=el.getAttribute('data-m'); var pres=roomKids(S.room).filter(function(c){ return attOf(c.name).Arrival; }).map(function(c){return c.name;});
    if(!pres.length){ toast('Sign children in first.', true); return; }
-   var all=pres.every(function(n){ return attOf(n)[m]; }); toggleMeal(pres, m, all?'clear':'set'); toast((all?'Cleared ':'Marked ')+(m==='B'?'breakfast':m==='L'?'lunch':'PM snack')+' for '+pres.length+' children'); },
+   var all=pres.every(function(n){ return attOf(n)[m]; });
+   if(m==='L' && !all){ var sa=pres.filter(function(n){ return isSchoolager(n) && !attOf(n).L; }); if(sa.length){ var rest=pres.filter(function(n){ return sa.indexOf(n)<0; }); if(rest.length) toggleMeal(rest, m, 'set'); askLunch(sa); return; } }
+   toggleMeal(pres, m, all?'clear':'set'); toast((all?'Cleared ':'Marked ')+(m==='B'?'breakfast':m==='L'?'lunch':'PM snack')+' for '+pres.length+' children'); },
  wc: function(el){ var n=keyOf(el), a=attOf(n); var p={}; p[n]={WC: a.WC? '' : nowHM()}; patchAtt(p); },
  wcall: function(){ var pres=roomKids(S.room).filter(function(c){ return attOf(c.name).Arrival && !attOf(c.name).WC; }).map(function(c){return c.name;}); if(!pres.length){ toast('Wellness checks already done for everyone in.'); return; } var p={}; pres.forEach(function(n){ p[n]={WC:nowHM()}; }); patchAtt(p); toast('Wellness check marked for '+pres.length); },
  note: function(el){ var n=keyOf(el), t=el.getAttribute('data-t'), a=attOf(n);

@@ -30,7 +30,7 @@ $READ   = ['Rooms', 'Room Children', 'Room Attendance', 'Room Day'];
 $CREATE_STAFF = ['Room Attendance', 'Room Day'];
 $CREATE_DIR   = ['Room Children'];
 $UPDATE = [
- 'Room Attendance' => ['Current Room','Arrival','Departure','Arrival By','Departure By','B','L','P','WC','IR','AR'],
+ 'Room Attendance' => ['Current Room','Arrival','Departure','Arrival By','Departure By','B','L','P','WC','IR','AR','Director Flag','Director Answer','Lunch Note'],
  'Room Day'        => ['Staff','Transitions','Counts','Mgmt','Notes'],
  'Room Children'   => ['Child','Room','DOB','Status','Withdrawn Date','Withdrawn From Room','Withdraw Reason','ProCare Removed','KidKare Action','KidKare Intake']
 ];
@@ -112,6 +112,13 @@ $out['records'] = array_merge($out['records'] ?? [], $more['records'] ?? []);
 if (isset($more['offset'])) $out['offset'] = $more['offset']; else unset($out['offset']);
 $pages++;
 }
+echo json_encode($out); exit;
+}
+
+if ($action === 'listFlags'){
+if (!$isDirector) fail('Only a director can see these.', 403);
+$q = ['maxRecords' => 200, 'filterByFormula' => "AND({School}='" . $school . "',{Director Flag}!='',{Director Answer}='')"];
+$out = at_request('GET', ['Room Attendance'], $q);
 echo json_encode($out); exit;
 }
 
