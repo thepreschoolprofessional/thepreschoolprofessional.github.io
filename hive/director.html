@@ -99,7 +99,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 .meet-save{display:flex;align-items:center;gap:10px;margin-top:8px;} .meet-save small{color:var(--soft);font-weight:700;}
 </style>
 <script>/* stale-page guard: if this browser is showing an old saved copy, load the fresh one */
-(function(){var V='20261104a';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+'?v='+m[1]);}});}catch(e){}})();</script>
+(function(){var V='20261105a';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+'?v='+m[1]);}});}catch(e){}})();</script>
 </head>
 <body>
 <a class="back" href="index.html">← exit</a>
@@ -107,10 +107,10 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
   <h1>👑 Director Dashboard</h1>
   <div class="schoolbadge" id="schoolBadge">…</div>
 </header>
-<a href="dcf.html" style="display:block;margin:10px auto 14px;max-width:560px;text-align:center;background:#c62828;color:#fff;font-weight:900;font-size:1.25rem;letter-spacing:.3px;padding:18px 20px;border-radius:18px;text-decoration:none;box-shadow:0 6px 16px rgba(198,40,40,.35);">📁 DCF BINDER — Inspector View</a>
-<a href="reporting.html" style="display:block;margin:0 auto 14px;max-width:560px;text-align:center;background:#37474f;color:#fff;font-weight:900;font-size:1.25rem;letter-spacing:.3px;padding:18px 20px;border-radius:18px;text-decoration:none;box-shadow:0 6px 16px rgba(55,71,79,.35);">🗄️ REPORTING &amp; AUDIT VAULT</a>
-<a href="training.html" style="display:block;margin:0 auto 14px;max-width:560px;text-align:center;background:#6a1b9a;color:#fff;font-weight:900;font-size:1.25rem;letter-spacing:.3px;padding:18px 20px;border-radius:18px;text-decoration:none;box-shadow:0 6px 16px rgba(106,27,154,.35);">🎓 DIRECTOR TRAINING — How it all works</a>
-<a href="rooms.html" style="display:block;margin:0 auto 14px;max-width:560px;text-align:center;background:#1565c0;color:#fff;font-weight:900;font-size:1.25rem;letter-spacing:.3px;padding:18px 20px;border-radius:18px;text-decoration:none;box-shadow:0 6px 16px rgba(21,101,192,.35);">🏫 CLASSROOM ATTENDANCE — Room Sign-In</a>
+<a class="biglink" href="dcf.html" style="display:block;margin:10px auto 14px;max-width:560px;text-align:center;background:#c62828;color:#fff;font-weight:900;font-size:1.25rem;letter-spacing:.3px;padding:18px 20px;border-radius:18px;text-decoration:none;box-shadow:0 6px 16px rgba(198,40,40,.35);">📁 DCF BINDER — Inspector View</a>
+<a class="biglink" href="reporting.html" style="display:block;margin:0 auto 14px;max-width:560px;text-align:center;background:#37474f;color:#fff;font-weight:900;font-size:1.25rem;letter-spacing:.3px;padding:18px 20px;border-radius:18px;text-decoration:none;box-shadow:0 6px 16px rgba(55,71,79,.35);">🗄️ REPORTING &amp; AUDIT VAULT</a>
+<a class="biglink" href="training.html" style="display:block;margin:0 auto 14px;max-width:560px;text-align:center;background:#6a1b9a;color:#fff;font-weight:900;font-size:1.25rem;letter-spacing:.3px;padding:18px 20px;border-radius:18px;text-decoration:none;box-shadow:0 6px 16px rgba(106,27,154,.35);">🎓 DIRECTOR TRAINING — How it all works</a>
+<a class="biglink" href="rooms.html" style="display:block;margin:0 auto 14px;max-width:560px;text-align:center;background:#1565c0;color:#fff;font-weight:900;font-size:1.25rem;letter-spacing:.3px;padding:18px 20px;border-radius:18px;text-decoration:none;box-shadow:0 6px 16px rgba(21,101,192,.35);">🏫 CLASSROOM ATTENDANCE — Room Sign-In</a>
 <nav>
   <div class="tab t-brief active" onclick="show('brief',this)">📰 Daily Briefing</div>
   <div class="tab t-meet" onclick="show('meet',this)">🤝 Friday Meeting</div>
@@ -125,6 +125,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
   <div class="tab" style="background:#37474f" onclick="location.href='reporting.html'">🗄️ Reporting</div>
   <div class="tab" style="background:#6a1b9a" onclick="location.href='training.html'">🎓 Training</div>
   <div class="tab" style="background:#1565c0" onclick="location.href='rooms.html'">🏫 Classroom Attendance</div>
+  <div class="tab" style="background:#ef6c00" onclick="openElcTablet()">📲 ELC Sign-In Tablet</div>
   <div class="tab t-ratio" onclick="show('ratio',this)">🧮 Ratios & FTE</div>
   <div class="tab t-task" onclick="show('task',this)">📋 Task Board</div>
   <div class="tab t-msg" onclick="show('msg',this)">💬 Parent Message</div>
@@ -816,6 +817,38 @@ async function sendTabNote(id){
   setTimeout(function(){applyFill();},900); loadWait(); loadCheck(); loadMeet(); loadAuto(); loadSignin(); loadHours(); loadFood(); loadFoodForms(); loadInv(); loadFacility(); loadRatio(); loadTasks(); loadWeek(); loadMsg(); loadStaffDropdown(); loadTime(); loadOnb(); loadForms(); loadMC(); loadWorkbooks();
 })();
 </script>
+<script>
+function openElcTablet(){
+  if(typeof SCHOOL==='undefined'||!SCHOOL){alert('Still loading your school. Tap again in a second.');return;}
+  window.open(SCHOOL==='Sanford'?'https://bearphonicsacademy.com/elc-94f077be04/':'https://bearphonicsacademy.com/elc-1ce53ee46c/','_blank');
+}
+window.HIVE_CARDS={prompt:'What do you want to work on?',order:[
+ {k:'Daily Briefing',s:"Today's to-do list",c:'#2e8b57'},
+ {k:'Classroom Attendance',s:'Room sign-in, meals, headcounts',c:'#1565c0'},
+ {k:'ELC Sign-In Tablet',s:'Who signed in today',c:'#ef6c00'},
+ {k:'Food Program',s:'Meal counts and the claim',c:'#d9822b'},
+ {k:'Food Forms',s:'Forms to print',c:'#3f8f5c'},
+ {k:'DCF Binder',s:'Inspector view',c:'#c62828'},
+ {k:'Reporting',s:'Monthly reporting and vault',c:'#37474f'},
+ {k:'Facility Checklists',s:'Cleaning and inspections',c:'#00838f'},
+ {k:'Closures',s:'Closed days and flyers',c:'#b22234'},
+ {k:'Staff Hours',s:'Hours and pace',c:'#ef6f5e'},
+ {k:'Time Fix',s:'Correct a clock-in or out',c:'#7b4bc9'},
+ {k:'Ratios',s:'Staffing ratios',c:'#1d7fd1'},
+ {k:'Friday Meeting',s:'Meeting answers',c:'#8d6e63'},
+ {k:'Automations',s:'Emails that send for you',c:'#1d4e89'},
+ {k:'Inventory',s:'Supplies on hand',c:'#b0722e'},
+ {k:'Task Board',s:'Who is doing what',c:'#c95ab0'},
+ {k:'Parent Message',s:'Write to families',c:'#e0457b'},
+ {k:'Onboarding',s:'New families and staff',c:'#26a69a'},
+ {k:'Forms Wizard',s:'Fill in and print forms',c:'#1aa7a0'},
+ {k:'Training',s:'How every system works',c:'#6a1b9a'},
+ {k:'Mission Control',s:'Charles task center',c:'#5a4cc9'},
+ {k:'Lesson Plan Wizard',s:'Plans and workbooks',c:'#3a9d5d'},
+ {k:'Fundraiser',s:'Fundraiser tools',c:'#f0a020'}
+]};
+</script>
+<script src="hive-cards.js?v=1"></script>
 <script>try{if(sessionStorage.getItem('hiveOwner')){document.querySelectorAll('a.back').forEach(function(a){a.href='owner.html';a.textContent='← Owner Portal';});}}catch(e){}</script>
 </body>
 </html>

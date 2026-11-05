@@ -1,0 +1,64 @@
+/* Hive card home screen. Turns a portal's tab strip into big colored cards.
+   Each page sets window.HIVE_CARDS = {prompt:'...', order:[{k:'text in the tab', s:'small caption', c:'#color'}]}
+   then loads this file. Tabs not listed still get a card (at the end), so nothing is ever lost. */
+(function(){
+  var cfg=window.HIVE_CARDS; if(!cfg) return;
+  var nav=document.querySelector('nav'); var main=document.querySelector('main');
+  if(!nav||!main) return;
+  var st=document.createElement('style');
+  st.textContent=
+   'nav,.biglink{display:none!important}'+
+   'body.home main{display:none}'+
+   'body:not(.home) #cardHome{display:none}'+
+   '#cardHome{max-width:960px;margin:8px auto 24px;padding:0 14px}'+
+   '#cardHome h2{text-align:center;font-size:1.05rem;color:#9b8576;margin:6px 0 14px;font-weight:800}'+
+   '#cardGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}'+
+   '#cardGrid button{border:0;border-radius:18px;padding:20px 10px 16px;color:#fff;cursor:pointer;font-family:inherit;box-shadow:0 6px 16px rgba(74,58,48,.2);line-height:1.2;min-height:118px;transition:transform .12s}'+
+   '#cardGrid button:active{transform:scale(.97)}'+
+   '#cardGrid .ic{display:block;font-size:2rem;margin-bottom:6px}'+
+   '#cardGrid .tt{display:block;font-weight:900;font-size:1.02rem}'+
+   '#cardGrid small{display:block;font-weight:500;opacity:.92;font-size:.78rem;margin-top:4px}'+
+   '#cardBack{display:none;position:sticky;top:0;z-index:60;background:rgba(255,247,239,.96);padding:8px 14px;border-bottom:1px solid #eadfce}'+
+   'body:not(.home) #cardBack{display:block}'+
+   '#cardBack button{border:0;border-radius:14px;padding:10px 18px;font-weight:900;font-size:.95rem;color:#fff;background:#4a3a30;cursor:pointer;font-family:inherit}';
+  document.head.appendChild(st);
+  document.body.classList.add('home');
+
+  var tabs=[].slice.call(nav.querySelectorAll('.tab'));
+  function label(t){return (t.textContent||'').replace(/\s+/g,' ').trim();}
+  function bg(t){
+    var cs=getComputedStyle(t);
+    if(cs.backgroundImage&&cs.backgroundImage!=='none') return cs.backgroundImage;
+    return cs.backgroundColor;
+  }
+  var used=[], cards=[];
+  (cfg.order||[]).forEach(function(o){
+    var t=tabs.filter(function(x){return used.indexOf(x)<0&&label(x).indexOf(o.k)>-1})[0];
+    if(!t) return; used.push(t); cards.push({t:t,s:o.s||'',c:o.c||bg(t)});
+  });
+  tabs.forEach(function(t){ if(used.indexOf(t)<0) cards.push({t:t,s:'',c:bg(t)}); });
+
+  var home=document.createElement('div'); home.id='cardHome';
+  home.innerHTML='<h2>'+(cfg.prompt||'What do you want to work on?')+'</h2><div id="cardGrid"></div>';
+  var grid=home.querySelector('#cardGrid');
+  cards.forEach(function(cd){
+    var m=label(cd.t).match(/^(\S+)\s+(.*)$/); var ic=m?m[1]:'', tt=m?m[2]:label(cd.t);
+    var b=document.createElement('button'); b.type='button';
+    b.style.background=cd.c;
+    b.innerHTML='<span class="ic">'+ic+'</span><span class="tt"></span>'+(cd.s?'<small></small>':'');
+    b.querySelector('.tt').textContent=tt; if(cd.s) b.querySelector('small').textContent=cd.s;
+    b.onclick=function(){cd.t.click();};
+    grid.appendChild(b);
+  });
+  nav.parentNode.insertBefore(home,nav);
+
+  var back=document.createElement('div'); back.id='cardBack';
+  back.innerHTML='<button type="button">← All cards</button>';
+  back.firstChild.onclick=function(){document.body.classList.add('home');window.scrollTo(0,0);};
+  main.parentNode.insertBefore(back,main);
+
+  var orig=window.show;
+  if(typeof orig==='function'){
+    window.show=function(){var r=orig.apply(this,arguments);document.body.classList.remove('home');window.scrollTo(0,0);return r;};
+  }
+})();

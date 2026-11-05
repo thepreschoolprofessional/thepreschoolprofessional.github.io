@@ -47,7 +47,7 @@ main{max-width:820px;margin:0 auto;padding:8px 16px;}
 a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800;color:var(--soft);}
 </style>
 <script>/* stale-page guard: if this browser is showing an old saved copy, load the fresh one */
-(function(){var V='20261019b';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+'?v='+m[1]);}});}catch(e){}})();</script>
+(function(){var V='20261105a';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+'?v='+m[1]);}});}catch(e){}})();</script>
 </head>
 <body>
 <a class="back" href="index.html">← exit</a>
@@ -57,12 +57,14 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 </header>
 <nav>
 <div class="tab t-lesson active" onclick="show('lesson',this)">📚 Lesson Plan Wizard</div>
+<div class="tab" style="background:#e8573f" onclick="show('daily',this)">📅 Daily Plans</div>
 <div class="tab" style="background:linear-gradient(90deg,#5a4cc9,#9b6bff)" onclick="show('mc',this)">🎛 Mission Control</div>
 <div class="tab t-forms" onclick="show('ask',this)">💬 Ask Mrs. Bear & Charles</div>
 <div class="tab t-facil" onclick="show('facil',this)">🧹 Facility Checklists</div>
 <div class="tab" style="background:#b22234" onclick="location.href='closures.html'">📅 Closures</div>
 <div class="tab" style="background:#1565c0" onclick="location.href='rooms.html'">🏫 Classroom Attendance</div>
-<div class="tab" style="background:linear-gradient(90deg,#E8573F,#F2B705)" onclick="show('bpa',this)">🎓 BPA Online</div>
+<div class="tab" style="background:#6a1b9a" onclick="location.href='teacher-training.html'">🎓 Training</div>
+<div class="tab" style="background:linear-gradient(90deg,#E8573F,#F2B705)" onclick="show('bpa',this)">🐻 BPA Online</div>
 <div class="tab t-fund" onclick="show('fund',this)">🐝 Fundraiser</div>
 </nav>
 <main>
@@ -82,6 +84,16 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 <div class="viewer" id="bkViewer"><div class="vbar"><b id="bkTitle"></b><a class="vbtn" id="bkFull" href="#" target="_blank" rel="noopener">⛶ Full screen</a><button class="vbtn alt" onclick="closeBook()">✕ Back to all books</button></div><iframe id="bkFrame" allow="autoplay; fullscreen" allowfullscreen></iframe></div>
 <div id="bkList" class="bkrows"><div class="empty">Loading books… 📚</div></div>
 </div>
+</div>
+<div class="panel" id="p-daily">
+<div class="step">📅 Daily Plans: pick your room, then the month, the week, and today</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-top:12px">
+<a class="open" style="background:#e8573f;text-align:center;padding:18px 10px;border-radius:16px;font-size:1.05rem" href="https://claude.ai/artifact/DyewSpXTM8sfByXyr5KCWg" target="_blank" rel="noopener">🎒 Fours</a>
+<a class="open" style="background:#2e8b57;text-align:center;padding:18px 10px;border-radius:16px;font-size:1.05rem" href="https://claude.ai/artifact/V7BETKc2wHjCawU3CEKj5h" target="_blank" rel="noopener">🖍️ Threes</a>
+<a class="open" style="background:#1d7fd1;text-align:center;padding:18px 10px;border-radius:16px;font-size:1.05rem" href="https://claude.ai/artifact/GQfL3PoBU8tJQZpV4dvGbv" target="_blank" rel="noopener">🚂 Twos</a>
+<a class="open" style="background:#9b6bff;text-align:center;padding:18px 10px;border-radius:16px;font-size:1.05rem" href="https://claude.ai/artifact/FBwa8RSzoX3KuFqZFSbM1b" target="_blank" rel="noopener">🧸 Ones</a>
+</div>
+<div class="note" style="margin-top:12px">Each Teacher Hub has the daily plans, songs, lessons, books and circle time for November and December. School Age is coming soon.</div>
 </div>
 <div class="panel" id="p-mc">
 <div class="step">🎛 Your links & tools — Slack, hubs, music for every part of the day 🎶</div>
@@ -238,5 +250,20 @@ loadPlans(); ftInit();
 </script>
 <script src="buzz.js?v=4"></script>
 <script src="transport.js?v=7"></script>
+<script>
+window.HIVE_CARDS={prompt:'What do you want to open?',order:[
+ {k:'Lesson Plan Wizard',s:'Monthly plans, workbooks, take-homes',c:'#2e8b57'},
+ {k:'Daily Plans',s:'Pick a day, the whole day is planned',c:'#e8573f'},
+ {k:'Facility Checklists',s:'Cleaning charts and inspections',c:'#00838f'},
+ {k:'Classroom Attendance',s:'Sign children in and out',c:'#1565c0'},
+ {k:'Training',s:'How to do it, step by step',c:'#6a1b9a'},
+ {k:'BPA Online',s:'Bear Phonics Academy',c:'#d9822b'},
+ {k:'Closures',s:'Closed days and flyers',c:'#b22234'},
+ {k:'Ask Mrs. Bear',s:'Send a question',c:'#c95ab0'},
+ {k:'Mission Control',s:'Charles task center',c:'#5a4cc9'},
+ {k:'Fundraiser',s:'Fundraiser tools',c:'#f0a020'}
+]};
+</script>
+<script src="hive-cards.js?v=1"></script>
 </body>
 </html>
