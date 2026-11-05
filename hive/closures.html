@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Closures</title>
+<style>
+:root{--navy:#1b2a4e;--red:#b22234;--gold:#ffd23f;--cream:#fdf6e9;--ink:#3b2a1a}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--cream);color:var(--ink)}
+header{background:var(--navy);color:#fff;padding:18px 16px 14px;text-align:center;position:relative}
+header h1{margin:0;font-size:24px}
+header .sub{font-size:14px;color:var(--gold);margin-top:4px}
+a.back{position:absolute;left:14px;top:16px;color:#fff;text-decoration:none;font-weight:800}
+main{max-width:900px;margin:0 auto;padding:14px 12px 40px}
+.pick{display:flex;gap:8px;justify-content:center;margin-bottom:12px}
+.pick button{border:2px solid var(--navy);background:#fff;color:var(--navy);border-radius:99px;padding:8px 16px;font-weight:800;font-size:15px;cursor:pointer}
+.pick button.on{background:var(--navy);color:#fff}
+.legend{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.legend div{flex:1;min-width:220px;border-radius:12px;padding:8px 12px;font-size:14px;font-weight:700}
+.l-all{background:var(--red);color:#fff}
+.l-vpk{background:var(--gold);border:3px dashed var(--ink)}
+.flyer{background:#fff;border-radius:14px;padding:10px;box-shadow:0 2px 10px rgba(0,0,0,.12);text-align:center}
+.flyer img{width:100%;height:auto;border-radius:8px;display:block}
+.dl{display:flex;gap:10px;justify-content:center;margin:12px 0;flex-wrap:wrap}
+.dl a{background:var(--red);color:#fff;text-decoration:none;font-weight:800;padding:12px 18px;border-radius:12px}
+.dl a.sec{background:#fff;color:var(--red);border:2px solid var(--red)}
+.note{font-size:13px;text-align:center;margin-top:8px}
+.msg{text-align:center;padding:40px 10px;font-size:17px}
+</style>
+</head>
+<body>
+<a class="back" id="backLink" href="index.html">&larr; back</a>
+<header><h1>&#128197; School Closures 2026&ndash;27</h1><div class="sub" id="sub">Kid City USA</div></header>
+<main id="main"><div class="msg">Loading&hellip;</div></main>
+<script>
+const PIN = sessionStorage.getItem('hivePin');
+if(!PIN){ location.replace('index.html'); }
+const SCHOOLS = {
+  'DeLand 2': {name:'DeLand', file:'files/closure-deland-2026-27', cal:'Volusia County'},
+  'Sanford':  {name:'Sanford', file:'files/closure-sanford-2026-27', cal:'Seminole County'}
+};
+async function whoami(){
+  try{
+    const r = await fetch('api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:PIN,action:'whoami'})});
+    return await r.json();
+  }catch(e){ return {}; }
+}
+function render(key, locked, role){
+  const s = SCHOOLS[key];
+  let h = '';
+  if(!locked){
+    h += '<div class="pick"><button data-k="DeLand 2" class="'+(key==='DeLand 2'?'on':'')+'">DeLand</button><button data-k="Sanford" class="'+(key==='Sanford'?'on':'')+'">Sanford</button></div>';
+  }
+  h += '<div class="legend"><div class="l-all">Red = CLOSED for everyone (all classes)</div><div class="l-vpk">Yellow = VPK &amp; school-age closed &middot; preschool OPEN &middot; Break Camp available</div></div>';
+  h += '<div class="flyer"><img src="'+s.file+'.png" alt="'+s.name+' closure calendar 2026-27"></div>';
+  h += '<div class="dl"><a href="'+s.file+'.pdf" target="_blank" rel="noopener">&#128196; Open / print the PDF</a><a class="sec" href="'+s.file+'.png" download>&#11015; Save the picture</a></div>';
+  h += '<div class="note">'+s.name+' VPK follows the '+s.cal+' school calendar. Questions or Break Camp pricing? Contact your school&rsquo;s front office.</div>';
+  document.getElementById('main').innerHTML = h;
+  document.getElementById('sub').textContent = 'Kid City USA · ' + s.name;
+  document.querySelectorAll('.pick button').forEach(b=>b.onclick=()=>{ try{localStorage.setItem('hiveClosureSchool',b.dataset.k)}catch(e){} render(b.dataset.k,false,role); });
+}
+(async function(){
+  if(!PIN) return;
+  const who = await whoami();
+  if(who && who.error){ location.replace('index.html'); return; }
+  const role = who && who.role;
+  document.getElementById('backLink').href = role==='director' ? 'director.html' : (role==='parent' ? 'parent.html' : (role==='teacher' ? 'teacher.html' : 'index.html'));
+  if(who && who.school && SCHOOLS[who.school]) { render(who.school,true,role); return; }
+  let k='DeLand 2'; try{ k = localStorage.getItem('hiveClosureSchool') || localStorage.getItem('hiveSchool') || k; }catch(e){}
+  if(!SCHOOLS[k]) k = /sanford/i.test(k) ? 'Sanford' : 'DeLand 2';
+  render(k,false,role);
+})();
+</script>
+</body>
+</html>
