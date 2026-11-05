@@ -42,7 +42,7 @@
   var home=document.createElement('div'); home.id='cardHome';
   home.innerHTML='<h2>'+(cfg.prompt||'What do you want to work on?')+'</h2><div id="cardGrid"></div>';
   var grid=home.querySelector('#cardGrid');
-  cards.forEach(function(cd){
+  function mk(cd){
     var m=label(cd.t).match(/^(\S+)\s+(.*)$/); var ic=m?m[1]:'', tt=m?m[2]:label(cd.t);
     var b=document.createElement('button'); b.type='button';
     b.style.background=cd.c;
@@ -53,13 +53,22 @@
     function mirror(){var sp=cd.t.querySelector('span[style*="e53935"]'); if(sp) setBadge(cd,sp.textContent.replace(/[^\w\s]/g,'').trim());}
     try{new MutationObserver(mirror).observe(cd.t,{childList:true,subtree:true,characterData:true});}catch(e){}
     mirror();
-  });
+  }
+  cards.forEach(mk);
   function setBadge(cd,txt){
     var old=cd.b.querySelector('.bdg'); if(old) old.remove(); cd.b.classList.remove('alert');
     if(!txt) return;
     var e=document.createElement('span'); e.className='bdg'; e.textContent=txt; cd.b.appendChild(e); cd.b.classList.add('alert');
   }
   window.HiveCards={badge:function(key,txt){cards.forEach(function(cd){ if(cd.base.indexOf(key)>-1) setBadge(cd,txt); });}};
+  /* tabs injected by other scripts after this one ran (e.g. transport.js) still get a card */
+  function late(t){
+    if(!t||!t.classList||!t.classList.contains('tab')) return;
+    if(cards.some(function(c){return c.t===t;})) return;
+    var l=label(t), o=(cfg.order||[]).filter(function(x){return l.indexOf(x.k)>-1})[0]||{};
+    var cd={t:t,s:o.s||'',c:o.c||bg(t),base:l}; cards.push(cd); mk(cd);
+  }
+  try{new MutationObserver(function(ms){ms.forEach(function(m){[].forEach.call(m.addedNodes,late);});}).observe(nav,{childList:true});}catch(e){}
   nav.parentNode.insertBefore(home,nav);
 
   var back=document.createElement('div'); back.id='cardBack';
