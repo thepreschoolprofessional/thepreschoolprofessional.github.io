@@ -179,11 +179,53 @@ function drillView(){
     var fires=mr.filter(function(r){return r.type==='Fire';}).length;
     if(!mr.length) h+='<tr><td><b>'+mn+'</b></td><td colspan="10" style="color:'+(mk<t.slice(0,7)||(mk===t.slice(0,7)&&+t.slice(8)>=25)?'#b71c1c':'#999')+'">'+(mk<=t.slice(0,7)?'No drill logged':'&mdash;')+'</td><td>'+(mk<=t.slice(0,7)?'<button class="btn sec sm" data-adddrill="'+mk+'">Add</button>':'')+'</td></tr>';
     else mr.forEach(function(r,i){ h+='<tr><td>'+(i?'':'<b>'+mn+'</b>')+'</td><td>'+nice(r.date)+'</td><td>'+esc(r.time||'')+'</td><td>'+esc(r.type)+'</td><td>'+esc(r.adults||'')+'</td><td>'+esc(r.kids||'')+'</td><td>'+esc(r.clear||'')+'</td><td>'+esc(r.route||'')+'</td><td>'+esc(r.ext||'')+'</td><td>'+esc(r.note||'')+'</td><td>'+esc(r.init||'')+'</td><td><button class="btn sec sm" data-cell="drl|'+r.date+'|(building)|'+r.id+'">open</button></td></tr>'; }); }
-  h+='</table></div><div class="mrow" style="margin-top:8px"><button class="btn grn" data-adddrill="'+t+'">Log a drill</button> <button class="btn sec" onclick="printDrills()">Print the log</button></div></div>';
+  h+='</table></div><div class="mrow" style="margin-top:8px"><button class="btn grn" data-adddrill="'+t+'">Log a drill</button> <button class="btn sec" onclick="printDrills()">Print the log (paper form)</button> <button class="btn sec" onclick="drillVault()">Save log to vault</button></div></div>';
   return h;
 }
-function printDrills(){ var yr=S.date.slice(0,4), rows=drillRows(yr+'-01-01',yr+'-12-31'), w=window.open('about:blank','_blank'); if(!w) return;
-  w.document.write('<!doctype html><title>Fire Drill Log</title><style>body{font-family:Arial;margin:24px}table{border-collapse:collapse;width:100%;font-size:12px}td,th{border:1px solid #444;padding:5px;text-align:left}h2{margin:0 0 4px}</style><h2>Fire &amp; Emergency Drill Log '+yr+'</h2><div>Kid City USA &mdash; '+esc(S.school)+'</div><br><table><tr><th>Date</th><th>Time of day</th><th>Type</th><th>Adults</th><th>Children</th><th>Time to clear</th><th>Route / alternate route</th><th>Extinguisher check</th><th>Comments</th><th>Director initials</th></tr>'+rows.map(function(r){return '<tr><td>'+nice(r.date)+'</td><td>'+esc(r.time||'')+'</td><td>'+esc(r.type)+'</td><td>'+esc(r.adults||'')+'</td><td>'+esc(r.kids||'')+'</td><td>'+esc(r.clear||'')+'</td><td>'+esc(r.route||'')+'</td><td>'+esc(r.ext||'')+'</td><td>'+esc(r.note||'')+'</td><td>'+esc(r.init||'')+'</td></tr>';}).join('')+'</table><p style="font-size:11px">Keep 12 months. Required yearly: alternate-route, nap-time, lockdown and inclement-weather drills.</p>'); w.document.close(); }
+function ascii(s){ return String(s==null?'':s).replace(/[^\x20-\x7e]/g,''); }
+function drillPdf(yr){
+  var rows=drillRows(yr+'-01-01',yr+'-12-31'), fire=rows.filter(function(r){return r.type==='Fire'||r.type==='Alternate route'||r.type==='Nap-time';}), em=rows.filter(function(r){return !(r.type==='Fire'||r.type==='Alternate route'||r.type==='Nap-time');});
+  return loadLibs().then(function(){
+    var L=PDFLib, rgb=L.rgb;
+    return L.PDFDocument.create().then(function(doc){ return Promise.all([doc.embedFont(L.StandardFonts.Helvetica),doc.embedFont(L.StandardFonts.HelveticaBold)]).then(function(f){
+      var F=f[0], B=f[1], PER=13, pages=Math.max(1,Math.ceil(fire.length/PER),Math.ceil(em.length/PER));
+      function mdy(s){ var q=String(s||'').split('-'); return q.length===3?(+q[1])+'/'+(+q[2])+'/'+q[0].slice(2):''; }
+      for(var pg=0;pg<pages;pg++){
+        var page=doc.addPage([792,612]), H=612;
+        page.drawText('NAME OF FACILITY/HOME:',{x:30,y:H-40,size:10,font:B}); page.drawText('Kid City USA '+ascii(S.school),{x:178,y:H-40,size:13,font:F}); page.drawText(String(yr),{x:690,y:H-40,size:14,font:F});
+        page.drawLine({start:{x:30,y:H-46},end:{x:762,y:H-46},thickness:1});
+        function panel(x0,title,desc,cols,data,fmt){
+          var w=cols.reduce(function(s,c){return s+c[1];},0), y=H-58;
+          page.drawRectangle({x:x0,y:y-22,width:w,height:22,color:rgb(.86,.88,.45),borderColor:rgb(0,0,0),borderWidth:1});
+          page.drawText(title,{x:x0+w/2-B.widthOfTextAtSize(title,12)/2,y:y-16,size:12,font:B});
+          page.drawRectangle({x:x0,y:y-76,width:w,height:54,borderColor:rgb(0,0,0),borderWidth:1});
+          var words=desc.split(' '), line='', ly=y-34; words.forEach(function(wd){ if(F.widthOfTextAtSize(line+wd,7.5)>w-10){ page.drawText(line,{x:x0+5,y:ly,size:7.5,font:F}); ly-=9; line=''; } line+=wd+' '; }); page.drawText(line,{x:x0+5,y:ly,size:7.5,font:F});
+          var hy=y-76, hh=108, cx=x0;
+          cols.forEach(function(c){ page.drawRectangle({x:cx,y:hy-hh,width:c[1],height:hh,borderColor:rgb(0,0,0),borderWidth:.7,color:rgb(.93,.93,.93)}); page.drawText(c[0],{x:cx+c[1]/2+3,y:hy-hh+4,size:5.8,font:B,rotate:L.degrees(90)}); cx+=c[1]; });
+          var ry=hy-hh;
+          for(var i=0;i<PER;i++){ var r=data[pg*PER+i], cx2=x0; ry-=18; cols.forEach(function(c,ci){ page.drawRectangle({x:cx2,y:ry,width:c[1],height:18,borderColor:rgb(0,0,0),borderWidth:.7}); if(r){ var t=ascii(fmt(r)[ci]); var sz=9; while(sz>5&&F.widthOfTextAtSize(t,sz)>c[1]-4) sz-=.5; page.drawText(t,{x:cx2+3,y:ry+5,size:sz,font:F,color:rgb(.1,.1,.55)}); } cx2+=c[1]; }); }
+        }
+        panel(30,'FIRE DRILL','Conduct fire drills, at various times when children are in care. A minimum of one fire drill annually must occur while children are napping/sleeping and one fire drill must be conducted using alternate evacuation route. Annually, at least one fire drill will be conducted while licensing staff are present.',
+          [['DATE (MM/DD/YY)',44],['TIME OF DAY',38],['NUMBER OF ADULT PARTICIPANTS',32],['NUMBER OF CHILD PARTICIPANTS',32],['TIME TO CLEAR BUILDING',38],['ROUTE USED / ALTERNATE',40],['DATE EXTINGUISHER CHECKED',42],['COMMENTS',62],['INITIALS OF OWNER/DIRECTOR',38]],fire,
+          function(r){ return [mdy(r.date),r.time,r.adults,r.kids,r.clear,(r.route||(r.type==='Alternate route'?'Alt':''))+(r.type==='Nap-time'?' (nap)':''),r.ext,r.note,r.init]; });
+        panel(402,'EMERGENCY PREPAREDNESS','Conduct drills of the emergency preparedness and evacuation plan for situations such as inclement weather (tornadoes) or a necessary lock down of the facility due to an outside threat. Annually you must practice each drill outlined in your emergency preparedness plan at least once.',
+          [['DATE (MM/DD/YY)',44],['TIME OF DAY',38],['NUMBER OF ADULT PARTICIPANTS',32],['NUMBER OF CHILD PARTICIPANTS',32],['SITUATION / EVENT PRACTICED',62],['TIME TAKEN TO COMPLETE',40],['COMMENTS',80],['INITIALS OF OWNER/DIRECTOR',38]],em,
+          function(r){ return [mdy(r.date),r.time,r.adults,r.kids,r.type+(r.type==='Other emergency'&&r.route?': '+r.route:''),r.clear,r.note,r.init]; });
+        page.drawText('Keep records 12 months. Page '+(pg+1)+' of '+pages+'. Generated from the Hive drill log.',{x:30,y:14,size:7,font:F,color:rgb(.4,.4,.4)});
+      }
+      return doc.save();
+    }); });
+  });
+}
+function bytesB64(u8){ var s='',i,ch=0x8000; for(i=0;i<u8.length;i+=ch) s+=String.fromCharCode.apply(null,u8.subarray(i,i+ch)); return btoa(s); }
+function vaultCall(action,extra){ var body={pin:PIN,action:action}; for(var k in extra) body[k]=extra[k]; return fetch('reporting-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.json();}); }
+function drillVault(silent){
+  var yr=S.date.slice(0,4), month=todayNY().slice(0,7), name='Fire Drill Log '+yr+' - '+S.school+'.pdf';
+  return drillPdf(yr).then(function(u8){
+    return vaultCall('remove',{month:month,cat:'dcf',name:name}).catch(function(){}).then(function(){ return vaultCall('upload',{month:month,cat:'dcf',name:name,b64:bytesB64(u8)}); });
+  }).then(function(j){ if(j&&j.error) throw new Error(j.error); toast('Drill log filed in the vault (DCF / Licensing, '+month+').'); }).catch(function(e){ toast('Drill saved, but the vault copy failed: '+e.message,true); });
+}
+function printDrills(){ var yr=S.date.slice(0,4), w=window.open('about:blank','_blank'); drillPdf(yr).then(function(u8){ var url=URL.createObjectURL(new Blob([u8],{type:'application/pdf'})); if(w) w.location.href=url; else location.href=url; }).catch(function(e){ if(w) w.close(); toast(e.message,true); }); }
 function drillForm(date,recId){
   var rec=recId&&S.subs[recId], o=rec?drillInfo(rec):{type:'Fire',date:date}, nm=directorName();
   var h='<div class="mback" data-a="mclose"><div class="mbox" data-stop="1"><h3>Drill log entry</h3>';
@@ -199,7 +241,7 @@ function drillForm(date,recId){
     var j={type:$('dty').value,time:$('dtm').value.trim(),adults:$('dad').value.trim(),kids:$('dkd').value.trim(),clear:$('dcl').value.trim(),route:$('drt').value.trim(),ext:$('dex').value.trim(),note:$('dnt').value.trim(),init:$('din').value.trim()};
     var items='✅ '+j.type+' drill conducted & logged'+(j.time?' at '+j.time:'')+(j.kids?' · '+j.kids+' children, '+(j.adults||'?')+' adults':'')+(j.clear?' · cleared in '+j.clear:''), det='DRILL:'+JSON.stringify(j), btn=$('dsave'); btn.disabled=true; btn.textContent='Saving...';
     var p=rec?api('update','Facility Submissions',{recordId:rec.id,fields:{Items:items,Details:det,Date:d}}):api('create','Facility Submissions',{fields:{Submission:S.school+' · Drill · '+j.type+' · '+d.slice(5).replace('-','/'),'Room / Classroom':FORMS.drl.room,'Form Type':FORMS.drl.type,'Staff Name':nm,Date:d,'Submitted At':new Date().toISOString(),Items:items,'Overall Status':'✅ All OK',Details:det,Status:'🟡 Pending'}});
-    p.then(function(res){ var r=res.records?res.records[0]:res; if(r&&r.id){ S.subs[r.id]=r; } $('modal').innerHTML=''; toast('Drill saved.'); render(); }).catch(function(e){ btn.disabled=false; btn.textContent='Save drill'; $('merr').textContent=e.message; });
+    p.then(function(res){ var r=res.records?res.records[0]:res; if(r&&r.id){ S.subs[r.id]=r; } $('modal').innerHTML=''; toast('Drill saved.'); render(); drillVault(); }).catch(function(e){ btn.disabled=false; btn.textContent='Save drill'; $('merr').textContent=e.message; });
   };
 }
 function missingView(){
