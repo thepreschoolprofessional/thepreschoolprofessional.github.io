@@ -99,7 +99,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 .meet-save{display:flex;align-items:center;gap:10px;margin-top:8px;} .meet-save small{color:var(--soft);font-weight:700;}
 </style>
 <script>/* stale-page guard: if this browser is showing an old saved copy, load the fresh one */
-(function(){var V='20261105a';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+'?v='+m[1]);}});}catch(e){}})();</script>
+(function(){var V='20261105b';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+'?v='+m[1]);}});}catch(e){}})();</script>
 </head>
 <body>
 <a class="back" href="index.html">← exit</a>
@@ -124,6 +124,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 <div class="tab" style="background:#c0392b" onclick="location.href='dcf.html'">📁 DCF Binder</div>
   <div class="tab" style="background:#37474f" onclick="location.href='reporting.html'">🗄️ Reporting</div>
   <div class="tab" style="background:#6a1b9a" onclick="location.href='training.html'">🎓 Training</div>
+  <div class="tab" style="background:#3949ab" onclick="location.href='lessons.html'">📘 Lessons</div>
   <div class="tab" style="background:#1565c0" onclick="location.href='rooms.html'">🏫 Classroom Attendance</div>
   <div class="tab" style="background:#ef6c00" onclick="openElcTablet()">📲 ELC Sign-In Tablet</div>
   <div class="tab t-ratio" onclick="show('ratio',this)">🧮 Ratios & FTE</div>
@@ -843,6 +844,7 @@ window.HIVE_CARDS={prompt:'What do you want to work on?',order:[
  {k:'Onboarding',s:'New families and staff',c:'#26a69a'},
  {k:'Forms Wizard',s:'Fill in and print forms',c:'#1aa7a0'},
  {k:'Training',s:'How every system works',c:'#6a1b9a'},
+ {k:'Lessons',s:'Step-by-step: Rooms Board, checklists, incidents',c:'#3949ab'},
  {k:'Mission Control',s:'Charles task center',c:'#5a4cc9'},
  {k:'Lesson Plan Wizard',s:'Plans and workbooks',c:'#3a9d5d'},
  {k:'Fundraiser',s:'Fundraiser tools',c:'#f0a020'}
