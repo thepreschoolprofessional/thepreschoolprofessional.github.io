@@ -99,7 +99,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 .meet-save{display:flex;align-items:center;gap:10px;margin-top:8px;} .meet-save small{color:var(--soft);font-weight:700;}
 </style>
 <script>/* stale-page guard: if this browser is showing an old saved copy, load the fresh one */
-(function(){var V='20261105g';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+'?v='+m[1]);}});}catch(e){}})();</script>
+(function(){var V='20261105h';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+'?v='+m[1]);}});}catch(e){}})();</script>
 </head>
 <body>
 <a class="back" href="index.html">← exit</a>
@@ -868,6 +868,29 @@ window.HIVE_CARDS={prompt:'What do you want to work on?',order:[
  {k:'Lesson Plan Wizard',s:'Plans and workbooks',c:'#3a9d5d'},
  {k:'Fundraiser',s:'Fundraiser tools',c:'#f0a020'}
 ]};
+</script>
+<script>
+/* NEEDS ATTENTION: red, self-closing list. Each line opens the exact child/staff file. */
+(function(){
+ function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+ function run(){try{
+  var pin=sessionStorage.getItem('hivePin');if(!pin)return;
+  fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pin,action:'attention'})}).then(function(r){return r.json()}).then(function(j){
+   if(!j||!j.items)return;var red=j.items.filter(function(i){return i.red}),amb=j.items.length-red.length;
+   var old=document.getElementById('needs');if(old)old.remove();
+   if(!j.items.length)return;
+   var nav=document.querySelector('nav');if(!nav)return;
+   var by={};j.items.forEach(function(i){var k=i.kind+':'+i.id;(by[k]=by[k]||{n:i.name,sub:i.sub,kind:i.kind,id:i.id,it:[]}).it.push(i)});
+   var rows=Object.keys(by).sort(function(a,b){return by[b].it.length-by[a].it.length}).map(function(k){var g=by[k];
+    return '<div style="padding:8px 0;border-top:1px solid #f3c1c1"><b>'+(g.kind==='student'?'🧒 ':'🗂️ ')+esc(g.n)+'</b> <small style="color:#777">'+esc(g.sub||'')+'</small>'
+     +g.it.map(function(i){return '<a href="files.html?kind='+i.kind+'&open='+encodeURIComponent(i.id)+'&doc='+i.doc+'" style="display:block;margin:3px 0 0 14px;color:'+(i.red?'#b71c1c':'#a66b00')+';font-weight:600;text-decoration:none">'+(i.status==='sign'?'✍ ':(i.red?'● ':'○ '))+esc(i.label)+' — '+({missing:'missing',expired:'expired',soon:'expires soon',needdate:'add date',sign:'needs signature'}[i.status]||'')+'</a>'}).join('')+'</div>';}).join('');
+   var d=document.createElement('div');d.id='needs';d.style.cssText='margin:10px 12px;border:2px solid #d32f2f;background:#fff5f5;border-radius:14px;padding:10px 14px';
+   d.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="var b=document.getElementById(\'needsb\');b.style.display=b.style.display===\'none\'?\'block\':\'none\'"><b style="color:#b71c1c;font-size:1.05rem">🔴 Needs attention: '+red.length+' to fix'+(amb?' · '+amb+' to check':'')+'</b><span style="color:#b71c1c">tap to open/close</span></div><div id="needsb" style="display:none;margin-top:6px">'+rows+'<div style="font-size:.8rem;color:#777;margin-top:6px">Tap a line to go straight to that file. Parents can sign on screen from the child\'s file. Items disappear on their own when fixed.</div></div>';
+   nav.parentNode.insertBefore(d,nav);
+  }).catch(function(){});
+ }catch(e){}}
+ setTimeout(run,3200);
+})();
 </script>
 <script src="hive-cards.js?v=3"></script>
 <script>

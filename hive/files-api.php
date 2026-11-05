@@ -271,6 +271,21 @@ if (!$isDir) fail('Files are only available with a director PIN.', 403);
 $kind = $input['kind'] ?? 'staff';
 if (!in_array($kind, $KINDS, true)) fail('Bad file type');
 
+if ($action === 'attention'){
+$items = [];
+foreach ($KINDS as $k){
+$r = roster($school, $k); if ($r === null) continue;
+foreach ($r as $p){ if (strpos($p['id'], 'recTEST') === 0) continue; $v = person_view($school, $k, $p['id'], $p);
+foreach (($v['docs'] ?? []) as $d){
+$st = $d['status'] ?? ''; if ($st !== 'missing' && $st !== 'expired' && $st !== 'soon' && $st !== 'needdate') continue;
+if ($st === 'missing' && empty($d['req'])) continue;
+$items[] = ['kind'=>$k, 'id'=>$p['id'], 'name'=>$p['name'], 'sub'=>$p['sub'], 'doc'=>$d['key'], 'label'=>$d['label'], 'status'=>$st, 'red'=>($st === 'missing' || $st === 'expired')];
+}
+if ($k === 'staff'){ foreach ((jread(pdir($school, 'staff', $p['id']).'/certs.json', [])) as $c){ if (empty($c['signedAt'])) $items[] = ['kind'=>'staff', 'id'=>$p['id'], 'name'=>$p['name'], 'sub'=>$p['sub'], 'doc'=>'cert', 'label'=>'Training certificate to sign: '.($c['title'] ?? ''), 'status'=>'sign', 'red'=>true]; } }
+}
+}
+echo json_encode(['school'=>$school, 'items'=>$items]); exit;
+}
 if ($action === 'summary'){
 $out = [];
 foreach ($KINDS as $k){

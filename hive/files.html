@@ -45,7 +45,7 @@ body{margin:0;background:linear-gradient(160deg,#fff7ef,#ffe7d4);color:var(--ink
 <body><div id="app"><div class="sub">Loading…</div></div>
 <div class="modal" id="mod"><div class="box" id="modbox"></div></div>
 <script>
-(function(){var V='20261105b';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+location.search+(location.search?'&':'?')+'v='+m[1]);}});}catch(e){}})();
+(function(){var V='20261105c';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+location.search+(location.search?'&':'?')+'v='+m[1]);}});}catch(e){}})();
 </script>
 <script>
 const PIN=sessionStorage.getItem('hivePin');
@@ -68,7 +68,8 @@ function fmt(d){if(!d)return '';const p=d.split('-');return p[1]+'/'+p[2]+'/'+p[
 async function boot(){
  try{const w=await api('whoami');SCHOOL=w.school;if(w.role!=='director'){throw new Error('Files are only available to directors and the owner.');}}
  catch(e){$('app').innerHTML='<div class="card"><b>'+esc(e.message)+'</b><p><a class="btn" href="index.html">Back to sign in</a></p></div>';return;}
- listView();}
+ await listView();
+ try{const u=new URLSearchParams(location.search);if(u.get('open')){await openP(u.get('open'));const dk=u.get('doc');if(dk){const el=document.getElementById('d_'+dk);if(el){el.scrollIntoView({block:'center'});el.style.outline='3px solid #d32f2f';}}}}catch(e){}}
 async function listView(){
  CUR=null;
  $('app').innerHTML='<div class="top"><div><h1>'+(ST?'🗂️ Staff Files':'🧒 Student Files')+'</h1><div class="sub">'+esc(SCHOOL)+'</div></div><a class="btn sec" href="'+(sessionStorage.getItem('hiveOwner')?'owner.html':'director.html')+'">‹ Back to portal</a></div>'
@@ -107,11 +108,12 @@ function pView(){
  h+='<div class="card"><h3>'+(ST?'What this file needs':'What this folder needs')+'</h3><div class="sub" style="margin-bottom:6px">Tap Take photo for each page (or choose a PDF). Red means it is missing or out of date.</div>';
  c.docs.forEach(function(d){
   const s=LBL[d.status];
-  h+='<div class="doc'+((d.status==='missing'||d.status==='expired')?' bad':'')+'"><div class="hd"><b>'+esc(d.label)+(d.req?'':' <small style="color:var(--soft);font-weight:600">(only if it applies)</small>')+'</b>'+pillHtml(d,s)+'</div>';
+  h+='<div id="d_'+d.key+'" class="doc'+((d.status==='missing'||d.status==='expired')?' bad':'')+'"><div class="hd"><b>'+esc(d.label)+(d.req?'':' <small style="color:var(--soft);font-weight:600">(only if it applies)</small>')+'</b>'+pillHtml(d,s)+'</div>';
   if(d.hint)h+='<div class="sub" style="font-size:.82rem">'+esc(d.hint)+'</div>';
   if(d.needsExp)h+='<div class="ex">Expires: <input type="date" value="'+esc(d.exp)+'" onchange="setExp(\''+d.key+'\',this.value)">'+(d.nodate?' <span style="color:var(--amb)">add the date so it can be tracked</span>':'')+'</div>';
   if(d.files.length)h+='<div class="fl">'+d.files.map(function(f,i){return '<span><button class="lk" onclick="view(\''+esc(f.name)+'\')">Page '+(i+1)+'</button> <button class="lk" style="color:#999" onclick="rm(\''+esc(f.name)+'\')">remove</button></span>';}).join('')+'</div>';
   if(d.drive)h+='<div class="fl"><a class="lk" target="_blank" rel="noopener" href="'+esc(d.drive.url)+'">📄 '+esc(d.drive.label||'Page in Drive')+' (opens the Drive page)</a></div>';
+  if(!ST&&ACK[d.key])h+='<div class="fl"><button class="btn sm" style="background:#2e7d32" onclick="signOpen(\''+d.key+'\')">✍ Parent signs on screen</button></div>';
   h+='<div class="fl"><label class="btn sm blu" style="margin:0">📷 Take photo<input type="file" accept="image/*" capture="environment" style="display:none" onchange="up(\''+d.key+'\',this)"></label>'
    +'<label class="btn sm sec" style="margin:0">📎 Choose file or PDF<input type="file" accept="image/*,application/pdf" multiple style="display:none" onchange="up(\''+d.key+'\',this)"></label></div></div>';});
  h+='</div>';
@@ -146,6 +148,49 @@ async function up(doc,inp){
   const s=await shrink(f);if(!s){say('gm','Could not read that file.',1);return;}
   try{await api('upload',{id:CUR.id,doc,name:s.name,b64:s.b64});n++;}catch(e){say('gm',(e.message||'Upload failed')+(n?' ('+n+' saved)':'')+(CUR.driveFolder?' — or put it in their Drive folder (top of this page) and tap the yellow button.':''),1);if(n)await refresh();return;}}
  await refresh();say('gm',n+' page'+(n===1?'':'s')+' saved to '+CUR.name+'\'s file.');}
+
+/* ---------- parent signs on screen (acknowledgment forms) ---------- */
+const ACK={
+ disc:{t:'Discipline and Expulsion Policy Receipt',s:'I received the center\'s discipline and expulsion policy and I have had the chance to read it and ask questions.'},
+ broch:{t:'Know Your Child Care Facility Brochure Receipt (CF/PI 175-24)',s:'I received the "Know Your Child Care Facility" brochure (CF/PI 175-24).'},
+ hb:{t:'Parent Handbook Receipt',s:'I received the parent handbook and I agree to follow the center\'s policies in it.'},
+ nut:{t:'Nutrition and Physical Activity Policy Receipt',s:'I received the center\'s food and nutrition policy (including allergens) and physical activity policy.'},
+ dd:{t:'Distracted Driver Information',s:'I received the information about children left in vehicles (distracted driver).',yr:1},
+ flu:{t:'Influenza Information',s:'I received the information about influenza and the flu vaccine.',yr:1},
+ photo:{t:'Photo and Video Release',s:'Photo and video of my child may be used by the center as I choose below.',choice:['I give permission','I do not give permission']},
+ foodp:{t:'Food and Activity Permission',s:'My child may take part in the center\'s food activities as I choose below.',choice:['I give permission','I do not give permission']}
+};
+let SG={};
+function signOpen(doc){
+ const a=ACK[doc];const d=CUR.docs.filter(x=>x.key===doc)[0]||{};
+ let h='<h3 style="margin:0 0 6px">'+esc(a.t)+'</h3><div class="sub" style="margin-bottom:8px">Child: <b>'+esc(CUR.name)+'</b> · '+esc(SCHOOL)+'</div><div class="card" style="margin:0 0 8px">'+esc(a.s)+'</div>';
+ if(a.choice)h+='<select class="fi" id="sc">'+a.choice.map(c=>'<option>'+esc(c)+'</option>').join('')+'</select>';
+ h+='<input class="fi" id="sn" placeholder="Parent / guardian full name (type)" style="margin-top:8px">';
+ h+='<div class="sub" style="margin:8px 0 2px">Sign here with your finger:</div><canvas id="sp" width="460" height="150" style="border:2px solid #999;border-radius:10px;width:100%;touch-action:none;background:#fff"></canvas>';
+ if(a.yr){const n=new Date();n.setFullYear(n.getFullYear()+1);h+='<div class="sub" style="margin-top:6px">Next due: <input type="date" id="sx" value="'+n.toISOString().slice(0,10)+'"></div>';}
+ h+='<div class="msg" id="sm2"></div><div style="display:flex;gap:8px;margin-top:10px"><button class="btn sec" onclick="document.getElementById(\'mod\').style.display=\'none\'">Cancel</button><button class="btn sec" onclick="sgClear()">Clear</button><button class="btn" id="sgo" onclick="signSave(\''+doc+'\')">Save to '+esc(CUR.name)+'\'s file</button></div>';
+ $('modbox').innerHTML=h;$('mod').style.display='flex';SG={on:false,drawn:false};
+ const c=$('sp'),x=c.getContext('2d');x.lineWidth=2.5;x.lineCap='round';x.strokeStyle='#111';
+ const pt=e=>{const r=c.getBoundingClientRect();return[(e.clientX-r.left)*c.width/r.width,(e.clientY-r.top)*c.height/r.height];};
+ c.onpointerdown=e=>{SG.on=true;SG.drawn=true;const p=pt(e);x.beginPath();x.moveTo(p[0],p[1]);c.setPointerCapture(e.pointerId);e.preventDefault();};
+ c.onpointermove=e=>{if(!SG.on)return;const p=pt(e);x.lineTo(p[0],p[1]);x.stroke();e.preventDefault();};
+ c.onpointerup=c.onpointercancel=()=>{SG.on=false;};}
+function sgClear(){const c=$('sp');c.getContext('2d').clearRect(0,0,c.width,c.height);SG.drawn=false;}
+async function signSave(doc){
+ const a=ACK[doc],nm=$('sn').value.trim();
+ if(!nm||!SG.drawn){say('sm2','Type the parent name and sign in the box.',1);return;}
+ $('sgo').disabled=true;say('sm2','Saving…');
+ const ch=a.choice?$('sc').value:'',sc=$('sp'),W=900,pad=40,cv=document.createElement('canvas');cv.width=W;cv.height=620;const x=cv.getContext('2d');
+ x.fillStyle='#fff';x.fillRect(0,0,W,620);x.fillStyle='#111';x.font='bold 30px Arial';x.fillText(a.t,pad,60);
+ x.font='20px Arial';x.fillStyle='#444';x.fillText('Kid City USA · '+SCHOOL,pad,92);x.fillStyle='#111';x.font='22px Arial';x.fillText('Child: '+CUR.name,pad,135);
+ const wrap=(t,y)=>{let l='';t.split(' ').forEach(w=>{if(x.measureText(l+w).width>W-2*pad){x.fillText(l,pad,y);y+=30;l='';}l+=w+' ';});x.fillText(l,pad,y);return y+30;};
+ let y=wrap(a.s,180);if(ch){x.font='bold 24px Arial';x.fillText(ch,pad,y+10);y+=40;}
+ x.drawImage(sc,pad,Math.max(y+10,330),420,137);x.font='20px Arial';x.fillStyle='#111';
+ x.fillText('Signed on screen by: '+nm,pad,520);x.fillText('Date/time: '+new Date().toLocaleString(),pad,552);x.fillStyle='#777';x.font='15px Arial';x.fillText('Electronic signature captured in the Hive at the center. Parent was present.',pad,590);
+ const b64=cv.toDataURL('image/png').split(',')[1];
+ try{await api('upload',{id:CUR.id,doc,name:'signed-'+nm.replace(/[^A-Za-z]/g,'').slice(0,12)+'.png',b64,exp:a.yr&&$('sx')?$('sx').value:''});
+  $('mod').style.display='none';await refresh();say('gm','Signed and saved to '+CUR.name+'\'s file.');}
+ catch(e){say('sm2',e.message||'Could not save',1);$('sgo').disabled=false;}}
 async function view(name){
  const w=window.open('about:blank','_blank');
  try{const j=await api('getfile',{id:CUR.id,name});const bin=atob(j.b64),a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);
