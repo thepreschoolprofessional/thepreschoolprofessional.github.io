@@ -252,11 +252,29 @@ if ($action === 'staff_names'){
 $r = roster($school, 'staff'); if ($r === null) fail('Could not read the staff list right now.', 502);
 echo json_encode(['staff'=>array_map(function($p){ return ['id'=>$p['id'], 'name'=>$p['name']]; }, $r)]); exit;
 }
+function pend_f($school){ $d = school_dir($school); return $d ? $d.'/_pending_staff.json' : null; }
+if ($action === 'staff_add_pending'){
+$nm = trim(preg_replace('/\s+/', ' ', preg_replace('/[^A-Za-z .\'-]/', '', $input['name'] ?? ''))); if (strlen($nm) < 3 || strlen($nm) > 50) fail('Type your first name and last name.');
+$r = roster($school, 'staff'); if ($r === null) fail('Could not read the staff list right now.', 502);
+foreach ($r as $p){ if (strcasecmp($p['name'], $nm) === 0) { echo json_encode(['id'=>$p['id'], 'name'=>$p['name'], 'exists'=>true]); exit; } }
+$f = pend_f($school); if (!$f) fail('Could not save right now.', 500); $pd = jread($f, []);
+foreach ($pd as $q){ if (strcasecmp($q['name'], $nm) === 0) { echo json_encode(['id'=>$q['pid'], 'name'=>$q['name'], 'pending'=>true]); exit; } }
+$pid = 'pend_'.substr(md5(uniqid('', true)), 0, 10); $pd[] = ['pid'=>$pid, 'name'=>$nm, 'at'=>gmdate('c'), 'certs'=>[]]; jwrite($f, $pd);
+echo json_encode(['id'=>$pid, 'name'=>$nm, 'pending'=>true]); exit;
+}
 if ($action === 'cert_submit'){
 $id = $input['id'] ?? ''; $lesson = preg_replace('/[^A-Za-z0-9]/', '', $input['lesson'] ?? '');
 $title = substr(preg_replace('/[<>]/', '', strip_tags($input['title'] ?? '')), 0, 120);
 $hrs = round((float)($input['hrs'] ?? 0), 2);
 if ($lesson === '' || $title === '' || $hrs <= 0 || $hrs > 8) fail('Missing lesson details');
+if (strpos($id, 'pend_') === 0){
+$f = pend_f($school); $pd = $f ? jread($f, []) : []; $hit = false;
+foreach ($pd as &$q){ if (($q['pid'] ?? '') === $id){ $hit = true; foreach ($q['certs'] as $c0){ if (($c0['lesson'] ?? '') === $lesson && ($c0['year'] ?? '') === date('Y')) fail('This lesson is already recorded for '.date('Y').'.'); }
+$c = ['cid'=>'c'.date('ymdHis').substr(md5(uniqid('', true)), 0, 4), 'lesson'=>$lesson, 'title'=>$title, 'hrs'=>$hrs, 'date'=>date('Y-m-d'), 'year'=>date('Y'), 'at'=>gmdate('c'), 'by'=>'self', 'signedAt'=>'', 'signer'=>'', 'sig'=>''];
+$q['certs'][] = $c; $nmq = $q['name']; } } unset($q);
+if (!$hit) fail('That name was not found. Add it again.'); jwrite($f, $pd);
+echo json_encode(['ok'=>true, 'cert'=>array_merge($c, ['name'=>$nmq, 'school'=>$school])]); exit;
+}
 $p = find_person($school, 'staff', $id); if (!$p) fail('That name is not on this school\'s staff list.');
 $d = pdir($school, 'staff', $id); $f = $d.'/certs.json'; $certs = jread($f, []);
 $year = date('Y');
@@ -273,6 +291,12 @@ if (!in_array($kind, $KINDS, true)) fail('Bad file type');
 
 if ($action === 'attention'){
 $items = [];
+$pf = pend_f($school); $pd = $pf ? jread($pf, []) : []; $keep = [];
+if ($pd){ $sr = roster($school, 'staff');
+foreach ($pd as $q){ $m = null; if ($sr) foreach ($sr as $p0){ if (strcasecmp($p0['name'], $q['name']) === 0) $m = $p0; }
+if ($m){ $cf = pdir($school, 'staff', $m['id']).'/certs.json'; $ex = jread($cf, []); foreach ($q['certs'] as $c){ $dup = false; foreach ($ex as $e){ if (($e['lesson'] ?? '') === $c['lesson'] && ($e['year'] ?? '') === $c['year']) $dup = true; } if (!$dup) $ex[] = $c; } jwrite($cf, $ex); }
+else { $keep[] = $q; $items[] = ['kind'=>'staff', 'id'=>'', 'name'=>$q['name'], 'sub'=>'Not on staff list yet', 'doc'=>'addname', 'label'=>'Add '.$q['name'].' to the staff list ('.count($q['certs']).' training certificate'.(count($q['certs']) === 1 ? '' : 's').' waiting)', 'status'=>'missing', 'red'=>true]; } }
+if (count($keep) !== count($pd)) jwrite($pf, $keep); }
 foreach ($KINDS as $k){
 $r = roster($school, $k); if ($r === null) continue;
 foreach ($r as $p){ if (strpos($p['id'], 'recTEST') === 0) continue; $v = person_view($school, $k, $p['id'], $p);

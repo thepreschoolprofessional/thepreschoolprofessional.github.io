@@ -123,7 +123,7 @@ function drillMissing(monthIso){
   if(ms>t) return false;
   /* due by the end of the month; flag once the month is over, or after the 25th for the current month */
   if(me<t || t.slice(0,7)===monthIso.slice(0,7) && +t.slice(8)>=25 ){
-    return !Object.keys(S.subs).some(function(id){ var x=S.subs[id].fields; return sv(x['Form Type'])===FORMS.drl.type && x.Date>=ms && x.Date<=me; });
+    return !Object.keys(S.subs).some(function(id){ var x=S.subs[id].fields; return sv(x['Form Type'])===FORMS.drl.type && x.Date>=ms && x.Date<=me && (drillInfo(S.subs[id]).type==='Fire'); });
   }
   return false;
 }
@@ -166,14 +166,41 @@ function gridFor(k){
   });
   return h+'</table></div></div>';
 }
+var DTYPES=['Fire','Alternate route','Nap-time','Lockdown','Inclement weather','Other emergency'];
+function drillInfo(r){ var d=String(r.fields.Details||''), i=d.indexOf('DRILL:'); var o={}; if(i>-1){ try{ o=JSON.parse(d.slice(i+6).split('\n')[0]); }catch(e){} } o.date=r.fields.Date; o.by=r.fields['Staff Name']||''; o.id=r.id; if(!o.type) o.type='Fire'; return o; }
+function drillRows(from,to){ var rows=[]; for(var id in S.subs){ var x=S.subs[id]; if(sv(x.fields['Form Type'])===FORMS.drl.type && x.fields.Date>=from && x.fields.Date<=to) rows.push(drillInfo(x)); } rows.sort(function(a,b){return a.date<b.date?-1:1;}); return rows; }
 function drillView(){
-  var m=monthStart(S.date), me=monthEnd(S.date), rows=[];
-  for(var id in S.subs){ var x=S.subs[id]; if(sv(x.fields['Form Type'])===FORMS.drl.type && x.fields.Date>=m && x.fields.Date<=me) rows.push(x); }
-  rows.sort(function(a,b){return a.fields.Date<b.fields.Date?-1:1;});
-  var h='<div class="card"><div class="ct">Fire / emergency drills &mdash; '+d2(S.date).toLocaleDateString('en-US',{month:'long',year:'numeric'})+'</div>';
-  if(!rows.length) h+='<div class="miss">No drill logged this month.</div>'; else rows.forEach(function(r){ h+='<div class="line ok">&#10003; '+nice(r.fields.Date)+' &middot; '+esc(r.fields['Staff Name']||'')+' <button class="btn sec sm" data-cell="drl|'+r.fields.Date+'|(building)">open</button></div>'; });
-  h+='<button class="btn grn" data-adddrill="1">Add a drill for a date</button></div>';
+  var t=todayNY(), yr=S.date.slice(0,4), rows=drillRows(addDays(t,-365)>yr+'-01-01'?addDays(t,-365):yr+'-01-01', '9999-12-31');
+  var y0=yr+'-01-01', y1=yr+'-12-31', yrows=drillRows(y0,y1), h='<div class="card"><div class="ct">Fire &amp; emergency drill log &mdash; '+yr+'</div>';
+  h+='<div class="sub">DCF: a fire drill every month at varied dates and times. Once a year: alternate-route, nap-time, lockdown and inclement-weather drills. Keep records 12 months.</div>';
+  h+='<div style="margin:8px 0">'+DTYPES.slice(1,5).map(function(ty){ var n=yrows.filter(function(r){return r.type===ty;}).length; return '<span style="display:inline-block;margin:2px 4px 2px 0;padding:4px 10px;border-radius:12px;font-weight:700;background:'+(n?'#e3f4e8':'#fdeaea')+';color:'+(n?'#1c7c3f':'#b71c1c')+'">'+(n?'&#10003; ':'&#9679; ')+ty+': '+(n?n+' done':'needed in '+yr)+'</span>'; }).join('')+'</div>';
+  h+='<div class="tbl" style="overflow:auto"><table class="gr" style="font-size:12px;border-collapse:collapse"><tr><th>Month</th><th>Date</th><th>Time</th><th>Type</th><th>Adults</th><th>Children</th><th>Time to clear</th><th>Route</th><th>Extinguisher checked</th><th>Comments</th><th>Dir.</th><th></th></tr>';
+  for(var m=1;m<=12;m++){ var mk=yr+'-'+(m<10?'0':'')+m, mr=yrows.filter(function(r){return r.date.slice(0,7)===mk;}), mn=d2(mk+'-01').toLocaleDateString('en-US',{month:'short'});
+    var fires=mr.filter(function(r){return r.type==='Fire';}).length;
+    if(!mr.length) h+='<tr><td><b>'+mn+'</b></td><td colspan="10" style="color:'+(mk<t.slice(0,7)||(mk===t.slice(0,7)&&+t.slice(8)>=25)?'#b71c1c':'#999')+'">'+(mk<=t.slice(0,7)?'No drill logged':'&mdash;')+'</td><td>'+(mk<=t.slice(0,7)?'<button class="btn sec sm" data-adddrill="'+mk+'">Add</button>':'')+'</td></tr>';
+    else mr.forEach(function(r,i){ h+='<tr><td>'+(i?'':'<b>'+mn+'</b>')+'</td><td>'+nice(r.date)+'</td><td>'+esc(r.time||'')+'</td><td>'+esc(r.type)+'</td><td>'+esc(r.adults||'')+'</td><td>'+esc(r.kids||'')+'</td><td>'+esc(r.clear||'')+'</td><td>'+esc(r.route||'')+'</td><td>'+esc(r.ext||'')+'</td><td>'+esc(r.note||'')+'</td><td>'+esc(r.init||'')+'</td><td><button class="btn sec sm" data-cell="drl|'+r.date+'|(building)|'+r.id+'">open</button></td></tr>'; }); }
+  h+='</table></div><div class="mrow" style="margin-top:8px"><button class="btn grn" data-adddrill="'+t+'">Log a drill</button> <button class="btn sec" onclick="printDrills()">Print the log</button></div></div>';
   return h;
+}
+function printDrills(){ var yr=S.date.slice(0,4), rows=drillRows(yr+'-01-01',yr+'-12-31'), w=window.open('about:blank','_blank'); if(!w) return;
+  w.document.write('<!doctype html><title>Fire Drill Log</title><style>body{font-family:Arial;margin:24px}table{border-collapse:collapse;width:100%;font-size:12px}td,th{border:1px solid #444;padding:5px;text-align:left}h2{margin:0 0 4px}</style><h2>Fire &amp; Emergency Drill Log '+yr+'</h2><div>Kid City USA &mdash; '+esc(S.school)+'</div><br><table><tr><th>Date</th><th>Time of day</th><th>Type</th><th>Adults</th><th>Children</th><th>Time to clear</th><th>Route / alternate route</th><th>Extinguisher check</th><th>Comments</th><th>Director initials</th></tr>'+rows.map(function(r){return '<tr><td>'+nice(r.date)+'</td><td>'+esc(r.time||'')+'</td><td>'+esc(r.type)+'</td><td>'+esc(r.adults||'')+'</td><td>'+esc(r.kids||'')+'</td><td>'+esc(r.clear||'')+'</td><td>'+esc(r.route||'')+'</td><td>'+esc(r.ext||'')+'</td><td>'+esc(r.note||'')+'</td><td>'+esc(r.init||'')+'</td></tr>';}).join('')+'</table><p style="font-size:11px">Keep 12 months. Required yearly: alternate-route, nap-time, lockdown and inclement-weather drills.</p>'); w.document.close(); }
+function drillForm(date,recId){
+  var rec=recId&&S.subs[recId], o=rec?drillInfo(rec):{type:'Fire',date:date}, nm=directorName();
+  var h='<div class="mback" data-a="mclose"><div class="mbox" data-stop="1"><h3>Drill log entry</h3>';
+  h+='<label class="lbl">Date</label><input class="inp" type="date" id="dd" value="'+esc(o.date||date)+'">';
+  h+='<label class="lbl">Type of drill</label><select class="inp" id="dty">'+DTYPES.map(function(x){return '<option'+(x===o.type?' selected':'')+'>'+x+'</option>';}).join('')+'</select>';
+  [['dtm','Time of day (vary it)',o.time,'e.g. 10:15 AM'],['dad','Adults present',o.adults,''],['dkd','Children present',o.kids,''],['dcl','Time to clear the building',o.clear,'e.g. 2 min 10 sec'],['drt','Route used / alternate route',o.route,''],['dex','Extinguisher checked on (date)',o.ext,''],['dnt','Comments',o.note,'']].forEach(function(f){ h+='<label class="lbl">'+f[1]+'</label><input class="inp" id="'+f[0]+'" value="'+esc(f[2]||'')+'" placeholder="'+f[3]+'">'; });
+  h+='<label class="lbl">Director initials</label><input class="inp" id="din" value="'+esc(o.init||(nm||'').split(' ').map(function(w){return w[0]||'';}).join('').toUpperCase())+'">';
+  h+='<div id="merr" class="err"></div><div class="mrow"><button class="btn sec" data-a="mclose">Close</button><button class="btn grn" id="dsave">Save drill</button></div></div></div>';
+  $('modal').innerHTML=h;
+  $('dsave').onclick=function(){
+    if(!nm){ $('merr').textContent='Enter your name first.'; return; }
+    var d=$('dd').value; if(!/^\d{4}-\d{2}-\d{2}$/.test(d)){ $('merr').textContent='Pick the date.'; return; }
+    var j={type:$('dty').value,time:$('dtm').value.trim(),adults:$('dad').value.trim(),kids:$('dkd').value.trim(),clear:$('dcl').value.trim(),route:$('drt').value.trim(),ext:$('dex').value.trim(),note:$('dnt').value.trim(),init:$('din').value.trim()};
+    var items='✅ '+j.type+' drill conducted & logged'+(j.time?' at '+j.time:'')+(j.kids?' · '+j.kids+' children, '+(j.adults||'?')+' adults':'')+(j.clear?' · cleared in '+j.clear:''), det='DRILL:'+JSON.stringify(j), btn=$('dsave'); btn.disabled=true; btn.textContent='Saving...';
+    var p=rec?api('update','Facility Submissions',{recordId:rec.id,fields:{Items:items,Details:det,Date:d}}):api('create','Facility Submissions',{fields:{Submission:S.school+' · Drill · '+j.type+' · '+d.slice(5).replace('-','/'),'Room / Classroom':FORMS.drl.room,'Form Type':FORMS.drl.type,'Staff Name':nm,Date:d,'Submitted At':new Date().toISOString(),Items:items,'Overall Status':'✅ All OK',Details:det,Status:'🟡 Pending'}});
+    p.then(function(res){ var r=res.records?res.records[0]:res; if(r&&r.id){ S.subs[r.id]=r; } $('modal').innerHTML=''; toast('Drill saved.'); render(); }).catch(function(e){ btn.disabled=false; btn.textContent='Save drill'; $('merr').textContent=e.message; });
+  };
 }
 function missingView(){
   var t=todayNY(), h='';
@@ -228,7 +255,8 @@ function foodView(){
 
 /* ---------- cell modal: view / edit / fill in ---------- */
 function parseItems(txt){ return String(txt||'').split('\n').filter(function(l){return l.trim();}).map(function(l){ var ok=l.indexOf('⚠')===0?false:true; return {ok:ok, text:l.replace(/^(✅|⚠️?|⚠)\s*/,'')}; }); }
-function openCell(k,date,room){
+function openCell(k,date,room,recId){
+  if(k==='drl') return drillForm(date,recId);
   var f=FORMS[k], c=cellState(k,date,room), rec=c.list[0], rm=f.per==='room'?room:f.room;
   var items, who='', when='', link='', details='', ro=!rec;
   if(rec){ items=parseItems(rec.fields.Items); who=rec.fields['Staff Name']||''; when=rec.fields['Submitted At']?new Date(rec.fields['Submitted At']).toLocaleString('en-US',{timeZone:NY}):''; link=rec.fields['Drive Link']||''; details=rec.fields.Details||''; }
@@ -261,10 +289,7 @@ function saveCell(k,date,room,rec,items,rm){
     $('modal').innerHTML=''; toast('Saved. It now shows everywhere this form is used.'); render();
   }).catch(function(e){ btn.disabled=false; btn.textContent='Save'; $('merr').textContent=e.message; });
 }
-function addDrill(){
-  var d=prompt('Date of the drill (YYYY-MM-DD):', todayNY()); if(!d||!/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
-  openCell('drl',d,'(building)');
-}
+function addDrill(d){ drillForm(/^\d{4}-\d{2}-\d{2}$/.test(d||'')?d:todayNY()); }
 
 
 /* ---------- MONTH-END FOOD PROGRAM PACKET ---------- */
@@ -727,8 +752,8 @@ document.addEventListener('click',function(e){
   if(el.hasAttribute('data-goto')){ S.tab='pack'; S.pk.form=el.getAttribute('data-goto'); render(); return; }
   if(el.hasAttribute('data-pf')){ var a2=el.getAttribute('data-pf'),pk=S.pk; if(a2==='prev'||a2==='next'){ flushSave().then(function(){ pk.month=shiftMonth(pk.month,a2==='prev'?-1:1); pk.loaded=''; render(); }); } else if(a2==='form'){ var fv=el.getAttribute('data-v'); flushSave().then(function(){ pk.form=fv; render(); }); } else if(a2==='save') savePacket(); else if(a2==='submit') submitPacket(); else if(a2==='parfill') parFill(); else if(a2==='parclear') parClear(); else if(a2==='print'){ var ls=pk.form==='EXPEND', stt=$('pgst'); if(!stt){ stt=document.createElement('style'); stt.id='pgst'; document.head.appendChild(stt); } stt.textContent='@page{size:letter '+(ls?'landscape':'portrait')+';margin:'+(/^(SITEINFO|CHECKLIST|ENTRANCES|MEDICAL|DIETARY|INFANTFEED|PAR|LABOR|EXPEND)$/.test(pk.form)?'0':'0.4in')+'}'; window.print(); } return; }
   if(el.getAttribute('data-a')==='mclose' && e.target.closest('[data-stop]') && !e.target.classList.contains('btn')) return;
-  if(el.hasAttribute('data-adddrill')){ addDrill(); return; }
-  if(el.hasAttribute('data-cell')){ var p=el.getAttribute('data-cell').split('|'); openCell(p[0],p[1],p[2]); return; }
+  if(el.hasAttribute('data-adddrill')){ var ad=el.getAttribute('data-adddrill'); addDrill(ad.length===7?ad+'-'+todayNY().slice(8):ad); return; }
+  if(el.hasAttribute('data-cell')){ var p=el.getAttribute('data-cell').split('|'); openCell(p[0],p[1],p[2],p[3]); return; }
   if(el.hasAttribute('data-tab')){ S.tab=el.getAttribute('data-tab'); var d=el.getAttribute('data-d'); if(d) S.date=d; render(); if(d) ensureData(); return; }
   var a=el.getAttribute('data-a');
   if(a==='mclose'){ $('modal').innerHTML=''; }

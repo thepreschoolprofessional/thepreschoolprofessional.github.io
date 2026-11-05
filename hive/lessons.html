@@ -216,8 +216,14 @@ function loadNames(){
  var sc=$('cs')?$('cs').value:'';var s=$('cn');if(!s)return;if(ROLE==='teacher'&&!sc){s.innerHTML='<option value="">Pick your school first</option>';return;}
  s.innerHTML='<option value="">Loading names…</option>';
  fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:PIN,action:'staff_names',school:sc})}).then(r=>r.json()).then(function(j){if(j.error)throw new Error(j.error);NAMES=j.staff;
-  s.innerHTML='<option value="">Pick your name</option>'+NAMES.map(function(p){return '<option value="'+p.id+'">'+esc(p.name)+'</option>'}).join('');
+  s.innerHTML='<option value="">Pick your name</option>'+NAMES.map(function(p){return '<option value="'+p.id+'">'+esc(p.name)+'</option>'}).join('')+'<option value="__new">➕ My name is not here</option>';s.onchange=function(){if(s.value==='__new')addName();};
  }).catch(function(e){s.innerHTML='<option value="">Could not load names</option>';if($('cm')){$('cm').style.color='#c62828';$('cm').textContent=e.message||'Could not load names.';}});}
+function addName(){
+ var sc=$('cs')?$('cs').value:'',s=$('cn'),nm=(prompt('Type your first and last name exactly as it should appear on your certificate:')||'').trim();
+ if(!nm){s.value='';return;}
+ fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:PIN,action:'staff_add_pending',school:sc,name:nm})}).then(r=>r.json()).then(function(j){if(j.error)throw new Error(j.error);
+  var o=document.createElement('option');o.value=j.id;o.textContent=j.name+(j.pending?' (new)':'');s.insertBefore(o,s.lastChild);s.value=j.id;
+ }).catch(function(e){s.value='';$('cm').style.color='#c62828';$('cm').textContent=e.message||'Could not add the name.';});}
 function sendCert(){
  var id=$('cn').value,m=$('cm'),sc=$('cs')?$('cs').value:'';m.style.color='#c62828';
  if(ROLE==='teacher'&&!sc){m.textContent='Pick your school.';return;}if(!id){m.textContent='Pick your name.';return;}
