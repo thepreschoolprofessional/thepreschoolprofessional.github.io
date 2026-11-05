@@ -29,32 +29,67 @@ $SCHOOLS = ['Sanford', 'DeLand 2'];
 $KINDS = ['staff', 'student'];
 /* What each file needs. [label, needs an expiration date?, required?] — change here and re-upload this one file to change the checklist. */
 $DEFS = [
+/* [label, has an expiration/renewal date?, required?, hint]. Built from Mrs. Bear's own SOP-14 Employee and Student File Checklists (the Airtable Onboarding & Compliance bases) plus the Florida DCF personnel-file list. */
 'staff' => [
- 'app'  => ['Employment application & resume', false, true],
- 'id'   => ['Photo ID (driver license)', true, true],
- 'bg'   => ['Background screening / fingerprint clearance', true, true],
- 'intro'=> ['DCF Introductory Child Care Training (40-hour) or equivalency', false, true],
- 'cred' => ['Staff credential / CDA / training transcript', false, false],
- 'cpr'  => ['CPR & First Aid certificate', true, true],
- 'phys' => ['Health statement / physical (TB)', true, true],
- 'i9'   => ['I-9 and W-4 hiring forms', false, true],
- 'hb'   => ['Signed handbook & policy acknowledgments', false, true],
- 'ce'   => ['Other training certificates (outside classes)', false, false],
+ 'app'   => ['Application for Employment', false, true, ''],
+ 'appcc' => ['Application for Child Care Applicant', false, true, ''],
+ 'ref'   => ['Employment history / reference check (5-year)', false, true, ''],
+ 'gm'    => ['Affidavit of Good Moral Character', true, true, 'Renew every year'],
+ 'ack'   => ['Annual Acknowledgment Form', true, true, 'Renew every year'],
+ 'bg'    => ['Background screening (Clearinghouse, DCF Child Care Eligible)', true, true, 'Enter the 5-year rescreen date'],
+ 'sop'   => ['Sexual predator / offender search', true, true, 'Enter the next re-check date'],
+ 'dl'    => ['Driver\'s license copy', true, true, 'Enter the license expiration'],
+ 'priv'  => ['Privacy policy signed', false, true, ''],
+ 'jd'    => ['Job description signed', false, true, ''],
+ 'tax'   => ['Direct deposit / W-4 / I-9', false, true, ''],
+ 'edu'   => ['Education credentials', false, true, ''],
+ 'dcf'   => ['DCF training transcript (40-hour / 10-hour)', false, true, 'Within 90 days of hire; finish within 12 months'],
+ 'cred'  => ['Staff / Director credential (CDA, etc.)', true, false, 'Only if they hold one'],
+ 'orient'=> ['Orientation certificate', false, true, ''],
+ 'fire'  => ['Fire extinguisher training', true, true, 'Within 30 days of hire, then renew'],
+ 'usp'   => ['Universal safety precautions training', true, true, 'Renew every year'],
+ 'cpr'   => ['Infant & child CPR certificate', true, true, ''],
+ 'fa'    => ['First Aid certificate', true, true, ''],
+ 'tb'    => ['TB / health screening', true, true, 'Enter the screening date'],
+ 'ss'    => ['Safe Sleep certificate', false, true, 'Within 30 days of hire if children under 1'],
+ 'inf'   => ['Approved infant training', false, false, 'Only if caring for infants (within 90 days)'],
+ 'lit'   => ['Early Literacy training (5 hours)', false, true, 'Within 1 year of hire'],
+ 'fare'  => ['FARE training', false, true, ''],
+ 'med'   => ['Medication administration training', false, false, 'Only if they give medication'],
+ 'trans' => ['Transportation training', false, false, 'Drivers only, before transporting children'],
+ 'dphys' => ['Driver physical exam', true, false, 'Drivers only, yearly'],
+ 'cah'   => ['Central Abuse Hotline records search', false, false, 'Directors and owners'],
+ 'can'   => ['Child abuse / neglect reporting', true, true, 'Renew every year'],
+ 'conf'  => ['Confidentiality agreement', false, true, ''],
+ 'coc'   => ['Employee code of conduct', false, true, ''],
+ 'hns'   => ['Health / nutrition / safety policy', false, true, ''],
+ 'emg'   => ['Emergency procedures acknowledgment', false, true, ''],
+ 'pdp'   => ['Professional development plan', false, true, ''],
+ 'rev'   => ['90-day and performance reviews', false, false, ''],
+ 'ce'    => ['Other training certificates (outside classes)', false, false, 'Hive lesson certificates are added automatically below'],
 ],
 'student' => [
- 'reg'  => ['Registration packet', false, true],
- 'imm'  => ['Immunization record (Florida DH 680)', true, true],
- 'phys' => ['Physical exam (DH 3040)', true, true],
- 'bc'   => ['Birth certificate or proof of age', false, true],
- 'em'   => ['Emergency contacts & authorized pickup', false, true],
- 'rel'  => ['Photo release & policy acknowledgments', false, true],
- 'fr'   => ['Free & reduced meal application (yearly)', true, true],
- 'med'  => ['Allergy / medical plan (only if needed)', false, false],
- 'cust' => ['Custody / court papers (only if any)', false, false],
- 'sub'  => ['ELC / subsidy paperwork (only if any)', false, false],
+ 'reg'   => ['Registration form / enrollment packet', false, true, ''],
+ 'med'   => ['Medical treatment authorization', false, true, ''],
+ 'em'    => ['Emergency contacts & authorized pickup', false, true, ''],
+ 'imm'   => ['Immunization record (Florida DH 680 / 681)', true, true, 'Enter the expiration shown on the form'],
+ 'phys'  => ['Physical exam (DH 3040)', true, true, 'Enter the expiration date'],
+ 'special'=> ['What makes my child special', false, true, ''],
+ 'allg'  => ['Allergy / special needs care plan', false, false, 'Only if the child has one'],
+ 'nut'   => ['Nutrition & physical activity policy', false, true, ''],
+ 'photo' => ['Photo / video release', false, true, ''],
+ 'foodp' => ['Food and activity permission', false, true, ''],
+ 'pid'   => ['Parent ID copy', false, true, ''],
+ 'fin'   => ['Financial agreement', false, true, ''],
+ 'hb'    => ['Handbook receipt', false, true, ''],
+ 'dd'    => ['Distracted driver information', true, true, 'Every year (Apr / Sep). Enter the next due date'],
+ 'flu'   => ['Influenza information', true, true, 'Every year (Aug / Sep). Enter the next due date'],
+ 'fr'    => ['Free & reduced meal application', true, true, 'Renew every year'],
+ 'elc'   => ['4C / ELC voucher', false, false, 'Only if the family has one'],
+ 'cust'  => ['Custody / court papers', false, false, 'Only if any'],
 ],
 ];
-$CE_GOAL = 10; // yearly in-service hours goal shown on each staff file
+$CE_GOAL = 24; // yearly in-service hours goal shown on each staff file
 
 function fail($msg, $code = 400){ http_response_code($code); echo json_encode(['error'=>$msg]); exit; }
 
@@ -125,7 +160,7 @@ return $d;
 }
 function status_for($def, $files, $exp, $today){
 // returns [status, label]. red: missing / expired. amber: expires soon / date needed. ok / optional.
-list($label, $needsExp, $req) = $def;
+$label = $def[0]; $needsExp = $def[1]; $req = $def[2];
 if (!$files) return $req ? 'missing' : 'optional';
 if ($needsExp){
 if (!$exp) return 'needdate';
@@ -144,7 +179,7 @@ $fl = []; foreach (($meta['files'] ?? []) as $f){ if (($f['doc'] ?? '') === $k) 
 $exp = $mdocs[$k]['exp'] ?? '';
 $st = status_for($def, $fl, $exp, $today);
 if ($st === 'missing' || $st === 'expired') $red++; elseif ($st === 'soon' || $st === 'needdate') $amber++;
-$docs[] = ['key'=>$k, 'label'=>$def[0], 'needsExp'=>$def[1], 'req'=>$def[2], 'status'=>$st, 'exp'=>$exp, 'files'=>$fl];
+$docs[] = ['key'=>$k, 'label'=>$def[0], 'needsExp'=>$def[1], 'req'=>$def[2], 'hint'=>($def[3] ?? ''), 'status'=>$st, 'exp'=>$exp, 'files'=>$fl];
 }
 $out = ['id'=>$id, 'name'=>$p['name'], 'sub'=>$p['sub'], 'dob'=>$p['dob'], 'red'=>$red, 'amber'=>$amber, 'docs'=>$docs, 'former'=>!empty($p['former']), 'left'=>($meta['left'] ?? null), 'practice'=>(strpos($id, 'recTEST') === 0)];
 if ($kind === 'staff'){

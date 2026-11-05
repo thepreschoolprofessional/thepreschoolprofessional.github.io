@@ -105,6 +105,7 @@ function pView(){
  c.docs.forEach(function(d){
   const s=LBL[d.status];
   h+='<div class="doc'+((d.status==='missing'||d.status==='expired')?' bad':'')+'"><div class="hd"><b>'+esc(d.label)+(d.req?'':' <small style="color:var(--soft);font-weight:600">(only if it applies)</small>')+'</b><span class="pill '+s[1]+'">'+s[0]+'</span></div>';
+  if(d.hint)h+='<div class="sub" style="font-size:.82rem">'+esc(d.hint)+'</div>';
   if(d.needsExp)h+='<div class="ex">Expires: <input type="date" value="'+esc(d.exp)+'" onchange="setExp(\''+d.key+'\',this.value)"></div>';
   if(d.files.length)h+='<div class="fl">'+d.files.map(function(f,i){return '<span><button class="lk" onclick="view(\''+esc(f.name)+'\')">Page '+(i+1)+'</button> <button class="lk" style="color:#999" onclick="rm(\''+esc(f.name)+'\')">remove</button></span>';}).join('')+'</div>';
   h+='<div class="fl"><label class="btn sm blu" style="margin:0">📷 Take photo<input type="file" accept="image/*" capture="environment" style="display:none" onchange="up(\''+d.key+'\',this)"></label>'
