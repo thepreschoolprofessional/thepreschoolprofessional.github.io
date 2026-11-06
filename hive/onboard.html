@@ -131,7 +131,7 @@ function derive(){var o=Object.assign({},D);for(var i=0;i<3;i++){var h='h'+i+'_'
 function jobBlock(i){var a='<div class="sect">'+(i===0?'Most recent job':'Job '+(i+1))+'</div><div class="two">'+inp('h'+i+'_biz','Employer')+inp('h'+i+'_phone','Phone')+'</div>'+inp('h'+i+'_addr','Address (city, state)')+'<div class="three">'+inp('h'+i+'_from','From (month/year)')+inp('h'+i+'_to','To')+inp('h'+i+'_pos','Position held')+'</div>'+inp('h'+i+'_sup','Supervisor')+inp('h'+i+'_why','Reason for leaving')+inp('h'+i+'_duty','Job duties');return a;}
 function drawPacket(){
  var nv=H.role==='New hire',t=['About you','Work history & references','Emergency contact','Read & sign'],h='<div class="card"><div class="note">Employee Packet · step '+(STEP+1)+' of '+NST+'</div><h2>'+t[STEP]+'</h2>';
- if(STEP===0){h+='<div class="note">This fills in the official <b>Application for Employment</b>. Leave a box empty if it does not apply to you.</div>'
+ if(STEP===0){h+='<div class="note">This fills in the official <b>Application for Employment</b>. Leave a box empty if it does not apply to you. <b>We never ask for your Social Security number here.</b> Your director adds it in person.</div>'
   +'<div class="three">'+inp('first','First name')+inp('mid','Middle')+inp('last','Last name')+'</div>'+inp('position','Position applying for','Teacher, assistant, intern…')
   +inp('street','Street address')+'<div class="three">'+inp('city','City')+inp('state','State')+inp('zip','ZIP')+'</div><div class="two">'+inp('cell','Cell phone','','tel')+inp('email','Email','','email')+'</div>'
   +yn('eligible','Legally eligible to work in the U.S.?')+yn('over18','18 or older?')

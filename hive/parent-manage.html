@@ -32,7 +32,7 @@ button{border:0;border-radius:10px;padding:10px 16px;font-weight:800;cursor:poin
 <div class="sec"><h2>💬 Message board</h2><label>Title</label><input id="bt"><label>Message</label><textarea id="bm"></textarea>
 <div class="two"><div><label>Take it down after (optional)</label><input type="date" id="be"></div><div><label>&nbsp;</label><label style="font-weight:600"><input type="checkbox" id="bp" style="width:auto"> Pin to the top</label></div></div><button class="g" onclick="post()">Post to the board</button><div id="bl"></div></div>
 <div class="sec"><h2>📂 Posted items</h2><div id="il"></div></div>
-<div class="sec"><h2>✍️ Parents who signed orientation</h2><div id="ol"></div></div>
+<div class="sec"><h2>✍️ Parent orientation: who is taking it and who signed</h2><div id="ol"></div></div>
 <script>
 const PIN=sessionStorage.getItem('hivePin');if(!PIN||sessionStorage.getItem('hiveRole')!=='director')location.href='index.html';
 const $=id=>document.getElementById(id);const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -48,7 +48,7 @@ async function load(){try{const s=await call('pp_status');$('sch').textContent=s
 $('stat').innerHTML=s.status.map(x=>'<div class="st '+(x.ok?'ok':'no')+'"><span>'+esc(x.monthName+' '+x.label)+'</span><span>'+(x.ok?'✅ posted':'🔴 not posted')+'</span></div>').join('')||'All up to date.';
 const l=await call('pp_list');$('il').innerHTML=l.items.length?l.items.map(i=>'<div class="row"><span><b>'+esc(KN[i.kind]||i.kind)+'</b> '+esc(i.month||'')+' · '+esc(i.title)+(i.expires?' (until '+esc(i.expires)+')':'')+'</span><button class="s r" onclick="rm(\''+i.id+'\')">Remove</button></div>').join(''):'<div class="hint">Nothing posted yet.</div>';
 $('bl').innerHTML=l.board.map(b=>'<div class="row"><span>'+(b.pinned?'📌 ':'')+'<b>'+esc(b.title)+'</b></span><button class="s r" onclick="rmb(\''+b.id+'\')">Remove</button></div>').join('');
-const o=await call('pp_orient_list');$('ol').innerHTML=o.items.length?o.items.map(x=>'<div class="row"><span><b>'+esc(x.parent)+'</b> · child: '+esc(x.child)+'</span><span>'+esc(x.date)+'</span></div>').join(''):'<div class="hint">No one has signed yet.</div>';
+const o=await call('pp_orient_list');$('ol').innerHTML=o.items.length?o.items.map(x=>'<div class="row"><span><b>'+esc(x.parent)+'</b>'+(x.rel?' ('+esc(x.rel)+')':'')+' · child: '+esc(x.child)+'<br><small>'+esc(x.phone||'')+' · '+esc(x.email||'')+'</small></span><span>'+(x.signed?'✅ Signed '+esc(x.date):'In progress: '+(x.done||0)+' of '+(x.total||9)+' lessons')+'</span></div>').join(''):'<div class="hint">No one has started yet.</div>';
 }catch(e){say(e.message,1)}}
 function b64(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(f)})}
 async function upload(){try{const f=$('uf').files[0];if(!f)return say('Choose a file first.',1);await call('pp_upload',{kind:$('uk').value,month:$('um').value,title:$('ut').value,expires:$('ue').value,b64:await b64(f)});say('Posted for parents ✅');$('uf').value='';$('ut').value='';load()}catch(e){say(e.message,1)}}

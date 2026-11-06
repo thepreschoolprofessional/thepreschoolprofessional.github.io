@@ -89,6 +89,7 @@ $DEFS = [
  'pid'   => ['Parent ID copy', false, true, ''],
  'fin'   => ['Financial agreement', false, true, ''],
  'hb'    => ['Handbook receipt', false, true, ''],
+ 'por'   => ['Parent orientation completed (signed)', false, false, 'Marked automatically when the parent finishes orientation'],
  'dd'    => ['Distracted driver information', true, true, 'Every year (Apr / Sep). Enter the next due date'],
  'flu'   => ['Influenza information', true, true, 'Every year (Aug / Sep). Enter the next due date'],
  'fr'    => ['Free & reduced meal application', true, true, 'Renew every year'],
@@ -239,6 +240,24 @@ return $out;
 if (AIRTABLE_TOKEN === 'PASTE_YOUR_AIRTABLE_TOKEN_HERE') fail('The Airtable token has not been added yet.', 503);
 $input = json_decode(file_get_contents('php://input'), true);
 if (!$input) fail('Bad request');
+/* ---- Parent orientation: who is taking it, progress, and filing in the child's folder ---- */
+function ori_clean($input){ $t = function($v, $n){ return mb_substr(trim(strip_tags((string)$v)), 0, $n); };
+return ['parent'=>$t($input['parent'] ?? '', 60), 'child'=>$t($input['child'] ?? '', 60), 'phone'=>$t($input['phone'] ?? '', 30), 'email'=>$t($input['email'] ?? '', 80), 'rel'=>$t($input['rel'] ?? '', 30)]; }
+function ori_upsert($pd, $w, $done, $total, $signed, $isNew){
+$o = jread($pd.'/orientation.json', []); $key = strtolower($w['parent'].'|'.$w['child']); $hit = -1;
+foreach ($o as $i => $x){ if (strtolower(($x['parent'] ?? '').'|'.($x['child'] ?? '')) === $key && empty($x['signed']) && !$signed) { $hit = $i; break; } if (strtolower(($x['parent'] ?? '').'|'.($x['child'] ?? '')) === $key && empty($x['signed']) && $signed) { $hit = $i; break; } }
+if ($hit < 0){ $o[] = ['parent'=>$w['parent'], 'child'=>$w['child'], 'at'=>gmdate('c'), 'date'=>date('Y-m-d'), 'started'=>date('Y-m-d')]; $hit = count($o) - 1; }
+$o[$hit] = array_merge($o[$hit], ['phone'=>$w['phone'], 'email'=>$w['email'], 'rel'=>$w['rel'], 'done'=>max((int)($o[$hit]['done'] ?? 0), (int)$done), 'total'=>(int)$total, 'updated'=>gmdate('c')]);
+if ($isNew) $o[$hit]['new'] = true;
+if ($signed){ $o[$hit]['signed'] = true; $o[$hit]['date'] = date('Y-m-d'); $o[$hit]['at'] = gmdate('c'); }
+jwrite($pd.'/orientation.json', $o); return $hit; }
+function ori_file($school, $w){
+$parts = preg_split('/\s+/', trim(preg_replace('/[^A-Za-z\' -]/', ' ', $w['child']))); if (count($parts) < 2) return '';
+$name = strtolower($parts[0].' '.substr(end($parts), 0, 1).'.'); $m = [];
+foreach (roster($school, 'student') ?: [] as $p){ if (strtolower($p['name']) === $name) $m[] = $p; }
+if (count($m) !== 1) return ''; $d = pdir($school, 'student', $m[0]['id']); if (!$d) return '';
+$mf = $d.'/meta.json'; $meta = jread($mf, ['docs'=>[], 'files'=>[]]); if (!is_array($meta['docs'])) $meta['docs'] = [];
+$cur = (array)($meta['docs']['por'] ?? []); $cur['done'] = true; $cur['doneAt'] = gmdate('c'); $cur['by'] = $w['parent']; $meta['docs']['por'] = $cur; jwrite($mf, $meta); return $m[0]['id']; }
 /* ---- New hires: helpers ---- */
 $NH_KEYS = ['a0','a1','a2','a3','a4','b0','b1','c0','c1','c2','c3','c4','c5','c6','c7','d0','d1','d2','d3','d4','d5','d6','d7'];
 $NH_TRAIN = ['a0','a1','a2','a3','a4','b0','b1','c0','c1','c2','c3','c4','c5','c6','c7'];
@@ -296,13 +315,16 @@ echo json_encode(['school'=>$ws, 'staff'=>$out]); exit;
 }
 /* simple abuse guard: 12 public writes per hour per address */
 $rf = sys_get_temp_dir().'/hive_wl_'.md5(($_SERVER['REMOTE_ADDR'] ?? 'x').date('YmdH')); $cnt = is_file($rf) ? (int)file_get_contents($rf) : 0;
-if ($cnt >= 12) fail('Too many tries. Please call the school office.', 429); file_put_contents($rf, $cnt + 1);
+if ($cnt >= ($wa === 'wl_orient_start' ? 80 : 12)) fail('Too many tries. Please call the school office.', 429); file_put_contents($rf, $cnt + 1);
 $wd = school_dir($ws); if (!$wd) fail('Could not open storage.', 500);
-if ($wa === 'wl_orient_sign'){
-$pn = mb_substr(trim(strip_tags((string)($input['parent'] ?? ''))), 0, 60); $cn = mb_substr(trim(strip_tags((string)($input['child'] ?? ''))), 0, 60);
-if (strlen($pn) < 3 || strlen($cn) < 2) fail('Please type your full name and your child\'s name.');
-$pd = pp_dir($ws); $o = jread($pd.'/orientation.json', []); $o[] = ['parent'=>$pn, 'child'=>$cn, 'at'=>gmdate('c'), 'date'=>date('Y-m-d'), 'new'=>true];
-jwrite($pd.'/orientation.json', $o); echo json_encode(['ok'=>true]); exit;
+if ($wa === 'wl_orient_start' || $wa === 'wl_orient_sign'){
+$w = ori_clean($input); $signed = ($wa === 'wl_orient_sign');
+if (strlen($w['parent']) < 3 || strlen($w['child']) < 2) fail('Please type your full name and your child\'s name.');
+if (strlen(preg_replace('/\D/', '', $w['phone'])) < 7 || strpos($w['email'], '@') === false) fail('Please add your phone number and email.');
+$pd = pp_dir($ws); if (!$pd) fail('Could not open storage.', 500);
+ori_upsert($pd, $w, (int)($input['done'] ?? 0), (int)($input['total'] ?? 9), $signed, true);
+$filed = ''; if ($signed) $filed = ori_file($ws, $w);
+echo json_encode(['ok'=>true, 'filed'=>($filed !== '')]); exit;
 }
 if ($wa === 'wl_register'){
 $ed = $wd.'/enroll'; if (!is_dir($ed)) @mkdir($ed, 0750, true); if (!is_dir($ed)) fail('Could not open storage.', 500);
@@ -338,7 +360,7 @@ $TEACHER_SCHOOL = ['teacher-sanford' => 'Sanford', 'teacher-deland' => 'DeLand 2
 $isDir = isset($ROLE_SCHOOL[$role]);
 $isTeacher = (strpos($role, 'teacher') === 0);
 $isParent = (strpos($role, 'parent') === 0);
-if ($isParent && !in_array(($input['action'] ?? ''), ['bios_public', 'pp_list', 'pp_get', 'pp_orient_sign', 'pp_auto'], true)) fail('Files are only available with a director PIN.', 403);
+if ($isParent && !in_array(($input['action'] ?? ''), ['bios_public', 'pp_list', 'pp_get', 'pp_orient_sign', 'pp_orient_start', 'pp_auto'], true)) fail('Files are only available with a director PIN.', 403);
 if (!$isDir && !$isTeacher && !$isParent) fail('Files are only available with a director PIN.', 403);
 $PARENT_SCHOOL = ['parent-sanford' => 'Sanford', 'parent-deland' => 'DeLand 2'];
 $school = $isDir ? $ROLE_SCHOOL[$role] : (isset($TEACHER_SCHOOL[$role]) ? $TEACHER_SCHOOL[$role] : (isset($PARENT_SCHOOL[$role]) ? $PARENT_SCHOOL[$role] : trim($input['school'] ?? '')));
@@ -444,13 +466,15 @@ if ($action === 'en_decline'){ $pk['status'] = 'declined'; $pk['note'] = mb_subs
 if ($action === 'en_done'){ $k = preg_replace('/[^a-z]/', '', (string)($input['step'] ?? '')); if (!in_array($k, ['food', 'procare', 'welcome', 'cert', 'notary', 'id'], true)) fail('Unknown step'); $pk['steps'][$k] = !empty($input['on']); jwrite($pf, $pk); echo json_encode(['ok'=>true]); exit; }
 fail('Unknown request.');
 }
-if ($action === 'pp_orient_sign'){
+if ($action === 'pp_orient_sign' || $action === 'pp_orient_start'){
 if (!$isParent) fail('Only a parent signs the orientation.', 403);
 $d = pp_dir($school); if (!$d) fail('Could not open the parent portal storage.', 500);
-$pn = mb_substr(trim(strip_tags((string)($input['parent'] ?? ''))), 0, 60); $cn = mb_substr(trim(strip_tags((string)($input['child'] ?? ''))), 0, 60);
-if (strlen($pn) < 3 || strlen($cn) < 2) fail('Please type your full name and your child\'s name.');
-$o = jread($d.'/orientation.json', []); $o[] = ['parent'=>$pn, 'child'=>$cn, 'at'=>gmdate('c'), 'date'=>date('Y-m-d')];
-jwrite($d.'/orientation.json', $o); echo json_encode(['ok'=>true]); exit;
+$w = ori_clean($input); $signed = ($action === 'pp_orient_sign');
+if (strlen($w['parent']) < 3 || strlen($w['child']) < 2) fail('Please type your full name and your child\'s name.');
+if (strlen(preg_replace('/\D/', '', $w['phone'])) < 7 || strpos($w['email'], '@') === false) fail('Please add your phone number and email.');
+ori_upsert($d, $w, (int)($input['done'] ?? 0), (int)($input['total'] ?? 9), $signed, false);
+$filed = ''; if ($signed) $filed = ori_file($school, $w);
+echo json_encode(['ok'=>true, 'filed'=>($filed !== '')]); exit;
 }
 if ($action === 'pp_orient_list'){
 if (!$isDir) fail('Directors only.', 403);

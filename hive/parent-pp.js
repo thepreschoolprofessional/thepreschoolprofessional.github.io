@@ -9,7 +9,7 @@ var PP=null,BLOBS={};
 function pin(){return sessionStorage.getItem('hivePin');}
 function school(){return window.PP_SCHOOL?window.PP_SCHOOL():'';}
 async function call(action,extra){
-  var r=await fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({pin:pin(),action:(!pin()&&action==='pp_orient_sign'?'wl_orient_sign':action),school:school()},extra||{}))});
+  var r=await fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({pin:pin(),action:(!pin()&&(action==='pp_orient_sign'||action==='pp_orient_start')?action.replace('pp_','wl_'):action),school:school()},extra||{}))});
   return r.json();
 }
 async function load(force){
@@ -173,15 +173,29 @@ var LM=[
 ];
 function lsget(k){try{return localStorage.getItem(k)}catch(e){return null}}
 function lsset(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+function who(){try{return JSON.parse(lsget('pl_who')||'null')}catch(e){return null}}
+function whoForm(){
+  var inp='width:100%;padding:10px;border-radius:10px;border:1px solid #ccc;font-size:1rem;margin-bottom:4px';
+  return '<div class="result" style="border-top-color:#6a1b9a"><h2>🎓 Parent Orientation</h2><div class="note">Before you start, tell us who is taking orientation. This lets the school keep your completion in your child\'s file. It takes a minute, and then you can go through the '+LM.length+' short lessons.</div>'
+  +'<label style="display:block;font-weight:800;margin:8px 0 2px">Your full name</label><input id="owP" style="'+inp+'" autocomplete="name">'
+  +'<label style="display:block;font-weight:800;margin:8px 0 2px">Your relationship to the child</label><input id="owR" style="'+inp+'" placeholder="Mom, Dad, Grandma, guardian…">'
+  +'<label style="display:block;font-weight:800;margin:8px 0 2px">Your child\'s full name</label><input id="owC" style="'+inp+'">'
+  +'<label style="display:block;font-weight:800;margin:8px 0 2px">Your cell phone</label><input id="owT" type="tel" style="'+inp+'" autocomplete="tel">'
+  +'<label style="display:block;font-weight:800;margin:8px 0 2px">Your email</label><input id="owE" type="email" style="'+inp+'" autocomplete="email">'
+  +'<div style="margin-top:10px"><button type="button" class="go g1" style="width:auto;padding:10px 18px" onclick="PPA.begin()">Start orientation</button> <span id="owM" style="font-weight:800"></span></div></div>';
+}
+function lessonsDone(){return LM.filter(function(m){return lsget('pl_'+m.id)==='1'}).length;}
+function report(){var w=who();if(!w)return;call('pp_orient_start',Object.assign({},w,{done:lessonsDone(),total:LM.length})).catch(function(){});}
 function renderLearn(open){
   var box=document.getElementById('learnBox');if(!box)return;
+  var W=who();if(!W){box.innerHTML=whoForm();return;}
   var done=LM.filter(function(m){return lsget('pl_'+m.id)==='1'}).length;
-  var h='<div class="result" style="border-top-color:#6a1b9a"><h2>🎓 Parent Orientation</h2><div class="note">Short lessons from the Parent Handbook so you know how our school works. Open a lesson, read it, and answer the quick check. You have finished <b>'+done+' of '+LM.length+'</b>.</div></div>';
+  var h='<div class="result" style="border-top-color:#6a1b9a"><h2>🎓 Parent Orientation</h2><div class="note">Short lessons from the Parent Handbook so you know how our school works. Open a lesson, read it, and answer the quick check. You have finished <b>'+done+' of '+LM.length+'</b>.<br>Taking orientation: <b>'+esc(W.parent)+'</b> (parent of '+esc(W.child)+'). <a href="#" onclick="PPA.changeWho();return false">Not you?</a></div></div>';
   h+=LM.map(function(m){var ok=lsget('pl_'+m.id)==='1';
     return '<details class="pl" '+(open===m.id?'open':'')+' style="background:#fff;border-radius:16px;margin:10px 0;box-shadow:0 4px 12px rgba(74,58,48,.08);border-left:8px solid '+m.c+'"><summary style="padding:14px 16px;font-weight:900;cursor:pointer">'+(ok?'✅ ':'📘 ')+esc(m.t)+'</summary><div style="padding:0 16px 14px"><ul style="margin:0 0 10px 20px;line-height:1.55">'+m.pts.map(function(p){return '<li>'+esc(p)+'</li>';}).join('')+'</ul>'
     +m.qs.map(function(q,i){return '<div style="margin:10px 0"><b>'+esc(q.q)+'</b>'+q.o.map(function(o,j){return '<label style="display:block;font-weight:600;margin:4px 0"><input type="radio" name="q_'+m.id+'_'+i+'" value="'+j+'"> '+esc(o)+'</label>';}).join('')+'</div>';}).join('')
     +'<button type="button" class="go g1" style="margin-top:6px;width:auto;padding:10px 18px" onclick="PPA.check(\''+m.id+'\')">Check my answers</button> <span id="r_'+m.id+'" style="font-weight:800"></span></div></details>';}).join('');
-  if(done===LM.length)h+='<div class="result" style="border-top-color:#46c97f"><h2>🎉 You finished Parent Orientation!</h2><div class="note">Thank you for learning how Kid City USA works. Please sign below to show you completed orientation.</div>'+(lsget('pl_signed')?'<div style="font-weight:800;color:#2e8b57">✅ Signed by '+esc(lsget('pl_signed'))+'. Thank you!</div>':(window.PP_ROLE_STAFF&&window.PP_ROLE_STAFF()?'<div class="note">Parents sign here after finishing. (Staff preview)</div>':'<label style="display:block;font-weight:800;margin:6px 0">Your full name<input id="oriP" style="width:100%;padding:10px;border-radius:10px;border:1px solid #ccc;font-size:1rem"></label><label style="display:block;font-weight:800;margin:6px 0">Your child\'s name<input id="oriC" style="width:100%;padding:10px;border-radius:10px;border:1px solid #ccc;font-size:1rem"></label><label style="display:block;margin:6px 0"><input type="checkbox" id="oriK"> I went through Parent Orientation and understand how Kid City USA works.</label><button type="button" class="go g1" style="width:auto;padding:10px 18px" onclick="PPA.sign()">✍️ Sign orientation</button> <span id="oriR" style="font-weight:800"></span>'))+'</div>';
+  if(done===LM.length)h+='<div class="result" style="border-top-color:#46c97f"><h2>🎉 You finished Parent Orientation!</h2><div class="note">Thank you for learning how Kid City USA works. Please sign below to show you completed orientation. Your name, phone and email are already saved; typing your name below is your signature.</div>'+(lsget('pl_signed')?'<div style="font-weight:800;color:#2e8b57">✅ Signed by '+esc(lsget('pl_signed'))+'. Thank you!</div>':(window.PP_ROLE_STAFF&&window.PP_ROLE_STAFF()?'<div class="note">Parents sign here after finishing. (Staff preview)</div>':'<label style="display:block;font-weight:800;margin:6px 0">Your full name<input id="oriP" value="'+esc(W.parent)+'" style="width:100%;padding:10px;border-radius:10px;border:1px solid #ccc;font-size:1rem"></label><label style="display:block;font-weight:800;margin:6px 0">Your child\'s name<input id="oriC" value="'+esc(W.child)+'" style="width:100%;padding:10px;border-radius:10px;border:1px solid #ccc;font-size:1rem"></label><label style="display:block;margin:6px 0"><input type="checkbox" id="oriK"> I went through Parent Orientation and understand how Kid City USA works.</label><button type="button" class="go g1" style="width:auto;padding:10px 18px" onclick="PPA.sign()">✍️ Sign orientation</button> <span id="oriR" style="font-weight:800"></span>'))+'</div>';
   box.innerHTML=h;
 }
 function check(id){
@@ -189,7 +203,7 @@ function check(id){
   m.qs.forEach(function(q,i){var s=document.querySelector('input[name="q_'+id+'_'+i+'"]:checked');if(!s){all=false;return;}if(+s.value!==q.a)ok=false;});
   var out=document.getElementById('r_'+id);
   if(!all){out.style.color='#c62828';out.textContent='Please answer every question.';return;}
-  if(ok){lsset('pl_'+id,'1');out.style.color='#2e8b57';out.textContent='All correct! 🎉';setTimeout(function(){renderLearn();},900);}
+  if(ok){lsset('pl_'+id,'1');report();out.style.color='#2e8b57';out.textContent='All correct! 🎉';setTimeout(function(){renderLearn();},900);}
   else{out.style.color='#c62828';out.textContent='Not quite yet. Read the lesson again and try once more.';}
 }
 window.PPA={show:function(w){
@@ -202,5 +216,7 @@ window.PPA={show:function(w){
   else if(w==='learn')renderLearn();
  },
  openFile:async function(f){try{var u=await blobUrl(f);window.open(u,'_blank');}catch(e){alert('Could not open that file right now.');}},
- check:check, sign:async function(){var a=document.getElementById('oriP').value.trim(),c=document.getElementById('oriC').value.trim(),r=document.getElementById('oriR');if(!document.getElementById('oriK').checked||a.length<3||c.length<2){r.style.color='#c62828';r.textContent='Type both names and check the box.';return;}try{var j=await call('pp_orient_sign',{parent:a,child:c});if(!j||!j.ok)throw 0;lsset('pl_signed',a);renderLearn();}catch(e){r.style.color='#c62828';r.textContent='Could not save right now. Please try again.';}}, reset:function(){PP=null;}};
+ begin:function(){var g=function(i){return document.getElementById(i).value.trim()},m=document.getElementById('owM'),w={parent:g('owP'),rel:g('owR'),child:g('owC'),phone:g('owT'),email:g('owE')};if(w.parent.length<3||w.child.length<2||w.phone.replace(/\D/g,'').length<7||w.email.indexOf('@')<0){m.style.color='#c62828';m.textContent='Please fill in every box (a real phone number and email).';return;}lsset('pl_who',JSON.stringify(w));lsset('pl_signed','');renderLearn();report();},
+ changeWho:function(){if(!confirm('Start over as a different person? Your lesson progress on this device will be cleared.'))return;LM.forEach(function(m){lsset('pl_'+m.id,'')});lsset('pl_who','');lsset('pl_signed','');renderLearn();},
+ check:check, sign:async function(){var a=document.getElementById('oriP').value.trim(),c=document.getElementById('oriC').value.trim(),r=document.getElementById('oriR');if(!document.getElementById('oriK').checked||a.length<3||c.length<2){r.style.color='#c62828';r.textContent='Type both names and check the box.';return;}try{var W=who()||{};var j=await call('pp_orient_sign',{parent:a,child:c,phone:W.phone,email:W.email,rel:W.rel,done:lessonsDone(),total:LM.length});if(!j||!j.ok)throw 0;lsset('pl_signed',a);renderLearn();}catch(e){r.style.color='#c62828';r.textContent='Could not save right now. Please try again.';}}, reset:function(){PP=null;}};
 })();
