@@ -99,7 +99,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 .meet-save{display:flex;align-items:center;gap:10px;margin-top:8px;} .meet-save small{color:var(--soft);font-weight:700;}
 </style>
 <script>/* stale-page guard: if this browser is showing an old saved copy, load the fresh one */
-(function(){var V='20261106e';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+'?v='+m[1]);}});}catch(e){}})();</script>
+(function(){var V='20261106f';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+'?v='+m[1]);}});}catch(e){}})();</script>
 </head>
 <body>
 <a class="back" href="index.html">← exit</a>
@@ -860,6 +860,7 @@ function openElcTablet(){
 window.HIVE_CARDS={prompt:'What do you want to work on?',order:[
  {k:'Bear Phonics Academy',s:'Free reading lessons for the classroom',c:'#9b6bff'},
  {k:'Parent Portal',t:[['Update the parent portal','parent-manage.html'],['Post to the message board','parent-manage.html']],l:['See what parents see (menu, newsletter, lesson plans, board)','Upload a menu, newsletter or flyer, or fill in the newsletter template','Post notes on the message board','See who signed Parent Orientation'],s:'What parents see and update it',c:'#e91e63'},
+ {k:'New Staff Onboarding',t:[['Open the new-staff page','onboard.html']],l:['The welcome page new teachers and volunteers get: registry courses, CPR, bloodborne, 90-day courses','Send the link by text or email: https://thepreschoolprofessional.net/hive/onboard.html','Keep their forms and certificates in Staff Files'],s:'Welcome page for new staff',c:'#1565c0'},
  {k:'New Enrollments',t:[['Review new registrations','enroll.html']],l:['Families fill out and sign the registration on the Welcome page','Review each packet and print it','Approve: adds the child to the roster and Rooms board','Then follow the checklist: Food Program, ProCare, ELC certificate, family welcome'],s:'Registrations from new families',c:'#2e8b57'},
  {k:'FTE Report',l:['Weekly FTE report: fill in and save','Print the filled or blank official form','20-week sheet with changes and charts','Full sheets are filed in the vault'],s:'Weekly FTE, saved here',c:'#00695c'},
  {k:'Daily Briefing',l:["Today's to-do list (check off, add notes)", "Friday meeting answers", "Red Needs Attention alerts"],s:"Today's to-do list",c:'#2e8b57'},

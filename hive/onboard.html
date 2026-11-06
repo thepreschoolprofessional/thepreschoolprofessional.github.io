@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Welcome to the Team - Kid City USA</title>
+<style>
+:root{--blue:#5aa9ff;--green:#46c97f;--coral:#ff6b6b;--orange:#ffb13d;--pink:#ff6b9d;--purple:#9b6bff;--ink:#4a3a30;--soft:#8a7566;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',system-ui,sans-serif;}
+body{min-height:100vh;background:linear-gradient(160deg,#f1f8ff,#e7f7ee);color:var(--ink);padding-bottom:60px;}
+header{padding:22px 20px 6px;text-align:center;} header img{height:84px;margin-bottom:6px}
+h1{font-size:1.7rem;} .sub{color:var(--soft);margin-top:4px}
+main{max-width:820px;margin:0 auto;padding:8px 16px;}
+.schoolrow{display:flex;gap:8px;justify-content:center;margin:12px 0;flex-wrap:wrap}
+.spick{padding:10px 22px;border-radius:999px;font-weight:800;cursor:pointer;background:#fff;border:3px solid transparent;font-size:1rem;color:var(--ink);box-shadow:0 4px 12px rgba(74,58,48,.10)}
+.spick.sel{border-color:var(--blue);background:#eaf3ff}
+.card{background:#fff;border-radius:20px;padding:20px 22px;margin:14px 0;box-shadow:0 8px 24px rgba(74,58,48,.12);border-top:10px solid var(--blue);line-height:1.55}
+.card h2{margin-bottom:6px} .card p{margin:6px 0} .due{display:inline-block;background:#fff3d6;color:#8a5a00;font-weight:800;border-radius:999px;padding:3px 12px;font-size:.85rem;margin-bottom:8px}
+.item{display:flex;gap:12px;align-items:flex-start;padding:10px 4px;border-bottom:1px solid #eef0f3}
+.item:last-child{border:none} .item input{width:24px;height:24px;margin-top:3px;flex:none}
+.item label{flex:1;cursor:pointer} .item b{display:block} .item small{color:var(--soft)}
+.item a{color:#1565c0;font-weight:800;word-break:break-all}
+.bar{height:12px;background:#e3e9ef;border-radius:8px;overflow:hidden;margin:8px 0} .bar i{display:block;height:100%;background:var(--green);width:0;transition:width .3s}
+.social a{display:inline-block;margin:6px 8px 6px 0;padding:12px 18px;border-radius:14px;color:#fff;text-decoration:none;font-weight:900}
+.note{color:var(--soft);font-size:.9rem}
+@media print{.schoolrow,.noprint{display:none}}
+</style></head>
+<body>
+<header><img src="bp-logo.png" alt="" onerror="this.style.display='none'"><h1>Welcome to the Team! 🎉</h1>
+<div class="sub">Kid City USA - Sanford &amp; DeLand 2 · Your onboarding starts here</div></header>
+<main>
+<div class="schoolrow"><button class="spick" data-s="sanford">Sanford</button><button class="spick" data-s="deland">DeLand 2</button></div>
+
+<div class="card" style="border-top-color:var(--pink)"><h2>We are thrilled you're joining us!</h2>
+<p>Whether you start as a teacher or a volunteer, you are about to be part of a passionate, nurturing team that shapes young minds every day. Work through the steps below. Tap each box when you finish a step; it is saved on this device.</p>
+<div class="bar"><i id="bar"></i></div><div class="note" id="pct"></div></div>
+
+<div class="card" style="border-top-color:var(--orange)"><span class="due">Step 1 · Before you start, or within 7 days of your start date</span>
+<h2>Register and take the free pre-service courses</h2>
+<p>Go to the <a href="https://childcaretraining.myflfamilies.com/studentsite/admin/signin" target="_blank" rel="noopener">Florida Early Childhood Professional Development Registry</a>, create an account or log in, then choose <b>Enroll in Online Courses</b>. Under <b>School Readiness Preservice Training</b> take these FREE courses:</p>
+<div id="s1"></div></div>
+
+<div class="card" style="border-top-color:var(--green)"><span class="due">Step 2 · Additional training and certifications</span>
+<h2>Bloodborne pathogens, CPR and First Aid</h2><div id="s2"></div></div>
+
+<div class="card" style="border-top-color:var(--purple)"><span class="due">Step 3 · Within your first 90 days</span>
+<h2>Child Care Facility courses and your test</h2>
+<p>Back on the Registry, take these courses:</p><div id="s3"></div></div>
+
+<div class="card" style="border-top-color:var(--coral)"><span class="due">Step 4 · Your file with the director</span>
+<h2>Bring to your director</h2>
+<p class="note">Your director will keep these in your private staff file. Tap each box as you hand it in.</p><div id="s4"></div></div>
+
+<div class="card"><h2>Questions? We're here.</h2><div id="contact"></div>
+<h2 style="margin-top:14px">Stay connected</h2><div class="social" id="social"></div></div>
+<p class="note" style="text-align:center;margin-top:18px">Your certificates go to your director so they can be filed. Do not share this page's checklist with anyone outside the team.</p>
+</main>
+<script>
+var INFO={
+ sanford:{n:'Kid City USA Sanford',a:'1320 Hickory Ave, Sanford, FL 32771',p:'(407) 942-3242',e:'sanfordoffice.1320@gmail.com'},
+ deland:{n:'Kid City USA DeLand 2',a:'238 S Amelia Ave, DeLand, FL 32724',p:'(386) 279-7553',e:'delandoffice.238@gmail.com'}};
+var SOCIAL=[['Facebook','https://www.facebook.com/KidCityUSASanford/','#1877f2'],['Instagram','https://www.instagram.com/sanford.deland2.kidcityusa/?igsh=MWxlaWQ4eHFjc2ZrdA%3D%3D','#c13584'],['TikTok','https://www.tiktok.com/@sanforddeland2kidcityusa','#111']];
+var S1=[['Child Development in the School Readiness Program (DEVSR)'],['Health and Nutrition in the School Readiness Program (HNSR)'],['Safety Practices in the School Readiness Program (SAFESR)'],['Safe Sleep Practices in Child Care (SSSR)'],['Transportation Safety in Child Care Programs (TRSSR)']];
+var S2=[['Bloodborne Pathogens: free courses, then the Initial Course ($5.00)','Beei Training Platform','https://beei.teachable.com/'],['CPR and First Aid certification, online ($14.95)','National CPR Foundation','https://nationalcprfoundation.com/courses/standard-cpr-aed-first-aid/']];
+var S3=[['Health, Safety, and Nutrition'],['Child Growth and Development'],['Behavioral Observation and Screening'],['Identifying and Reporting Child Abuse and Neglect'],['Health and Nutrition in the School Readiness Program'],['Safety Practices in the School Readiness Program'],['Special Needs Appropriate Practices (SNP)','Child Care Facility Part 2'],['Call the Child Care Training Information Center at 1-888-352-2842 to schedule your test (within your first 60 days)']];
+var S4=[['Employee application and child care applicant forms'],['Driver license or photo ID (director copies it)'],['Direct deposit, W-4 and I-9'],['Background screening (fingerprints / Clearinghouse) with your director'],['Education credentials or transcript, if you have them'],['Training certificates from Steps 1-3 (give each one to your director)'],['TB / health screening record'],['Sign the handbook acknowledgment, confidentiality agreement and code of conduct']];
+var sc=localStorage.getItem?null:null,school='sanford',ids=[];
+function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+var done={};try{done=JSON.parse(ls('onbDone')||'{}')}catch(e){}
+function list(id,arr,pre){var h='';arr.forEach(function(x,i){var k=pre+i;ids.push(k);
+ h+='<div class="item"><input type="checkbox" id="'+k+'"'+(done[k]?' checked':'')+'><label for="'+k+'"><b>'+esc(x[0])+'</b>'+(x[1]&&!x[2]?'<small>'+esc(x[1])+'</small>':'')+(x[2]?'<small><a href="'+x[2]+'" target="_blank" rel="noopener">'+esc(x[1])+'</a></small>':'')+'</label></div>'});
+ document.getElementById(id).innerHTML=h}
+function prog(){var n=0;ids.forEach(function(k){if(document.getElementById(k).checked)n++});var p=Math.round(100*n/ids.length);
+ document.getElementById('bar').style.width=p+'%';document.getElementById('pct').textContent=n+' of '+ids.length+' done ('+p+'%)'}
+function paint(){var I=INFO[school];
+ document.getElementById('contact').innerHTML='<p><b>'+I.n+'</b><br>'+I.a+'<br><a href="tel:'+I.p.replace(/\D/g,'')+'">'+I.p+'</a> · <a href="mailto:'+I.e+'">'+I.e+'</a></p><p class="note">Locations: DeLand 238 S. Amelia Ave (386) 279-7553 · Sanford 1320 Hickory Ave (407) 942-3242</p>';
+ document.querySelectorAll('.spick').forEach(function(b){b.classList.toggle('sel',b.dataset.s===school)})}
+list('s1',S1,'a');list('s2',S2,'b');list('s3',S3,'c');list('s4',S4,'d');
+document.getElementById('social').innerHTML=SOCIAL.map(function(s){return '<a href="'+s[1]+'" target="_blank" rel="noopener" style="background:'+s[2]+'">'+s[0]+'</a>'}).join('');
+document.addEventListener('change',function(e){if(e.target.type==='checkbox'){done[e.target.id]=e.target.checked;ls('onbDone',JSON.stringify(done));prog()}});
+document.querySelectorAll('.spick').forEach(function(b){b.onclick=function(){school=b.dataset.s;ls('onbSchool',school);paint()}});
+var q=(location.search.match(/school=(sanford|deland)/)||[])[1]||ls('onbSchool');if(q)school=q;
+paint();prog();
+</script></body></html>
