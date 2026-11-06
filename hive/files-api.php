@@ -239,6 +239,52 @@ return $out;
 if (AIRTABLE_TOKEN === 'PASTE_YOUR_AIRTABLE_TOKEN_HERE') fail('The Airtable token has not been added yet.', 503);
 $input = json_decode(file_get_contents('php://input'), true);
 if (!$input) fail('Bad request');
+/* ---- New hires: helpers ---- */
+$NH_KEYS = ['a0','a1','a2','a3','a4','b0','b1','c0','c1','c2','c3','c4','c5','c6','c7','d0','d1','d2','d3','d4','d5','d6','d7'];
+$NH_TRAIN = ['a0','a1','a2','a3','a4','b0','b1','c0','c1','c2','c3','c4','c5','c6','c7'];
+function nh_dir($school){ $d = school_dir($school); if (!$d) return null; $p = $d.'/hires'; if (!is_dir($p)) @mkdir($p, 0750, true); return is_dir($p) ? $p : null; }
+function nh_list_all($school){ $d = nh_dir($school); $o = []; if (!$d) return $o; foreach (glob($d.'/nh*.json') ?: [] as $f){ $x = json_decode(file_get_contents($f), true); if (is_array($x)) $o[] = $x; } usort($o, function($a, $b){ return strcmp($b['at'] ?? '', $a['at'] ?? ''); }); return $o; }
+function nh_train_done($h){ global $NH_TRAIN; $n = 0; foreach ($NH_TRAIN as $k){ if (!empty($h['steps'][$k])) $n++; } return $n; }
+/* ---- PUBLIC: new-hire onboarding (no PIN). Only nh_start, nh_save, nh_packet work without a PIN. ---- */
+if (in_array((string)($input['action'] ?? ''), ['nh_start', 'nh_save', 'nh_packet'], true)){
+$na = $input['action']; $ns = trim((string)($input['school'] ?? ''));
+if (!in_array($ns, $SCHOOLS, true)) fail('Pick a school.');
+$rf = sys_get_temp_dir().'/hive_nh_'.md5(($_SERVER['REMOTE_ADDR'] ?? 'x').date('YmdH').$na); $cnt = is_file($rf) ? (int)file_get_contents($rf) : 0;
+$lim = ($na === 'nh_save') ? 200 : 15; if ($cnt >= $lim) fail('Too many tries. Please call the school office.', 429); file_put_contents($rf, $cnt + 1);
+$nd = nh_dir($ns); if (!$nd) fail('Could not open storage.', 500);
+$t = function($v, $n = 300){ return mb_substr(trim(strip_tags((string)$v)), 0, $n); };
+if ($na === 'nh_start'){
+$nm = $t($input['name'] ?? '', 60); $rl = (string)($input['role'] ?? ''); $cell = $t($input['cell'] ?? '', 30); $em = $t($input['email'] ?? '', 80); $st = $t($input['start'] ?? '', 12);
+if (strlen($nm) < 4 || strpos($nm, ' ') === false) fail('Please type your first and last name.');
+if (!in_array($rl, ['New hire', 'Intern', 'Volunteer'], true)) fail('Pick New hire, Intern or Volunteer.');
+if (strlen(preg_replace('/\D/', '', $cell)) < 7) fail('Please enter your cell phone.');
+if (strpos($em, '@') === false) fail('Please enter your email.');
+$id = 'nh'.date('ymdHis').substr(md5(uniqid('', true)), 0, 5); $tok = bin2hex(random_bytes(12));
+jwrite($nd.'/'.$id.'.json', ['id'=>$id, 'token'=>$tok, 'school'=>$ns, 'name'=>$nm, 'role'=>$rl, 'cell'=>$cell, 'email'=>$em, 'start'=>$st, 'at'=>gmdate('c'), 'updated'=>gmdate('c'), 'status'=>'new', 'steps'=>(object)[], 'packet'=>null]);
+echo json_encode(['ok'=>true, 'id'=>$id, 'token'=>$tok]); exit;
+}
+$id = preg_replace('/[^a-z0-9]/', '', strtolower((string)($input['id'] ?? ''))); $hf = $nd.'/'.$id.'.json';
+if (strpos($id, 'nh') !== 0 || !is_file($hf)) fail('We could not find your sign-up. Please sign up again.', 404);
+$h = jread($hf, []); if (!hash_equals((string)($h['token'] ?? ''), (string)($input['token'] ?? ''))) fail('That sign-up link is not valid.', 403);
+if ($na === 'nh_save'){
+$stp = is_array($input['steps'] ?? null) ? $input['steps'] : []; $cur = is_array($h['steps'] ?? null) ? $h['steps'] : [];
+foreach ($NH_KEYS as $k){ if (array_key_exists($k, $stp)) $cur[$k] = !empty($stp[$k]); }
+$h['steps'] = $cur; $h['updated'] = gmdate('c'); jwrite($hf, $h); echo json_encode(['ok'=>true]); exit;
+}
+if ($na === 'nh_packet'){
+$raw0 = is_array($input['data'] ?? null) ? $input['data'] : []; $D = [];
+foreach ($raw0 as $k => $v0){ if (!preg_match('/^[A-Za-z0-9_]{1,30}$/', (string)$k) || is_array($v0)) continue; $D[$k] = $t($v0); if (count($D) >= 400) break; }
+$sp = array_values(array_unique(array_map('intval', (array)($input['sigPages'] ?? [])))); if (count($sp) < 3) fail('Please sign the pages first.');
+$pdf = base64_decode((string)($input['pdf'] ?? ''), true); if ($pdf === false || substr($pdf, 0, 4) !== '%PDF' || strlen($pdf) < 20000) fail('The signed packet did not come through. Please try again.');
+if (strlen($pdf) > 14 * 1024 * 1024) fail('The packet is too large.');
+file_put_contents($nd.'/'.$id.'-packet.pdf', $pdf);
+$sg = []; foreach ((is_array($input['sigs'] ?? null) ? $input['sigs'] : []) as $pg => $png){ $pg = (int)$pg; if ($pg < 1 || $pg > 60 || !is_string($png) || strpos($png, 'data:image/png;base64,') !== 0 || strlen($png) > 160000) continue; $sg[$pg] = $png; if (count($sg) >= 30) break; }
+jwrite($nd.'/'.$id.'-sigs.json', $sg); @unlink($nd.'/'.$id.'-final.pdf'); unset($h['final']);
+$h['packet'] = ['at'=>gmdate('c'), 'pages'=>$sp, 'signer'=>$t($input['signer'] ?? '', 60), 'data'=>$D, 'bytes'=>strlen($pdf)]; $h['updated'] = gmdate('c'); if (($h['status'] ?? '') === 'reviewed') $h['status'] = 'new';
+jwrite($hf, $h); echo json_encode(['ok'=>true]); exit;
+}
+fail('Unknown request.');
+}
 /* ---- PUBLIC: Welcome portal for new / inquiring families (no PIN). Only these wl_ actions work without a PIN. ---- */
 if (strpos((string)($input['action'] ?? ''), 'wl_') === 0){
 $wa = $input['action']; $ws = trim((string)($input['school'] ?? ''));
@@ -324,6 +370,40 @@ jwrite($nf, $n);
 }
 $today = date('Y-m-d'); foreach ($n as $k => $v){ if (!empty($v['until']) && $v['until'] < $today) unset($n[$k]); }
 echo json_encode(['notes'=>(object)$n]); exit;
+}
+/* ---- New hires (directors only) ---- */
+if (strpos($action, 'nh_') === 0){
+if (!$isDir) fail('Only a director can see New Hires.', 403);
+$nd = nh_dir($school); if (!$nd) fail('Could not open storage.', 500);
+if ($action === 'nh_list'){ $o = []; foreach (nh_list_all($school) as $h){ $o[] = ['id'=>$h['id'], 'name'=>$h['name'], 'role'=>$h['role'], 'status'=>$h['status'] ?? 'new', 'at'=>$h['at'], 'updated'=>$h['updated'] ?? $h['at'], 'start'=>$h['start'] ?? '', 'train'=>nh_train_done($h), 'trainTotal'=>count($NH_TRAIN), 'final'=>!empty($h['final']), 'packet'=>!empty($h['packet']), 'packetAt'=>$h['packet']['at'] ?? '']; } echo json_encode(['items'=>$o]); exit; }
+$id = preg_replace('/[^a-z0-9]/', '', strtolower((string)($input['id'] ?? ''))); $hf = $nd.'/'.$id.'.json';
+if (strpos($id, 'nh') !== 0 || !is_file($hf)) fail('That new hire was not found.', 404);
+$h = jread($hf, []);
+if ($action === 'nh_get'){ unset($h['token']); echo json_encode(['hire'=>$h]); exit; }
+if ($action === 'nh_sigs'){ echo json_encode(['sigs'=>(object)jread($nd.'/'.$id.'-sigs.json', [])]); exit; }
+if ($action === 'nh_final'){
+$pdf = base64_decode((string)($input['pdf'] ?? ''), true); if ($pdf === false || substr($pdf, 0, 4) !== '%PDF' || strlen($pdf) < 20000) fail('The signed packet did not come through. Please try again.');
+if (strlen($pdf) > 14 * 1024 * 1024) fail('The packet is too large.');
+file_put_contents($nd.'/'.$id.'-final.pdf', $pdf); $h['final'] = ['at'=>gmdate('c'), 'by'=>mb_substr(trim(strip_tags((string)($input['by'] ?? 'Director'))), 0, 60)]; if (($h['status'] ?? '') === 'new') $h['status'] = 'reviewed'; jwrite($hf, $h); echo json_encode(['ok'=>true]); exit;
+}
+if ($action === 'nh_pdf'){ $f = $nd.'/'.$id.'-packet.pdf'; if (!empty($input['final']) && is_file($nd.'/'.$id.'-final.pdf')) $f = $nd.'/'.$id.'-final.pdf'; if (!is_file($f)) fail('No packet PDF yet.', 404); echo json_encode(['b64'=>base64_encode(file_get_contents($f))]); exit; }
+if ($action === 'nh_archive'){ $h['status'] = !empty($input['undo']) ? 'new' : 'archived'; jwrite($hf, $h); echo json_encode(['ok'=>true]); exit; }
+if ($action === 'nh_reviewed'){ $h['status'] = 'reviewed'; jwrite($hf, $h); echo json_encode(['ok'=>true]); exit; }
+if ($action === 'nh_add'){
+if (!empty($h['staffRec'])) fail('Already added to Staff Files.');
+$rl = $input['role'] ?? 'Teacher'; if (!in_array($rl, ['Teacher', 'Director', 'Support'], true)) fail('Pick a role');
+$name = trim(preg_replace('/\s+/', ' ', preg_replace('/[^A-Za-z0-9 .\'-]/', '', $h['name'])));
+if (strlen($name) < 3 || strpos($name, ' ') === false) fail('The name needs a first and last name.');
+foreach (roster($school, 'staff') ?: [] as $p){ if (strcasecmp($p['name'], $name) === 0) fail($name.' is already on the staff list.'); }
+$res = at_request('POST', ['Staff Roster'], null, ['fields'=>['Name'=>$name, 'School'=>$school, 'Role'=>$rl, 'Active'=>true]]);
+if (!isset($res['id'])) fail('Could not add them: '.($res['error']['message'] ?? 'the roster did not accept it').'.', 502);
+roster_cache_clear($school); $pd = pdir($school, 'staff', $res['id']); $pf2 = $nd.'/'.$id.'-packet.pdf'; if (is_file($nd.'/'.$id.'-final.pdf')) $pf2 = $nd.'/'.$id.'-final.pdf'; $filed = false;
+if (is_file($pf2) && $pd){ $fn2 = date('Ymd-His').'_new-hire-packet_'.$id.'.pdf'; if (@copy($pf2, $pd.'/'.$fn2)){ $mf = $pd.'/meta.json'; $meta = jread($mf, ['docs'=>[], 'files'=>[]]); if (!is_array($meta['files'])) $meta['files'] = [];
+$keys = ['app', 'priv', 'can', 'coc', 'emg', 'hns']; if (($h['role'] ?? '') === 'New hire') $keys[] = 'ref';
+foreach ($keys as $dk){ $meta['files'][] = ['doc'=>$dk, 'name'=>$fn2, 'at'=>gmdate('c'), 'size'=>filesize($pf2)]; } jwrite($mf, $meta); $filed = true; } }
+$h['status'] = 'added'; $h['staffRec'] = $res['id']; $h['addedAt'] = gmdate('c'); jwrite($hf, $h); echo json_encode(['ok'=>true, 'name'=>$name, 'filed'=>$filed]); exit;
+}
+fail('Unknown request.');
 }
 /* ---- Enrollment inbox (directors only): packets from the Welcome portal ---- */
 function en_dir($school){ $d = school_dir($school); if (!$d) return null; $p = $d.'/enroll'; if (!is_dir($p)) @mkdir($p, 0750, true); return is_dir($p) ? $p : null; }
@@ -752,6 +832,7 @@ elseif ($days <= 60) $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 's
 $pa = at_request('GET', ['Portal Alerts'], http_build_query(['filterByFormula'=>"AND({School}='".$sc0."',{Status}='Open')", 'pageSize'=>100]));
 if (is_array($pa) && !isset($pa['error'])){ foreach (($pa['records'] ?? []) as $r0){ $f0 = $r0['fields'] ?? []; $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'alert', 'href'=>(($f0['Link'] ?? '') ?: ''), 'label'=>($f0['Alert'] ?? 'Needs attention'), 'status'=>'alert', 'red'=>!empty($f0['Red']), 'alertId'=>$r0['id']]; } }
 if ((int)date('N') >= 4){ $tw = fte_target_week(); if (!fte_have_week($school, $tw)) $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'fte', 'href'=>'fte.html', 'label'=>'Weekly FTE report for the week of '.date('n/j', strtotime($tw)).' not filed yet', 'status'=>'missing', 'red'=>((int)date('N') >= 5)]; }
+foreach (nh_list_all($school) as $nh0){ if (($nh0['status'] ?? 'new') !== 'new') continue; $nn = $nh0['name'] ?? ''; $lab = ''; if (!empty($nh0['packet']) && empty($nh0['final'])) $lab = 'New hire '.$nn.' signed their employee packet — review and sign your lines'; elseif (nh_train_done($nh0) >= count($NH_TRAIN)) $lab = 'New hire '.$nn.' finished all onboarding steps — check their certificates'; if ($lab !== '') $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'newhire', 'href'=>'newhires.html', 'label'=>$lab, 'status'=>'missing', 'red'=>false]; }
 foreach (en_list_all($school) as $en0){ if (($en0['status'] ?? '') === 'new') $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'enroll', 'href'=>'enroll.html', 'label'=>'New enrollment packet: '.($en0['child']['first'] ?? '').' '.mb_substr($en0['child']['last'] ?? '', 0, 1).'. — review and approve', 'status'=>'missing', 'red'=>false]; }
 foreach (pp_status_list($school) as $ps){ if ($ps['ok']) continue; $isNext = ($ps['month'] !== date('Y-m')); $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'pp', 'href'=>'parent-manage.html', 'label'=>'Parent portal: '.$ps['monthName'].' '.$ps['label'].' not posted yet'.($isNext ? ' (month ends soon)' : ''), 'status'=>'missing', 'red'=>(!$isNext && (int)date('j') >= 5)]; }
 echo json_encode(['school'=>$school, 'items'=>$items]); exit;

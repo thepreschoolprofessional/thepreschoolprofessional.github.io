@@ -18,68 +18,175 @@ main{max-width:820px;margin:0 auto;padding:8px 16px;}
 .card h2{margin-bottom:6px} .card p{margin:6px 0} .due{display:inline-block;background:#fff3d6;color:#8a5a00;font-weight:800;border-radius:999px;padding:3px 12px;font-size:.85rem;margin-bottom:8px}
 .item{display:flex;gap:12px;align-items:flex-start;padding:10px 4px;border-bottom:1px solid #eef0f3}
 .item:last-child{border:none} .item input{width:24px;height:24px;margin-top:3px;flex:none}
-.item label{flex:1;cursor:pointer} .item b{display:block} .item small{color:var(--soft)}
-.item a{color:#1565c0;font-weight:800;word-break:break-all}
+.item label{flex:1;cursor:pointer;font-weight:400;margin:0} .item b{display:block} .item small{color:var(--soft);display:block}
+a{color:#1565c0;font-weight:800;word-break:break-all}
 .bar{height:12px;background:#e3e9ef;border-radius:8px;overflow:hidden;margin:8px 0} .bar i{display:block;height:100%;background:var(--green);width:0;transition:width .3s}
 .social a{display:inline-block;margin:6px 8px 6px 0;padding:12px 18px;border-radius:14px;color:#fff;text-decoration:none;font-weight:900}
 .note{color:var(--soft);font-size:.9rem}
+label{display:block;font-weight:800;margin:12px 0 4px;font-size:.95rem}
+.inp{width:100%;font-size:1rem;padding:11px 14px;border:3px solid #cfe3ff;border-radius:14px;outline:none;font-family:inherit;background:#fff}
+.inp:focus{border-color:var(--blue)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}.three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px} @media(max-width:560px){.two,.three{grid-template-columns:1fr}}
+.go{display:block;width:100%;text-align:center;color:#fff;font-weight:900;padding:14px;border-radius:16px;font-size:1rem;border:none;cursor:pointer;font-family:inherit;margin-top:14px;background:linear-gradient(90deg,#3d8bff,#46c97f)}
+.go.sec{background:#fff;color:var(--ink);border:3px solid #ddd} .go:disabled{opacity:.5}
+.err{color:#c62828;font-weight:800;margin-top:10px;min-height:1.2em}
+.chk{display:flex;gap:10px;align-items:center;font-weight:700;margin:6px 0}.chk input{width:22px;height:22px}
+.sect{font-weight:900;margin:18px 0 6px;font-size:1.05rem;color:#1565c0}
+.signrow{display:flex;align-items:center;gap:10px;background:#f4f9ff;border:2px solid #cfe3ff;border-radius:14px;padding:10px 14px;margin:8px 0}
+.signrow.done{background:#effaf3;border-color:#b6e6c8}.signrow .t{flex:1;font-weight:800}.signrow small{display:block;font-weight:400;color:var(--soft)}
+.signrow button{padding:9px 16px;border-radius:12px;border:none;background:#3d8bff;color:#fff;font-weight:800;cursor:pointer}
+#mod{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:50;align-items:flex-start;justify-content:center;overflow:auto;padding:16px}
+#modbox{background:#fff;border-radius:18px;padding:16px;max-width:780px;width:100%}
+.hi{background:#effaf3;border:2px solid #b6e6c8;border-radius:14px;padding:10px 14px;font-weight:700}
 @media print{.schoolrow,.noprint{display:none}}
 </style></head>
 <body>
 <header><img src="bp-logo.png" alt="" onerror="this.style.display='none'"><h1>Welcome to the Team! 🎉</h1>
-<div class="sub">Kid City USA - Sanford &amp; DeLand 2 · Your onboarding starts here</div></header>
-<main>
-<div class="schoolrow"><button class="spick" data-s="sanford">Sanford</button><button class="spick" data-s="deland">DeLand 2</button></div>
-
-<div class="card" style="border-top-color:var(--pink)"><h2>We are thrilled you're joining us!</h2>
-<p>Whether you start as a teacher or a volunteer, you are about to be part of a passionate, nurturing team that shapes young minds every day. Work through the steps below. Tap each box when you finish a step; it is saved on this device.</p>
-<div class="bar"><i id="bar"></i></div><div class="note" id="pct"></div></div>
-
-<div class="card" style="border-top-color:var(--orange)"><span class="due">Step 1 · Before you start, or within 7 days of your start date</span>
-<h2>Register and take the free pre-service courses</h2>
-<p>Go to the <a href="https://childcaretraining.myflfamilies.com/studentsite/admin/signin" target="_blank" rel="noopener">Florida Early Childhood Professional Development Registry</a>, create an account or log in, then choose <b>Enroll in Online Courses</b>. Under <b>School Readiness Preservice Training</b> take these FREE courses:</p>
-<div id="s1"></div></div>
-
-<div class="card" style="border-top-color:var(--green)"><span class="due">Step 2 · Additional training and certifications</span>
-<h2>Bloodborne pathogens, CPR and First Aid</h2><div id="s2"></div></div>
-
-<div class="card" style="border-top-color:var(--purple)"><span class="due">Step 3 · Within your first 90 days</span>
-<h2>Child Care Facility courses and your test</h2>
-<p>Back on the Registry, take these courses:</p><div id="s3"></div></div>
-
-<div class="card" style="border-top-color:var(--coral)"><span class="due">Step 4 · Your file with the director</span>
-<h2>Bring to your director</h2>
-<p class="note">Your director will keep these in your private staff file. Tap each box as you hand it in.</p><div id="s4"></div></div>
-
-<div class="card"><h2>Questions? We're here.</h2><div id="contact"></div>
-<h2 style="margin-top:14px">Stay connected</h2><div class="social" id="social"></div></div>
-<p class="note" style="text-align:center;margin-top:18px">Your certificates go to your director so they can be filed. Do not share this page's checklist with anyone outside the team.</p>
-</main>
+<div class="sub">Kid City USA - Sanford &amp; DeLand 2 · New hires, interns and volunteers start here</div></header>
+<main id="app"></main>
+<div id="mod"><div id="modbox"></div></div>
+<script src="pdf-lib.min.js?v=117"></script>
+<script src="onboard-data.js?v=1"></script>
+<script src="emp-stamp.js?v=2"></script>
 <script>
+var API='files-api.php';
 var INFO={
- sanford:{n:'Kid City USA Sanford',a:'1320 Hickory Ave, Sanford, FL 32771',p:'(407) 942-3242',e:'sanfordoffice.1320@gmail.com'},
- deland:{n:'Kid City USA DeLand 2',a:'238 S Amelia Ave, DeLand, FL 32724',p:'(386) 279-7553',e:'delandoffice.238@gmail.com'}};
+ sanford:{n:'Kid City USA Sanford',sc:'Sanford',a:'1320 Hickory Ave, Sanford, FL 32771',p:'(407) 942-3242',e:'sanfordoffice.1320@gmail.com'},
+ deland:{n:'Kid City USA DeLand 2',sc:'DeLand 2',a:'238 S Amelia Ave, DeLand, FL 32724',p:'(386) 279-7553',e:'delandoffice.238@gmail.com'}};
 var SOCIAL=[['Facebook','https://www.facebook.com/KidCityUSASanford/','#1877f2'],['Instagram','https://www.instagram.com/sanford.deland2.kidcityusa/?igsh=MWxlaWQ4eHFjc2ZrdA%3D%3D','#c13584'],['TikTok','https://www.tiktok.com/@sanforddeland2kidcityusa','#111']];
-var S1=[['Child Development in the School Readiness Program (DEVSR)'],['Health and Nutrition in the School Readiness Program (HNSR)'],['Safety Practices in the School Readiness Program (SAFESR)'],['Safe Sleep Practices in Child Care (SSSR)'],['Transportation Safety in Child Care Programs (TRSSR)']];
-var S2=[['Bloodborne Pathogens: free courses, then the Initial Course ($5.00)','Beei Training Platform','https://beei.teachable.com/'],['CPR and First Aid certification, online ($14.95)','National CPR Foundation','https://nationalcprfoundation.com/courses/standard-cpr-aed-first-aid/']];
-var S3=[['Health, Safety, and Nutrition'],['Child Growth and Development'],['Behavioral Observation and Screening'],['Identifying and Reporting Child Abuse and Neglect'],['Health and Nutrition in the School Readiness Program'],['Safety Practices in the School Readiness Program'],['Special Needs Appropriate Practices (SNP)','Child Care Facility Part 2'],['Call the Child Care Training Information Center at 1-888-352-2842 to schedule your test (within your first 60 days)']];
-var S4=[['Employee application and child care applicant forms'],['Driver license or photo ID (director copies it)'],['Direct deposit, W-4 and I-9'],['Background screening (fingerprints / Clearinghouse) with your director'],['Education credentials or transcript, if you have them'],['Training certificates from Steps 1-3 (give each one to your director)'],['TB / health screening record'],['Sign the handbook acknowledgment, confidentiality agreement and code of conduct']];
-var sc=localStorage.getItem?null:null,school='sanford',ids=[];
-function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
-function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
-var done={};try{done=JSON.parse(ls('onbDone')||'{}')}catch(e){}
-function list(id,arr,pre){var h='';arr.forEach(function(x,i){var k=pre+i;ids.push(k);
- h+='<div class="item"><input type="checkbox" id="'+k+'"'+(done[k]?' checked':'')+'><label for="'+k+'"><b>'+esc(x[0])+'</b>'+(x[1]&&!x[2]?'<small>'+esc(x[1])+'</small>':'')+(x[2]?'<small><a href="'+x[2]+'" target="_blank" rel="noopener">'+esc(x[1])+'</a></small>':'')+'</label></div>'});
- document.getElementById(id).innerHTML=h}
-function prog(){var n=0;ids.forEach(function(k){if(document.getElementById(k).checked)n++});var p=Math.round(100*n/ids.length);
- document.getElementById('bar').style.width=p+'%';document.getElementById('pct').textContent=n+' of '+ids.length+' done ('+p+'%)'}
-function paint(){var I=INFO[school];
- document.getElementById('contact').innerHTML='<p><b>'+I.n+'</b><br>'+I.a+'<br><a href="tel:'+I.p.replace(/\D/g,'')+'">'+I.p+'</a> · <a href="mailto:'+I.e+'">'+I.e+'</a></p><p class="note">Locations: DeLand 238 S. Amelia Ave (386) 279-7553 · Sanford 1320 Hickory Ave (407) 942-3242</p>';
- document.querySelectorAll('.spick').forEach(function(b){b.classList.toggle('sel',b.dataset.s===school)})}
-list('s1',S1,'a');list('s2',S2,'b');list('s3',S3,'c');list('s4',S4,'d');
-document.getElementById('social').innerHTML=SOCIAL.map(function(s){return '<a href="'+s[1]+'" target="_blank" rel="noopener" style="background:'+s[2]+'">'+s[0]+'</a>'}).join('');
-document.addEventListener('change',function(e){if(e.target.type==='checkbox'){done[e.target.id]=e.target.checked;ls('onbDone',JSON.stringify(done));prog()}});
-document.querySelectorAll('.spick').forEach(function(b){b.onclick=function(){school=b.dataset.s;ls('onbSchool',school);paint()}});
-var q=(location.search.match(/school=(sanford|deland)/)||[])[1]||ls('onbSchool');if(q)school=q;
-paint();prog();
+function $(i){return document.getElementById(i)}
+function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function jget(k,d){try{return JSON.parse(ls(k)||'')||d}catch(e){return d}}
+var H=jget('onbHire',null),school=(location.search.match(/school=(sanford|deland)/)||[])[1]||ls('onbSchool')||'sanford';
+var done=jget('onbDone',{}),D=jget('onbDraft',{}),SIGS={},STEP=0,view='home';
+if(H&&H.school)school=H.school;
+function api(a,body){body=body||{};body.action=a;body.school=INFO[school].sc;if(H){body.id=H.id;body.token=H.token;}
+ return fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.json()});}
+function saveDraft(){ls('onbDraft',JSON.stringify(D))}
+function gv(id){var e=$(id);return e?e.value.trim():''}
+/* ---------- sign up ---------- */
+function drawSignup(){
+ var I=INFO[school];
+ $('app').innerHTML='<div class="schoolrow"><button class="spick'+(school==='sanford'?' sel':'')+'" onclick="pickSchool(\'sanford\')">Sanford</button><button class="spick'+(school==='deland'?' sel':'')+'" onclick="pickSchool(\'deland\')">DeLand 2</button></div>'
+ +'<div class="card" style="border-top-color:var(--pink)"><h2>We are thrilled you\'re joining us!</h2><p>Whether you start as a teacher, an intern or a volunteer, you are about to be part of a passionate, nurturing team that shapes young minds every day. Sign up below. Your director will see your progress as you go.</p>'
+ +'<label>Your full name</label><input class="inp" id="su_name" autocomplete="name">'
+ +'<label>I am joining as</label><select class="inp" id="su_role"><option>New hire</option><option>Intern</option><option>Volunteer</option></select>'
+ +'<div class="two"><div><label>Cell phone</label><input class="inp" id="su_cell" type="tel"></div><div><label>Email</label><input class="inp" id="su_email" type="email"></div></div>'
+ +'<label>First day (if you know it)</label><input class="inp" id="su_start" type="date">'
+ +'<div class="err" id="su_err"></div><button class="go" id="su_go" onclick="signup()">Start my onboarding</button>'
+ +'<p class="note" style="margin-top:10px">Use your own phone or computer. This page remembers you on this device.</p></div>';
+}
+function pickSchool(s){school=s;ls('onbSchool',s);if(H)return;drawSignup();}
+async function signup(){
+ $('su_go').disabled=true;$('su_err').textContent='';
+ try{var j=await api('nh_start',{name:gv('su_name'),role:gv('su_role'),cell:gv('su_cell'),email:gv('su_email'),start:gv('su_start')});
+  if(j.error)throw new Error(j.error);H={id:j.id,token:j.token,school:school,name:gv('su_name'),role:gv('su_role')};ls('onbHire',JSON.stringify(H));
+  var p=H.name.split(/\s+/);D={first:p[0],last:p.slice(1).join(' '),cell:gv('su_cell'),email:gv('su_email'),position:H.role==='New hire'?'':H.role,earliest:gv('su_start')};saveDraft();view='home';draw();
+ }catch(e){$('su_go').disabled=false;$('su_err').textContent=e.message||'Could not sign you up. Please try again.';}
+}
+/* ---------- home ---------- */
+function list(arr,pre){var h='';arr.forEach(function(x,i){var k=pre+i;
+ h+='<div class="item"><input type="checkbox" id="'+k+'"'+(done[k]?' checked':'')+' onchange="tick(\''+k+'\',this.checked)"><label for="'+k+'"><b>'+esc(x[0])+'</b>'+(x[1]&&!x[2]?'<small>'+esc(x[1])+'</small>':'')+(x[2]?'<small><a href="'+x[2]+'" target="_blank" rel="noopener">'+esc(x[1])+'</a></small>':'')+'</label></div>'});return h}
+var KEYS=ONB.all().map(function(x){return x.k});var TRAIN=KEYS.filter(function(k){return k[0]!=='d'});
+var saveT=null;
+function tick(k,v){done[k]=v;ls('onbDone',JSON.stringify(done));prog();clearTimeout(saveT);$('saved').textContent='Saving…';saveT=setTimeout(syncSteps,500);}
+async function syncSteps(){var m={};KEYS.forEach(function(k){m[k]=!!done[k]});try{var j=await api('nh_save',{steps:m});$('saved').textContent=j.error?('Not saved: '+j.error):'✓ Saved. Your director can see your progress.';}catch(e){$('saved').textContent='Could not save. Check your connection.';}}
+function prog(){var n=0;TRAIN.forEach(function(k){if(done[k])n++});var p=Math.round(100*n/TRAIN.length);$('bar').style.width=p+'%';$('pct').textContent=n+' of '+TRAIN.length+' training steps done ('+p+'%)';}
+function drawHome(){
+ var I=INFO[school],packetDone=H.sent||ls('onbSent_'+H.id)==='1';
+ $('app').innerHTML='<div class="hi">Hi '+esc((H.name||'').split(' ')[0])+'! You signed up as <b>'+esc(H.role)+'</b> at '+esc(I.n)+'. <a href="#" onclick="signout();return false" class="noprint" style="font-weight:600;font-size:.85rem">Not you?</a></div>'
+ +'<div class="card" style="border-top-color:var(--pink)"><h2>Your progress</h2><div class="bar"><i id="bar"></i></div><div class="note" id="pct"></div><div class="note" id="saved"></div></div>'
+ +'<div class="card" style="border-top-color:var(--orange)"><span class="due">Step 1 · Before you start, or within 7 days of your start date</span><h2>Register and take the free pre-service courses</h2><p>Go to the <a href="https://childcaretraining.myflfamilies.com/studentsite/admin/signin" target="_blank" rel="noopener">Florida Early Childhood Professional Development Registry</a>, create an account or log in, then choose <b>Enroll in Online Courses</b>. Under <b>School Readiness Preservice Training</b> take these FREE courses:</p>'+list(ONB.S1,'a')+'</div>'
+ +'<div class="card" style="border-top-color:var(--green)"><span class="due">Step 2 · Additional training and certifications</span><h2>Bloodborne pathogens, CPR and First Aid</h2>'+list(ONB.S2,'b')+'</div>'
+ +'<div class="card" style="border-top-color:var(--purple)"><span class="due">Step 3 · Within your first 90 days</span><h2>Child Care Facility courses and your test</h2><p>Back on the Registry, take these courses:</p>'+list(ONB.S3,'c')+'</div>'
+ +'<div class="card" style="border-top-color:var(--coral)"><span class="due">Step 4 · Your file with the director</span><h2>Employee Packet and paperwork</h2>'
+ +'<p>Fill in and sign our <b>official Employee Packet</b> right here. These are the real pages of the packet, filled in with your answers. Your signed packet goes straight to your director.</p>'
+ +(packetDone?'<div class="hi">✅ Your signed packet was sent to your director. You can send it again if something changed.</div>':'')
+ +'<button class="go" onclick="startPacket()">'+(packetDone?'Redo my packet':(Object.keys(D).length>6?'Continue my packet':'Start my packet'))+'</button>'
+ +'<p class="note" style="margin-top:10px">Bring to your director: tick each box as you hand it in.</p>'+list(ONB.S4,'d')+'</div>'
+ +'<div class="card"><h2>Questions? We\'re here.</h2><p><b>'+esc(I.n)+'</b><br>'+esc(I.a)+'<br><a href="tel:'+I.p.replace(/\D/g,'')+'">'+I.p+'</a> · <a href="mailto:'+I.e+'">'+I.e+'</a></p><h2 style="margin-top:14px">Stay connected</h2><div class="social">'+SOCIAL.map(function(s){return '<a href="'+s[1]+'" target="_blank" rel="noopener" style="background:'+s[2]+'">'+s[0]+'</a>'}).join('')+'</div></div>';
+ prog();
+}
+function signout(){if(!confirm('Sign out on this device? Your director still has your progress.'))return;ls('onbHire',null);ls('onbDone',null);ls('onbDraft',null);H=null;done={};D={};drawSignup();}
+function draw(){if(!H)drawSignup();else if(view==='packet')drawPacket();else drawHome();window.scrollTo(0,0);}
+/* ---------- packet wizard ---------- */
+var NST=4;
+function startPacket(){view='packet';STEP=0;SIGS={};draw();}
+function inp(k,l,ph,type){return '<label>'+l+'</label><input class="inp" id="f_'+k+'" type="'+(type||'text')+'" value="'+esc(D[k]||'')+'" '+(ph?'placeholder="'+esc(ph)+'"':'')+'>';}
+function yn(k,l,opts){opts=opts||['Yes','No'];return '<label>'+l+'</label><div style="display:flex;gap:16px;flex-wrap:wrap">'+opts.map(function(o){return '<label class="chk"><input type="radio" name="r_'+k+'" value="'+o+'"'+(D[k]===o?' checked':'')+'> '+o+'</label>'}).join('')+'</div>';}
+function cb(k,l){return '<label class="chk"><input type="checkbox" id="f_'+k+'"'+(D[k]?' checked':'')+'> '+l+'</label>';}
+var YN=['eligible','over18','appliedBefore','currEmployed','mayContact','canDuties','convicted','lic'];
+var TXT=['position','last','first','mid','street','city','state','zip','cell','email','earliest','desired','heard','otherTrain','convExplain','otherEmp','allergies','medical','physician'];
+['ed0','ed1','ed2'].forEach(function(e){['school','years','grad','degree'].forEach(function(f){TXT.push(e+'_'+f)})});
+for(var j=0;j<5;j++)['biz','phone','addr','from','to','pos','why','duty','sup'].forEach(function(f){TXT.push('h'+j+'_'+f)});
+for(var j=0;j<2;j++)['name','phone','addr','rel'].forEach(function(f){TXT.push('cr'+j+'_'+f)});
+for(var j=0;j<3;j++)['name','phone','yrs','rel'].forEach(function(f){TXT.push('r'+j+'_'+f)});
+for(var j=0;j<3;j++)['n','r','c','h','w'].forEach(function(f){TXT.push('ec'+j+f)});
+var CBS=['avail_0','avail_1','avail_2','avail_3','cred_0','cred_1','cred_2','cred_3','cred_4'];
+function collect(){TXT.forEach(function(k){var e=$('f_'+k);if(e)D[k]=e.value.trim()});CBS.forEach(function(k){var e=$('f_'+k);if(e)D[k]=e.checked?1:''});
+ YN.forEach(function(k){var e=document.querySelector('input[name="r_'+k+'"]:checked');if(e)D[k]=e.value});saveDraft();}
+function derive(){var o=Object.assign({},D);for(var i=0;i<3;i++){var h='h'+i+'_',w='w'+i+'_';o[w+'emp']=D[h+'biz']||'';o[w+'phone']=D[h+'phone']||'';o[w+'city']=D[h+'addr']||'';o[w+'sup']=D[h+'sup']||'';o[w+'from']=D[h+'from']||'';o[w+'to']=D[h+'to']||'';o[w+'pos']=D[h+'pos']||'';o[w+'why']=D[h+'why']||'';}
+ o.name=((D.first||'')+' '+(D.last||'')).trim()||H.name;return o;}
+function jobBlock(i){var a='<div class="sect">'+(i===0?'Most recent job':'Job '+(i+1))+'</div><div class="two">'+inp('h'+i+'_biz','Employer')+inp('h'+i+'_phone','Phone')+'</div>'+inp('h'+i+'_addr','Address (city, state)')+'<div class="three">'+inp('h'+i+'_from','From (month/year)')+inp('h'+i+'_to','To')+inp('h'+i+'_pos','Position held')+'</div>'+inp('h'+i+'_sup','Supervisor')+inp('h'+i+'_why','Reason for leaving')+inp('h'+i+'_duty','Job duties');return a;}
+function drawPacket(){
+ var nv=H.role==='New hire',t=['About you','Work history & references','Emergency contact','Read & sign'],h='<div class="card"><div class="note">Employee Packet · step '+(STEP+1)+' of '+NST+'</div><h2>'+t[STEP]+'</h2>';
+ if(STEP===0){h+='<div class="note">This fills in the official <b>Application for Employment</b>. Leave a box empty if it does not apply to you.</div>'
+  +'<div class="three">'+inp('first','First name')+inp('mid','Middle')+inp('last','Last name')+'</div>'+inp('position','Position applying for','Teacher, assistant, intern…')
+  +inp('street','Street address')+'<div class="three">'+inp('city','City')+inp('state','State')+inp('zip','ZIP')+'</div><div class="two">'+inp('cell','Cell phone','','tel')+inp('email','Email','','email')+'</div>'
+  +yn('eligible','Legally eligible to work in the U.S.?')+yn('over18','18 or older?')
+  +'<label>Available for</label>'+cb('avail_0','Full time')+cb('avail_1','Part time')+cb('avail_2','Substitute')+cb('avail_3','Summer only')
+  +'<div class="two">'+inp('earliest','Earliest start date')+inp('desired','Desired pay')+'</div>'+inp('heard','How did you hear about us?')
+  +yn('appliedBefore','Applied here before?')+yn('currEmployed','Currently employed?')+yn('mayContact','May we contact your current employer?')
+  +yn('canDuties','Can you perform the essential duties of the job (lifting up to 40 lbs., sitting on the floor, outdoor supervision), with or without reasonable accommodation?')
+  +'<div class="sect">Child care credentials</div>'+cb('cred_0','DCF 40-hour introductory courses')+cb('cred_1','CDA / FCCPC')+cb('cred_2','Staff Credential')+cb('cred_3','VPK Director / instructor')+cb('cred_4','CPR / First Aid')+inp('otherTrain','Other training, certifications or languages spoken')
+  +'<div class="sect">Background</div>'+yn('convicted','Have you ever been convicted of a crime, or are charges pending?')+inp('convExplain','If yes, explain (a conviction does not automatically disqualify you)')
+  +'<div class="note">All employees must clear a Level 2 background screening through the Florida Care Provider Background Screening Clearinghouse before working with children.</div>'
+  +'<div class="sect">Education</div>'+['High school / GED','College','Other'].map(function(l,i){return '<b>'+l+'</b><div class="two">'+inp('ed'+i+'_school','School name & city')+inp('ed'+i+'_degree','Degree / subject')+'</div><div class="two">'+inp('ed'+i+'_years','Years')+inp('ed'+i+'_grad','Graduated? (Yes/No)')+'</div>'}).join('')
+  +'<div class="sect">Other employment</div>'+inp('otherEmp','Other employment or businesses I am involved in (write "none" if none)','none');}
+ if(STEP===1){h+='<div class="note">Most recent first. This fills in the work history on the application'+(nv?' and the Employment History &amp; Reference Check (last five years)':'')+'.</div>'
+  +jobBlock(0)+jobBlock(1)+jobBlock(2)+(nv?jobBlock(3)+jobBlock(4)+'<label class="chk"><input type="radio" style="display:none"></label>'+yn('lic','Have you ever worked at a child care facility whose license was denied, revoked or suspended, or been disciplined or fined while employed in child care?'):'')
+  +'<div class="sect">References (three people, not relatives, who have known you at least one year)</div>'+[0,1,2].map(function(i){return '<div class="two">'+inp('r'+i+'_name','Name')+inp('r'+i+'_phone','Phone')+'</div><div class="two">'+inp('r'+i+'_rel','Relationship / how you know them')+inp('r'+i+'_yrs','Years known')+'</div>'}).join('')
+  +(nv?'<div class="sect">Character references (only if you have no employment in the last five years)</div>'+[0,1].map(function(i){return '<div class="two">'+inp('cr'+i+'_name','Name')+inp('cr'+i+'_phone','Phone')+'</div><div class="two">'+inp('cr'+i+'_addr','Address')+inp('cr'+i+'_rel','Relationship')+'</div>'}).join(''):'');}
+ if(STEP===2){h+='<div class="note">This fills in the <b>Employee Emergency Contact Information</b> page. It is kept confidential in your staff file.</div>'+[0,1,2].map(function(i){return '<div class="sect">Emergency contact '+(i+1)+(i?' (optional)':'')+'</div><div class="two">'+inp('ec'+i+'n','Name')+inp('ec'+i+'r','Relationship')+'</div><div class="three">'+inp('ec'+i+'c','Cell')+inp('ec'+i+'h','Home')+inp('ec'+i+'w','Work')+'</div>'}).join('')
+  +'<div class="sect">Health information (optional, shared only with management)</div>'+inp('allergies','Allergies')+inp('medical','Medical conditions staff should know about in an emergency')+inp('physician','Physician & phone');}
+ if(STEP===3){var sp=EMP.signPages(H.role),n=sp.filter(function(p){return SIGS[p]}).length;
+  h+='<div class="note">These are the real pages of our Employee Packet, filled in with your answers. Tap each page to <b>read it</b> and sign with your finger or mouse. The date is added for you. Your director signs their own lines.</div>'
+  +sp.map(function(p){var s=SIGS[p];return '<div class="signrow'+(s?' done':'')+'"><div class="t">'+(s?'✅ ':'')+esc(EMP.names[p])+'<small>Page '+p+' of the packet'+(s?' · signed':'')+'</small></div><button type="button" onclick="signOpen('+p+')">'+(s?'View':'Read &amp; sign')+'</button></div>'}).join('')
+  +'<button class="go sec" type="button" onclick="signAll()">Use my signature on all the remaining pages</button><div class="note" style="margin-top:10px">Not on these pages (done in person with your director): notarized Good Moral Character affidavit, fingerprints, ID, I-9, W-4 and direct deposit.</div>'
+  +'<button class="go" id="subBtn" onclick="submitPacket()">Send my signed packet to my director ('+n+' of '+sp.length+' signed)</button>';}
+ h+='<div class="err" id="perr"></div><div style="display:flex;gap:10px;margin-top:6px">'+(STEP>0?'<button class="go sec" onclick="nav(-1)">← Back</button>':'<button class="go sec" onclick="view=\'home\';draw()">← Back to my checklist</button>')+(STEP<NST-1?'<button class="go" onclick="nav(1)">Next →</button>':'')+'</div></div>';
+ $('app').innerHTML=h;
+}
+function nav(d){collect();STEP+=d;if(STEP===1&&0)STEP+=d;draw();}
+/* signing */
+var SG={on:false,drawn:false},SGP=0;
+async function signOpen(p){
+ collect();SGP=p;$('modbox').innerHTML='<div class="note" id="pvn">Loading page…</div><div id="pv"></div>';$('mod').style.display='flex';
+ try{var cv=await EMP.renderPage(p,derive(),SIGS,900);cv.style.cssText='width:100%;border:1px solid #ccc;border-radius:8px';$('pv').innerHTML='';$('pv').appendChild(cv);$('pvn').textContent='Read this page. Then sign at the bottom.';}catch(e){$('pvn').textContent=e.message;}
+ $('modbox').insertAdjacentHTML('beforeend','<div class="note" style="margin-top:10px">Type your full name and sign with your finger or mouse:</div><input class="inp" id="sgn" value="'+esc(H.name||'')+'"><canvas id="sgp" width="460" height="150" style="border:2px solid #999;border-radius:10px;width:100%;touch-action:none;background:#fff;margin-top:8px"></canvas><div class="err" id="sgErr"></div><div style="display:flex;gap:8px"><button class="go sec" onclick="$(\'mod\').style.display=\'none\'">Close</button><button class="go sec" onclick="sgClear()">Clear</button><button class="go" onclick="signSave()">Sign this page</button></div>');
+ SG={on:false,drawn:false};var c=$('sgp'),x=c.getContext('2d');x.lineWidth=2.8;x.lineCap='round';x.lineJoin='round';x.strokeStyle='#10307a';
+ var pt=function(e){var r=c.getBoundingClientRect();return[(e.clientX-r.left)*c.width/r.width,(e.clientY-r.top)*c.height/r.height];};
+ c.onpointerdown=function(e){SG.on=true;SG.drawn=true;var q=pt(e);x.beginPath();x.moveTo(q[0],q[1]);c.setPointerCapture(e.pointerId);e.preventDefault();};
+ c.onpointermove=function(e){if(!SG.on)return;var q=pt(e);x.lineTo(q[0],q[1]);x.stroke();e.preventDefault();};
+ c.onpointerup=c.onpointercancel=function(){SG.on=false;};
+}
+function sgClear(){var c=$('sgp');c.getContext('2d').clearRect(0,0,c.width,c.height);SG.drawn=false;}
+function signSave(){var nm=gv('sgn');if(nm.length<3||!SG.drawn){$('sgErr').textContent='Please type your name and sign in the box.';return;}
+ var c=$('sgp'),t=document.createElement('canvas');t.width=c.width;t.height=c.height;t.getContext('2d').drawImage(c,0,0);SIGS[SGP]=t.toDataURL('image/png');H.signer=nm;$('mod').style.display='none';draw();}
+function signAll(){var sp=EMP.signPages(H.role),f=SIGS[sp.filter(function(p){return SIGS[p]})[0]];if(!f){$('perr').textContent='Sign one page first, then use this button.';return;}
+ if(!confirm('Use your signature on every page? Please make sure you have read them. You can still open any page to read it.'))return;sp.forEach(function(p){if(!SIGS[p])SIGS[p]=f;});draw();}
+async function submitPacket(){
+ collect();var sp=EMP.signPages(H.role),miss=sp.filter(function(p){return !SIGS[p]});
+ if(!(D.first&&D.last&&D.cell)){$('perr').textContent='Please go back and fill in your name and cell phone.';return;}
+ if(miss.length){$('perr').textContent='Please sign every page. Still to sign: '+miss.map(function(p){return EMP.names[p]}).join('; ')+'.';return;}
+ $('subBtn').disabled=true;$('perr').style.color='#7a5a2a';$('perr').textContent='Building your signed packet… this takes a few seconds 🐝';
+ try{var cvs=await EMP.render(derive(),SIGS,H.role,1000),pdf=await EMP.pdf(cvs),b='',CH=0x8000;for(var i=0;i<pdf.length;i+=CH)b+=String.fromCharCode.apply(null,pdf.subarray(i,i+CH));
+  $('perr').textContent='Sending… 🐝';var data=derive();['ssn'].forEach(function(k){delete data[k]});
+  var sg={};sp.forEach(function(p){sg[p]=SIGS[p]});var j=await api('nh_packet',{data:data,sigPages:sp,sigs:sg,signer:H.signer||H.name,pdf:btoa(b)});if(j.error)throw new Error(j.error);
+  ls('onbSent_'+H.id,'1');done.d0=true;ls('onbDone',JSON.stringify(done));try{await syncSteps()}catch(e){}
+  $('app').innerHTML='<div class="card" style="border-top-color:var(--green)"><h2>🎉 Thank you!</h2><p>Your signed Employee Packet was sent to your director at '+esc(INFO[school].n)+'. They will review it and file it in your staff file.</p><p>Keep going with your free training steps. Your director can see your progress.</p><button class="go" onclick="view=\'home\';draw()">Back to my checklist</button></div>';
+ }catch(e){$('subBtn').disabled=false;$('perr').style.color='#c62828';$('perr').textContent=e.message||'Could not send. Please try again.';}
+}
+draw();
 </script></body></html>

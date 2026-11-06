@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>New Hires - The Hive</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#eef6ff;color:#222;padding:12px 16px 60px}
+a.back{display:inline-block;margin:4px 0 8px;color:#555;text-decoration:none;font-weight:700}h1{margin:6px 0 2px;font-size:1.5rem}.sub{color:#666;font-size:.9rem;margin-bottom:10px}
+.badge{display:inline-block;background:#222;color:#fff;border-radius:20px;padding:3px 12px;font-size:.85rem;font-weight:700;margin-left:8px}
+.sec{background:#fff;border:2px solid #cfe0f5;border-radius:16px;margin:12px 0;padding:12px 14px}.sec h2{margin:0 0 8px;font-size:1.1rem}
+.row{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid #eee;cursor:pointer;flex-wrap:wrap}.row:first-child{border-top:0}.row b{flex:1;min-width:140px}.pill{border-radius:20px;padding:3px 10px;font-size:.78rem;font-weight:800;color:#fff;background:#888}
+.pill.new{background:#e0457b}.pill.reviewed{background:#1565c0}.pill.added{background:#2e7d32}.pill.ok{background:#2e7d32}.pill.warn{background:#ef6c00}
+button{border:0;border-radius:10px;padding:10px 16px;font-weight:800;cursor:pointer;background:#222;color:#fff;font-size:.95rem;margin:8px 6px 0 0}button.gr{background:#2e7d32}button.r{background:#c62828}button.sec2{background:#eee;color:#222}button:disabled{opacity:.5}
+select,input{padding:10px;border-radius:10px;border:1px solid #ccc;font-size:1rem;font-family:inherit}
+.kv{display:grid;grid-template-columns:150px 1fr;gap:4px 10px;font-size:.92rem;margin:6px 0}.kv span:nth-child(odd){color:#777;font-weight:700}
+.msg{padding:10px;border-radius:10px;background:#e3f4e8;margin:8px 0;display:none;font-weight:700}.msg.err{background:#fde0e0}
+.step{display:flex;gap:10px;align-items:flex-start;padding:6px 0;border-top:1px solid #eee;font-size:.93rem}.step .m{width:22px;font-weight:900}
+.bar{height:10px;background:#e3e9ef;border-radius:8px;overflow:hidden;margin:6px 0}.bar i{display:block;height:100%;background:#46c97f}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}@media(max-width:640px){.g4{grid-template-columns:1fr 1fr}}
+.g4 label{font-size:.8rem;font-weight:700;color:#555}.g4 input{width:100%}
+</style></head><body>
+<a class="back" href="director.html">← Director Dashboard</a>
+<h1>🧑‍🏫 New Hires <span class="badge" id="sch">…</span></h1>
+<div class="sub">New teachers, interns and volunteers who signed up on the new-staff page. You see what they have finished, review their signed packet, sign your lines on screen, then add them to Staff Files.</div>
+<div class="msg" id="msg"></div><div id="view"></div>
+<script src="pdf-lib.min.js?v=117"></script><script src="onboard-data.js?v=1"></script><script src="emp-stamp.js?v=2"></script>
+<script>
+const PIN=sessionStorage.getItem('hivePin');if(!PIN||sessionStorage.getItem('hiveRole')!=='director')location.href='index.html';
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const $=i=>document.getElementById(i);
+async function api(action,extra){const r=await fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({pin:PIN,action},extra||{}))});const j=await r.json();if(j.error)throw new Error(j.error);return j;}
+function say(t,err){const m=$('msg');m.textContent=t;m.className='msg'+(err?' err':'');m.style.display=t?'block':'none';}
+let SCH='',CUR=null,HIRE=null,SIGS={},DSIG=null,SG={on:false,drawn:false};
+async function list(){
+ say('');CUR=null;try{const w=await api('whoami');SCH=w.school;$('sch').textContent=w.school;const j=await api('nh_list');const it=j.items;
+ const act=it.filter(x=>x.status!=='archived'),arc=it.filter(x=>x.status==='archived');
+ const row=x=>'<div class="row" onclick="open_(\''+x.id+'\')"><b>'+esc(x.name)+'<br><span class="sub">'+esc(x.role)+' · signed up '+esc((x.at||'').slice(0,10))+(x.start?' · starts '+esc(x.start):'')+'</span></b><span class="sub">Training '+x.train+'/'+x.trainTotal+'</span>'+(x.packet?'<span class="pill '+(x.final?'ok':'warn')+'">'+(x.final?'Packet signed by both':'Packet needs your signature')+'</span>':'<span class="pill">No packet yet</span>')+'<span class="pill '+x.status+'">'+x.status+'</span></div>';
+ $('view').innerHTML='<div class="sec"><h2>New hires, interns and volunteers</h2>'+(act.length?act.map(row).join(''):'<div class="sub">Nobody has signed up yet. Send them: <b>thepreschoolprofessional.net/hive/onboard.html?school='+(SCH==='Sanford'?'sanford':'deland')+'</b></div>')+'</div>'
+ +'<div class="sec"><h2>Send the new-staff page</h2><div class="sub">Text or email this link to new teachers, interns and volunteers:</div><input readonly style="width:100%" value="https://thepreschoolprofessional.net/hive/onboard.html?school='+(SCH==='Sanford'?'sanford':'deland')+'" onclick="this.select()"></div>'
+ +(arc.length?'<div class="sec"><h2>Archived</h2>'+arc.map(row).join('')+'</div>':'');
+ }catch(e){say(e.message,true)}
+}
+async function open_(id){
+ say('');try{const j=await api('nh_get',{id});HIRE=j.hire;CUR=id;SIGS={};DSIG=null;
+ const h=HIRE,st=h.steps||{},all=ONB.all(),tr=all.filter(x=>x.g!=='d'),n=tr.filter(x=>st[x.k]).length,P=h.packet,D=(P&&P.data)||{};
+ let v='<a class="back" href="#" onclick="list();return false">← All new hires</a><div class="sec"><h2>'+esc(h.name)+' <span class="pill '+h.status+'">'+h.status+'</span></h2>'
+ +'<div class="kv"><span>Joining as</span><span>'+esc(h.role)+'</span><span>Cell</span><span>'+esc(h.cell)+'</span><span>Email</span><span>'+esc(h.email)+'</span><span>First day</span><span>'+esc(h.start||'')+'</span><span>Signed up</span><span>'+esc((h.at||'').slice(0,10))+'</span><span>Last activity</span><span>'+esc((h.updated||'').slice(0,16).replace('T',' '))+'</span></div></div>';
+ v+='<div class="sec"><h2>What they have done so far</h2><div class="sub">Training: '+n+' of '+tr.length+'</div><div class="bar"><i style="width:'+Math.round(100*n/tr.length)+'%"></i></div>'
+ +['a','b','c','d'].map((g,gi)=>'<div class="sub" style="margin-top:8px;font-weight:700">'+['Step 1: pre-service courses','Step 2: certifications','Step 3: first 90 days','Step 4: paperwork (they tick as they hand it in)'][gi]+'</div>'+all.filter(x=>x.g===g).map(x=>'<div class="step"><span class="m">'+(st[x.k]?'✅':'⬜')+'</span><span>'+esc(x.t)+'</span></div>').join('')).join('')+'</div>';
+ v+='<div class="sec"><h2>Employee Packet</h2>';
+ if(!P){v+='<div class="sub">They have not sent a signed packet yet.</div>';}
+ else{
+  v+='<div class="sub">Signed by '+esc(P.signer||h.name)+' on '+esc((P.at||'').slice(0,10))+' · '+(P.pages||[]).length+' pages signed'+(h.final?' · <b>you signed '+esc((h.final.at||'').slice(0,10))+'</b>':'')+'</div>'
+  +'<button onclick="openPdf(false)">Open their signed packet (PDF)</button>'+(h.final?'<button onclick="openPdf(true)">Open the fully signed packet (PDF)</button>':'');
+  v+='<div style="border-top:1px solid #eee;margin-top:14px;padding-top:10px"><h2>Your lines (director)</h2><div class="sub">Fill in the office-use box on the application, then sign once with your finger or mouse. Your signature goes on every director line: printed name, signature and date on each policy page, the application office-use box and the child abuse reporting page.</div>'
+  +'<div class="g4"><div><label>Start date</label><input id="o_start" value="'+esc(D.o_start||h.start||'')+'"></div><div><label>First pay date</label><input id="o_first" value="'+esc(D.o_first||'')+'"></div><div><label>Pay rate</label><input id="o_rate" value="'+esc(D.o_rate||'')+'"></div><div><label>Position</label><input id="o_pos" value="'+esc(D.o_pos||D.position||'')+'"></div></div>'
+  +'<div style="margin-top:8px"><label class="sub">Your printed name</label><br><input id="dirName" style="width:260px" value="'+esc(sessionStorage.getItem('hiveDirName')||'')+'" placeholder="Director name"></div>'
+  +'<canvas id="dsg" width="460" height="150" style="border:2px solid #999;border-radius:10px;width:100%;max-width:460px;touch-action:none;background:#fff;margin-top:8px;display:block"></canvas>'
+  +'<button class="sec2" onclick="dsClear()">Clear</button><button class="gr" id="dsBtn" onclick="dirSign()">Sign &amp; save the packet</button><button class="sec2" onclick="preview()">Preview a page</button><div id="pvw"></div></div>';
+ }
+ v+='</div><div class="sec"><h2>After review</h2>';
+ if(h.status==='added')v+='<div class="sub">✅ Added to Staff Files'+(h.addedAt?' on '+esc(h.addedAt.slice(0,10)):'')+'.</div>';
+ else v+='<div class="sub">Adds them to the staff list and files the signed packet in their Staff File (application, privacy, abuse reporting, code of conduct, emergency plan, health &amp; safety'+(h.role==='New hire'?', employment history':'')+').</div><select id="addRole"><option>Teacher</option><option>Support</option><option>Director</option></select><button class="gr" onclick="addStaff()">Add to Staff Files</button>';
+ v+='<button class="sec2" onclick="arch('+(h.status==='archived'?'true':'false')+')">'+(h.status==='archived'?'Un-archive':'Archive')+'</button></div>';
+ $('view').innerHTML=v;
+ if(P){setupPad();}
+ }catch(e){say(e.message,true)}
+}
+function setupPad(){const c=$('dsg');if(!c)return;const x=c.getContext('2d');x.lineWidth=2.8;x.lineCap='round';x.lineJoin='round';x.strokeStyle='#10307a';SG={on:false,drawn:false};
+ const pt=e=>{const r=c.getBoundingClientRect();return[(e.clientX-r.left)*c.width/r.width,(e.clientY-r.top)*c.height/r.height]};
+ c.onpointerdown=e=>{SG.on=true;SG.drawn=true;const q=pt(e);x.beginPath();x.moveTo(q[0],q[1]);c.setPointerCapture(e.pointerId);e.preventDefault()};
+ c.onpointermove=e=>{if(!SG.on)return;const q=pt(e);x.lineTo(q[0],q[1]);x.stroke();e.preventDefault()};c.onpointerup=c.onpointercancel=()=>{SG.on=false};}
+function dsClear(){const c=$('dsg');c.getContext('2d').clearRect(0,0,c.width,c.height);SG.drawn=false;}
+async function loadSigs(){if(Object.keys(SIGS).length)return;const j=await api('nh_sigs',{id:CUR});SIGS=Object.assign({},j.sigs||{});}
+function dataWith(){const D=Object.assign({},HIRE.packet.data);['o_start','o_first','o_rate','o_pos'].forEach(k=>{D[k]=$(k).value.trim()});D.dirName=$('dirName').value.trim();return D;}
+function dirPng(){const c=$('dsg'),t=document.createElement('canvas');t.width=c.width;t.height=c.height;t.getContext('2d').drawImage(c,0,0);return t.toDataURL('image/png');}
+async function preview(){try{await loadSigs();const D=dataWith(),s=Object.assign({},SIGS);if(SG.drawn)s.__dir=dirPng();const cv=await EMP.renderPage(19,D,s,800);cv.style.cssText='width:100%;max-width:640px;border:1px solid #ccc;border-radius:8px;margin-top:8px';$('pvw').innerHTML='<div class="sub">Preview: Emergency Plan receipt page</div>';$('pvw').appendChild(cv);}catch(e){say(e.message,true)}}
+async function dirSign(){
+ const D=dataWith();if(D.dirName.length<3){say('Type your printed name first.',true);return;}if(!SG.drawn){say('Sign in the box first.',true);return;}
+ $('dsBtn').disabled=true;say('Building the fully signed packet…');
+ try{await loadSigs();sessionStorage.setItem('hiveDirName',D.dirName);const s=Object.assign({},SIGS);s.__dir=dirPng();
+  const cvs=await EMP.render(D,s,HIRE.role,1000),pdf=await EMP.pdf(cvs);let b='';const CH=0x8000;for(let i=0;i<pdf.length;i+=CH)b+=String.fromCharCode.apply(null,pdf.subarray(i,i+CH));
+  await api('nh_final',{id:CUR,pdf:btoa(b),by:D.dirName});say('✅ Signed and saved. The fully signed packet is ready.');await open_(CUR);say('✅ Signed and saved. The fully signed packet is ready.');
+ }catch(e){say(e.message,true);$('dsBtn').disabled=false;}
+}
+async function openPdf(fin){try{const j=await api('nh_pdf',{id:CUR,final:fin?1:0}),bin=atob(j.b64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);window.open(URL.createObjectURL(new Blob([u],{type:'application/pdf'})),'_blank');}catch(e){say(e.message,true)}}
+async function addStaff(){if(!confirm('Add '+HIRE.name+' to the staff list and file their packet?'))return;try{const j=await api('nh_add',{id:CUR,role:$('addRole').value});await open_(CUR);say('✅ '+j.name+' was added to Staff Files'+(j.filed?' and their signed packet was filed.':'.'));}catch(e){say(e.message,true)}}
+async function arch(undo){try{await api('nh_archive',{id:CUR,undo:undo?1:0});list();}catch(e){say(e.message,true)}}
+list();
+</script></body></html>
