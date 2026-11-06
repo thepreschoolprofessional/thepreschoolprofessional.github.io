@@ -27,6 +27,14 @@ main{max-width:900px;margin:0 auto;padding:14px 12px 40px}
 .dl a{background:var(--red);color:#fff;text-decoration:none;font-weight:800;padding:12px 18px;border-radius:12px}
 .dl a.sec{background:#fff;color:var(--red);border:2px solid var(--red)}
 .note{font-size:13px;text-align:center;margin-top:8px}
+.hol{margin-top:22px}
+.hol h2{text-align:center;color:var(--navy);font-size:20px;margin:0 0 4px}
+.hol .hs{text-align:center;font-size:13px;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.card{background:#fff;border-radius:12px;padding:6px;box-shadow:0 2px 8px rgba(0,0,0,.12);text-align:center}
+.card img{width:100%;height:auto;border-radius:8px;display:block;cursor:pointer}
+.card div{font-size:13px;font-weight:800;color:var(--navy);margin:6px 0 2px}
+.card a{font-size:12px;font-weight:800;color:var(--red);text-decoration:none}
 .msg{text-align:center;padding:40px 10px;font-size:17px}
 </style>
 </head>
@@ -37,6 +45,7 @@ main{max-width:900px;margin:0 auto;padding:14px 12px 40px}
 <script>
 const PIN = sessionStorage.getItem('hivePin');
 if(!PIN){ location.replace('index.html'); }
+const HOL = [['veterans-day','Veterans Day','Nov 11'],['thanksgiving','Thanksgiving','Nov 23\u201327'],['christmas','Christmas','Dec 21 \u2013 Dec 31'],['new-years','New Year\u2019s','Dec 31 \u2013 Jan 5'],['mlk-day','MLK Day','Jan 18'],['presidents-day','Presidents\u2019 Day','Feb 15'],['spring-break','Spring Break','Mar 15\u201322'],['good-friday','Good Friday','Mar 26'],['memorial-day','Memorial Day','May 31'],['juneteenth','Juneteenth','Jun 18']];
 const SCHOOLS = {
   'DeLand 2': {name:'DeLand', file:'files/closure-deland-2026-27', cal:'Volusia County'},
   'Sanford':  {name:'Sanford', file:'files/closure-sanford-2026-27', cal:'Seminole County'}
@@ -57,6 +66,10 @@ function render(key, locked, role){
   h += '<div class="flyer"><img src="'+s.file+'.png" alt="'+s.name+' closure calendar 2026-27"></div>';
   h += '<div class="dl"><a href="'+s.file+'.pdf" target="_blank" rel="noopener">&#128196; Open / print the PDF</a><a class="sec" href="'+s.file+'.png" download>&#11015; Save the picture</a></div>';
   h += '<div class="note">'+s.name+' VPK follows the '+s.cal+' school calendar. Questions or Break Camp pricing? Contact your school&rsquo;s front office.</div>';
+  h += '<div class="hol"><h2>&#127881; Holiday closure flyers</h2><div class="hs">Tap a flyer to open it full size, then save or print.</div><div class="grid">';
+  const slug = s.name.toLowerCase();
+  HOL.forEach(x=>{ const f='files/holiday-'+slug+'-'+x[0]+'.jpg'; h += '<div class="card"><a href="'+f+'" target="_blank" rel="noopener"><img loading="lazy" src="'+f+'" alt="'+x[1]+' closure flyer"></a><div>'+x[1]+'</div><a href="'+f+'" download>&#11015; Save</a></div>'; });
+  h += '</div></div>';
   document.getElementById('main').innerHTML = h;
   document.getElementById('sub').textContent = 'Kid City USA · ' + s.name;
   document.querySelectorAll('.pick button').forEach(b=>b.onclick=()=>{ try{localStorage.setItem('hiveClosureSchool',b.dataset.k)}catch(e){} render(b.dataset.k,false,role); });
