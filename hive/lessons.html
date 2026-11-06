@@ -240,17 +240,45 @@ const LESSONS=[
  stop:'Do not copy hours for someone who did not work that day.',
  quiz:[
   {q:'What do weekends show on the PAR?',a:['Closed','Eight hours','Blank forever'],c:0,w:'Weekends and closed days fill in as Closed.'}]},
-{id:'C5',sec:'C. Files, Signing and Drills',title:'Getting my training certificate',min:3,intro:'After a lesson, you send your certificate to your own staff file. Your name is picked from your school\'s list.',
+{id:'C5',sec:'C. Files, Signing and Drills',title:'Getting my training certificate',min:3,intro:'Every lesson asks for your name first. When you pass the quick check, your certificate goes straight into your own staff file. Nothing is kept on the tablet.',
  steps:[
- [T,'Finish the quick check and tap '+B('Mark lesson complete')+'.'],
- [T,'Pick your school, then pick your name from the list.'],
- [T,'If your name is not there, choose '+B('My name is not here')+' and type your first and last name. Your director is told and adds you.'],
- [T,'Tap '+B('Send certificate to my file')+'. Your director signs it in your file.']
+ [ALL,'When you open Lessons, pick your school, then pick your name from the list. Do this before you start.'],
+ [ALL,'If your name is not there, choose '+B('My name is not here')+' and type your first and last name. Your director is told and adds you to the staff list.'],
+ [ALL,'Read the lesson and answer every quick-check question correctly, then tap '+B('Mark lesson complete')+'. Your certificate is sent to your file automatically.'],
+ [D,'Directors see a pop-up when certificates are waiting. Open Staff Files, pick the person, and sign on the screen.'],
+ [ALL,'Sharing a tablet? Tap '+B('Not me? Switch person')+' so the next person starts under their own name.']
  ],
- tip:'Do this on any tablet. The certificate goes to your file, not to the tablet.',
- stop:'Never pick someone else\'s name.',
+ tip:'The Staff Training Status page (director portal) shows who has done which lessons this year.',
+ stop:'Never pick someone else\'s name. Each person does their own lessons.',
  quiz:[
-  {q:'Your name is not on the list. You...',a:['Choose My name is not here and type it','Pick a coworker','Skip the certificate'],c:0,w:'Add your own name so the certificate reaches your file.'}]}
+  {q:'You finished a lesson on a shared tablet. Before the next teacher starts you...',a:['Tap Not me? Switch person','Leave it as is','Pick the next teacher\'s name for them'],c:0,w:'Switch person so the next lesson is saved under the right name.'}]},
+{id:'D1',sec:'D. Teaching',title:'Daily Plans (Teacher Hub)',min:4,intro:'Daily Plans give you the whole day planned for your room: circle time, songs, lessons and books. Each age group has its own Teacher Hub.',
+ steps:[
+ [T,'On the Teacher Portal, tap '+B('Daily Plans')+'.'],
+ [T,'Tap your room: '+B('Fours')+', '+B('Threes')+', '+B('Twos')+' or '+B('Ones')+'. Your Teacher Hub opens in a new tab.'],
+ [T,'In the hub, pick the month, then the week, then today. Everything for the day is on that page.'],
+ [T,'Teach from the screen or print what you need. Songs, books and circle time are in the same hub.'],
+ [T,'Combined room (Three\'s and Four\'s)? Use the plan for the age group of most of your children and borrow circle time from the other hub. Your director will tell you if the plan changes.']
+ ],
+ tip:'November and December are loaded. School Age plans are still being added, so ask your director what to use for school-agers.',
+ stop:'Do not skip your lesson plan review. Walk the room and check you have the supplies before circle time.',
+ quiz:[
+  {q:'Where do you find the plan for today in your room?',a:['Daily Plans, then your room\'s Teacher Hub','The Rooms Board','Staff Files'],c:0,w:'Daily Plans opens your room\'s Teacher Hub: month, week, then today.'},
+  {q:'You open a Teacher Hub. In what order do you pick?',a:['Month, week, today','Today, week, month','Week only'],c:0,w:'Pick the month, the week, then today.'}]},
+{id:'D2',sec:'D. Teaching',title:'Lesson Plan Wizard, workbooks and books',min:5,intro:'The Lesson Plan Wizard finds your monthly plan, workbooks and take-home sheets in two taps. The books section below it opens each B.E.A.R. Phonics book.',
+ steps:[
+ [T,'On the Teacher Portal, tap '+B('Lesson Plan Wizard')+'.'],
+ [T,'Step 1: pick your month. Step 2: pick your age group (Infant, Ones, Twos, Threes, Fours or School Age).'],
+ [T,'Your plan appears with buttons: '+B('Open & Print My Plan')+', '+B('Student Workbook')+', '+B('Teacher Supplement')+' and '+B('Instructions, Resources & Take-Homes')+'. Tap one to open it in a new tab.'],
+ [T,'If it says there is no plan for that month and age group, pick another month. Some months do not have every age group.'],
+ [T,'Scroll down to the B.E.A.R. Phonics books. Each book has its own row: read the book on screen, or open its Teacher Guide, Student Workbook, Sound Wall Cards and Picture Cards.'],
+ [T,'Tap '+B('Full screen')+' on a book to print or download it. Tap '+B('Back to all books')+' when you are finished.']
+ ],
+ tip:'Print the weekly plan and the take-home sheets at the start of the month so nothing runs out.',
+ stop:'Do not send plans or workbooks to parents by personal email or text. Use the take-home sheets from the month folder.',
+ quiz:[
+  {q:'What two things do you pick in the Lesson Plan Wizard?',a:['Month and age group','Room and teacher','Day and meal'],c:0,w:'Pick your month, then your age group.'},
+  {q:'You want the sound wall cards for a book. Where?',a:['The books section, in that book\'s row','The Rooms Board','Time Off'],c:0,w:'Every book row has Wall Cards, Picture Cards, a Teacher Guide and a Student Workbook.'}]}
 ];
 
 
@@ -277,7 +305,7 @@ function switchWho(){HW.clear();home();}
 
 let CUR=null;
 function home(){
- if(!HW.get()){CUR=null;$('app').innerHTML='<div class="top"><h1>🎓 Lessons</h1><div><a class="btn sec" href="'+HOME+'">‹ Back to portal</a></div></div><div id="gt"></div>';HW.gate($('gt'),function(){home()});return}
+ if(!HW.get()){CUR=null;$('app').innerHTML='<div class="top"><h1>🎓 Lessons</h1><div><a class="btn sec" href="'+HOME+'">‹ Back to portal</a></div></div><div id="gt"></div>';HW.gate($('gt'),function(){home();var h=location.hash.slice(1);if(LESSONS.some(x=>x.id===h))open_(h)});return}
  if(!HW.ready){HW.load(home);return}
  var d=dn(),secs={},html='<div class="top"><h1>🎓 Lessons</h1><div><a class="btn sec" href="'+HOME+'">‹ Back to portal</a></div></div>'+HW.bar('switchWho()')+'<div style="color:var(--soft);font-weight:600;margin-bottom:8px">Short lessons. Each has steps, a practice, and a quick check.</div>';
  LESSONS.forEach(function(l){(secs[l.sec]=secs[l.sec]||[]).push(l)});
