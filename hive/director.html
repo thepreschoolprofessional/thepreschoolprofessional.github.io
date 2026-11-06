@@ -99,7 +99,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 .meet-save{display:flex;align-items:center;gap:10px;margin-top:8px;} .meet-save small{color:var(--soft);font-weight:700;}
 </style>
 <script>/* stale-page guard: if this browser is showing an old saved copy, load the fresh one */
-(function(){var V='20261105i';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+'?v='+m[1]);}});}catch(e){}})();</script>
+(function(){var V='20261106b';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+'?v='+m[1]);}});}catch(e){}})();</script>
 </head>
 <body>
 <a class="back" href="index.html">← exit</a>
@@ -126,9 +126,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 <div class="tab" style="background:#c0392b" onclick="location.href='dcf.html'">📁 DCF Binder</div>
   <div class="tab" style="background:#37474f" onclick="location.href='reporting.html'">🗄️ Reporting</div>
   <div class="tab" style="background:#6a1b9a" onclick="location.href='training.html'">🎓 Training</div>
-  <div class="tab" style="background:#3949ab" onclick="location.href='lessons.html'">📘 Lessons</div>
   <div class="tab" style="background:#00897b" onclick="location.href='staff-files.html'">🗂️ Staff Files</div>
-  <div class="tab" style="background:#6a1b9a" onclick="location.href='training-status.html'">📋 Staff Training Status</div>
   <div class="tab" style="background:#8e24aa" onclick="location.href='student-files.html'">🧒 Student Files</div>
   <div class="tab" style="background:#e8573f" onclick="show('daily',this)">📅 Daily Plans</div>
   <div class="tab" style="background:#d81b60" onclick="window.open('https://bearphonicsacademy.com/bookfair/','_blank')">📚 Book Fair</div>
@@ -140,7 +138,9 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
   <div class="tab t-time" onclick="show('time',this)">⏰ Time Fix</div>
   <div class="tab t-onb" onclick="show('onb',this)">🌟 Onboarding</div>
   <div class="tab" style="background:#2fc4b2" onclick="show('forms',this)">📄 Forms Wizard</div>
-  <div class="tab" style="background:linear-gradient(90deg,#5a4cc9,#9b6bff)" onclick="show('mc',this)">🎛 Mission Control</div>
+  <div class="tab" style="background:#4a154b" onclick="window.open('https://slack.com/signin','_blank','noopener')">💬 Slack</div>
+  <div class="tab" style="background:#1565c0" onclick="window.open('https://childcaretraining.myflfamilies.com/studentsite/admin/signin','_blank','noopener')">🎓 DCF Login</div>
+  <div class="tab" style="background:#5a4cc9" onclick="show('mc',this)">🔗 School Links</div>
   <div class="tab" style="background:linear-gradient(90deg,var(--teal),var(--green))" onclick="show('wb',this)">📚 Lesson Plan Wizard</div>
   <div class="tab t-fund" onclick="show('fund',this)">🐝 Fundraiser</div>
 </nav>
@@ -262,6 +262,16 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
   </div>
 
   <div class="panel" id="p-onb">
+    <div class="card" style="border-left-color:var(--coral)">
+      <div class="sect">🔎 New teacher look-ups (do these before their first day)</div>
+      <div style="font-size:.85rem;color:var(--soft);margin-bottom:8px">Every new staff member must be checked in the state and national systems and background screened before they work with children.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <a class="mini" style="text-decoration:none;background:var(--coral)" target="_blank" rel="noopener" href="https://offender.fdle.state.fl.us/offender/sops/offenderSearch.jsf">👁️ State Sexual Predator Look-up</a>
+        <a class="mini" style="text-decoration:none;background:var(--coral)" target="_blank" rel="noopener" href="https://www.nsopw.gov/">👀 National Sexual Predator Look-up</a>
+        <a class="mini" style="text-decoration:none;background:var(--coral)" target="_blank" rel="noopener" href="https://www.myflfamilies.com/services/background-screening">💻 Background Screening Portal</a>
+        <a class="mini" style="text-decoration:none;background:var(--blue)" target="_blank" rel="noopener" href="https://childcaretraining.myflfamilies.com/studentsite/admin/signin">🎓 DCF Training Login</a>
+      </div>
+    </div>
     <div class="card" style="border-left-color:var(--teal)">
       <div class="sect">🌟 Start an enrollment or onboarding</div>
       <form onsubmit="return sendOnb(event)">
@@ -275,7 +285,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
   </div>
 
   <div class="panel" id="p-mc">
-    <div class="banner">🎛 Every tool and link you need — Slack, portals, look-ups, music, your school's registration & tour links. One home base. (Same links as the old interface page — now they live here!)</div>
+    <div class="banner">🔗 Your school's registration and tour links, and the ProCare, ELC and KidKare logins. (Slack and the DCF login have their own cards, and the staff look-ups are under Onboarding.)</div>
     <div id="mcList" class="empty">Loading your links… 🐝</div>
   </div>
 
@@ -673,16 +683,19 @@ document.getElementById('bkFull').href=u.replace('/preview','/view'); v.classLis
 function closeBook(){ document.getElementById('bkViewer').classList.remove('show'); document.getElementById('bkFrame').src='about:blank'; document.getElementById('bkList').style.display=''; }
 
 async function loadMC(){
-  const d = await api({action:'list', table:'Resource Links', filterByFormula:"{Section}!='📚 Phonics Books'", sortField:'Order', maxRecords:60});
-  const box = document.getElementById('mcList'); const recs = d.records||[];
+  const d = await api({action:'list', table:'Resource Links', filterByFormula:"{Section}!='📚 Phonics Books'", sortField:'Order', maxRecords:100});
+  const box = document.getElementById('mcList'); const recs = (d.records||[]).map(r=>r.fields);
   box.classList.remove('empty');
-  const secOrder = ['❤️ General','⭐ Most Used','🏫 My School Links','🎶 Music & Songs'];
-  const groups = {};
-  recs.forEach(r=>{ const s = sel(r.fields.Section)||'Other'; (groups[s]=groups[s]||[]).push(r.fields); });
-  box.innerHTML = secOrder.filter(s=>groups[s]).map(s=>`
-    <div class="sect">${esc(s)}</div>
+  const mine = f => { const sc=sel(f.School); return !sc||sc==='Both'||sc===SCHOOL; };
+  const LOGINS = ['ProCare Online','ELC Provider Portal','Food Program — KidKare Online','FTE Report'];
+  const groups = [
+    ['🏫 Enrollment, tours and your county ELC', recs.filter(f=>sel(f.Section)==='🏫 My School Links' && mine(f))],
+    ['🔑 Logins', LOGINS.map(t=>recs.find(f=>f.Title===t)).filter(Boolean)]
+  ];
+  box.innerHTML = groups.filter(g=>g[1].length).map(g=>`
+    <div class="sect">${esc(g[0])}</div>
     <div class="roomgrid" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">
-    ${groups[s].map(f=>`<div class="card" style="margin:0;border-left-color:var(--purple);display:flex;flex-direction:column">
+    ${g[1].map(f=>`<div class="card" style="margin:0;border-left-color:var(--purple);display:flex;flex-direction:column">
       <div style="font-size:1.6rem">${esc(f.Emoji||'🔗')}</div>
       <b style="margin:4px 0">${esc(f.Title)}</b>
       <div style="font-size:.8rem;color:var(--soft);flex:1;margin-bottom:10px">${esc(f.Description||'')}</div>
@@ -861,15 +874,16 @@ window.HIVE_CARDS={prompt:'What do you want to work on?',order:[
  {k:'Inventory',l:["On-hand supply counts", "Yellow = below reorder level", "Update on inventory days (Mon-Tue)"],s:'Supplies on hand',c:'#b0722e'},
  {k:'Task Board',l:["Today", "Week at a glance"],s:'Who is doing what',c:'#c95ab0'},
  {k:'Parent Message',l:["Ask Charles to send a ProCare message", "All families or specific families", "Recent requests"],s:'Write to families',c:'#e0457b'},
- {k:'Onboarding',l:["Start a parent/child enrollment", "Start a teacher onboarding"],s:'New families and staff',c:'#26a69a'},
+ {k:'Onboarding',t:[['State predator look-up','https://offender.fdle.state.fl.us/offender/sops/offenderSearch.jsf'],['National predator look-up','https://www.nsopw.gov/'],['Background screening','https://www.myflfamilies.com/services/background-screening']],l:["Start a parent/child enrollment", "Start a teacher onboarding", "Look up new staff: state and national predator lists, background screening"],s:'New families and staff',c:'#26a69a'},
  {k:'Forms Wizard',l:["Bee System, facility, enrollment, employee and QA forms", "Search or pick a category", "Open and print"],s:'Fill in and print forms',c:'#1aa7a0'},
- {k:'Training',l:["How every system works", "Tell us if a step is missing"],s:'How every system works',c:'#6a1b9a'},
- {k:'Lessons',l:["Step-by-step lessons: Rooms Board, checklists, incidents", "Training certificates for staff files"],s:'Step-by-step: Rooms Board, checklists, incidents',c:'#3949ab'},
- {k:'Staff Files',l:["Personnel checklist for each person", "Photo or PDF pages, expiration dates", "Training certificates to sign", "Bio card and photo"],s:'Certificates, IDs, CPR, signatures',c:'#00897b'},
+ {k:'Training',t:[['Step-by-step lessons','lessons.html']],l:["How every system works", "Tell us if a step is missing"],s:'How every system works',c:'#6a1b9a'},
+ {k:'Staff Files',t:[['Staff training status','training-status.html']],l:["Personnel checklist for each person", "Photo or PDF pages, expiration dates", "Training certificates to sign", "Bio card and photo"],s:'Certificates, IDs, CPR, signatures',c:'#00897b'},
  {k:'Student Files',l:["Child folder checklist (registration, shots, physical, releases)", "Photo or PDF pages, expiration dates", "Parent signing on screen", "Cubby and bin photos and labels"],s:'Registration packets, shot records',c:'#8e24aa'},
  {k:'Daily Plans',l:["Pick your room", "Month, week and today's plan"],s:'What to teach today, by room',c:'#e8573f'},
  {k:'Book Fair',l:["Opens the Bear Phonics book fair page"],s:'Open the book fair',c:'#d81b60'},
- {k:'Mission Control',l:["Slack, portals, look-ups, music", "Registration and tour links"],s:'Charles task center',c:'#5a4cc9'},
+ {k:'Slack',s:'Messages from Mrs. Bear and Charles',c:'#4a154b'},
+ {k:'DCF Login',s:'Florida DCF training portal',c:'#1565c0'},
+ {k:'School Links',l:["Enrollment and tour links", "ProCare, ELC and KidKare logins"],s:'Your school\'s links',c:'#5a4cc9'},
  {k:'Lesson Plan Wizard',l:["Monthly lesson plans", "Student workbooks", "Teacher supplements"],s:'Plans and workbooks',c:'#3a9d5d'},
  {k:'Fundraiser',l:["Shop and Grow Our Hive", "10% of profit goes back to early education"],s:'Fundraiser tools',c:'#f0a020'}
 ]};
@@ -910,7 +924,7 @@ window.HIVE_CARDS={prompt:'What do you want to work on?',order:[
  setTimeout(run,3200);setTimeout(dates,3400);
 })();
 </script>
-<script src="hive-cards.js?v=5"></script>
+<script src="hive-cards.js?v=6"></script>
 <script>
 (function(){var P=sessionStorage.getItem('hivePin');if(!P)return;
 function bar(id,bottom,bg,txt,go){var old=document.getElementById(id);if(old)old.remove();if(!txt)return;var b=document.createElement('div');b.id=id;b.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:'+bottom+'px;z-index:90;background:'+bg+';color:#fff;border-radius:14px;padding:12px 16px;font-weight:800;box-shadow:0 6px 20px rgba(0,0,0,.35);max-width:92%;cursor:pointer';b.textContent=txt;b.onclick=go;document.body.appendChild(b);}
