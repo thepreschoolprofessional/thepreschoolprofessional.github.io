@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Update the Parent Portal - The Hive</title>
+<style>
+:root{--ink:#222;--bg:#fbf6ea;--line:#e6dcc3}*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--ink);padding:12px 16px 60px}
+a.back{display:inline-block;margin:4px 0 8px;color:#555;text-decoration:none;font-weight:700}h1{margin:6px 0 2px;font-size:1.5rem}.sub{color:#666;font-size:.9rem;margin-bottom:10px}
+.badge{display:inline-block;background:#222;color:#fff;border-radius:20px;padding:3px 12px;font-size:.85rem;font-weight:700;margin-left:8px}
+.sec{background:#fff;border:2px solid var(--line);border-radius:16px;margin:14px 0;padding:12px 14px}.sec h2{margin:0 0 8px;font-size:1.1rem}
+label{display:block;font-weight:700;margin:8px 0 2px;font-size:.92rem}input,select,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid #ccc;font-size:1rem;font-family:inherit}textarea{min-height:80px}
+button{border:0;border-radius:10px;padding:10px 16px;font-weight:800;cursor:pointer;background:#222;color:#fff;font-size:.95rem;margin-top:8px}button.g{background:#2e7d32}button.r{background:#c62828}button.s{padding:6px 10px;font-size:.8rem;margin:0}
+.st{display:flex;justify-content:space-between;gap:8px;padding:8px 10px;border-radius:8px;margin:4px 0;font-weight:700}.st.ok{background:#e3f4e8}.st.no{background:#fde0e0}
+.row{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:8px 10px;background:#f7f3e6;border-radius:8px;margin:4px 0;font-size:.92rem}
+.msg{padding:10px;border-radius:10px;background:#e3f4e8;margin:8px 0;display:none;font-weight:700}.msg.err{background:#fde0e0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}.dr{display:grid;grid-template-columns:110px 1fr;gap:6px;margin:4px 0}.na{display:grid;grid-template-columns:140px 1fr;gap:6px;margin:4px 0}.hint{color:#666;font-size:.85rem}
+</style></head><body>
+<a class="back" href="director.html">← Director Dashboard</a>
+<h1>🏡 Update the Parent Portal <span class="badge" id="sch">…</span></h1>
+<div class="sub">Post the menu, newsletter, lesson plans, flyers and message-board notes that parents see. <a href="parent.html">View as parents →</a></div>
+<div class="msg" id="msg"></div>
+<div class="sec"><h2>📋 What is posted this month</h2><div id="stat">Loading…</div></div>
+<div class="sec"><h2>⬆️ Upload a file</h2>
+<div class="two"><div><label>What is it?</label><select id="uk"><option value="menu">Menu</option><option value="newsletter">Newsletter</option><option value="lessons">Lesson plans</option><option value="flyer">Flyer</option></select></div><div><label>Month</label><input type="month" id="um"></div></div>
+<label>Title</label><input id="ut" placeholder="Example: November Menu"><label>Take it down after (optional)</label><input type="date" id="ue">
+<label>File (PDF, JPG or PNG, up to 10 MB)</label><input type="file" id="uf" accept="application/pdf,image/jpeg,image/png"><button class="g" onclick="upload()">Post it for parents</button><div class="hint">Posting the same kind for the same month replaces the old one.</div></div>
+<div class="sec"><h2>📰 Fill in the newsletter (template)</h2>
+<div class="two"><div><label>Month</label><input type="month" id="nm"></div><div><label>Title</label><input id="nt" placeholder="November Newsletter"></div></div>
+<label>Welcome note</label><textarea id="nw"></textarea>
+<label>Important dates</label><div id="nd"></div><button class="s" onclick="addD()">+ date</button>
+<label>Reminders</label><div id="nr"></div><button class="s" onclick="addR()">+ reminder</button>
+<label>Classroom news</label><div id="nn"></div><button class="s" onclick="addN()">+ classroom</button>
+<label>Birthdays this month</label><textarea id="nb"></textarea><label>Thank-you notes</label><textarea id="nth"></textarea>
+<button class="g" onclick="saveNews()">Post newsletter</button></div>
+<div class="sec"><h2>💬 Message board</h2><label>Title</label><input id="bt"><label>Message</label><textarea id="bm"></textarea>
+<div class="two"><div><label>Take it down after (optional)</label><input type="date" id="be"></div><div><label>&nbsp;</label><label style="font-weight:600"><input type="checkbox" id="bp" style="width:auto"> Pin to the top</label></div></div><button class="g" onclick="post()">Post to the board</button><div id="bl"></div></div>
+<div class="sec"><h2>📂 Posted items</h2><div id="il"></div></div>
+<div class="sec"><h2>✍️ Parents who signed orientation</h2><div id="ol"></div></div>
+<script>
+const PIN=sessionStorage.getItem('hivePin');if(!PIN||sessionStorage.getItem('hiveRole')!=='director')location.href='index.html';
+const $=id=>document.getElementById(id);const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function call(a,x){const r=await fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({pin:PIN,action:a},x||{}))});const j=await r.json();if(j.error)throw new Error(j.error);return j}
+function say(t,err){const m=$('msg');m.textContent=t;m.className='msg'+(err?' err':'');m.style.display='block';scrollTo(0,0)}
+const ym=new Date().toISOString().slice(0,7);$('um').value=ym;$('nm').value=ym;
+function addD(a,b){$('nd').insertAdjacentHTML('beforeend','<div class="dr"><input placeholder="Date" value="'+esc(a||'')+'"><input placeholder="What" value="'+esc(b||'')+'"></div>')}
+function addR(a){$('nr').insertAdjacentHTML('beforeend','<input style="margin:4px 0" placeholder="Reminder" value="'+esc(a||'')+'">')}
+function addN(){$('nn').insertAdjacentHTML('beforeend','<div class="na"><input placeholder="Classroom"><input placeholder="What we did"></div>')}
+addD();addD();addR();addR();addN();
+const KN={menu:'Menu',newsletter:'Newsletter',lessons:'Lesson plans',flyer:'Flyer'};
+async function load(){try{const s=await call('pp_status');$('sch').textContent=s.school;
+$('stat').innerHTML=s.status.map(x=>'<div class="st '+(x.ok?'ok':'no')+'"><span>'+esc(x.monthName+' '+x.label)+'</span><span>'+(x.ok?'✅ posted':'🔴 not posted')+'</span></div>').join('')||'All up to date.';
+const l=await call('pp_list');$('il').innerHTML=l.items.length?l.items.map(i=>'<div class="row"><span><b>'+esc(KN[i.kind]||i.kind)+'</b> '+esc(i.month||'')+' · '+esc(i.title)+(i.expires?' (until '+esc(i.expires)+')':'')+'</span><button class="s r" onclick="rm(\''+i.id+'\')">Remove</button></div>').join(''):'<div class="hint">Nothing posted yet.</div>';
+$('bl').innerHTML=l.board.map(b=>'<div class="row"><span>'+(b.pinned?'📌 ':'')+'<b>'+esc(b.title)+'</b></span><button class="s r" onclick="rmb(\''+b.id+'\')">Remove</button></div>').join('');
+const o=await call('pp_orient_list');$('ol').innerHTML=o.items.length?o.items.map(x=>'<div class="row"><span><b>'+esc(x.parent)+'</b> · child: '+esc(x.child)+'</span><span>'+esc(x.date)+'</span></div>').join(''):'<div class="hint">No one has signed yet.</div>';
+}catch(e){say(e.message,1)}}
+function b64(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(f)})}
+async function upload(){try{const f=$('uf').files[0];if(!f)return say('Choose a file first.',1);await call('pp_upload',{kind:$('uk').value,month:$('um').value,title:$('ut').value,expires:$('ue').value,b64:await b64(f)});say('Posted for parents ✅');$('uf').value='';$('ut').value='';load()}catch(e){say(e.message,1)}}
+async function saveNews(){try{const dates=[...$('nd').querySelectorAll('.dr')].map(r=>[r.children[0].value,r.children[1].value]);const rem=[...$('nr').querySelectorAll('input')].map(i=>i.value);const news=[...$('nn').querySelectorAll('.na')].map(r=>[r.children[0].value,r.children[1].value]);
+await call('pp_form_save',{kind:'newsletter',month:$('nm').value,title:$('nt').value,form:{welcome:$('nw').value,dates,reminders:rem,news,birthdays:$('nb').value,thanks:$('nth').value}});say('Newsletter posted ✅');load()}catch(e){say(e.message,1)}}
+async function post(){try{await call('pp_board_post',{title:$('bt').value,message:$('bm').value,expires:$('be').value,pinned:$('bp').checked});say('Posted to the message board ✅');$('bt').value='';$('bm').value='';load()}catch(e){say(e.message,1)}}
+async function rm(id){if(!confirm('Take this down for parents?'))return;try{await call('pp_remove',{id});load()}catch(e){say(e.message,1)}}
+async function rmb(id){if(!confirm('Remove this note?'))return;try{await call('pp_board_remove',{id});load()}catch(e){say(e.message,1)}}
+load();
+</script></body></html>

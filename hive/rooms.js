@@ -150,8 +150,18 @@ function timeInput(id, label){ return '<label class="lbl">'+esc(label||'Time')+'
 function fmt(hm){ return P.fmt12(hm); }
 
 /* ---------- screens ---------- */
+function loadNotes(){ S.notesAt=Date.now(); fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:S.pin,school:S.school,action:'rn_list'})}).then(function(r){return r.json()}).then(function(j){ if(j&&j.notes){ S.notes=j.notes; render(); } }).catch(function(){}); }
+function isMgr(){ return S.role==='director'||S.role==='owner'; }
+function noteHTML(room){
+  var n=S.notes||{}, h='';
+  function box(k,label){ var x=n[k]; if(!x&&!isMgr()) return ''; var t=x?esc(x.text):'<i>No note yet</i>'; return '<div class="card" style="border-left:6px solid #e91e63;background:#fff0f6;margin:8px 0;padding:10px 12px"><b>&#128221; '+label+'</b><div style="white-space:pre-wrap;margin-top:4px">'+t+'</div>'+(x&&x.by?'<small>from '+esc(x.by)+'</small>':'')+(isMgr()?' <button class="btn sec sm" data-act="notedit" data-r="'+encodeURIComponent(k)+'">'+(x?'Change':'Add a note')+'</button>':'')+'</div>'; }
+  if(room) h+=box(room,'Note for this classroom');
+  h+=box('ALL','Note for all staff');
+  return h;
+}
 function render(){
   if(S.view==='login'){ APP.innerHTML=loginHTML(); return; }
+  if(S.pin&&!S.notesAt) loadNotes();
   var y=window.scrollY;
   var h=headerHTML();
   if(S.view==='board') h+=boardHTML();
@@ -178,7 +188,7 @@ function headerHTML(){
   return h;
 }
 function boardHTML(){
-  var h='<div class="pad"><div class="act2"><button class="btn sec" data-act="gotodcf">&#128196; All rooms — paper form (DCF)</button>'
+  var h='<div class="pad">'+noteHTML('')+'<div class="act2"><button class="btn sec" data-act="gotodcf">&#128196; All rooms — paper form (DCF)</button>'
    +(S.role==='director'?'<button class="btn sec" data-act="gotoflags">&#10067; Questions to answer'+(S.flagN?' ('+S.flagN+')':'')+'</button><button class="btn sec" data-act="gotowd">Withdrawn children</button>':'<button class="btn sec" data-act="gotowd">Withdrawn (director)</button>')+'</div>';
   if(!S.rooms.length) h+='<div class="card">No rooms are set up for '+esc(S.school)+' yet.</div>';
   h+='<div class="tiles">';
@@ -203,6 +213,7 @@ function roomHTML(){
   var tabs=[['sheet','Sign In / Out'],['leave','Leave Room'],['staff','Staff & Ratio'],['paper','Paper Form']];
   var h='<div class="pad"><div class="rtop"><button class="btn sec sm" data-act="back">&lsaquo; Rooms</button><div class="rtt"><b>'+esc(r.name)+'</b><small>'+esc(r.teachers.join(', '))+'</small></div>'
    +(S.role==='director'?'<button class="btn sec sm" data-act="roster">Roster</button>':'<button class="btn sec sm" data-act="roster">Roster</button>')+'</div>';
+  h+=noteHTML(r.name);
   h+='<div class="tabs">'+tabs.map(function(t){ return '<button class="tab'+(S.tab===t[0]?' on':'')+'" data-act="tab" data-t="'+t[0]+'">'+t[1]+'</button>'; }).join('')+'</div>';
   var day=dayOf(r.name), ot=openTrans(day);
   if(ot && S.tab!=='leave') h+='<div class="banner o">With class at <b>'+esc(ot.dest)+'</b> since '+fmt(ot.out)+' <button class="btn sm" data-act="return">Return to room</button></div>';
@@ -455,6 +466,8 @@ var ACT = {
  /* director gate */
  dpinok: function(){ var p=val('dpin').trim(); if(!p) return; api('whoami','',null,p).then(function(w){ if(w.role!=='director'){ throw new Error('That is not a director PIN.'); } if(w.school && w.school!==S.school){ throw new Error('That PIN is for '+w.school+', not '+S.school+'.'); } S.dirPin=p; S.dirAt=Date.now(); closeModal(); var cb=needDirector.cb; needDirector.cb=null; if(cb) cb(p); }).catch(function(e){ var el=document.getElementById('derr'); if(el) el.textContent=e.message; }); },
  /* roster (director: add / withdraw) */
+ notedit: function(el){ var k=decodeURIComponent(el.getAttribute('data-r')), x=(S.notes||{})[k]||{}; openModal('<h3>Note for '+(k==='ALL'?'all staff':esc(k))+'</h3><p class="sub2">Staff can read this on the board. Only owners and directors can change it. Leave it empty to clear it.</p><textarea class="inp" id="ntx" rows="4" maxlength="300" placeholder="Have a great weekend!">'+esc(x.text||'')+'</textarea><label class="lbl">Show until (optional)</label><input class="inp" type="date" id="ntu" value="'+esc(x.until||'')+'"><div id="merr" class="err"></div><div class="mrow"><button class="btn sec" data-act="mclose2">Cancel</button><button class="btn" data-act="notesave" data-r="'+encodeURIComponent(k)+'">Save note</button></div>'); },
+ notesave: function(el){ var k=decodeURIComponent(el.getAttribute('data-r')); fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:S.pin,school:S.school,action:'rn_set',room:k,text:val('ntx'),until:val('ntu'),by:S.role==='owner'?'Mrs. Bear':'Director'})}).then(function(r){return r.json()}).then(function(j){ if(j.error) throw new Error(j.error); S.notes=j.notes; closeModal(); render(); toast('Note saved'); }).catch(function(e){ var m=document.getElementById('merr'); if(m) m.textContent=e.message; }); },
  roster: function(){ if(S.role==='director') rosterModal(S.pin); else needDirector(function(p){ rosterModal(p); }); },
  addkid: function(el){ var p=el.getAttribute('data-p'); var err=document.getElementById('merr'); err.textContent='';
    var fn=val('kfn').trim(), ln=val('kln').trim(), dob=val('kdob'), room=val('kroom');

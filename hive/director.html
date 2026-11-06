@@ -99,7 +99,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 .meet-save{display:flex;align-items:center;gap:10px;margin-top:8px;} .meet-save small{color:var(--soft);font-weight:700;}
 </style>
 <script>/* stale-page guard: if this browser is showing an old saved copy, load the fresh one */
-(function(){var V='20261106b';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+'?v='+m[1]);}});}catch(e){}})();</script>
+(function(){var V='20261106c';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+'?v='+m[1]);}});}catch(e){}})();</script>
 </head>
 <body>
 <a class="back" href="index.html">← exit</a>
@@ -140,6 +140,8 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
   <div class="tab" style="background:#2fc4b2" onclick="show('forms',this)">📄 Forms Wizard</div>
   <div class="tab" style="background:#4a154b" onclick="window.open('https://slack.com/signin','_blank','noopener')">💬 Slack</div>
   <div class="tab" style="background:#1565c0" onclick="window.open('https://childcaretraining.myflfamilies.com/studentsite/admin/signin','_blank','noopener')">🎓 DCF Login</div>
+  <div class="tab" style="background:#e91e63" onclick="location.href='parent.html'">🏡 Parent Portal</div>
+  <div class="tab" style="background:#00695c" onclick="location.href='fte.html'">📊 FTE Report</div>
   <div class="tab" style="background:#5a4cc9" onclick="show('mc',this)">🔗 School Links</div>
   <div class="tab" style="background:linear-gradient(90deg,var(--teal),var(--green))" onclick="show('wb',this)">📚 Lesson Plan Wizard</div>
   <div class="tab t-fund" onclick="show('fund',this)">🐝 Fundraiser</div>
@@ -687,7 +689,7 @@ async function loadMC(){
   const box = document.getElementById('mcList'); const recs = (d.records||[]).map(r=>r.fields);
   box.classList.remove('empty');
   const mine = f => { const sc=sel(f.School); return !sc||sc==='Both'||sc===SCHOOL; };
-  const LOGINS = ['ProCare Online','ELC Provider Portal','Food Program — KidKare Online','FTE Report'];
+  const LOGINS = ['ProCare Online','ELC Provider Portal','Food Program — KidKare Online'];
   const groups = [
     ['🏫 Enrollment, tours and your county ELC', recs.filter(f=>sel(f.Section)==='🏫 My School Links' && mine(f))],
     ['🔑 Logins', LOGINS.map(t=>recs.find(f=>f.Title===t)).filter(Boolean)]
@@ -854,6 +856,8 @@ function openElcTablet(){
   window.open(SCHOOL==='Sanford'?'https://bearphonicsacademy.com/elc-94f077be04/':'https://bearphonicsacademy.com/elc-1ce53ee46c/','_blank');
 }
 window.HIVE_CARDS={prompt:'What do you want to work on?',order:[
+ {k:'Parent Portal',t:[['Update the parent portal','parent-manage.html'],['Post to the message board','parent-manage.html']],l:['See what parents see (menu, newsletter, lesson plans, board)','Upload a menu, newsletter or flyer, or fill in the newsletter template','Post notes on the message board','See who signed Parent Orientation'],s:'What parents see and update it',c:'#e91e63'},
+ {k:'FTE Report',l:['Weekly FTE report: fill in and save','Print the filled or blank official form','20-week sheet with changes and charts','Full sheets are filed in the vault'],s:'Weekly FTE, saved here',c:'#00695c'},
  {k:'Daily Briefing',l:["Today's to-do list (check off, add notes)", "Friday meeting answers", "Red Needs Attention alerts"],s:"Today's to-do list",c:'#2e8b57'},
  {k:'Classroom Attendance',t:[['Rooms Board lessons','lessons.html#A1']],l:["Rooms board: sign children in and out", "Meals checked off by room", "Weekly attendance forms to sign", "Headcounts and ratios"],s:'Room sign-in, meals, headcounts',c:'#1565c0'},
  {k:'ELC Sign-In Tablet',l:["Opens your school's ELC tablet", "Who signed in and out today", "Absence notes and excuse forms", "Month sign-in/out sheets"],s:'Who signed in today',c:'#ef6c00'},
@@ -896,7 +900,7 @@ window.HIVE_CARDS={prompt:'What do you want to work on?',order:[
   var pin=sessionStorage.getItem('hivePin');if(!pin)return;
   fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pin,action:'attention'})}).then(function(r){return r.json()}).then(function(j){
    window.alertDone=function(id){fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pin,action:'alert_close',alertId:id})}).then(function(){run();});};
-   if(!j||!j.items)return;var red=j.items.filter(function(i){return i.red}),amb=j.items.length-red.length;
+   if(!j||!j.items)return;try{var pn=j.items.filter(function(i){return i.doc==='pp'}).length;if(pn&&window.HiveCards)HiveCards.badge('Parent Portal',pn+' to update');}catch(e){}var red=j.items.filter(function(i){return i.red}),amb=j.items.length-red.length;
    var old=document.getElementById('needs');if(old)old.remove();
    if(!j.items.length)return;
    var nav=document.querySelector('nav');if(!nav)return;

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Weekly FTE Report - The Hive</title>
+<style>
+:root{--ink:#222;--bg:#fbf6ea;--line:#e6dcc3}*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--ink);padding:12px 16px 60px}
+a.back{display:inline-block;margin:4px 0 8px;color:#555;text-decoration:none;font-weight:700}h1{margin:6px 0 2px;font-size:1.5rem}.sub{color:#666;font-size:.9rem;margin-bottom:10px}
+.badge{display:inline-block;background:#222;color:#fff;border-radius:20px;padding:3px 12px;font-size:.85rem;font-weight:700;margin-left:8px}
+.sec{background:#fff;border:2px solid var(--line);border-radius:16px;margin:14px 0;padding:12px 14px}.sec h2{margin:0 0 8px;font-size:1.1rem}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px}label{display:block;font-weight:700;font-size:.88rem}label small{display:block;font-weight:400;color:#777}
+input,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid #ccc;font-size:1rem;font-family:inherit;margin-top:2px}input[readonly]{background:#eef3f7;font-weight:800}
+button{border:0;border-radius:10px;padding:10px 16px;font-weight:800;cursor:pointer;background:#222;color:#fff;font-size:.95rem;margin:8px 6px 0 0}button.gr{background:#2e7d32}button.r{background:#c62828}button.s{padding:5px 9px;font-size:.78rem;margin:0}
+.msg{padding:10px;border-radius:10px;background:#e3f4e8;margin:8px 0;display:none;font-weight:700}.msg.err{background:#fde0e0}
+.tw{overflow:auto}table{border-collapse:collapse;font-size:.82rem;min-width:100%}th,td{border:1px solid #cfd6dd;padding:4px 6px;text-align:right;white-space:nowrap}th{background:#eef3f7;position:sticky;top:0}td.l,th.l{text-align:left}tr.cl{cursor:pointer}tr.cl:hover{background:#fff8e1}tr.em td{height:24px;color:#bbb}
+.up{color:#2e7d32;font-weight:800}.dn{color:#c62828;font-weight:800}.hint{color:#666;font-size:.85rem}.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}.charts h3{margin:0 0 2px;font-size:.9rem}
+#pr{display:none}
+@media print{body{background:#fff;padding:0}body>*:not(#pr){display:none!important}#pr{display:block}}
+</style></head><body>
+<a class="back" href="director.html">← Director Dashboard</a>
+<h1>📊 Weekly FTE Report <span class="badge" id="sch">…</span></h1>
+<div class="sub">Filled in here each week instead of the corporate form. Saved to this school's vault. Each sheet holds 20 weeks, then it is filed in the vault and a new sheet starts.</div>
+<div class="msg" id="msg"></div>
+<div class="sec"><h2 id="ft">This week's report</h2>
+<div class="g">
+<label>Report is for the week of<small>Monday of the week</small><input type="date" id="week"></label>
+<label>Accounts receivable ($)<small>ProCare: Standard Reports &gt; Family Accounting &gt; Account Balance Summary &gt; Primary Accounts Only. Only accounts with a balance due. Cannot be negative.</small><input type="number" step="0.01" min="0" id="ar"></label>
+<label>Self-pay billed ($)<input type="number" step="0.01" min="0" id="selfpay"></label>
+<label>Subsidy billed ($)<input type="number" step="0.01" min="0" id="subsidy"></label>
+<label>Total amount billed ($)<small>Self-pay + subsidy (automatic)</small><input id="total" readonly></label>
+<label>Total FTE<input type="number" step="0.01" min="0" id="fte"></label>
+<label>License capacity<input type="number" step="1" min="1" id="capacity"></label>
+<label>Occupancy %<small>FTE ÷ capacity (automatic)</small><input id="occ" readonly></label>
+<label>Children enrolled<input type="number" min="0" id="enrolled"></label>
+<label>Payroll for the week ($)<input type="number" step="0.01" min="0" id="payroll"></label>
+<label>Phone inquiries<input type="number" min="0" id="phone"></label>
+<label>Internet inquiries<input type="number" min="0" id="internet"></label>
+<label>New starts<input type="number" min="0" id="newstarts"></label>
+<label>Children un-enrolled<input type="number" min="0" id="unenrolled"></label>
+<label>Special-needs children<input type="number" min="0" id="special"></label>
+<label>Number of staff<input type="number" min="0" id="staff"></label>
+<label>Pre-registered children<input type="number" min="0" id="prereg"></label>
+<label>Prepared by<input id="by" maxlength="40"></label></div>
+<label style="margin-top:8px">Notes (optional)<textarea id="note" maxlength="300" rows="2"></textarea></label>
+<button class="gr" onclick="save()">💾 Save this week</button><button onclick="printForm(true)">🖨️ Print this report</button><button onclick="printForm(false)">📄 Print blank official form</button><button class="r" onclick="clearForm()">Clear</button>
+<div class="hint">Use 0 where there is none. Every box must be filled in.</div></div>
+<div class="sec"><h2>📈 Week-over-week changes</h2><div class="tw" id="chg"></div></div>
+<div class="sec"><h2>📉 Trends</h2><div class="charts" id="ch"></div></div>
+<div class="sec"><h2>🗒️ The sheet <span class="hint" id="cnt"></span></h2><div class="tw" id="log"></div><div class="hint">Tap a row to open it and edit.</div><button onclick="fileNow()">🗄️ File this sheet in the vault now</button></div>
+<div class="sec"><h2>🏛️ Filed sheets (vault)</h2><div id="arch"></div></div>
+<div id="pr"></div>
+<script>
+const PIN=sessionStorage.getItem('hivePin');if(!PIN||sessionStorage.getItem('hiveRole')!=='director')location.href='index.html';
+const $=id=>document.getElementById(id);const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function call(a,x){const r=await fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({pin:PIN,action:a},x||{}))});const j=await r.json();if(j.error)throw new Error(j.error);return j}
+function say(t,err){const m=$('msg');m.textContent=t;m.className='msg'+(err?' err':'');m.style.display='block';scrollTo(0,0)}
+const NUM=['ar','selfpay','subsidy','fte','capacity','enrolled','payroll','phone','internet','newstarts','unenrolled','special','staff','prereg'];
+const COLS=[['week','Week of','l'],['ar','A/R $','m'],['selfpay','Self-pay $','m'],['subsidy','Subsidy $','m'],['total','Total billed $','m'],['fte','FTE',''],['capacity','Capacity',''],['occupancy','Occ %','p'],['enrolled','Enrolled',''],['payroll','Payroll $','m'],['phone','Phone',''],['internet','Internet',''],['newstarts','New starts',''],['unenrolled','Un-enrolled',''],['special','Special',''],['staff','Staff',''],['prereg','Pre-reg','']];
+let D={rows:[],carry:null,archives:[]},SCHOOL='';
+const fmt=(v,t)=>v===''||v==null?'':t==='m'?Number(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):t==='p'?Number(v).toFixed(2)+'%':String(v);
+const wlab=w=>{const d=new Date(w+'T12:00:00');return (d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear()};
+function calc(){const t=(+$('selfpay').value||0)+(+$('subsidy').value||0);$('total').value=t?t.toFixed(2):($('selfpay').value||$('subsidy').value?t.toFixed(2):'');const c=+$('capacity').value,f=+$('fte').value;$('occ').value=c>0&&$('fte').value!==''?(f/c*100).toFixed(2)+'%':''}
+document.addEventListener('input',e=>{if(['selfpay','subsidy','fte','capacity'].includes(e.target.id))calc()});
+function clearForm(){NUM.concat(['note']).forEach(k=>$(k).value='');$('total').value='';$('occ').value='';$('week').value=D.target;if(D.rows.length)$('capacity').value=D.rows[D.rows.length-1].capacity;else if(D.carry)$('capacity').value=D.carry.capacity;$('by').value=localStorage.getItem('fteBy')||'';$('ft').textContent="This week's report";calc()}
+function getRow(){const r={week:$('week').value,by:$('by').value,note:$('note').value};NUM.forEach(k=>r[k]=$(k).value);return r}
+async function save(){try{try{localStorage.setItem('fteBy',$('by').value)}catch(e){}const j=await call('fte_save',{row:getRow()});say('Saved ✅');await load();clearForm()}catch(e){say(e.message,1)}}
+function openRow(w){const r=D.rows.find(x=>x.week===w);if(!r)return;NUM.forEach(k=>$(k).value=r[k]);$('week').value=r.week;$('by').value=r.by||'';$('note').value=r.note||'';calc();$('ft').textContent='Editing the week of '+wlab(w);scrollTo(0,0)}
+async function del(w){if(!confirm('Delete the week of '+wlab(w)+' from the sheet?'))return;try{await call('fte_delete',{week:w});await load()}catch(e){say(e.message,1)}}
+async function fileNow(){if(!D.rows.length)return say('The sheet is empty.',1);if(!confirm('File this sheet in the vault and start a new one?'))return;try{await call('fte_file_sheet');say('Sheet filed in the vault ✅');load()}catch(e){say(e.message,1)}}
+function prev(i){return i>0?D.rows[i-1]:D.carry}
+function render(){const R=D.rows;$('cnt').textContent='('+R.length+' of '+D.max+' weeks)';
+let h='<table><tr><th class="l">#</th>'+COLS.map(c=>'<th class="'+(c[2]==='l'?'l':'')+'">'+c[1]+'</th>').join('')+'<th></th></tr>';
+for(let i=0;i<D.max;i++){const r=R[i];if(!r){h+='<tr class="em"><td class="l">'+(i+1)+'</td>'+COLS.map(()=>'<td></td>').join('')+'<td></td></tr>';continue}
+h+='<tr class="cl" onclick="openRow(\''+r.week+'\')"><td class="l">'+(i+1)+'</td>'+COLS.map(c=>'<td class="'+(c[2]==='l'?'l':'')+'">'+(c[0]==='week'?wlab(r.week):fmt(r[c[0]],c[2]))+'</td>').join('')+'<td><button class="s r" onclick="event.stopPropagation();del(\''+r.week+'\')">✕</button></td></tr>'}
+$('log').innerHTML=h+'</table>';
+// changes: AR up is bad
+const CH=[['ar','A/R $',1,'m'],['total','Total billed $',0,'m'],['fte','FTE',0,''],['occupancy','Occupancy %',0,'p'],['enrolled','Enrolled',0,''],['payroll','Payroll $',1,'m'],['newstarts','New starts',0,''],['unenrolled','Un-enrolled',1,'']];
+let c='<table><tr><th class="l">Week of</th>'+CH.map(x=>'<th>'+x[1]+'</th>').join('')+'</tr>';
+for(let i=R.length-1;i>=0;i--){const p=prev(i);c+='<tr><td class="l">'+wlab(R[i].week)+'</td>'+CH.map(x=>{if(!p)return '<td>–</td>';const d=R[i][x[0]]-p[x[0]];if(Math.abs(d)<0.005)return '<td>0</td>';const bad=x[2]?d>0:d<0;return '<td class="'+(bad?'dn':'up')+'">'+(d>0?'▲ +':'▼ −')+fmt(Math.abs(d),x[3])+'</td>'}).join('')+'</tr>'}
+$('chg').innerHTML=R.length?c+'</table><div class="hint">Green = good direction, red = watch it (A/R, payroll and un-enrolled going up are red).</div>':'<div class="hint">Save your first week to see changes.</div>';
+const chart=(k,t,col)=>{const pts=(D.carry?[D.carry]:[]).concat(R);if(pts.length<2)return '<div><h3>'+t+'</h3><div class="hint">Needs two weeks.</div></div>';const v=pts.map(p=>+p[k]),mx=Math.max(...v),mn=Math.min(...v),sp=(mx-mn)||1,W=300,H=110;
+const xy=v.map((y,i)=>[10+i*(W-20)/(v.length-1),H-12-(y-mn)/sp*(H-30)]);return '<div><h3>'+t+'</h3><svg viewBox="0 0 '+W+' '+H+'" width="100%"><polyline fill="none" stroke="'+col+'" stroke-width="2.5" points="'+xy.map(p=>p.join(',')).join(' ')+'"/>'+xy.map((p,i)=>'<circle cx="'+p[0]+'" cy="'+p[1]+'" r="3" fill="'+col+'"/>').join('')+'<text x="4" y="10" font-size="9" fill="#666">high '+mx.toLocaleString()+'</text><text x="4" y="'+(H-1)+'" font-size="9" fill="#666">low '+mn.toLocaleString()+' · latest '+v[v.length-1].toLocaleString()+'</text></svg></div>'};
+$('ch').innerHTML=chart('fte','FTE','#2e7d32')+chart('occupancy','Occupancy %','#1565c0')+chart('total','Total billed $','#6a1b9a')+chart('enrolled','Children enrolled','#ef6c00')+chart('ar','Accounts receivable $','#c62828');
+$('arch').innerHTML=D.archives.length?D.archives.map(a=>'<div style="display:flex;justify-content:space-between;gap:8px;padding:8px 10px;background:#f7f3e6;border-radius:8px;margin:4px 0"><span>'+wlab(a.first)+' to '+wlab(a.last)+' ('+a.count+' weeks)</span><button class="s" onclick="viewArch(\''+esc(a.file)+'\')">View / print</button></div>').join(''):'<div class="hint">No filed sheets yet. A full sheet is filed here automatically.</div>'}
+function sheetHtml(rows,title){return '<h2 style="margin:0">'+esc(title)+'</h2><table style="font-size:9px;margin-top:6px"><tr>'+COLS.map(c=>'<th>'+c[1]+'</th>').join('')+'</tr>'+rows.map(r=>'<tr>'+COLS.map(c=>'<td>'+(c[0]==='week'?wlab(r.week):fmt(r[c[0]],c[2]))+'</td>').join('')+'</tr>').join('')+'</table>'}
+async function viewArch(f){try{const a=await call('fte_archive_get',{file:f});$('pr').innerHTML=sheetHtml(a.rows,'Kid City USA '+SCHOOL+' - FTE sheet');print()}catch(e){say(e.message,1)}}
+function printForm(filled){const r=filled?getRow():{};const L=[['Report is for the week of','week'],['Accounts receivable $','ar'],['Self-pay billed $','selfpay'],['Subsidy billed $','subsidy'],['Total amount billed $','total'],['Total FTE','fte'],['License capacity','capacity'],['Occupancy %','occ'],['Children enrolled','enrolled'],['Payroll for the week $','payroll'],['Phone inquiries','phone'],['Internet inquiries','internet'],['New starts','newstarts'],['Children un-enrolled','unenrolled'],['Special-needs children','special'],['Number of staff','staff'],['Pre-registered children','prereg']];
+const val=k=>{if(!filled)return '';if(k==='total')return $('total').value;if(k==='occ')return $('occ').value;if(k==='week')return r.week?wlab(r.week):'';return r[k]||''};
+$('pr').innerHTML='<div style="font-family:Arial;max-width:720px;margin:0 auto"><h1 style="text-align:center;margin:0">Kid City USA</h1><h2 style="text-align:center;margin:2px 0 14px">Weekly FTE Report - '+esc(SCHOOL)+'</h2>'+L.map(l=>'<div style="display:flex;justify-content:space-between;border-bottom:1px solid #333;padding:9px 2px;font-size:14px"><b>'+l[0]+'</b><span style="min-width:200px;text-align:right">'+esc(val(l[1]))+'</span></div>').join('')+'<div style="margin-top:12px;font-size:14px"><b>Notes:</b> '+esc(filled?r.note:'')+'<div style="border-bottom:1px solid #333;height:40px"></div></div><div style="display:flex;gap:30px;margin-top:40px;font-size:14px"><div style="flex:1;border-top:1px solid #000;padding-top:4px">Director signature'+(filled&&r.by?' ('+esc(r.by)+')':'')+'</div><div style="width:160px;border-top:1px solid #000;padding-top:4px">Date</div></div></div>';print()}
+async function load(){try{D=await call('fte_list');SCHOOL=D.school;$('sch').textContent=SCHOOL;D.target=D.targetWeek;render();if(!$('week').value)clearForm()}catch(e){say(e.message,1)}}
+load();
+</script></body></html>

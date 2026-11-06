@@ -103,7 +103,8 @@ $q = ['maxRecords' => min(intval($input['maxRecords'] ?? 200), 500)];
 $formulas = [];
 if (!empty($input['filterByFormula'])) $formulas[] = '(' . $input['filterByFormula'] . ')';
 if ($school && in_array($table, $SCHOOL_TABLES)) $formulas[] = "OR({School}='" . $school . "',{School}='Both')";
-if ($isTeacher && $table === 'Resource Links') $formulas[] = "{Audience}='Everyone'"; // teachers never see director-only links
+if (!empty($input['asParent']) && $table === 'Resource Links' && ($isTeacher || strpos($role,'director')===0)) $formulas[] = "{Audience}='Parents'"; // staff previewing the parent portal see exactly what parents see
+elseif ($isTeacher && $table === 'Resource Links') $formulas[] = "{Audience}='Everyone'"; // teachers never see director-only links
 if (strpos($role,'parent')===0 && $table === 'Resource Links') $formulas[] = "{Audience}='Parents'"; // parents only see parent-facing links
 if ($isTeacher && $table === 'Facility Checklists') $formulas[] = "{Portal Visibility}='Both'";
 if ($isTeacher && $table === 'Facility Submissions') $formulas[] = "{Form Type}!='🚨 Incident Report'";

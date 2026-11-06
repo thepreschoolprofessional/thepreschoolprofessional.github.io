@@ -248,13 +248,114 @@ $TEACHER_SCHOOL = ['teacher-sanford' => 'Sanford', 'teacher-deland' => 'DeLand 2
 $isDir = isset($ROLE_SCHOOL[$role]);
 $isTeacher = (strpos($role, 'teacher') === 0);
 $isParent = (strpos($role, 'parent') === 0);
-if ($isParent && ($input['action'] ?? '') !== 'bios_public') fail('Files are only available with a director PIN.', 403);
+if ($isParent && !in_array(($input['action'] ?? ''), ['bios_public', 'pp_list', 'pp_get', 'pp_orient_sign'], true)) fail('Files are only available with a director PIN.', 403);
 if (!$isDir && !$isTeacher && !$isParent) fail('Files are only available with a director PIN.', 403);
 $PARENT_SCHOOL = ['parent-sanford' => 'Sanford', 'parent-deland' => 'DeLand 2'];
 $school = $isDir ? $ROLE_SCHOOL[$role] : (isset($TEACHER_SCHOOL[$role]) ? $TEACHER_SCHOOL[$role] : (isset($PARENT_SCHOOL[$role]) ? $PARENT_SCHOOL[$role] : trim($input['school'] ?? '')));
 if (!in_array($school, $SCHOOLS, true)) fail('Pick your school first.');
 
 if ($action === 'whoami'){ echo json_encode(['role'=>$isDir ? 'director' : 'teacher', 'school'=>$school]); exit; }
+/* ---- Parent portal content: menu, newsletter, lesson plans, flyers, message board.
+   Parents, teachers and directors can READ. Only directors (and the owner through a director door) can change anything. ---- */
+function pp_dir($school){ $d = school_dir($school); if (!$d) return null; $p = $d.'/parent'; if (!is_dir($p)) @mkdir($p, 0750, true); return is_dir($p) ? $p : null; }
+function pp_txt($v, $max){ $v = strip_tags((string)$v); $v = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/', '', $v); return mb_substr(trim($v), 0, $max); }
+function pp_status_list($school){
+$d = pp_dir($school); $it = $d ? jread($d.'/items.json', []) : []; $out = [];
+$months = [date('Y-m')]; if ((int)date('j') >= 25) $months[] = date('Y-m', strtotime('first day of next month'));
+foreach ([['menu', 'menu'], ['newsletter', 'newsletter'], ['lessons', 'lesson plans']] as $k){
+foreach ($months as $m){ $have = false; foreach ($it as $x){ if (($x['kind'] ?? '') === $k[0] && ($x['month'] ?? '') === $m) $have = true; }
+$out[] = ['kind'=>$k[0], 'label'=>$k[1], 'month'=>$m, 'monthName'=>date('F', strtotime($m.'-01')), 'ok'=>$have]; }
+}
+return $out;
+}
+if ($action === 'rn_list' || $action === 'rn_set'){
+$d = school_dir($school); if (!$d) fail('Could not open storage.', 500); $nf = $d.'/room-notes.json'; $n = jread($nf, []);
+if ($action === 'rn_set'){
+if (!$isDir) fail('Only an owner or director can post staff notes.', 403);
+$room = trim((string)($input['room'] ?? 'ALL')); if ($room === '' || strlen($room) > 60) fail('Pick a room');
+$txt = mb_substr(trim(strip_tags((string)($input['text'] ?? ''))), 0, 300); $until = $input['until'] ?? '';
+if ($until !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $until)) fail('That date is not a real date');
+if ($txt === '') unset($n[$room]); else $n[$room] = ['text'=>$txt, 'by'=>mb_substr(trim(strip_tags((string)($input['by'] ?? 'Director'))), 0, 40), 'at'=>gmdate('c'), 'until'=>$until];
+jwrite($nf, $n);
+}
+$today = date('Y-m-d'); foreach ($n as $k => $v){ if (!empty($v['until']) && $v['until'] < $today) unset($n[$k]); }
+echo json_encode(['notes'=>(object)$n]); exit;
+}
+if ($action === 'pp_orient_sign'){
+if (!$isParent) fail('Only a parent signs the orientation.', 403);
+$d = pp_dir($school); if (!$d) fail('Could not open the parent portal storage.', 500);
+$pn = mb_substr(trim(strip_tags((string)($input['parent'] ?? ''))), 0, 60); $cn = mb_substr(trim(strip_tags((string)($input['child'] ?? ''))), 0, 60);
+if (strlen($pn) < 3 || strlen($cn) < 2) fail('Please type your full name and your child\'s name.');
+$o = jread($d.'/orientation.json', []); $o[] = ['parent'=>$pn, 'child'=>$cn, 'at'=>gmdate('c'), 'date'=>date('Y-m-d')];
+jwrite($d.'/orientation.json', $o); echo json_encode(['ok'=>true]); exit;
+}
+if ($action === 'pp_orient_list'){
+if (!$isDir) fail('Directors only.', 403);
+$d = pp_dir($school); if (!$d) fail('Could not open the parent portal storage.', 500);
+echo json_encode(['items'=>array_reverse(jread($d.'/orientation.json', []))]); exit;
+}
+if ($action === 'pp_list'){
+$d = pp_dir($school); if (!$d) fail('Could not open the parent portal storage.', 500);
+$it = jread($d.'/items.json', []); $bd = jread($d.'/board.json', []); $today = date('Y-m-d');
+$bd = array_values(array_filter($bd, function($b) use ($today){ return empty($b['expires']) || $b['expires'] >= $today; }));
+usort($bd, function($a, $b){ $pa = !empty($a['pinned']) ? 1 : 0; $pb = !empty($b['pinned']) ? 1 : 0; if ($pa !== $pb) return $pb - $pa; return strcmp($b['at'] ?? '', $a['at'] ?? ''); });
+$it = array_values(array_filter($it, function($x) use ($today){ return empty($x['expires']) || $x['expires'] >= $today; }));
+echo json_encode(['school'=>$school, 'month'=>date('Y-m'), 'items'=>$it, 'board'=>$bd]); exit;
+}
+if ($action === 'pp_get'){
+$d = pp_dir($school); $name = basename($input['name'] ?? ''); if (!$d || !preg_match('/^[a-z0-9._-]+$/', $name) || $name === 'items.json' || $name === 'board.json') fail('File not found', 404);
+$path = $d.'/'.$name; if (!is_file($path)) fail('File not found', 404);
+echo json_encode(['b64'=>base64_encode(file_get_contents($path)), 'name'=>$name]); exit;
+}
+if (strpos($action, 'pp_') === 0){
+if (!$isDir) fail('Only a director can change the parent portal.', 403);
+$d = pp_dir($school); if (!$d) fail('Could not open the parent portal storage.', 500);
+$KINDS_PP = ['menu', 'newsletter', 'lessons', 'flyer'];
+if ($action === 'pp_status'){ echo json_encode(['school'=>$school, 'status'=>pp_status_list($school)]); exit; }
+if ($action === 'pp_upload' || $action === 'pp_form_save'){
+$kind = $input['kind'] ?? ''; if (!in_array($kind, $KINDS_PP, true)) fail('Pick what you are posting');
+$month = $input['month'] ?? ''; if ($kind !== 'flyer' && !preg_match('/^\d{4}-\d{2}$/', $month)) fail('Pick the month this is for');
+$exp = $input['expires'] ?? ''; if ($exp !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $exp)) fail('That expiration date is not a real date');
+$title = pp_txt($input['title'] ?? '', 80); if ($title === '') fail('Add a title');
+$item = ['id'=>substr(md5(uniqid('', true)), 0, 10), 'kind'=>$kind, 'title'=>$title, 'month'=>($kind === 'flyer' ? '' : $month), 'at'=>gmdate('c'), 'by'=>pp_txt($input['by'] ?? 'Director', 40)];
+if ($exp !== '') $item['expires'] = $exp;
+if ($action === 'pp_upload'){
+$raw = base64_decode($input['b64'] ?? '', true); if ($raw === false || strlen($raw) < 100) fail('Missing file');
+if (strlen($raw) > 10 * 1024 * 1024) fail('File too large (10 MB max).');
+if (substr($raw, 0, 4) === "%PDF") $ext = 'pdf'; elseif (substr($raw, 0, 3) === "\xFF\xD8\xFF") $ext = 'jpg'; elseif (substr($raw, 0, 8) === "\x89PNG\r\n\x1a\n") $ext = 'png'; else fail('Only PDF, JPG or PNG files can be posted.');
+$item['file'] = $kind.'-'.($month !== '' ? $month : 'x').'-'.$item['id'].'.'.$ext; $item['ext'] = $ext;
+if (file_put_contents($d.'/'.$item['file'], $raw) === false) fail('Could not save the file', 500);
+} else {
+$f = $input['form'] ?? []; if (!is_array($f)) fail('Missing newsletter');
+$clean = ['welcome'=>pp_txt($f['welcome'] ?? '', 1500), 'thanks'=>pp_txt($f['thanks'] ?? '', 600), 'birthdays'=>pp_txt($f['birthdays'] ?? '', 600), 'dates'=>[], 'reminders'=>[], 'news'=>[]];
+foreach (array_slice((array)($f['dates'] ?? []), 0, 20) as $r){ $t = pp_txt($r[1] ?? '', 160); if ($t !== '') $clean['dates'][] = [pp_txt($r[0] ?? '', 30), $t]; }
+foreach (array_slice((array)($f['reminders'] ?? []), 0, 12) as $r){ $t = pp_txt($r, 240); if ($t !== '') $clean['reminders'][] = $t; }
+foreach (array_slice((array)($f['news'] ?? []), 0, 10) as $r){ $t = pp_txt($r[1] ?? '', 600); if ($t !== '') $clean['news'][] = [pp_txt($r[0] ?? '', 60), $t]; }
+$item['form'] = $clean;
+}
+$all = jread($d.'/items.json', []); $keep = [];
+foreach ($all as $x){ if ($kind !== 'flyer' && ($x['kind'] ?? '') === $kind && ($x['month'] ?? '') === $month){ if (!empty($x['file'])) @unlink($d.'/'.basename($x['file'])); continue; } $keep[] = $x; }
+$keep[] = $item; jwrite($d.'/items.json', $keep);
+echo json_encode(['ok'=>true, 'item'=>$item]); exit;
+}
+if ($action === 'pp_remove'){
+$id = preg_replace('/[^a-f0-9]/', '', $input['id'] ?? ''); $all = jread($d.'/items.json', []); $keep = [];
+foreach ($all as $x){ if (($x['id'] ?? '') === $id){ if (!empty($x['file'])) @unlink($d.'/'.basename($x['file'])); continue; } $keep[] = $x; }
+jwrite($d.'/items.json', $keep); echo json_encode(['ok'=>true]); exit;
+}
+if ($action === 'pp_board_post'){
+$t = pp_txt($input['title'] ?? '', 80); $m = pp_txt($input['message'] ?? '', 1500); if ($t === '' || $m === '') fail('Add a title and a message');
+$exp = $input['expires'] ?? ''; if ($exp !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $exp)) fail('That date is not a real date');
+$bd = jread($d.'/board.json', []); $row = ['id'=>substr(md5(uniqid('', true)), 0, 10), 'title'=>$t, 'message'=>$m, 'pinned'=>!empty($input['pinned']), 'at'=>gmdate('c'), 'by'=>pp_txt($input['by'] ?? 'Director', 40)]; if ($exp !== '') $row['expires'] = $exp;
+$bd[] = $row; jwrite($d.'/board.json', $bd); echo json_encode(['ok'=>true]); exit;
+}
+if ($action === 'pp_board_remove'){
+$id = preg_replace('/[^a-f0-9]/', '', $input['id'] ?? ''); $bd = array_values(array_filter(jread($d.'/board.json', []), function($b) use ($id){ return ($b['id'] ?? '') !== $id; }));
+jwrite($d.'/board.json', $bd); echo json_encode(['ok'=>true]); exit;
+}
+fail('Unknown parent portal action');
+}
+
 
 /* ---- Teacher-allowed actions (names list + submit a certificate). Nothing else. ---- */
 if ($action === 'training_status'){
@@ -322,6 +423,61 @@ if ($action === 'bios_public'){
 $r = roster($school, 'staff'); if ($r === null) fail('Could not read the staff list right now.', 502);
 $out = []; foreach ($r as $p){ if (strpos($p['id'], 'recTEST') === 0) continue; $row = bio_public_row($school, $p); if ($row) $out[] = $row; }
 echo json_encode(['school'=>$school, 'staff'=>$out]); exit;
+}
+/* ---- Weekly FTE report (replaces the corporate Google Form). Directors only.
+   Each school has its own sheet of up to 20 weeks in hive-vault/<school>/fte/current.json. When a sheet is full and the next week is saved,
+   the full sheet is filed in hive-vault/<school>/fte/archive/ and a new sheet starts. ---- */
+function fte_dir($school){ $d = school_dir($school); if (!$d) return null; $p = $d.'/fte'; if (!is_dir($p)) @mkdir($p, 0750, true); if (!is_dir($p.'/archive')) @mkdir($p.'/archive', 0750, true); return is_dir($p) ? $p : null; }
+function fte_monday($date){ $t = strtotime($date.' 12:00:00'); $n = (int)date('N', $t); return date('Y-m-d', $t - ($n - 1) * 86400); }
+function fte_target_week(){ $n = (int)date('N'); $mon = fte_monday(date('Y-m-d')); return $n >= 5 ? date('Y-m-d', strtotime($mon.' +7 days')) : $mon; }
+function fte_have_week($school, $wk){ $d = fte_dir($school); if (!$d) return true; $c = jread($d.'/current.json', ['rows'=>[], 'carry'=>null]); foreach ($c['rows'] as $r){ if (($r['week'] ?? '') === $wk) return true; } foreach (glob($d.'/archive/*.json') ?: [] as $f){ $a = jread($f, ['rows'=>[]]); foreach ($a['rows'] as $r){ if (($r['week'] ?? '') === $wk) return true; } } return false; }
+if (strpos($action, 'fte_') === 0){
+if (!$isDir) fail('Only a director can use the FTE report.', 403);
+$d = fte_dir($school); if (!$d) fail('Could not open the FTE storage.', 500);
+$cf = $d.'/current.json';
+if ($action === 'fte_list'){
+$c = jread($cf, ['rows'=>[], 'carry'=>null]); $arch = [];
+foreach (glob($d.'/archive/*.json') ?: [] as $f){ $a = jread($f, null); if (!$a || empty($a['rows'])) continue; $arch[] = ['file'=>basename($f), 'first'=>$a['rows'][0]['week'], 'last'=>$a['rows'][count($a['rows']) - 1]['week'], 'count'=>count($a['rows']), 'filed'=>$a['filed'] ?? '']; }
+usort($arch, function($x, $y){ return strcmp($y['first'], $x['first']); });
+echo json_encode(['school'=>$school, 'rows'=>$c['rows'], 'carry'=>$c['carry'] ?? null, 'archives'=>$arch, 'targetWeek'=>fte_target_week(), 'max'=>20]); exit;
+}
+if ($action === 'fte_archive_get'){
+$name = basename($input['file'] ?? ''); if (!preg_match('/^[A-Za-z0-9._-]+\.json$/', $name)) fail('Bad file'); $p = $d.'/archive/'.$name; if (!is_file($p)) fail('Not found', 404);
+echo json_encode(jread($p, ['rows'=>[]])); exit;
+}
+if ($action === 'fte_save'){
+$in = $input['row'] ?? []; if (!is_array($in)) fail('Missing report');
+$wk = $in['week'] ?? ''; if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $wk) || !strtotime($wk)) fail('Pick the week this report is for');
+$wk = fte_monday($wk);
+$num = function($k, $money = false) use ($in){ $v = $in[$k] ?? ''; if ($v === '' || $v === null) fail('Fill in every number (use 0 if none): '.$k); if (!is_numeric($v) || $v < 0) fail('Numbers cannot be negative: '.$k); return $money ? round((float)$v, 2) : round((float)$v, 2); };
+$row = ['week'=>$wk, 'ar'=>$num('ar', true), 'selfpay'=>$num('selfpay', true), 'subsidy'=>$num('subsidy', true), 'fte'=>$num('fte'), 'capacity'=>$num('capacity'), 'enrolled'=>$num('enrolled'), 'payroll'=>$num('payroll', true), 'phone'=>$num('phone'), 'internet'=>$num('internet'), 'newstarts'=>$num('newstarts'), 'unenrolled'=>$num('unenrolled'), 'special'=>$num('special'), 'staff'=>$num('staff'), 'prereg'=>$num('prereg')];
+if ($row['capacity'] <= 0) fail('License capacity must be more than 0');
+$row['total'] = round($row['selfpay'] + $row['subsidy'], 2); $row['occupancy'] = round($row['fte'] / $row['capacity'] * 100, 2);
+$row['by'] = mb_substr(trim(strip_tags((string)($in['by'] ?? ''))), 0, 40); $row['note'] = mb_substr(trim(strip_tags((string)($in['note'] ?? ''))), 0, 300); $row['savedAt'] = gmdate('c');
+foreach (glob($d.'/archive/*.json') ?: [] as $f){ $a = jread($f, ['rows'=>[]]); foreach ($a['rows'] as $r0){ if (($r0['week'] ?? '') === $wk) fail('That week is already filed in a full sheet in the vault. Pick a different week.'); } }
+$c = jread($cf, ['rows'=>[], 'carry'=>null]); $found = false;
+foreach ($c['rows'] as $i => $r0){ if (($r0['week'] ?? '') === $wk){ $c['rows'][$i] = $row; $found = true; } }
+if (!$found){
+if (count($c['rows']) >= 20){ // the sheet is full: file it in the vault and start a new sheet
+$first = $c['rows'][0]['week']; $last = $c['rows'][count($c['rows']) - 1]['week'];
+jwrite($d.'/archive/FTE-sheet-'.$first.'-to-'.$last.'.json', ['school'=>$school, 'rows'=>$c['rows'], 'filed'=>gmdate('c')]);
+$c = ['rows'=>[], 'carry'=>$c['rows'][count($c['rows']) - 1]];
+}
+$c['rows'][] = $row;
+}
+usort($c['rows'], function($a, $b){ return strcmp($a['week'], $b['week']); });
+jwrite($cf, $c); echo json_encode(['ok'=>true, 'rows'=>$c['rows'], 'carry'=>$c['carry'] ?? null]); exit;
+}
+if ($action === 'fte_delete'){
+$wk = $input['week'] ?? ''; $c = jread($cf, ['rows'=>[], 'carry'=>null]); $c['rows'] = array_values(array_filter($c['rows'], function($r) use ($wk){ return ($r['week'] ?? '') !== $wk; })); jwrite($cf, $c); echo json_encode(['ok'=>true, 'rows'=>$c['rows']]); exit;
+}
+if ($action === 'fte_file_sheet'){
+$c = jread($cf, ['rows'=>[], 'carry'=>null]); if (!$c['rows']) fail('The sheet is empty.');
+$first = $c['rows'][0]['week']; $last = $c['rows'][count($c['rows']) - 1]['week'];
+jwrite($d.'/archive/FTE-sheet-'.$first.'-to-'.$last.'.json', ['school'=>$school, 'rows'=>$c['rows'], 'filed'=>gmdate('c')]);
+jwrite($cf, ['rows'=>[], 'carry'=>$c['rows'][count($c['rows']) - 1]]); echo json_encode(['ok'=>true]); exit;
+}
+fail('Unknown FTE action');
 }
 /* ---- Standard Operating Procedures: everyone at the school can read; changing times needs a director PIN ---- */
 function sop_file($school){ $d = school_dir($school); return $d ? $d.'/sop.json' : null; }
@@ -474,6 +630,8 @@ elseif ($days <= 60) $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 's
 }
 $pa = at_request('GET', ['Portal Alerts'], http_build_query(['filterByFormula'=>"AND({School}='".$sc0."',{Status}='Open')", 'pageSize'=>100]));
 if (is_array($pa) && !isset($pa['error'])){ foreach (($pa['records'] ?? []) as $r0){ $f0 = $r0['fields'] ?? []; $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'alert', 'href'=>(($f0['Link'] ?? '') ?: ''), 'label'=>($f0['Alert'] ?? 'Needs attention'), 'status'=>'alert', 'red'=>!empty($f0['Red']), 'alertId'=>$r0['id']]; } }
+if ((int)date('N') >= 4){ $tw = fte_target_week(); if (!fte_have_week($school, $tw)) $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'fte', 'href'=>'fte.html', 'label'=>'Weekly FTE report for the week of '.date('n/j', strtotime($tw)).' not filed yet', 'status'=>'missing', 'red'=>((int)date('N') >= 5)]; }
+foreach (pp_status_list($school) as $ps){ if ($ps['ok']) continue; $isNext = ($ps['month'] !== date('Y-m')); $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'pp', 'href'=>'parent-manage.html', 'label'=>'Parent portal: '.$ps['monthName'].' '.$ps['label'].' not posted yet'.($isNext ? ' (month ends soon)' : ''), 'status'=>'missing', 'red'=>(!$isNext && (int)date('j') >= 5)]; }
 echo json_encode(['school'=>$school, 'items'=>$items]); exit;
 }
 
