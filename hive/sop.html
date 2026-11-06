@@ -1,0 +1,180 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Standard Operating Procedures - Kid City USA</title>
+<style>
+:root{--ink:#3b2a1d;--bg:#fff7ef;--a:#c65a1e;--g:#2e7d32;--r:#c62828;--b:#1565c0}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+.w{max-width:1000px;margin:0 auto;padding:12px}h1{margin:4px 0;font-size:1.4rem}h2{font-size:1.1rem;margin:14px 0 6px}.sub{color:#7a6552;font-size:.88rem}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}.tabs button{border:0;border-radius:12px;padding:9px 13px;font-weight:700;background:#fff;border:2px solid #e8d8c4;cursor:pointer;color:var(--ink)}.tabs button.on{background:var(--a);color:#fff;border-color:var(--a)}
+.card{background:#fff;border:2px solid #efe0cc;border-radius:14px;padding:12px;margin:10px 0}
+.btn{border:0;border-radius:10px;padding:8px 13px;font-weight:700;cursor:pointer;background:var(--a);color:#fff;font-size:.9rem}.btn.sec{background:#fff;color:var(--a);border:2px solid var(--a)}.btn.sm{padding:5px 9px;font-size:.8rem}.btn.g{background:var(--g)}.btn.r{background:var(--r)}
+table{width:100%;border-collapse:collapse;font-size:.9rem}th,td{border:1px solid #eadfce;padding:6px 7px;text-align:left;vertical-align:top}th{background:#f8efe3}
+input,select,textarea{font:inherit;padding:5px 7px;border:2px solid #e0cfb8;border-radius:8px;background:#fffdf9;max-width:100%}textarea{width:100%;min-height:52px}
+.flag{background:#ffecec;color:#b71c1c;font-weight:700;border-radius:8px;padding:2px 7px;font-size:.78rem;display:inline-block}.okc{background:#e6f4ea}.shortc{background:#ffd6d6}.fixed{font-weight:800}
+.now{background:#fff3c4}.circ{background:#e8f0ff;font-weight:800}
+.msg{margin:6px 0;font-weight:700}.bad{color:var(--r)}.ok{color:var(--g)}
+.grid{overflow:auto}.grid td,.grid th{text-align:center;font-size:.75rem;padding:4px 3px;white-space:nowrap}
+#mod{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);align-items:center;justify-content:center;z-index:50}#mod>div{background:#fff;border-radius:16px;padding:18px;max-width:380px;width:92%}
+.lt p{line-height:1.55;margin:0 0 10px}
+@media print{.noprint{display:none!important}}
+</style></head><body><div class="w" id="app"><div class="sub">Loading…</div></div>
+<div id="mod"><div id="modb"></div></div>
+<script src="sop-data.js?v=1"></script>
+<script>
+var PIN=sessionStorage.getItem('hivePin');if(!PIN)location.href='index.html';
+var $=function(i){return document.getElementById(i);};
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+var SCHOOL='',ROLE='',D=null,DIRPIN='',DIRUNTIL=0,TAB='plan0',ROOM='',DATE=new Date().toLocaleDateString('en-CA',{timeZone:'America/New_York'}),EDIT=false,COUNTS={};
+async function api(action,x){var r=await fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({pin:PIN,action:action},x||{}))});var j=await r.json().catch(function(){return {error:'Server error. Try again in a minute.'};});if(j.error)throw new Error(j.error);return j;}
+function canEdit(){return ROLE==='director'||(DIRPIN&&Date.now()<DIRUNTIL);}
+function say(t,bad){var m=$('msg');if(m){m.textContent=t||'';m.className='msg '+(bad?'bad':'ok');}}
+async function save(what){try{await api('sop_save',{data:{rooms:D.rooms,staff:D.staff,timeline:D.timeline,days:D.days},dirpin:DIRPIN,what:what||''});say('Saved.');}catch(e){say(e.message,1);if(/PIN/.test(e.message)){DIRPIN='';DIRUNTIL=0;EDIT=false;draw();}}}
+function askPin(then){$('modb').innerHTML='<h2 style="margin-top:0">A director needs to do this</h2><p class="sub">Only directors can change times. Call your director over. They type their own PIN here, then make the change.</p><input id="dp" type="password" inputmode="numeric" placeholder="Director PIN" style="width:100%;font-size:1.2rem"><div class="msg bad" id="dpm"></div><button class="btn" id="dpgo">Unlock</button> <button class="btn sec" id="dpx">Cancel</button>';$('mod').style.display='flex';$('dp').focus();
+ $('dpx').onclick=function(){$('mod').style.display='none';};
+ $('dpgo').onclick=async function(){var v=$('dp').value;try{var j=await api('sop_auth',{dirpin:v});if(j.ok){DIRPIN=v;DIRUNTIL=Date.now()+10*60000;EDIT=true;$('mod').style.display='none';draw();if(then)then();}else $('dpm').textContent='That is not a director PIN for '+SCHOOL+'.';}catch(e){$('dpm').textContent=e.message;}};}
+function toggleEdit(){if(canEdit()){EDIT=!EDIT;draw();}else askPin();}
+function mm(t){return SOP.toMin(t);}
+function hm(n){var h=Math.floor(n/60),m=n%60;return (h<10?'0':'')+h+':'+(m<10?'0':'')+m;}
+function rng(s,e){return SOP.fmt(s)+(e?' - '+SOP.fmt(e):'');}
+async function boot(){
+ try{var w=await api('whoami');SCHOOL=w.school;ROLE=w.role;if(!SCHOOL)throw new Error('Please log in with your school\'s PIN.');var j=await api('sop_get');D=SOP.merge(SCHOOL,j.data);ROOM=Object.keys(D.rooms)[0]||'';}
+ catch(e){$('app').innerHTML='<div class="card"><b>'+esc(e.message)+'</b><p><a class="btn" href="index.html">Back to sign in</a></p></div>';return;}
+ draw();}
+var TABS=[['plan0','📖 Letter & Rules'],['time','⏱ Day Timeline'],['rooms','🧸 Classroom Schedules'],['staff','👩‍🏫 Staff Schedule'],['plan','🧮 Day Planner'],['print','🖨 Print Forms']];
+function draw(){
+ var back=ROLE==='director'?'director.html':'teacher.html';
+ var h='<div class="top"><div><h1>📖 Standard Operating Procedures</h1><div class="sub">Kid City USA '+esc(SCHOOL)+' &middot; <input type="date" id="dt" value="'+DATE+'" onchange="DATE=this.value;draw()"></div></div><div class="noprint"><a class="btn sec" href="'+back+'">‹ Back to portal</a> <button class="btn '+(EDIT?'g':'')+'" onclick="toggleEdit()">'+(EDIT?'✓ Done changing':'✏️ Change times / names')+'</button></div></div>';
+ h+='<div class="tabs noprint">'+TABS.map(function(t){return '<button class="'+(TAB===t[0]?'on':'')+'" onclick="TAB=\''+t[0]+'\';draw()">'+t[1]+'</button>';}).join('')+'</div><div class="msg" id="msg"></div>';
+ if(EDIT)h+='<div class="card" style="background:#fff8e1;border-color:#e0a100"><b>Changing mode is on.</b> <span class="sub">'+(ROLE==='director'?'':'A director PIN was entered. It turns off after 10 minutes. ')+'Changes save when you tap Save.</span></div>';
+ h+=({plan0:letterTab,time:timeTab,rooms:roomsTab,staff:staffTab,plan:plannerTab,print:printTab})[TAB]();
+ $('app').innerHTML=h;}
+/* ---------- letter & rules ---------- */
+function letterTab(){var h='<div class="card lt"><h2 style="margin-top:0">A note from Mrs. Bear</h2>'+SOP.LETTER.map(function(p){return '<p>'+esc(p)+'</p>';}).join('')+'<p><b>— Mrs. Bear</b></p><div class="sub">Questions? Reach out to '+esc(D.signedBy||'your director')+' or Mrs. Bear.</div></div>';
+ h+='<div class="card"><h2 style="margin-top:0">Standing rules</h2>'+SOP.RULES.map(function(r){return '<p style="margin:0 0 9px"><b>'+esc(r[0])+'.</b> '+esc(r[1])+'</p>';}).join('')+'</div>';
+ h+='<div class="card"><h2 style="margin-top:0">Ratios</h2><table><tr><th>Age group</th><th>Max ratio</th><th>Note</th></tr>'+SOP.RATIOS.map(function(r){return '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td></tr>';}).join('')+'</table><p class="sub">If children are asleep and a second teacher is within sight and reach, only one teacher must be in the nap room, but the ratio math still has to check out on paper.</p></div>';
+ h+='<div class="card"><h2 style="margin-top:0">Closing checklist</h2>'+SOP.CLOSING.map(function(c){return '<div>☐ '+esc(c)+'</div>';}).join('')+'</div>';return h;}
+/* ---------- helpers: who is on ---------- */
+function eff(){return SOP.effective(D,DATE);}
+function matchStaff(who,list){var n=SOP.norm(who);if(!n)return null;for(var i=0;i<list.length;i++){var s=SOP.norm(list[i].name);if(s&&(n.indexOf(s)>=0))return list[i];}return null;}
+function dayRec(){D.days=D.days||{};D.days[DATE]=D.days[DATE]||{};return D.days[DATE];}
+/* ---------- day timeline ---------- */
+function timeTab(){var st=eff(),day=(D.days||{})[DATE]||{},cover=day.cover||{};
+ var rows=D.timeline.slice().sort(function(a,b){return mm(a.s)-mm(b.s);});
+ var h='<div class="card"><div class="sub" style="margin-bottom:6px">The whole day, top to bottom: who is where and what they are doing. Red flags show a step whose person is not working at that time on the date above.'+(EDIT?'':'')+'</div><table><tr><th style="width:130px">Time</th><th style="width:190px">Who</th><th>What</th>'+(EDIT?'<th style="width:70px"></th>':'')+'</tr>';
+ rows.forEach(function(r){var i=D.timeline.indexOf(r),sm=matchStaff(r.who,st),flag='';
+  if(sm){var a=mm(r.s);if(sm.off)flag='<span class="flag">'+esc(sm.name)+' is out today. Needs cover.</span>';else if(sm.in&&a<mm(sm.in)||sm.out&&a>=mm(sm.out))flag='<span class="flag">'+esc(sm.name)+' works '+rng(sm.in,sm.out)+'. Needs cover.</span>';}
+  var cv=cover[r.id];
+  if(EDIT)h+='<tr><td><input type="time" value="'+esc(r.s)+'" onchange="D.timeline['+i+'].s=this.value"><br><input type="time" value="'+esc(r.e||'')+'" onchange="D.timeline['+i+'].e=this.value"></td><td><input style="width:100%" value="'+esc(r.who)+'" onchange="D.timeline['+i+'].who=this.value"></td><td><textarea onchange="D.timeline['+i+'].what=this.value">'+esc(r.what)+'</textarea>'+(flag?flag+' <select onchange="setCover(\''+r.id+'\',this.value)"><option value="">Who covers?</option>'+st.filter(function(x){return !x.off;}).map(function(x){return '<option'+(cv===x.name?' selected':'')+'>'+esc(x.name)+'</option>';}).join('')+'</select>':'')+'</td><td><button class="btn sm r" onclick="delRow('+i+')">Delete</button></td></tr>';
+  else h+='<tr><td class="fixed">'+esc(rng(r.s,r.e))+'</td><td>'+esc(r.who)+'</td><td>'+esc(r.what)+(flag?'<br>'+flag+(cv?' <b class="ok">Covered by '+esc(cv)+'</b>':''):'')+'</td></tr>';});
+ h+='</table>'+(EDIT?'<p><button class="btn sm sec" onclick="addRow()">+ Add a step</button> <button class="btn g" onclick="save(\'timeline\')">Save</button></p>':'')+'</div>';return h;}
+function setCover(id,v){var d=dayRec();d.cover=d.cover||{};if(v)d.cover[id]=v;else delete d.cover[id];save('cover '+DATE);draw();}
+function delRow(i){if(!confirm('Delete this step?'))return;D.timeline.splice(i,1);draw();}
+function addRow(){D.timeline.push({id:'t'+Date.now(),s:'12:00',e:'',who:'',what:''});draw();}
+/* ---------- classroom schedules ---------- */
+function roomsTab(){var names=Object.keys(D.rooms),r=D.rooms[ROOM];
+ var h='<div class="card"><div style="display:flex;gap:6px;flex-wrap:wrap">'+names.map(function(n){return '<button class="btn '+(n===ROOM?'':'sec')+'" onclick="ROOM=\''+esc(n).replace(/'/g,"\\'")+'\';draw()">'+esc(n)+'</button>';}).join('')+'</div></div>';
+ if(!r)return h;var age=SOP.AGE[r.tpl]||{label:'',ratio:''};
+ var st=eff().filter(function(x){return x.room===ROOM&&!x.off;});
+ h+='<div class="card"><h2 style="margin-top:0">'+esc(ROOM)+'</h2><div class="sub">Age group: '+(EDIT?'<select onchange="D.rooms[ROOM].tpl=this.value">'+Object.keys(SOP.AGE).map(function(k){return '<option value="'+k+'"'+(k===r.tpl?' selected':'')+'>'+SOP.AGE[k].label+'</option>';}).join('')+'</select> <button class="btn sm sec" onclick="resetRoom()">Reset times to this age group\'s schedule</button>':esc(age.label))+' &middot; Ratio 1:'+age.ratio+' &middot; Teachers today: '+(st.length?st.map(function(x){return esc(x.name)+' ('+rng(x.in,x.out)+')';}).join(', '):'none assigned')+'</div>';
+ h+='<div class="sub" style="margin:6px 0">Times stay the same every day. Only a director can change a time. <a href="'+(ROLE==='director'?'director.html':'teacher.html')+'">Open the Daily Plans for today\'s lesson</a>.</div>';
+ var now=hm(new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'})).getHours()*60+new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'})).getMinutes());
+ if(!r.blocks.length&&!EDIT)h+='<div class="msg bad">This room\'s schedule is not loaded yet. A director can add it (tap Change times).</div>';
+ h+='<table><tr><th style="width:170px">Time</th><th>Activity</th>'+(EDIT?'<th style="width:60px"></th>':'')+'</tr>';
+ r.blocks.forEach(function(b,i){var isNow=DATE===new Date().toLocaleDateString('en-CA',{timeZone:'America/New_York'})&&mm(now)>=mm(b.s)&&mm(now)<mm(b.e),cls=(isNow?'now ':'')+(/circle|meeting/i.test(b.t)?'circ':'');
+  if(EDIT)h+='<tr><td><input type="time" value="'+esc(b.s)+'" onchange="D.rooms[ROOM].blocks['+i+'].s=this.value"> <input type="time" value="'+esc(b.e)+'" onchange="D.rooms[ROOM].blocks['+i+'].e=this.value"></td><td><input style="width:100%" value="'+esc(b.t)+'" onchange="D.rooms[ROOM].blocks['+i+'].t=this.value"> <label class="sub"><input type="checkbox" '+(b.f?'checked':'')+' onchange="D.rooms[ROOM].blocks['+i+'].f=this.checked?1:0"> fixed</label></td><td><button class="btn sm r" onclick="D.rooms[ROOM].blocks.splice('+i+',1);draw()">X</button></td></tr>';
+  else h+='<tr class="'+cls+'"><td class="fixed">'+esc(rng(b.s,b.e))+'</td><td>'+esc(b.t)+(b.f?' <span class="sub">(fixed time)</span>':'')+(isNow?' <b>&larr; now</b>':'')+'</td></tr>';});
+ h+='</table>'+(r.lunch?'<div class="sub" style="margin-top:6px">Teacher lunch break: '+esc(rng(r.lunch[0],r.lunch[1]))+'</div>':(SOP.AGE[r.tpl]&&SOP.AGE[r.tpl].lunch?'<div class="sub" style="margin-top:6px">Teacher lunch break: '+esc(rng(SOP.AGE[r.tpl].lunch[0],SOP.AGE[r.tpl].lunch[1]))+'</div>':''));
+ if(EDIT)h+='<p><button class="btn sm sec" onclick="D.rooms[ROOM].blocks.push({s:\'12:00\',e:\'12:30\',t:\'\',f:0});draw()">+ Add a time</button> <button class="btn g" onclick="save(\'room '+esc(ROOM).replace(/'/g,'')+'\')">Save</button></p>';
+ return h+'</div>';}
+function resetRoom(){var r=D.rooms[ROOM];if(!confirm('Replace this room\'s times with the '+SOP.AGE[r.tpl].label+' schedule?'))return;r.blocks=JSON.parse(JSON.stringify(SOP.AGE[r.tpl].blocks));draw();}
+/* ---------- staff schedule ---------- */
+function staffTab(){var rooms=Object.keys(D.rooms),eg=eff();
+ var h='<div class="card"><h2 style="margin-top:0">Posted staff schedule</h2><div class="sub">The regular weekly hours posted for DCF. The Today column shows changes for the date above.</div><div class="grid"><table><tr><th>Name</th><th>Position</th><th>Room</th>'+[1,2,3,4,5].map(function(d){return '<th>'+SOP.DAYS[d]+'</th>';}).join('')+'<th>Break</th><th>Today ('+DATE.slice(5)+')</th>'+(EDIT?'<th></th>':'')+'</tr>';
+ D.staff.forEach(function(s,i){var t=eg.filter(function(x){return x.name===s.name&&!x.sub;})[0]||{};
+  if(EDIT){h+='<tr><td><input style="width:120px" value="'+esc(s.name)+'" onchange="D.staff['+i+'].name=this.value"></td><td><input style="width:140px" value="'+esc(s.role||'')+'" onchange="D.staff['+i+'].role=this.value"></td><td><select onchange="D.staff['+i+'].room=this.value"><option value="">(none)</option>'+rooms.map(function(r){return '<option'+(s.room===r?' selected':'')+'>'+esc(r)+'</option>';}).join('')+'</select></td>';
+   for(var d=1;d<=5;d++){var w=(s.week||{})[d];h+='<td><input type="time" value="'+(w?esc(w.in):'')+'" onchange="wk('+i+','+d+',\'in\',this.value)"><br><input type="time" value="'+(w?esc(w.out):'')+'" onchange="wk('+i+','+d+',\'out\',this.value)"></td>';}
+   h+='<td><input type="time" value="'+(s.brk?esc(s.brk.s):'')+'" onchange="brk('+i+',\'s\',this.value)"><br><input type="time" value="'+(s.brk?esc(s.brk.e):'')+'" onchange="brk('+i+',\'e\',this.value)"></td><td></td><td><button class="btn sm r" onclick="if(confirm(\'Remove '+esc(s.name).replace(/'/g,'')+' from the schedule?\')){D.staff.splice('+i+',1);draw();}">X</button></td></tr>';}
+  else{h+='<tr><td><b>'+esc(s.name)+'</b></td><td>'+esc(s.role||'')+'</td><td>'+esc(s.room||'')+'</td>';for(var d=1;d<=5;d++){var w=(s.week||{})[d];h+='<td>'+(w?esc(SOP.fmt(w.in)+' - '+SOP.fmt(w.out)):'off')+'</td>';}
+   h+='<td>'+(s.brk?esc(rng(s.brk.s,s.brk.e)):'')+'</td><td>'+(t.off?'<span class="flag">OUT</span>':t.changed?'<b>'+esc(rng(t.in,t.out))+'</b>':esc(t.in?rng(t.in,t.out):''))+'</td></tr>';}});
+ eg.filter(function(x){return x.sub;}).forEach(function(x){h+='<tr class="now"><td><b>'+esc(x.name)+'</b> <span class="sub">(substitute)</span></td><td>'+esc(x.role)+'</td><td>'+esc(x.room)+'</td><td colspan="5"></td><td></td><td>'+esc(rng(x.in,x.out))+'</td></tr>';});
+ h+='</table></div>'+(EDIT?'<p><button class="btn sm sec" onclick="addStaff()">+ Add a staff member</button> <button class="btn g" onclick="save(\'staff\')">Save</button></p>':'')+'</div>';
+ /* today's changes */
+ var day=(D.days||{})[DATE]||{},ov=day.staff||[];
+ h+='<div class="card"><h2 style="margin-top:0">Changes for '+DATE+'</h2><div class="sub">A call-out, a late start, or a substitute. The Day Planner re-checks coverage right away. Nothing here changes the regular schedule above.</div>';
+ ov.forEach(function(o,i){h+='<div style="margin:4px 0">'+esc(o.name)+': '+(o.off?'<b>out</b>'+(o.note?' ('+esc(o.note)+')':''):esc(rng(o.in,o.out))+(o.room?' in '+esc(o.room):'')+(o.sub?' (substitute)':''))+(EDIT?' <button class="btn sm r" onclick="delOv('+i+')">remove</button>':'')+'</div>';});
+ if(!ov.length)h+='<div class="sub">No changes for this date.</div>';
+ if(EDIT){h+='<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:end"><select id="ovn"><option value="">Staff member…</option>'+D.staff.map(function(s){return '<option>'+esc(s.name)+'</option>';}).join('')+'</select><select id="ovk"><option value="off">Out today</option><option value="hrs">Different hours today</option></select><input type="time" id="ovi"><input type="time" id="ovo"><input id="ovt" placeholder="Reason (optional)"><button class="btn sm" onclick="addOv()">Add change</button></div>'
+  +'<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:end"><input id="sbn" placeholder="Substitute name"><input type="time" id="sbi"><input type="time" id="sbo"><select id="sbr"><option value="">Room…</option>'+rooms.map(function(r){return '<option>'+esc(r)+'</option>';}).join('')+'</select><button class="btn sm" onclick="addSub()">Add substitute</button></div>';}
+ return h+'</div>';}
+function wk(i,d,k,v){var s=D.staff[i];s.week=s.week||{};s.week[d]=s.week[d]||{in:'',out:''};s.week[d][k]=v;if(!s.week[d].in&&!s.week[d].out)delete s.week[d];}
+function brk(i,k,v){var s=D.staff[i];s.brk=s.brk||{s:'',e:''};s.brk[k]=v;if(!s.brk.s&&!s.brk.e)s.brk=null;}
+function addStaff(){D.staff.push({name:'New staff',role:'',room:'',week:{1:{in:'08:00',out:'17:00'},2:{in:'08:00',out:'17:00'},3:{in:'08:00',out:'17:00'},4:{in:'08:00',out:'17:00'},5:{in:'08:00',out:'17:00'}},brk:null});draw();}
+function addOv(){var n=$('ovn').value,k=$('ovk').value;if(!n)return;var d=dayRec();d.staff=(d.staff||[]).filter(function(x){return x.name!==n;});
+ if(k==='off')d.staff.push({name:n,off:true,note:$('ovt').value});else{if(!$('ovi').value&&!$('ovo').value){say('Type the start and end time.',1);return;}d.staff.push({name:n,in:$('ovi').value,out:$('ovo').value,note:$('ovt').value});}
+ save('change '+DATE);draw();}
+function addSub(){var n=$('sbn').value.trim();if(!n||!$('sbi').value||!$('sbo').value){say('Name, start and end time please.',1);return;}var d=dayRec();d.staff=(d.staff||[]).concat([{name:n,role:'Substitute',in:$('sbi').value,out:$('sbo').value,room:$('sbr').value,sub:true}]);save('substitute '+DATE);draw();}
+function delOv(i){var d=dayRec();d.staff.splice(i,1);save('change '+DATE);draw();}
+/* ---------- day planner ---------- */
+function slots(){var o=[];for(var t=510;t<1050;t+=30)o.push(t);return o;}
+function ratioOf(room){var r=D.rooms[room];return r?(SOP.AGE[r.tpl]||{ratio:20}).ratio:20;}
+function dayCounts(){var d=((D.days||{})[DATE]||{});return d.counts||{};}
+function present(st,a,b){if(st.off||!st.in||!st.out)return false;if(!(mm(st.in)<=a&&mm(st.out)>=b))return false;if(st.brk&&mm(st.brk.s)<b&&mm(st.brk.e)>a)return false;return true;}
+function roomOfAt(st,a,b){var mv=(((D.days||{})[DATE]||{}).moves||[]);for(var i=0;i<mv.length;i++){if(mv[i].name===st.name&&mm(mv[i].s)<=a&&mm(mv[i].e)>=b)return mv[i].room;}return st.room;}
+function analyze(){var st=eff(),rooms=Object.keys(D.rooms),cn=dayCounts(),cb=(D.standing||[]).concat((((D.days||{})[DATE]||{}).combine||[])),res={slots:slots(),cells:{},staffcells:{},issues:[]};
+ res.slots.forEach(function(a){var b=a+30,groups=[];var used={};
+  cb.forEach(function(c){if(mm(c.s)<=a&&mm(c.e)>=b){groups.push(c.rooms.slice());c.rooms.forEach(function(r){used[r]=1;});}});
+  rooms.forEach(function(r){if(!used[r])groups.push([r]);});
+  var pr=st.filter(function(s){return present(s,a,b);});
+  groups.forEach(function(g){var sup=pr.filter(function(s){return g.indexOf(roomOfAt(s,a,b))>=0;}).length,tot=0,known=false,rt=99;
+   g.forEach(function(r){if(cn[r]!==undefined&&cn[r]!==''){known=true;tot+=+cn[r];}rt=Math.min(rt,ratioOf(r));});
+   var dem=known?Math.ceil(tot/rt):1;if(known&&tot===0)dem=0;
+   g.forEach(function(r){res.cells[r+'|'+a]={sup:sup,dem:dem,g:g,tot:tot,known:known,rt:rt};});});
+  st.forEach(function(s){var rr=roomOfAt(s,a,b),k='';if(s.off)k='out';else if(!s.in||mm(s.in)>=b||mm(s.out)<=a)k='';else if(!present(s,a,b))k='break';else k=rr||'floater';res.staffcells[s.name+'|'+a]=k;});});
+ /* issues: runs of short slots per room */
+ rooms.forEach(function(r){var run=null;res.slots.forEach(function(a){var c=res.cells[r+'|'+a],bad=c&&c.sup<c.dem;if(bad){if(!run)run={room:r,from:a,to:a+30,need:c.dem-c.sup,c:c};else{run.to=a+30;run.need=Math.max(run.need,c.dem-c.sup);}}else if(run){res.issues.push(run);run=null;}});if(run)res.issues.push(run);});
+ res.issues.forEach(function(it){var fl=[],a=it.from;
+  st.forEach(function(s){if(!present(s,a,a+30))return;var rr=roomOfAt(s,a,a+30);if(!rr||!D.rooms[rr]){fl.push(s.name+' (no room)');return;}var c=res.cells[rr+'|'+a];if(c&&c.sup>c.dem&&rr!==it.room)fl.push(s.name+' (extra in '+rr+')');});
+  it.floaters=fl;it.combine=[];Object.keys(D.rooms).forEach(function(q){if(q===it.room)return;var cq=res.cells[q+'|'+a];if(!cq||cq.g.length>1)return;var tot=(cn[it.room]!==undefined&&cn[it.room]!==''?+cn[it.room]:null),tq=(cn[q]!==undefined&&cn[q]!==''?+cn[q]:null);if(tot===null||tq===null)return;var rt=Math.min(ratioOf(it.room),ratioOf(q));var sup=it.c.sup+cq.sup;if(sup>=1&&Math.ceil((tot+tq)/rt)<=sup)it.combine.push(q+' ('+(tot+tq)+' children, 1:'+rt+')');});});
+ return res;}
+function plannerTab(){var st=eff(),rooms=Object.keys(D.rooms),cn=dayCounts(),A=analyze();
+ var h='<div class="card"><h2 style="margin-top:0">Day planner for '+DATE+'</h2><div class="sub">Shows whether every room has enough teachers all day, based on who is working (Staff Schedule tab) and how many children are in each room. Type headcounts below (leave blank if unknown: one teacher per room is assumed). The classroom schedules and what teachers do (circle time, lunch, cleaning charts) stay the same; this only shows who covers what.</div>';
+ h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">'+rooms.map(function(r){return '<label>'+esc(r)+' <input type="number" min="0" style="width:62px" value="'+(cn[r]===undefined?'':cn[r])+'" onchange="setCount(\''+esc(r).replace(/'/g,"\\'")+'\',this.value)"> <span class="sub">1:'+ratioOf(r)+'</span></label>';}).join('')+'</div>';
+ h+='<div class="grid"><table><tr><th style="text-align:left">Room</th>'+A.slots.map(function(a){return '<th>'+SOP.fmt(hm(a)).replace(':00','').replace(' ','')+'</th>';}).join('')+'</tr>';
+ rooms.forEach(function(r){h+='<tr><td style="text-align:left"><b>'+esc(r)+'</b></td>'+A.slots.map(function(a){var c=A.cells[r+'|'+a];if(!c)return '<td></td>';var bad=c.sup<c.dem;return '<td class="'+(bad?'shortc':'okc')+'">'+c.sup+'/'+c.dem+(c.g.length>1?'*':'')+'</td>';}).join('')+'</tr>';});
+ h+='</table></div><div class="sub">Each box: teachers there / teachers needed. Red means short. * means rooms combined.</div>';
+ if(A.issues.length){h+='<h2>What needs attention</h2>';A.issues.forEach(function(it){h+='<div class="card" style="border-color:#e57373"><b>'+esc(it.room)+'</b> is short '+it.need+' teacher'+(it.need>1?'s':'')+' from '+SOP.fmt(hm(it.from))+' to '+SOP.fmt(hm(it.to))+'.'+(it.floaters.length?'<div>Available: '+it.floaters.map(esc).join(', ')+'</div>':'')+(it.combine.length?'<div>Could combine with: '+it.combine.map(esc).join(', ')+'</div>':'')+(!it.floaters.length&&!it.combine.length?'<div class="sub">No one is free. Add a substitute on the Staff Schedule tab, or enter headcounts to see if rooms can combine.</div>':'')+'</div>';});}
+ else h+='<div class="msg ok">✓ Every room is covered all day with the current hours.</div>';
+ /* who is where */
+ h+='<h2>Who is where</h2><div class="grid"><table><tr><th style="text-align:left">Staff</th>'+A.slots.map(function(a){return '<th>'+SOP.fmt(hm(a)).replace(':00','').replace(' ','')+'</th>';}).join('')+'</tr>';
+ st.forEach(function(s){h+='<tr><td style="text-align:left"><b>'+esc(s.name)+'</b>'+(s.off?' <span class="flag">OUT</span>':'')+'</td>'+A.slots.map(function(a){var k=A.staffcells[s.name+'|'+a];return '<td class="'+(k==='break'?'now':k===''||k==='out'?'':'okc')+'" title="'+esc(k)+'">'+esc(k==='break'?'brk':k==='floater'?'float':k.replace(/ .*$/,'').slice(0,6))+'</td>';}).join('')+'</tr>';});
+ h+='</table></div></div>';
+ /* combine + moves */
+ var day=(D.days||{})[DATE]||{};
+ h+='<div class="card"><h2 style="margin-top:0">Combine rooms or move a teacher (today only)</h2>';
+ (day.combine||[]).forEach(function(c,i){h+='<div>Combined: <b>'+esc(c.rooms.join(' + '))+'</b> '+esc(rng(c.s,c.e))+(EDIT?' <button class="btn sm r" onclick="delList(\'combine\','+i+')">remove</button>':'')+'</div>';});
+ (day.moves||[]).forEach(function(c,i){h+='<div>Move: <b>'+esc(c.name)+'</b> to '+esc(c.room)+' '+esc(rng(c.s,c.e))+(EDIT?' <button class="btn sm r" onclick="delList(\'moves\','+i+')">remove</button>':'')+'</div>';});
+ if(!(day.combine||[]).length&&!(day.moves||[]).length)h+='<div class="sub">None yet.</div>';
+ if(EDIT){h+='<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><select id="cb1"><option value="">Room…</option>'+rooms.map(function(r){return '<option>'+esc(r)+'</option>';}).join('')+'</select><select id="cb2"><option value="">+ Room…</option>'+rooms.map(function(r){return '<option>'+esc(r)+'</option>';}).join('')+'</select><input type="time" id="cbs"><input type="time" id="cbe"><button class="btn sm" onclick="addCombine()">Combine</button></div>'
+  +'<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><select id="mvn"><option value="">Teacher…</option>'+st.filter(function(x){return !x.off;}).map(function(s){return '<option>'+esc(s.name)+'</option>';}).join('')+'</select><select id="mvr"><option value="">Go to room…</option>'+rooms.map(function(r){return '<option>'+esc(r)+'</option>';}).join('')+'</select><input type="time" id="mvs"><input type="time" id="mve"><button class="btn sm" onclick="addMove()">Move</button></div>';}
+ else h+='<div class="sub" style="margin-top:6px">Only a director can combine rooms or move a teacher.</div>';
+ return h+'</div>';}
+function setCount(r,v){var d=dayRec();d.counts=d.counts||{};if(v==='')delete d.counts[r];else d.counts[r]=+v;save('headcounts '+DATE);draw();}
+function addCombine(){var a=$('cb1').value,b=$('cb2').value,s=$('cbs').value,e=$('cbe').value;if(!a||!b||a===b||!s||!e){say('Pick two different rooms and the times.',1);return;}var d=dayRec();d.combine=(d.combine||[]).concat([{rooms:[a,b],s:s,e:e}]);save('combine '+DATE);draw();}
+function addMove(){var n=$('mvn').value,r=$('mvr').value,s=$('mvs').value,e=$('mve').value;if(!n||!r||!s||!e){say('Pick the teacher, the room and the times.',1);return;}var d=dayRec();d.moves=(d.moves||[]).concat([{name:n,room:r,s:s,e:e}]);save('move '+DATE);draw();}
+function delList(k,i){var d=dayRec();d[k].splice(i,1);save('remove '+k+' '+DATE);draw();}
+/* ---------- print forms ---------- */
+function printTab(){var rooms=Object.keys(D.rooms);return '<div class="card"><h2 style="margin-top:0">Official forms to print</h2><div class="sub">DCF requires staff schedules to be posted and available, and a schedule for every classroom. These print from what is saved here. Directors can also open them under DCF Binder > Official Forms.</div><p><button class="btn" onclick="printStaff()">🖨 Posted staff schedule</button></p><p>'+rooms.map(function(r){return '<button class="btn sec" style="margin:3px" onclick="printRoom(\''+esc(r).replace(/'/g,"\\'")+'\')">🖨 '+esc(r)+'</button>';}).join('')+'</p><p><button class="btn sec" onclick="printAll()">🖨 All classroom schedules</button></p></div>';}
+var PCSS='<style>body{font-family:Arial,sans-serif;margin:20px;color:#000}h1{font-size:20px;margin:0}h2{font-size:15px;margin:2px 0 10px;font-weight:normal}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #000;padding:5px 6px;text-align:left}th{background:#eee}.pb{page-break-after:always}.f{margin-top:16px;font-size:12px}</style>';
+function openPrint(html){var w=window.open('','_blank');if(!w){say('Allow pop-ups to print.',1);return;}w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Print</title>'+PCSS+'</head><body>'+html+'<script>setTimeout(function(){window.print()},300)<\/script></body></html>');w.document.close();}
+function monday(){var p=DATE.split('-'),d=new Date(+p[0],+p[1]-1,+p[2],12);d.setDate(d.getDate()-((d.getDay()+6)%7));return d.toLocaleDateString('en-US');}
+function staffHtml(){var h='<h1>Kid City USA '+esc(SCHOOL)+'</h1><h2>Staff Schedule (posted) &middot; week of '+monday()+'</h2><table><tr><th>Name</th><th>Position</th><th>Room</th>'+[1,2,3,4,5].map(function(d){return '<th>'+SOP.DAYS[d]+'</th>';}).join('')+'<th>Break</th></tr>';
+ D.staff.forEach(function(s){h+='<tr><td>'+esc(s.name)+'</td><td>'+esc(s.role||'')+'</td><td>'+esc(s.room||'')+'</td>'+[1,2,3,4,5].map(function(d){var w=(s.week||{})[d];return '<td>'+(w?esc(SOP.fmt(w.in)+' - '+SOP.fmt(w.out)):'off')+'</td>';}).join('')+'<td>'+(s.brk?esc(rng(s.brk.s,s.brk.e)):'')+'</td></tr>';});
+ return h+'</table><div class="f">Schedules may change when a staff member is out. Changes are recorded in the Hive. Director signature: ______________________ Date: __________</div>';}
+function roomHtml(r){var o=D.rooms[r],age=SOP.AGE[o.tpl]||{label:''},tch=D.staff.filter(function(s){return s.room===r;}).map(function(s){return s.name;}).join(', ');
+ var h='<h1>Kid City USA '+esc(SCHOOL)+'</h1><h2>Classroom Daily Schedule &middot; '+esc(r)+' &middot; '+esc(age.label)+'</h2><div style="font-size:12px;margin-bottom:8px">Teachers: '+esc(tch||'')+'</div><table><tr><th style="width:150px">Time</th><th>Activity</th></tr>';
+ o.blocks.forEach(function(b){h+='<tr><td>'+esc(rng(b.s,b.e))+'</td><td>'+esc(b.t)+'</td></tr>';});
+ return h+'</table><div class="f">Director signature: ______________________ Date: __________</div>';}
+function printStaff(){openPrint(staffHtml());}
+function printRoom(r){openPrint(roomHtml(r));}
+function printAll(){openPrint(Object.keys(D.rooms).map(function(r){return '<div class="pb">'+roomHtml(r)+'</div>';}).join(''));}
+boot();
+</script></body></html>

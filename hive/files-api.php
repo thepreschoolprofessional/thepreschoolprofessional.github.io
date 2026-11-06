@@ -307,6 +307,32 @@ $r = roster($school, 'staff'); if ($r === null) fail('Could not read the staff l
 $out = []; foreach ($r as $p){ if (strpos($p['id'], 'recTEST') === 0) continue; $row = bio_public_row($school, $p); if ($row) $out[] = $row; }
 echo json_encode(['school'=>$school, 'staff'=>$out]); exit;
 }
+/* ---- Standard Operating Procedures: everyone at the school can read; changing times needs a director PIN ---- */
+function sop_file($school){ $d = school_dir($school); return $d ? $d.'/sop.json' : null; }
+function sop_dir_ok($school, $isDir, $pins, $dp){
+if ($isDir) return true;
+$dp = strtoupper(trim((string)$dp)); if ($dp === '') return false;
+$dr = $pins[$dp] ?? ''; $want = ($school === 'Sanford') ? 'director-sanford' : 'director-deland';
+return ($dr === $want || $dr === 'owner');
+}
+if ($action === 'sop_get'){
+$f = sop_file($school); $d = ($f && is_file($f)) ? jread($f, []) : [];
+echo json_encode(['school'=>$school, 'data'=>(empty($d) ? new stdClass : $d), 'canEdit'=>$isDir]); exit;
+}
+if ($action === 'sop_auth'){
+echo json_encode(['ok'=>sop_dir_ok($school, $isDir, $pins, $input['dirpin'] ?? '')]); exit;
+}
+if ($action === 'sop_save'){
+if (!sop_dir_ok($school, $isDir, $pins, $input['dirpin'] ?? '')) fail('A director has to enter their PIN to change the schedule.', 403);
+$data = $input['data'] ?? null; if (!is_array($data)) fail('Nothing to save.');
+$keep = []; foreach (['rooms', 'staff', 'timeline', 'days'] as $k){ if (array_key_exists($k, $data)) $keep[$k] = $data[$k]; }
+$json = json_encode($keep); if ($json === false || strlen($json) > 400000) fail('That is too much to save.');
+$f = sop_file($school); if (!$f) fail('Could not save right now.', 500);
+jwrite($f, $keep);
+$lf = dirname($f).'/sop_log.json'; $lg = jread($lf, []); $lg[] = ['at'=>gmdate('c'), 'by'=>($isDir ? 'director' : 'director PIN entered on a teacher login'), 'what'=>mb_substr((string)($input['what'] ?? ''), 0, 120)];
+if (count($lg) > 300) $lg = array_slice($lg, -300); jwrite($lf, $lg);
+echo json_encode(['ok'=>true]); exit;
+}
 if ($action === 'bio_submit'){
 $id = $input['id'] ?? ''; if (strpos($id, 'pend_') === 0) fail('Your name is waiting for your director to add you to the staff list. Ask them, then come back.');
 $p = find_person($school, 'staff', $id); if (!$p || !empty($p['former'])) fail('Pick your name from the list.');

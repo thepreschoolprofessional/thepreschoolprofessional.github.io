@@ -1227,6 +1227,8 @@ var OFS={
  sec:{label:'Security & Sign-in Log',custom:'log',fk:'sec',per:'one',span:'month',sign:false},
  eod:{label:'End of Day Building Sweep',page:4,fk:'eod',per:'one',span:'month',sign:false},
  drill:{label:'Fire & Emergency Drill Log',custom:'drill',per:'one',span:'year',sign:false},
+ sched:{label:'Staff Schedule (posted)',custom:'sched',per:'one',span:'week',sign:false},
+ rsched:{label:'Classroom Schedules',custom:'rsched',per:'one',span:'week',sign:false},
  trans:{label:'Transportation Log',page:5,per:'trip',span:'week',sign:false}
 };
 function mid(a,b){return (a+b)/2;}
@@ -1370,9 +1372,40 @@ function logPdf(fk,ms){
     return doc.save();
   }); });
 }
+
+function sopLoad(){ return fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:PIN,action:'sop_get'})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.error) throw new Error(j.error); if(!window.SOP) throw new Error('sop-data.js did not load'); return SOP.merge(S.school,j.data); }); }
+function schedPdf(kind){
+  return sopLoad().then(function(D){ var L=PDFLib, rgb=L.rgb;
+    return L.PDFDocument.create().then(function(doc){ return Promise.all([doc.embedFont(L.StandardFonts.Helvetica),doc.embedFont(L.StandardFonts.HelveticaBold)]).then(function(f){
+      var F=f[0], B=f[1];
+      function hdr(page,title,sub){ page.drawText('NAME OF FACILITY/HOME:',{x:30,y:572,size:10,font:B}); page.drawText('Kid City USA '+ascii(S.school),{x:178,y:572,size:13,font:F}); page.drawText(ascii(title),{x:30,y:548,size:16,font:B}); page.drawText(ascii(sub),{x:30,y:532,size:10,font:F}); page.drawLine({start:{x:30,y:526},end:{x:762,y:526},thickness:1}); }
+      function cell(page,t,x,y,w,sz,b){ t=ascii(t); var fo=b?B:F; while(sz>5&&fo.widthOfTextAtSize(t,sz)>w-6) sz-=.5; page.drawText(t,{x:x+3,y:y,size:sz,font:fo}); }
+      function foot(page){ page.drawText('Director signature: ______________________________   Date: ______________',{x:30,y:30,size:10,font:F}); }
+      function rect(page,x,y,w,h,fill){ page.drawRectangle({x:x,y:y,width:w,height:h,borderColor:rgb(0,0,0),borderWidth:.7,color:fill?rgb(.92,.92,.92):undefined}); }
+      function tm(t){ return t?SOP.fmt(t).replace(' AM','a').replace(' PM','p'):''; }
+      if(kind==='sched'){
+        var page=doc.addPage([792,612]); hdr(page,'Staff Schedule','Posted weekly hours - week of '+nice(monday(S.date)));
+        var cols=[['Name',120],['Position',150],['Room',130],['Mon',60],['Tue',60],['Wed',60],['Thu',60],['Fri',60],['Break',82]], x=30, y=500;
+        cols.forEach(function(c){ rect(page,x,y,c[1],20,1); cell(page,c[0],x,y+6,c[1],9,1); x+=c[1]; });
+        (D.staff||[]).forEach(function(st){ y-=26; x=30; var vals=[st.name,st.role||'',st.room||''];
+          [1,2,3,4,5].forEach(function(d){ var w=(st.week||{})[d]; vals.push(w?tm(w.in)+'-'+tm(w.out):'OFF'); });
+          vals.push(st.brk?tm(st.brk.s)+'-'+tm(st.brk.e):'');
+          cols.forEach(function(c,i){ rect(page,x,y,c[1],26,0); cell(page,vals[i],x,y+9,c[1],i>2?7.5:9,i===0); x+=c[1]; }); });
+        page.drawText('Schedules may change when a staff member is out; changes are recorded in the Hive.',{x:30,y:54,size:9,font:F}); foot(page);
+      } else {
+        Object.keys(D.rooms).forEach(function(r){ var o=D.rooms[r], age=(SOP.AGE[o.tpl]||{label:''}), page=doc.addPage([792,612]);
+          hdr(page,'Classroom Daily Schedule - '+r,age.label+'   Teachers: '+(D.staff||[]).filter(function(s){return s.room===r;}).map(function(s){return s.name;}).join(', '));
+          var bl=o.blocks||[], y=506, rh=Math.min(22,Math.floor(450/Math.max(1,bl.length)));
+          rect(page,30,y,150,rh,1); cell(page,'Time',30,y+6,150,9,1); rect(page,180,y,582,rh,1); cell(page,'Activity',180,y+6,582,9,1);
+          bl.forEach(function(b){ y-=rh; rect(page,30,y,150,rh,0); cell(page,SOP.fmt(b.s)+' - '+SOP.fmt(b.e),30,y+6,150,9,0); rect(page,180,y,582,rh,0); cell(page,b.t,180,y+6,582,9,0); });
+          foot(page); });
+      }
+      return doc.save(); }); }); });
+}
 function buildCustom(F,collect){
   return loadLibs().then(function(){
     if(F.custom==='drill') return drillPdf(S.date.slice(0,4));
+    if(F.custom==='sched'||F.custom==='rsched') return schedPdf(F.custom);
     return logPdf(F.fk,monthStart(S.date));
   }).then(function(bytes){ return {bytes:bytes,texts:[]}; });
 }
