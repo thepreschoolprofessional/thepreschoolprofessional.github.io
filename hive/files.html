@@ -45,7 +45,7 @@ body{margin:0;background:linear-gradient(160deg,#fff7ef,#ffe7d4);color:var(--ink
 <body><div id="app"><div class="sub">Loading…</div></div>
 <div class="modal" id="mod"><div class="box" id="modbox"></div></div>
 <script>
-(function(){var V='20261105d';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+location.search+(location.search?'&':'?')+'v='+m[1]);}});}catch(e){}})();
+(function(){var V='20261105g';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+location.search+(location.search?'&':'?')+'v='+m[1]);}});}catch(e){}})();
 </script>
 <script>
 const PIN=sessionStorage.getItem('hivePin');
@@ -86,7 +86,7 @@ function draw(){
  l.sort((a,b)=>(b.sign?1:0)-(a.sign?1:0)||(b.red-a.red)||a.name.localeCompare(b.name));
  if($('fa')){$('fa').className='btn sm '+(FILTER==='all'?'':'sec');$('fn').className='btn sm '+(FILTER==='need'?'':'sec');$('ff').className='btn sm '+(FILTER==='former'?'':'sec');}
  const tot=PEOPLE.reduce((a,p)=>a+p.red,0),sg=PEOPLE.reduce((a,p)=>a+(p.sign||0),0);
- $('plist').innerHTML='<div class="sub" style="margin:4px 0">'+PEOPLE.length+' '+(ST?'staff':'students')+' · '+tot+' missing or expired item'+(tot===1?'':'s')+(ST&&sg?' · <span style="color:var(--red)">'+sg+' certificate'+(sg===1?'':'s')+' to sign</span>':'')+'</div>'
+ $('plist').innerHTML=(!ST&&FILTER!=='former'?'<div class="card" style="border:2px solid #7b3fb8;background:#f8f1ff"><b>🏷️ Cubby &amp; bin labels</b><div class="sub" style="margin:2px 0 8px">Prints each child\'s photo with first name and last initial, grouped by room. Only children with a photo release on file and a cubby photo are included.</div><button class="btn sm" style="background:#7b3fb8" onclick="printLabels()">Print labels for '+esc(SCHOOL)+'</button><span class="msg" id="lbm"></span></div>':'')+'<div class="sub" style="margin:4px 0">'+PEOPLE.length+' '+(ST?'staff':'students')+' · '+tot+' missing or expired item'+(tot===1?'':'s')+(ST&&sg?' · <span style="color:var(--red)">'+sg+' certificate'+(sg===1?'':'s')+' to sign</span>':'')+'</div>'
  +(FILTER==='former'?'<div class="sub" style="margin:4px 0">Their files are kept. Tap a name to open the file or put them back.</div>':'')+(l.length?l.map(p=>'<button class="pr" onclick="openP(\''+p.id+'\')"><span><b>'+esc(p.name)+'</b><small>'+esc(p.sub||'')+'</small></span><span class="pills">'
    +(p.sign?'<span class="pill signpill">✍ '+p.sign+' to sign</span>':'')
    +(p.driveSort?'<span class="pill" style="background:#fff3c4;color:#8a6100">📥 in Drive</span>':'')
@@ -107,6 +107,9 @@ function pView(){
  if(!ST&&!c.practice&&!c.former){h+='<div class="card" style="border:2px solid #1a73e8;background:#f3f8ff"><b>ELC / School Readiness</b><div class="sub" style="margin:2px 0 6px">Turn this on for School Readiness children. It adds the ELC payment certificate to the list below, with its expiration date and a red alert before it runs out.</div>'
   +'<label style="display:block;margin:4px 0"><input type="checkbox" '+(c.sr?'checked':'')+' onchange="flag(\'sr\',this.checked)"> <b>School Readiness (ELC) child</b></label>'
   +(c.sr?'<label style="display:block;margin:4px 0"><input type="checkbox" '+(c.atrisk?'checked':'')+' onchange="flag(\'atrisk\',this.checked)"> <b>At-risk child</b> <span class="sub">(ELC needs notice the same day they are absent)</span></label>':'')+'</div>';}
+ if(!ST&&!c.former&&!c.practice){h+='<div class="card" style="border:2px solid #7b3fb8;background:#f8f1ff"><b>🧸 Cubby &amp; bin photo</b>'
+  +(c.photoOk?'<div style="display:flex;gap:12px;align-items:center;margin-top:8px;flex-wrap:wrap"><div id="faceBox" style="width:96px;height:96px;border-radius:12px;background:#e9dcf7;display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:2rem">'+(c.face?'…':'🧒')+'</div><div><div class="sub" style="margin-bottom:6px">Kept private in this child\'s file. Used only for cubby and bin labels.</div><label class="btn sm blu" style="margin:0">📷 '+(c.face?'Retake':'Take')+' photo<input type="file" accept="image/*" capture="user" style="display:none" onchange="faceUp(this)"></label> <label class="btn sm sec" style="margin:0">📎 Choose photo<input type="file" accept="image/*" style="display:none" onchange="faceUp(this)"></label>'+(c.face?' <button class="btn sm sec" style="color:var(--red)" onclick="faceDel()">Remove</button>':'')+'</div></div>'
+   :'<div class="sub" style="margin-top:6px;color:var(--amb)">A photo release must be on file first. Add the <b>Photo / video release</b> below (or tap Mark on file), then come back here.</div>')+'</div>';}
  if(c.driveFolder){h+='<div class="card" style="border:2px solid #1a73e8;background:#eef4ff"><b>📂 Too big to upload, or short on time?</b><div class="sub" style="margin:4px 0 8px">Put the whole packet (scan, photos or PDF, any size) in this person\'s private Drive folder. Then tap the yellow button so it gets split into the right spots.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn sm blu" style="text-decoration:none" target="_blank" rel="noopener" href="'+esc(c.driveFolder)+'">📂 Open '+esc(c.name)+'\'s Drive folder</a><button class="btn sm '+(c.driveSort?'grn':'sec')+'" onclick="driveSort('+(c.driveSort?0:1)+')">'+(c.driveSort?'✔ Waiting to be sorted · tap to undo':'📥 Packet is in Drive, please sort it')+'</button></div></div>';}
  h+='<div class="card"><h3>'+(ST?'What this file needs':'What this folder needs')+'</h3><div class="sub" style="margin-bottom:6px">Tap Take photo for each page (or choose a PDF). Red means it is missing or out of date.</div>';
  c.docs.forEach(function(d){
@@ -121,7 +124,7 @@ function pView(){
    +'<label class="btn sm sec" style="margin:0">📎 Choose file or PDF<input type="file" accept="image/*,application/pdf" multiple style="display:none" onchange="up(\''+d.key+'\',this)"></label></div></div>';});
  h+='</div>';
  if(!c.former&&!c.practice)h+='<div style="text-align:center;margin:18px 0"><button class="btn sm sec" style="color:var(--red)" onclick="remOpen()">Remove '+(ST?'this staff member':'this child')+' from the '+(ST?'staff list':'roster')+'</button></div>';
- $('app').innerHTML=h;}
+ $('app').innerHTML=h;if(!ST&&CUR.face&&CUR.photoOk)faceShow();}
 async function refresh(){CUR=await api('person',{id:CUR.id});pView();}
 function pillHtml(d,s){
  if(d.status==='missing'||d.status==='optional')return '<button class="pill pbtn '+s[1]+'" onclick="markDoc(\''+d.key+'\',1)">'+(d.status==='missing'?'Missing · tap if you have it':'Tap if you have it')+'</button>';
@@ -269,4 +272,27 @@ function certHtml(name,school,t){
  +'<div class="sm" style="margin-top:8px">In-house training at Kid City USA. Keep in the staff file.</div>'
  +'<div class="sg"><div>'+(t.signedAt?'<img src="'+t.sig+'">'+esc(t.signer)+' · Director / Owner · '+fmt(t.signedAt.slice(0,10)):'Director / Owner signature')+'</div></div></div><p><button onclick="print()">Print</button></p>';}
 boot();
+
+/* ---------- cubby & bin photos and labels ---------- */
+function faceSquare(file){return new Promise(function(ok){const u=URL.createObjectURL(file),im=new Image();
+ im.onload=function(){const S=420,m=Math.min(im.width,im.height),c=document.createElement('canvas');c.width=S;c.height=S;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,S,S);
+  x.drawImage(im,(im.width-m)/2,(im.height-m)/2,m,m,0,0,S,S);URL.revokeObjectURL(u);ok(c.toDataURL('image/jpeg',0.85).split(',')[1]);};
+ im.onerror=function(){URL.revokeObjectURL(u);ok(null);};im.src=u;});}
+async function faceUp(inp){const f=inp.files&&inp.files[0];inp.value='';if(!f)return;say('gm','Saving the picture…');
+ const b=await faceSquare(f);if(!b){say('gm','That picture could not be read. Try the Take photo button.',1);return;}
+ try{await api('face_set',{id:CUR.id,b64:b});await refresh();say('gm','Cubby photo saved.');}catch(e){say('gm',e.message,1);}}
+async function faceShow(){try{const j=await api('face_get',{id:CUR.id});const bx=$('faceBox');if(bx)bx.innerHTML='<img alt="" style="width:100%;height:100%;object-fit:cover" src="data:image/jpeg;base64,'+j.b64+'">';}catch(e){}}
+async function faceDel(){if(!confirm('Remove the cubby photo for '+CUR.name+'?'))return;try{await api('face_remove',{id:CUR.id});await refresh();say('gm','Photo removed.');}catch(e){say('gm',e.message,1);}}
+function lblName(n){const t=String(n||'').replace(/\(.*?\)/g,'').trim().split(/\s+/);return t.length>1?t[0]+' '+t[t.length-1].charAt(0).toUpperCase()+'.':t[0];}
+async function printLabels(){const m=$('lbm');m.textContent=' Getting photos…';m.className='msg';
+ let j;try{j=await api('faces');}catch(e){m.textContent=' '+e.message;m.className='msg bad';return;}
+ if(!j.kids.length){m.textContent=' No children are ready yet: '+j.noRelease+' need a photo release, '+j.noPhoto+' need a cubby photo.';m.className='msg bad';return;}
+ const by={};j.kids.forEach(function(k){(by[k.room||'Room']=by[k.room||'Room']||[]).push(k);});
+ let h='<!doctype html><html><head><meta charset="utf-8"><title>Cubby and bin labels - '+esc(SCHOOL)+'</title><style>@page{margin:.4in}body{font-family:Arial,sans-serif;margin:0}h2{margin:0 0 8px;font-size:16px;page-break-before:always}h2.f{page-break-before:avoid}.g{display:flex;flex-wrap:wrap;gap:10px}.l{width:2.3in;height:2.9in;border:2px solid #444;border-radius:12px;text-align:center;padding:8px;box-sizing:border-box;page-break-inside:avoid}.l img{width:1.8in;height:1.8in;object-fit:cover;border-radius:10px}.n{font-size:26px;font-weight:700;margin-top:6px}.r{font-size:11px;color:#555}.tip{font:13px Arial;margin:8px 0}@media print{.tip{display:none}}</style></head><body><div class="tip">Each child prints twice (one for the cubby, one for the bin). Press Ctrl+P to print. Cut along the border.</div>';
+ let first=true;Object.keys(by).forEach(function(r){h+='<h2'+(first?' class="f"':'')+'>'+esc(r)+' · '+esc(SCHOOL)+'</h2><div class="g">';first=false;
+  by[r].sort((a,b)=>a.name.localeCompare(b.name)).forEach(function(k){for(let i=0;i<2;i++)h+='<div class="l"><img src="data:image/jpeg;base64,'+k.b64+'"><div class="n">'+esc(lblName(k.name))+'</div><div class="r">'+esc(r)+'</div></div>';});h+='</div>';});
+ h+='</body></html>';
+ const w=window.open('','_blank');if(!w){m.textContent=' Allow pop-ups to print the labels.';m.className='msg bad';return;}
+ w.document.write(h);w.document.close();
+ m.textContent=' '+j.kids.length+' children ready'+(j.noRelease||j.noPhoto?' · '+j.noRelease+' skipped (no release), '+j.noPhoto+' skipped (no photo yet)':'')+'.';}
 </script></body></html>

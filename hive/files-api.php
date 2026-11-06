@@ -226,6 +226,8 @@ if ($st === 'missing' || $st === 'expired') $red++; elseif ($st === 'soon' || $s
 $docs[] = ['key'=>$k, 'label'=>$def[0], 'needsExp'=>$def[1], 'req'=>$def[2], 'hint'=>($def[3] ?? ''), 'status'=>$st, 'exp'=>$exp, 'files'=>$fl, 'marked'=>($dn && !$fl && !$dok), 'nodate'=>($def[1] && !$exp && ($fl || $dn || $dok)), 'drive'=>(($dl && !empty($dl['url'])) ? ['url'=>$dl['url'], 'label'=>($dl['label'] ?? 'Page in Drive'), 'verified'=>$dok] : null)];
 }
 $out = ['id'=>$id, 'name'=>$p['name'], 'sub'=>$p['sub'], 'dob'=>$p['dob'], 'red'=>$red, 'amber'=>$amber, 'docs'=>$docs, 'former'=>!empty($p['former']), 'left'=>($meta['left'] ?? null), 'practice'=>(strpos($id, 'recTEST') === 0), 'sr'=>!empty($p['sr']), 'atrisk'=>!empty($p['atrisk']), 'driveFolder'=>($dv['folder'] ?? ''), 'driveSort'=>!empty($dv['sort'])];
+$po = false; foreach ($docs as $dd0){ if ($dd0['key'] === 'photo' && (!empty($dd0['files']) || !empty($dd0['marked']) || !empty($dd0['drive']))) $po = true; }
+$out['face'] = is_file($d.'/face.jpg'); $out['photoOk'] = $po;
 if ($kind === 'staff'){
 $certs = jread($d.'/certs.json', []); $sign = 0; $hrs = [];
 foreach ($certs as &$c){ if (empty($c['signedAt'])) $sign++; $y = $c['year'] ?? substr($c['date'] ?? '', 0, 4); $hrs[$y] = round(($hrs[$y] ?? 0) + (float)($c['hrs'] ?? 0), 2); } unset($c);
@@ -403,6 +405,21 @@ roster_cache_clear($school);
 echo json_encode(['ok'=>true, 'id'=>$res['id'], 'name'=>$name]); exit;
 }
 
+if ($action === 'faces'){
+if ($kind !== 'student') fail('Cubby labels are for children.');
+$r = roster($school, 'student', false); if ($r === null) fail('Could not read the roster right now.', 502);
+$list = []; $nophoto = 0; $norelease = 0;
+foreach ($r as $p0){
+if (strpos($p0['id'], 'recTEST') === 0) continue;
+$v = person_view($school, 'student', $p0['id'], $p0);
+$fp = pdir($school, 'student', $p0['id']).'/face.jpg';
+if (!$v['photoOk']){ $norelease++; continue; }
+if (!is_file($fp)){ $nophoto++; continue; }
+$list[] = ['id'=>$p0['id'], 'name'=>$p0['name'], 'room'=>$p0['sub'], 'b64'=>base64_encode(file_get_contents($fp))];
+}
+echo json_encode(['school'=>$school, 'kids'=>$list, 'noPhoto'=>$nophoto, 'noRelease'=>$norelease]); exit;
+}
+
 $id = $input['id'] ?? '';
 $p = find_person($school, $kind, $id);
 if (!$p && !in_array($action, ['getfile'], true)) fail('That person is not on this school\'s roster.', 404);
@@ -468,6 +485,25 @@ $exp = $input['exp'] ?? ''; if ($exp !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$
 $d = pdir($school, $kind, $id); $mf = $d.'/meta.json'; $meta = jread($mf, ['docs'=>[], 'files'=>[]]);
 if (!is_array($meta['docs'])) $meta['docs'] = [];
 $meta['docs'][$doc] = array_merge((array)($meta['docs'][$doc] ?? []), ['exp'=>$exp]); jwrite($mf, $meta);
+echo json_encode(['ok'=>true]); exit;
+}
+if ($action === 'face_set'){
+if ($kind === 'student'){ $v0 = person_view($school, $kind, $id, $p); if (!$v0['photoOk']) fail('There is no photo release on file for this child yet. Add the Photo / video release first (or tap Mark on file), then add the cubby photo.'); }
+$raw = base64_decode($input['b64'] ?? '', true);
+if ($raw === false || strlen($raw) < 200 || strlen($raw) > 2 * 1024 * 1024) fail('That picture is missing or too large.');
+if (substr($raw, 0, 3) !== "\xFF\xD8\xFF") fail('Please use a JPG photo (the Take photo button makes one).');
+$d = pdir($school, $kind, $id);
+if (file_put_contents($d.'/face.jpg', $raw) === false) fail('Could not save the picture', 500);
+echo json_encode(['ok'=>true]); exit;
+}
+if ($action === 'face_get'){
+$f = pdir($school, $kind, $id).'/face.jpg';
+if (!is_file($f)) fail('No picture yet', 404);
+echo json_encode(['b64'=>base64_encode(file_get_contents($f))]); exit;
+}
+if ($action === 'face_remove'){
+$f = pdir($school, $kind, $id).'/face.jpg';
+if (is_file($f)){ $rd = pdir($school, $kind, $id).'/_removed'; if (!is_dir($rd)) @mkdir($rd, 0750, true); @rename($f, $rd.'/'.date('Ymd-His').'_face.jpg'); }
 echo json_encode(['ok'=>true]); exit;
 }
 if ($action === 'getfile'){
