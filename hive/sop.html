@@ -18,7 +18,7 @@ input,select,textarea{font:inherit;padding:5px 7px;border:2px solid #e0cfb8;bord
 @media print{.noprint{display:none!important}}
 </style></head><body><div class="w" id="app"><div class="sub">Loading…</div></div>
 <div id="mod"><div id="modb"></div></div>
-<script src="sop-data.js?v=5"></script>
+<script src="sop-data.js?v=6"></script>
 <script src="training-who.js?v=1"></script>
 <script src="train-data.js?v=3"></script>
 <script>
@@ -85,10 +85,10 @@ function roomsTab(){var names=Object.keys(D.rooms),r=D.rooms[ROOM];
  var now=hm(new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'})).getHours()*60+new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'})).getMinutes());
  if(!r.blocks.length&&!EDIT)h+='<div class="msg bad">This room\'s schedule is not loaded yet. A director can add it (tap Change times).</div>';
  h+='<table><tr><th style="width:170px">Time</th><th>Activity</th>'+(EDIT?'<th style="width:60px"></th>':'')+'</tr>';
- r.blocks.forEach(function(b,i){var isNow=DATE===new Date().toLocaleDateString('en-CA',{timeZone:'America/New_York'})&&mm(now)>=mm(b.s)&&mm(now)<mm(b.e),cls=(isNow?'now ':'')+(/circle|meeting/i.test(b.t)?'circ':'');
+ var WL=(!EDIT&&r.wed&&SOP.dow(DATE)===3);if(WL)h+='<tr><td colspan=2 style="background:#f3e8ff;font-weight:800">Wednesday early-release schedule</td></tr>';(WL?r.wed:r.blocks).forEach(function(b,i){var isNow=DATE===new Date().toLocaleDateString('en-CA',{timeZone:'America/New_York'})&&mm(now)>=mm(b.s)&&mm(now)<mm(b.e),cls=(isNow?'now ':'')+(/circle|meeting/i.test(b.t)?'circ':'');
   if(EDIT)h+='<tr><td><input type="time" value="'+esc(b.s)+'" onchange="D.rooms[ROOM].blocks['+i+'].s=this.value"> <input type="time" value="'+esc(b.e)+'" onchange="D.rooms[ROOM].blocks['+i+'].e=this.value"></td><td><input style="width:100%" value="'+esc(b.t)+'" onchange="D.rooms[ROOM].blocks['+i+'].t=this.value"> <label class="sub"><input type="checkbox" '+(b.f?'checked':'')+' onchange="D.rooms[ROOM].blocks['+i+'].f=this.checked?1:0"> fixed</label></td><td><button class="btn sm r" onclick="D.rooms[ROOM].blocks.splice('+i+',1);draw()">X</button></td></tr>';
   else h+='<tr class="'+cls+'"><td class="fixed">'+esc(rng(b.s,b.e))+'</td><td>'+esc(b.t)+(b.f?' <span class="sub">(fixed time)</span>':'')+(isNow?' <b>&larr; now</b>':'')+'</td></tr>';});
- h+='</table>'+(r.lunch?'<div class="sub" style="margin-top:6px">Teacher lunch break: '+esc(rng(r.lunch[0],r.lunch[1]))+'</div>':(SOP.AGE[r.tpl]&&SOP.AGE[r.tpl].lunch?'<div class="sub" style="margin-top:6px">Teacher lunch break: '+esc(rng(SOP.AGE[r.tpl].lunch[0],SOP.AGE[r.tpl].lunch[1]))+'</div>':''));
+ h+='</table>'+(r.lunch&&r.lunch[0]?'<div class="sub" style="margin-top:6px">Teacher lunch break: '+esc(rng(r.lunch[0],r.lunch[1]))+'</div>':(!r.lunch&&SOP.AGE[r.tpl]&&SOP.AGE[r.tpl].lunch?'<div class="sub" style="margin-top:6px">Teacher lunch break: '+esc(rng(SOP.AGE[r.tpl].lunch[0],SOP.AGE[r.tpl].lunch[1]))+'</div>':''));
  if(EDIT)h+='<p><button class="btn sm sec" onclick="D.rooms[ROOM].blocks.push({s:\'12:00\',e:\'12:30\',t:\'\',f:0});draw()">+ Add a time</button> <button class="btn g" onclick="save(\'room '+esc(ROOM).replace(/'/g,'')+'\')">Save</button></p>';
  return h+'</div>';}
 function resetRoom(){var r=D.rooms[ROOM];if(!confirm('Replace this room\'s times with the '+SOP.AGE[r.tpl].label+' schedule?'))return;r.blocks=JSON.parse(JSON.stringify(SOP.AGE[r.tpl].blocks));draw();}
@@ -246,6 +246,7 @@ function staffHtml(){var h='<h1>Kid City USA '+esc(SCHOOL)+'</h1><h2>Staff Sched
 function roomHtml(r){var o=D.rooms[r],age=SOP.AGE[o.tpl]||{label:''},tch=D.staff.filter(function(s){return s.room===r;}).map(function(s){return s.name;}).join(', ');
  var h='<h1>Kid City USA '+esc(SCHOOL)+'</h1><h2>Classroom Daily Schedule &middot; '+esc(r)+' &middot; '+esc(age.label)+'</h2><div style="font-size:12px;margin-bottom:8px">Teachers: '+esc(tch||'')+'</div><table><tr><th style="width:150px">Time</th><th>Activity</th></tr>';
  o.blocks.forEach(function(b){h+='<tr><td>'+esc(rng(b.s,b.e))+'</td><td>'+esc(b.t)+'</td></tr>';});
+ if(o.wed){h+='<tr><td colspan=2 style="background:#eee;font-weight:800">Wednesday early release</td></tr>';o.wed.forEach(function(b){h+='<tr><td>'+esc(rng(b.s,b.e))+'</td><td>'+esc(b.t)+'</td></tr>';});}
  return h+'</table><div class="f">Director signature: ______________________ Date: __________</div>';}
 function printStaff(){openPrint(staffHtml());}
 function printRoom(r){openPrint(roomHtml(r));}
