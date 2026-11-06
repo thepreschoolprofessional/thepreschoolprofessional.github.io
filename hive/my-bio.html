@@ -1,0 +1,44 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>My Bio - Kid City USA</title>
+<style>
+:root{--g:#E0A100;--r:#C62F3A;--ink:#4A2C0A;--bg:#FFF8E1}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+.w{max-width:680px;margin:0 auto;padding:16px}h1{margin:6px 0;color:#7a1f1f;font-size:1.5rem}.sub{color:#7a5a2a;font-size:.9rem}
+.card{background:#fff;border:2px solid #F2C14E;border-radius:16px;padding:14px;margin:12px 0}
+label.q{display:block;font-weight:700;margin:12px 0 4px}input,select,textarea{width:100%;font:inherit;padding:10px;border:2px solid #E7D3A0;border-radius:10px;background:#fffdf5}textarea{min-height:76px}
+.btn{display:inline-block;background:var(--r);color:#fff;border:0;border-radius:12px;padding:12px 18px;font-weight:700;font-size:1rem;cursor:pointer}.btn.sec{background:#fff;color:var(--r);border:2px solid var(--r)}
+.msg{margin:8px 0;font-weight:600}.bad{color:#b00020}.ok{color:#1b7a3a}
+.ph{width:110px;height:110px;border-radius:50%;background:#F9E7A8 center/cover;display:flex;align-items:center;justify-content:center;font-size:2.4rem;border:4px solid #E0A100}
+</style></head><body><div class="w" id="app"><div class="sub">Loading…</div></div>
+<script src="bios.js?v=1"></script>
+<script>
+var PIN=sessionStorage.getItem('hivePin');if(!PIN)location.href='index.html';
+var $=function(i){return document.getElementById(i);},SCHOOL='',STAFF=[],PHOTO='',ROLE='';
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+async function api(action,x){var r=await fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({pin:PIN,action:action},x||{}))});var j=await r.json().catch(function(){return {error:'Server error. Try again in a minute.'};});if(j.error)throw new Error(j.error);return j;}
+function say(t,bad){var m=$('msg');if(m){m.textContent=t||'';m.className='msg '+(bad?'bad':'ok');}}
+async function boot(){bioStyle();
+ try{var w=await api('whoami');SCHOOL=w.school;if(!SCHOOL)throw new Error('Please log in with your school\'s teacher PIN.');STAFF=(await api('staff_names')).staff.filter(function(p){return !/practice/i.test(p.name);});}
+ catch(e){$('app').innerHTML='<div class="card"><b>'+esc(e.message)+'</b><p><a class="btn" href="index.html">Back to sign in</a></p></div>';return;}
+ var h='<a href="teacher.html" class="sub">‹ Back</a><h1>🐝 My Bio</h1><div class="sub">Kid City USA '+esc(SCHOOL)+'. Answer a few questions and we will write a bio for you. Your director checks it before families see it.</div><div class="card"><label class="q">Who are you?</label><select id="who"><option value="">Pick your name…</option>'+STAFF.map(function(p){return '<option value="'+p.id+'">'+esc(p.name)+'</option>';}).join('')+'</select></div><div class="card" id="qs">';
+ BIOQ.forEach(function(q,i){h+='<label class="q">'+(i+1)+'. '+esc(q.t)+'</label>';
+  if(q.type==='area')h+='<textarea id="q_'+q.k+'" placeholder="'+esc(q.ph||'')+'"></textarea>';
+  else if(q.type==='num')h+='<input id="q_'+q.k+'" type="number" min="0" max="60" placeholder="'+esc(q.ph||'')+'">';
+  else if(q.type==='select')h+='<select id="q_'+q.k+'"><option value="">Choose…</option>'+q.opts.map(function(o){return '<option>'+esc(o)+'</option>';}).join('')+'</select><input id="q_'+q.k2+'" style="margin-top:6px" placeholder="'+esc(q.t2)+'">';
+  else if(q.type==='h45')h+='<select id="q_'+q.k+'"><option value="">Choose…</option>'+q.opts.map(function(o){return '<option value="'+o[0]+'">'+esc(o[1])+'</option>';}).join('')+'</select>';});
+ h+='</div><div class="card"><label class="q">Your photo</label><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div class="ph" id="phbox">🐝</div><div><label class="btn sec" style="margin:0">📷 Take a selfie<input type="file" accept="image/*" capture="user" style="display:none" onchange="pick(this)"></label> <label class="btn sec" style="margin:0">📎 Choose a photo<input type="file" accept="image/*" style="display:none" onchange="pick(this)"></label></div></div></div>'
+ +'<div class="msg" id="msg"></div><button class="btn" onclick="preview()">✨ Write my bio</button><div id="pv"></div>';
+ $('app').innerHTML=h;}
+function pick(inp){var f=inp.files&&inp.files[0];inp.value='';if(!f)return;var u=URL.createObjectURL(f),im=new Image();
+ im.onload=function(){var S=420,m=Math.min(im.width,im.height),c=document.createElement('canvas');c.width=S;c.height=S;var x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,S,S);x.drawImage(im,(im.width-m)/2,(im.height-m)/2,m,m,0,0,S,S);URL.revokeObjectURL(u);
+  PHOTO=c.toDataURL('image/jpeg',0.85).split(',')[1];$('phbox').textContent='';$('phbox').style.backgroundImage='url(data:image/jpeg;base64,'+PHOTO+')';};
+ im.onerror=function(){say('That picture could not be read. Try another.',1);};im.src=u;}
+function answers(){var a={};BIOQ.forEach(function(q){a[q.k]=($('q_'+q.k).value||'').trim();if(q.k2)a[q.k2]=($('q_'+q.k2).value||'').trim();});return a;}
+function who(){var s=$('who'),id=s.value;if(!id)return null;return {id:id,name:s.options[s.selectedIndex].text};}
+function preview(){var w=who();if(!w){say('Pick your name first.',1);return;}var a=answers();if(!a.why){say('Please answer question 1.',1);return;}say('');
+ var bio=bioWrite(a,w.name,'',SCHOOL);
+ $('pv').innerHTML='<div class="card"><b>Here is your bio.</b> <span class="sub">You can fix any words below.</span><textarea id="bt" style="min-height:220px;margin-top:8px">'+esc(bio)+'</textarea><div id="pcard"></div><button class="btn" onclick="send()">Send to my director</button> <button class="btn sec" onclick="preview()">Start the bio over</button></div>';
+ $('bt').addEventListener('input',draw);draw();$('pv').scrollIntoView({behavior:'smooth'});}
+function draw(){var w=who(),a=answers();$('pcard').innerHTML=bioCard({name:w.name,role:'',a:a,bio:$('bt').value,photo:PHOTO},SCHOOL);}
+async function send(){var w=who();if(!w)return;var a=answers();try{await api('bio_submit',{id:w.id,a:a,bio:$('bt').value,b64:PHOTO});$('app').innerHTML='<div class="card"><h1>Thank you! 🎉</h1><p>Your bio was sent to your director. Once they approve it, families will see it on the parent page.</p><a class="btn" href="teacher.html">Back to the teacher page</a></div>';}catch(e){say(e.message,1);}}
+boot();
+</script></body></html>

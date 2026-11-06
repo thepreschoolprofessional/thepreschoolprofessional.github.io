@@ -45,8 +45,9 @@ body{margin:0;background:linear-gradient(160deg,#fff7ef,#ffe7d4);color:var(--ink
 <body><div id="app"><div class="sub">Loading…</div></div>
 <div class="modal" id="mod"><div class="box" id="modbox"></div></div>
 <script>
-(function(){var V='20261105g';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+location.search+(location.search?'&':'?')+'v='+m[1]);}});}catch(e){}})();
+(function(){var V='20261105h';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+location.search+(location.search?'&':'?')+'v='+m[1]);}});}catch(e){}})();
 </script>
+<script src="bios.js?v=1"></script>
 <script>
 const PIN=sessionStorage.getItem('hivePin');
 if(!PIN) location.href='index.html';
@@ -110,6 +111,7 @@ function pView(){
  if(!ST&&!c.former&&!c.practice){h+='<div class="card" style="border:2px solid #7b3fb8;background:#f8f1ff"><b>🧸 Cubby &amp; bin photo</b>'
   +(c.photoOk?'<div style="display:flex;gap:12px;align-items:center;margin-top:8px;flex-wrap:wrap"><div id="faceBox" style="width:96px;height:96px;border-radius:12px;background:#e9dcf7;display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:2rem">'+(c.face?'…':'🧒')+'</div><div><div class="sub" style="margin-bottom:6px">Kept private in this child\'s file. Used only for cubby and bin labels.</div><label class="btn sm blu" style="margin:0">📷 '+(c.face?'Retake':'Take')+' photo<input type="file" accept="image/*" capture="user" style="display:none" onchange="faceUp(this)"></label> <label class="btn sm sec" style="margin:0">📎 Choose photo<input type="file" accept="image/*" style="display:none" onchange="faceUp(this)"></label>'+(c.face?' <button class="btn sm sec" style="color:var(--red)" onclick="faceDel()">Remove</button>':'')+'</div></div>'
    :'<div class="sub" style="margin-top:6px;color:var(--amb)">A photo release must be on file first. Add the <b>Photo / video release</b> below (or tap Mark on file), then come back here.</div>')+'</div>';}
+ if(ST&&!c.former&&!c.practice){h+='<div class="card" style="border:2px solid #E0A100;background:#fff8e1"><b>🐝 Bio card &amp; photo</b><div class="sub" style="margin:2px 0 6px">A short bio and photo for the parent page. Staff can fill it in themselves on the teacher page (My Bio), or you can do it here.</div><div id="bioBox"><button class="btn sm" style="background:#E0A100" onclick="bioOpen()">Open bio card</button></div></div>';}
  if(c.driveFolder){h+='<div class="card" style="border:2px solid #1a73e8;background:#eef4ff"><b>📂 Too big to upload, or short on time?</b><div class="sub" style="margin:4px 0 8px">Put the whole packet (scan, photos or PDF, any size) in this person\'s private Drive folder. Then tap the yellow button so it gets split into the right spots.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn sm blu" style="text-decoration:none" target="_blank" rel="noopener" href="'+esc(c.driveFolder)+'">📂 Open '+esc(c.name)+'\'s Drive folder</a><button class="btn sm '+(c.driveSort?'grn':'sec')+'" onclick="driveSort('+(c.driveSort?0:1)+')">'+(c.driveSort?'✔ Waiting to be sorted · tap to undo':'📥 Packet is in Drive, please sort it')+'</button></div></div>';}
  h+='<div class="card"><h3>'+(ST?'What this file needs':'What this folder needs')+'</h3><div class="sub" style="margin-bottom:6px">Tap Take photo for each page (or choose a PDF). Red means it is missing or out of date.</div>';
  c.docs.forEach(function(d){
@@ -295,4 +297,25 @@ async function printLabels(){const m=$('lbm');m.textContent=' Getting photos…'
  const w=window.open('','_blank');if(!w){m.textContent=' Allow pop-ups to print the labels.';m.className='msg bad';return;}
  w.document.write(h);w.document.close();
  m.textContent=' '+j.kids.length+' children ready'+(j.noRelease||j.noPhoto?' · '+j.noRelease+' skipped (no release), '+j.noPhoto+' skipped (no photo yet)':'')+'.';}
+
+/* ---------- staff bio card (director) ---------- */
+async function bioOpen(){const bx=$('bioBox');bx.innerHTML='<div class="sub">Loading…</div>';
+ let j;try{j=await api('bio_get',{id:CUR.id});}catch(e){bx.innerHTML='<div class="msg bad">'+esc(e.message)+'</div>';return;}
+ const b=j.bio||{},a=b.answers||{};window._bioPhoto=j.photo||'';
+ let h=(b.submittedAt&&!b.approved?'<div class="msg" style="color:#8a6100">📬 '+(b.by==='staff'?'Submitted by the teacher':'Draft')+'. Check it, then tick the box to share it with families.</div>':'')+(b.approved?'<div class="msg">✅ Shown to families on the parent page.</div>':'');
+ h+='<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0"><div id="faceBox" style="width:84px;height:84px;border-radius:50%;background:#F9E7A8 center/cover;display:flex;align-items:center;justify-content:center;font-size:2rem;border:3px solid #E0A100;overflow:hidden">'+(j.photo?'<img alt="" style="width:100%;height:100%;object-fit:cover" src="data:image/jpeg;base64,'+j.photo+'">':'🐝')+'</div><label class="btn sm blu" style="margin:0">📷 Take photo<input type="file" accept="image/*" capture="user" style="display:none" onchange="bioFace(this)"></label> <label class="btn sm sec" style="margin:0">📎 Choose photo<input type="file" accept="image/*" style="display:none" onchange="bioFace(this)"></label></div>';
+ BIOQ.forEach(function(q,i){h+='<label style="display:block;font-weight:700;margin:8px 0 2px">'+(i+1)+'. '+esc(q.t)+'</label>';
+  if(q.type==='area')h+='<textarea class="fi" id="bq_'+q.k+'" style="width:100%;min-height:54px">'+esc(a[q.k]||'')+'</textarea>';
+  else if(q.type==='num')h+='<input class="fi" id="bq_'+q.k+'" type="number" min="0" max="60" value="'+esc(a[q.k]||'')+'">';
+  else if(q.type==='select')h+='<select class="fi" id="bq_'+q.k+'"><option value="">Choose…</option>'+q.opts.map(function(o){return '<option'+(a[q.k]===o?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select><input class="fi" id="bq_'+q.k2+'" style="margin-top:4px" placeholder="'+esc(q.t2)+'" value="'+esc(a[q.k2]||'')+'">';
+  else if(q.type==='h45')h+='<select class="fi" id="bq_'+q.k+'"><option value="">Choose…</option>'+q.opts.map(function(o){return '<option value="'+o[0]+'"'+(a[q.k]===o[0]?' selected':'')+'>'+esc(o[1])+'</option>';}).join('')+'</select>';});
+ h+='<div style="margin:10px 0 4px;font-weight:700">The bio</div><textarea class="fi" id="bbio" style="width:100%;min-height:200px">'+esc(b.bio||'')+'</textarea><div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0"><button class="btn sm sec" onclick="bioRegen()">✨ Write it from the answers</button><button class="btn sm sec" onclick="bioPrev()">👁 Preview card</button></div>'
+  +'<label style="display:block;margin:8px 0"><input type="checkbox" id="bapp" '+(b.approved?'checked':'')+'> <b>OK to show on the parent page</b> <span class="sub">(they agreed to share their photo and bio)</span></label><button class="btn sm grn" onclick="bioSave()">Save</button><div id="bprev"></div>';
+ bx.innerHTML=h;if(b.bio)bioPrev();}
+function bioAns(){const a={};BIOQ.forEach(function(q){a[q.k]=($('bq_'+q.k).value||'').trim();if(q.k2)a[q.k2]=($('bq_'+q.k2).value||'').trim();});return a;}
+function bioRegen(){if($('bbio').value.trim()&&!confirm('Replace the bio text with a new one written from the answers?'))return;$('bbio').value=bioWrite(bioAns(),CUR.name,CUR.sub,SCHOOL);bioPrev();}
+function bioPrev(){bioStyle();$('bprev').innerHTML=bioCard({name:CUR.name,role:CUR.sub,a:bioAns(),bio:$('bbio').value,photo:window._bioPhoto},SCHOOL)+'<button class="btn sm sec" onclick="window.print()">🖨 Print</button>';}
+async function bioFace(inp){const f=inp.files&&inp.files[0];inp.value='';if(!f)return;const b=await faceSquare(f);if(!b){say('gm','That picture could not be read.',1);return;}
+ try{await api('face_set',{id:CUR.id,b64:b});window._bioPhoto=b;const bx=$('faceBox');if(bx)bx.innerHTML='<img alt="" style="width:100%;height:100%;object-fit:cover" src="data:image/jpeg;base64,'+b+'">';if($('bprev')&&$('bbio'))bioPrev();say('gm','Photo saved.');}catch(e){say('gm',e.message,1);}}
+async function bioSave(){try{const r=await api('bio_save',{id:CUR.id,a:bioAns(),bio:$('bbio').value,approved:$('bapp').checked});say('gm',r.approved?'Saved. Families can now see this bio.':'Saved.');await bioOpen();}catch(e){say('gm',e.message,1);}}
 </script></body></html>

@@ -247,8 +247,11 @@ $action = $input['action'] ?? '';
 $TEACHER_SCHOOL = ['teacher-sanford' => 'Sanford', 'teacher-deland' => 'DeLand 2'];
 $isDir = isset($ROLE_SCHOOL[$role]);
 $isTeacher = (strpos($role, 'teacher') === 0);
-if (!$isDir && !$isTeacher) fail('Files are only available with a director PIN.', 403);
-$school = $isDir ? $ROLE_SCHOOL[$role] : (isset($TEACHER_SCHOOL[$role]) ? $TEACHER_SCHOOL[$role] : trim($input['school'] ?? ''));
+$isParent = (strpos($role, 'parent') === 0);
+if ($isParent && ($input['action'] ?? '') !== 'bios_public') fail('Files are only available with a director PIN.', 403);
+if (!$isDir && !$isTeacher && !$isParent) fail('Files are only available with a director PIN.', 403);
+$PARENT_SCHOOL = ['parent-sanford' => 'Sanford', 'parent-deland' => 'DeLand 2'];
+$school = $isDir ? $ROLE_SCHOOL[$role] : (isset($TEACHER_SCHOOL[$role]) ? $TEACHER_SCHOOL[$role] : (isset($PARENT_SCHOOL[$role]) ? $PARENT_SCHOOL[$role] : trim($input['school'] ?? '')));
 if (!in_array($school, $SCHOOLS, true)) fail('Pick your school first.');
 
 if ($action === 'whoami'){ echo json_encode(['role'=>$isDir ? 'director' : 'teacher', 'school'=>$school]); exit; }
@@ -288,6 +291,39 @@ foreach ($certs as $c){ if (($c['lesson'] ?? '') === $lesson && ($c['year'] ?? '
 $c = ['cid'=>'c'.date('ymdHis').substr(md5(uniqid('', true)), 0, 4), 'lesson'=>$lesson, 'title'=>$title, 'hrs'=>$hrs, 'date'=>date('Y-m-d'), 'year'=>$year, 'at'=>gmdate('c'), 'by'=>'self', 'signedAt'=>'', 'signer'=>'', 'sig'=>''];
 $certs[] = $c; jwrite($f, $certs);
 echo json_encode(['ok'=>true, 'cert'=>array_merge($c, ['name'=>$p['name'], 'school'=>$school])]); exit;
+}
+/* ---- Staff bio cards: teachers submit their own answers; directors approve; families see approved ones ---- */
+function bio_clean($v, $n = 700){ $v = trim(preg_replace('/\s+/u', ' ', strip_tags((string)$v))); return mb_substr($v, 0, $n); }
+$BIO_KEYS = ['why', 'edu', 'edufield', 'h45', 'years', 'hobbies', 'fav', 'fun'];
+function bio_public_row($school, $p){
+$d = pdir($school, 'staff', $p['id']); $b = jread($d.'/bio.json', []);
+if (empty($b['approved']) || empty($b['bio'])) return null;
+$row = ['id'=>$p['id'], 'name'=>$p['name'], 'role'=>$p['sub'], 'bio'=>$b['bio'], 'a'=>($b['answers'] ?? new stdClass), 'photo'=>''];
+$fp = $d.'/face.jpg'; if (is_file($fp)) $row['photo'] = base64_encode(file_get_contents($fp));
+return $row;
+}
+if ($action === 'bios_public'){
+$r = roster($school, 'staff'); if ($r === null) fail('Could not read the staff list right now.', 502);
+$out = []; foreach ($r as $p){ if (strpos($p['id'], 'recTEST') === 0) continue; $row = bio_public_row($school, $p); if ($row) $out[] = $row; }
+echo json_encode(['school'=>$school, 'staff'=>$out]); exit;
+}
+if ($action === 'bio_submit'){
+$id = $input['id'] ?? ''; if (strpos($id, 'pend_') === 0) fail('Your name is waiting for your director to add you to the staff list. Ask them, then come back.');
+$p = find_person($school, 'staff', $id); if (!$p || !empty($p['former'])) fail('Pick your name from the list.');
+$d = pdir($school, 'staff', $id); $bf = $d.'/bio.json'; $old = jread($bf, []);
+if (!empty($old['approved']) && !$isDir) fail('Your bio is already posted. Ask your director if you want to change it.');
+$ans = []; foreach ($BIO_KEYS as $k){ $ans[$k] = bio_clean($input['a'][$k] ?? '', $k === 'years' ? 4 : 700); }
+$bio = bio_clean($input['bio'] ?? '', 1500);
+if ($ans['why'] === '' || $bio === '') fail('Please answer at least the first question.');
+if (!empty($input['b64'])){
+$raw = base64_decode($input['b64'], true);
+if ($raw === false || strlen($raw) < 200 || strlen($raw) > 2 * 1024 * 1024) fail('That picture is missing or too large.');
+if (substr($raw, 0, 3) !== "\xFF\xD8\xFF") fail('Please use a JPG photo.');
+file_put_contents($d.'/face.jpg', $raw);
+}
+$new = ['answers'=>$ans, 'bio'=>$bio, 'approved'=>false, 'submittedAt'=>gmdate('c'), 'by'=>($isDir ? 'director' : 'staff')];
+jwrite($bf, $new);
+echo json_encode(['ok'=>true, 'name'=>$p['name']]); exit;
 }
 if (!$isDir) fail('Files are only available with a director PIN.', 403);
 
@@ -486,6 +522,19 @@ $d = pdir($school, $kind, $id); $mf = $d.'/meta.json'; $meta = jread($mf, ['docs
 if (!is_array($meta['docs'])) $meta['docs'] = [];
 $meta['docs'][$doc] = array_merge((array)($meta['docs'][$doc] ?? []), ['exp'=>$exp]); jwrite($mf, $meta);
 echo json_encode(['ok'=>true]); exit;
+}
+if ($action === 'bio_get'){
+$d = pdir($school, 'staff', $id); $b = jread($d.'/bio.json', []); $fp = $d.'/face.jpg';
+echo json_encode(['bio'=>$b, 'photo'=>(is_file($fp) ? base64_encode(file_get_contents($fp)) : '')]); exit;
+}
+if ($action === 'bio_save'){
+$d = pdir($school, 'staff', $id); $bf = $d.'/bio.json'; $b = jread($bf, []);
+if (isset($input['a']) && is_array($input['a'])){ $ans = []; foreach ($BIO_KEYS as $k){ $ans[$k] = bio_clean($input['a'][$k] ?? '', $k === 'years' ? 4 : 700); } $b['answers'] = $ans; }
+if (isset($input['bio'])) $b['bio'] = bio_clean($input['bio'], 1500);
+$b['approved'] = !empty($input['approved']) && !empty($b['bio']) && is_file($d.'/face.jpg');
+if (!empty($input['approved']) && !$b['approved']) fail('Add a photo and a bio before posting it to families.');
+$b['updatedAt'] = gmdate('c'); jwrite($bf, $b);
+echo json_encode(['ok'=>true, 'approved'=>$b['approved']]); exit;
 }
 if ($action === 'face_set'){
 if ($kind === 'student'){ $v0 = person_view($school, $kind, $id, $p); if (!$v0['photoOk']) fail('There is no photo release on file for this child yet. Add the Photo / video release first (or tap Mark on file), then add the cubby photo.'); }
