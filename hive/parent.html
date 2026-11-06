@@ -59,6 +59,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 <div class="tab" style="background:#1565c0" onclick="show('pick',this);PPA.show('pick')">🚪 Drop-Off &amp; Pick-Up</div>
 <div class="tab" style="background:#6a1b9a" onclick="show('learn',this);PPA.show('learn')">🎓 Parent Orientation</div>
 <div class="tab t-res active" onclick="show('res',this)">📚 Documents &amp; Registration</div>
+<div class="tab" style="background:#2e7d6b" onclick="show('forms',this);PPA.show('forms')">🥗 Food Program Forms</div>
 <div class="tab t-bp" data-icon="bp-logo.png" onclick="show('bp',this)">🐻 Bear Phonics</div>
 <div class="tab" style="background:#E0A100" onclick="show('teach',this);loadTeachers()">🐝 Meet Our Teachers</div>
 <div class="tab t-msg" onclick="show('msg',this)">💬 Send Us a Message</div>
@@ -77,6 +78,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 <div class="panel" id="p-menu"><div id="menuBox" class="empty">Loading…</div></div>
 <div class="panel" id="p-news"><div id="newsBox" class="empty">Loading…</div></div>
 <div class="panel" id="p-lessons"><div id="lessonBox" class="empty">Loading…</div></div>
+<div class="panel" id="p-forms"><div id="formsBox" class="empty">Loading…</div></div>
 <div class="panel" id="p-board"><div id="boardBox" class="empty">Loading…</div></div>
 <div class="panel" id="p-bring"><div id="g_bring"></div></div>
 <div class="panel" id="p-fees"><div id="g_fees"></div></div>
@@ -169,7 +171,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 </div>
 </main>
 <script src="bios.js?v=1"></script>
-<script src="parent-pp.js?v=3"></script>
+<script src="parent-pp.js?v=4"></script>
 <script>
 const PIN = sessionStorage.getItem('hivePin');
 if(!PIN) location.href='index.html';
@@ -315,7 +317,7 @@ init();
 window.HIVE_CARDS={prompt:'What do you want to see?',order:[
  {k:'Menu',s:'This month\'s menu',c:'#2e8b57'},
  {k:'Newsletter',s:'News from your school',c:'#1d7fd1'},
- {k:'Lesson Plans',s:'What your child is learning',c:'#3a9d5d'},
+ {k:'Lesson Plans',s:'Updated automatically each month',c:'#3a9d5d'},
  {k:'Message Board & Reminders',s:'Announcements and reminders',c:'#e0457b'},
  {k:'Closures',s:'The whole-year calendar',c:'#b22234'},
  {k:'What to Bring',s:'Wipes, tissues, clothes and more',c:'#ef6c00'},
@@ -323,6 +325,7 @@ window.HIVE_CARDS={prompt:'What do you want to see?',order:[
  {k:'When Your Child Is Sick',s:'When to stay home, medicine',c:'#c62828'},
  {k:'Drop-Off',s:'Drop-off, pick-up and safety',c:'#1565c0'},
  {k:'Parent Orientation',s:'Short lessons about our school',c:'#6a1b9a'},
+ {k:'Food Program Forms',s:'Dietary, infant and meal forms',c:'#2e7d6b'},
  {k:'Documents',s:'Handbook, registration, forms',c:'#5aa9ff'},
  {k:'Bear Phonics',s:'Free reading lessons',c:'#9b6bff'},
  {k:'Meet Our Teachers',s:'Your teachers',c:'#E0A100'},

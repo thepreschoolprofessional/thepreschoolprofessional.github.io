@@ -248,7 +248,7 @@ $TEACHER_SCHOOL = ['teacher-sanford' => 'Sanford', 'teacher-deland' => 'DeLand 2
 $isDir = isset($ROLE_SCHOOL[$role]);
 $isTeacher = (strpos($role, 'teacher') === 0);
 $isParent = (strpos($role, 'parent') === 0);
-if ($isParent && !in_array(($input['action'] ?? ''), ['bios_public', 'pp_list', 'pp_get', 'pp_orient_sign'], true)) fail('Files are only available with a director PIN.', 403);
+if ($isParent && !in_array(($input['action'] ?? ''), ['bios_public', 'pp_list', 'pp_get', 'pp_orient_sign', 'pp_auto'], true)) fail('Files are only available with a director PIN.', 403);
 if (!$isDir && !$isTeacher && !$isParent) fail('Files are only available with a director PIN.', 403);
 $PARENT_SCHOOL = ['parent-sanford' => 'Sanford', 'parent-deland' => 'DeLand 2'];
 $school = $isDir ? $ROLE_SCHOOL[$role] : (isset($TEACHER_SCHOOL[$role]) ? $TEACHER_SCHOOL[$role] : (isset($PARENT_SCHOOL[$role]) ? $PARENT_SCHOOL[$role] : trim($input['school'] ?? '')));
@@ -262,7 +262,7 @@ function pp_txt($v, $max){ $v = strip_tags((string)$v); $v = preg_replace('/[\x0
 function pp_status_list($school){
 $d = pp_dir($school); $it = $d ? jread($d.'/items.json', []) : []; $out = [];
 $months = [date('Y-m')]; if ((int)date('j') >= 25) $months[] = date('Y-m', strtotime('first day of next month'));
-foreach ([['menu', 'menu'], ['newsletter', 'newsletter'], ['lessons', 'lesson plans']] as $k){
+foreach ([['menu', 'menu'], ['newsletter', 'newsletter']] as $k){
 foreach ($months as $m){ $have = false; foreach ($it as $x){ if (($x['kind'] ?? '') === $k[0] && ($x['month'] ?? '') === $m) $have = true; }
 $out[] = ['kind'=>$k[0], 'label'=>$k[1], 'month'=>$m, 'monthName'=>date('F', strtotime($m.'-01')), 'ok'=>$have]; }
 }
@@ -301,6 +301,44 @@ $bd = array_values(array_filter($bd, function($b) use ($today){ return empty($b[
 usort($bd, function($a, $b){ $pa = !empty($a['pinned']) ? 1 : 0; $pb = !empty($b['pinned']) ? 1 : 0; if ($pa !== $pb) return $pb - $pa; return strcmp($b['at'] ?? '', $a['at'] ?? ''); });
 $it = array_values(array_filter($it, function($x) use ($today){ return empty($x['expires']) || $x['expires'] >= $today; }));
 echo json_encode(['school'=>$school, 'month'=>date('Y-m'), 'items'=>$it, 'board'=>$bd]); exit;
+}
+if ($action === 'pp_auto'){
+/* Automatic parent content: lesson plans (from the teacher Lesson Plan Index), food program forms, and a prebuilt monthly newsletter. */
+function pp_at_all($tbl, $q = []){ $out = []; $off = null; for ($i = 0; $i < 6; $i++){ $qq = $q; if ($off) $qq['offset'] = $off; $r = at_request('GET', [$tbl], $qq); foreach (($r['records'] ?? []) as $x) $out[] = $x['fields']; $off = $r['offset'] ?? null; if (!$off) break; } return $out; }
+$cf = sys_get_temp_dir().'/hive_ppauto_'.preg_replace('/[^a-z0-9]/', '', strtolower($school)).'_'.date('YmdH').intdiv((int)date('i'), 10).'.json';
+if (is_file($cf)){ echo file_get_contents($cf); exit; }
+$mk = date('Y-m'); if ((int)date('j') >= 25) $mk = date('Y-m', strtotime('first day of next month'));
+$mt = strtotime($mk.'-01'); $mname = date('F', $mt);
+$L = pp_at_all('tblSVP23UQnBu0YFo'); $lessons = [];
+foreach ($L as $f){ $mo = $f['Month'] ?? ''; $lk = $f['File Link'] ?? ''; if ($mo === '' || $lk === '') continue; $lessons[] = ['month'=>$mo, 'age'=>$f['Age Group'] ?? '', 'plan'=>$f['Plan'] ?? ($mo.' '.($f['Age Group'] ?? '')), 'link'=>$lk]; }
+$cur = []; foreach ($lessons as $x){ if (stripos($x['month'], $mname) === 0) $cur[] = $x; }
+$F = pp_at_all('tblffsVYZDodfNiCV'); $forms = [];
+foreach ($F as $f){ $cat = $f['Category'] ?? ''; $doc = $f['Document'] ?? ''; $sc = $f['School'] ?? ''; $lk = $f['File Link'] ?? '';
+if ($lk === '' || ($sc !== 'Both' && $sc !== $school)) continue;
+$ok = ($cat === 'Dietary & Infant Forms') || (stripos($doc, 'Free & Reduced') !== false);
+if ($ok) $forms[] = ['doc'=>$doc, 'cat'=>$cat, 'link'=>$lk]; }
+usort($forms, function($a, $b){ return strcmp($a['cat'].$a['doc'], $b['cat'].$b['doc']); });
+/* closures (copy of sop-data.js) */
+$CLA = ['2026-11-11'=>'Veterans Day','2026-11-26'=>'Thanksgiving','2026-11-27'=>'Day after Thanksgiving','2026-12-23'=>'Christmas Break','2026-12-24'=>'Christmas Break','2026-12-25'=>'Christmas Day','2027-01-01'=>"New Year's Day",'2027-01-18'=>'Martin Luther King Jr. Day','2027-03-26'=>'Good Friday','2027-05-31'=>'Memorial Day','2027-06-18'=>'Juneteenth'];
+$CLP = ['2026-11-23'=>'Thanksgiving Break','2026-11-24'=>'Thanksgiving Break','2026-11-25'=>'Thanksgiving Break','2026-12-21'=>'Winter Break','2026-12-22'=>'Winter Break','2026-12-28'=>'Winter Break','2026-12-29'=>'Winter Break','2026-12-30'=>'Winter Break','2026-12-31'=>"New Year's Eve (we close early at 5 PM)",'2027-01-04'=>'District holiday','2027-01-05'=>'District holiday','2027-02-15'=>"Presidents' Day",'2027-03-15'=>'Spring Break','2027-03-16'=>'Spring Break','2027-03-17'=>'Spring Break','2027-03-18'=>'Spring Break','2027-03-19'=>'Spring Break','2027-03-22'=>'District holiday'];
+$dates = []; $dim = (int)date('t', $mt);
+for ($d = 1; $d <= $dim; $d++){ $ymd = $mk.'-'.sprintf('%02d', $d); $lab = date('D, M j', strtotime($ymd));
+if (isset($CLA[$ymd])) $dates[] = [$lab, 'CLOSED: '.$CLA[$ymd]];
+elseif (isset($CLP[$ymd]) && !($ymd === '2027-01-05' && $school === 'DeLand 2')) $dates[] = [$lab, ($ymd === '2026-12-31' ? $CLP[$ymd] : 'Please check with the office: '.$CLP[$ymd])]; }
+/* birthdays: children (first name + last initial + day only) and staff (director-kept list) */
+$bd = []; $RC = pp_at_all('tblpEsTQ8EKbe63FA');
+foreach ($RC as $f){ if (($f['School'] ?? '') !== $school) continue; $st = strtolower($f['Status'] ?? 'active'); if ($st !== '' && $st !== 'active' && $st !== 'enrolled') continue;
+$dob = $f['DOB'] ?? ''; if (!preg_match('/^\d{4}-(\d{2})-(\d{2})/', $dob, $m) || $m[1] !== date('m', $mt)) continue;
+$nm = trim($f['Child'] ?? ''); if ($nm === '') continue; $p = preg_split('/\s+/', $nm); $short = $p[0].(count($p) > 1 ? ' '.mb_substr(end($p), 0, 1).'.' : '');
+$bd[] = [(int)$m[2], $short]; }
+$sd = school_dir($school); $sb = $sd ? jread($sd.'/staff-birthdays.json', []) : [];
+foreach ($sb as $s){ if (preg_match('/^(\d{2})-(\d{2})$/', $s['md'] ?? '', $m) && $m[1] === date('m', $mt)) $bd[] = [(int)$m[2], trim($s['name'] ?? '').' (teacher)']; }
+usort($bd, function($a, $b){ return $a[0] - $b[0]; });
+$bt = implode("\n", array_map(function($x) use ($mname){ return $mname.' '.$x[0].': '.$x[1]; }, $bd));
+$rem = ['Please bring 160 wipes and 1 box of tissues each month. If we have not received them, a $5 supply fee is added.', 'Uniform shirts are $18. Ask the office if your child needs a new one.', 'Send a labeled change of clothes: 3 sets for infants and toddlers, 2 for preschoolers.', 'Please sign your child in and out on the tablet every day.'];
+$out = ['school'=>$school, 'month'=>$mk, 'monthName'=>$mname, 'lessons'=>$cur, 'allLessons'=>$lessons, 'forms'=>$forms,
+'newsletter'=>['title'=>$mname.' Newsletter (auto)', 'month'=>$mk, 'auto'=>true, 'form'=>['welcome'=>'Welcome to '.$mname.' at Kid City USA '.$school.'! Here is everything you need to know this month.', 'dates'=>$dates, 'reminders'=>$rem, 'news'=>[], 'birthdays'=>$bt, 'thanks'=>'Thank you for trusting us with your little ones. We love being part of your family!', 'lessonsMonth'=>count($cur) > 0]]];
+$j = json_encode($out); @file_put_contents($cf, $j); echo $j; exit;
 }
 if ($action === 'pp_get'){
 $d = pp_dir($school); $name = basename($input['name'] ?? ''); if (!$d || !preg_match('/^[a-z0-9._-]+$/', $name) || $name === 'items.json' || $name === 'board.json') fail('File not found', 404);

@@ -58,6 +58,39 @@ function newsletterHtml(it){
   if(f.thanks)h+='<div class="section">💛 Thank you</div><p style="line-height:1.5">'+esc(f.thanks).replace(/\n/g,'<br>')+'</p>';
   return h+'</div>';
 }
+
+var AUTO=null;
+async function auto(){
+  if(AUTO&&AUTO._s===school())return AUTO;
+  var j=await call('pp_auto'); if(!j||j.error)throw new Error((j&&j.error)||'Could not load'); j._s=school();AUTO=j;return j;
+}
+function linkCard(em,t,sub,u){return '<a class="rescard" style="text-decoration:none;color:inherit" href="'+esc(u)+'" target="_blank" rel="noopener"><div class="em">'+em+'</div><div class="txt"><h3>'+esc(t)+'</h3><p>'+esc(sub||'')+'</p></div></a>';}
+async function showLessons(){
+  var box=document.getElementById('lessonBox');if(!box)return;
+  if(!school()){needSchool(box);return;}
+  box.innerHTML='<div class="empty">Loading… 🐝</div>';
+  try{
+    var a=await auto(),h='<h2>🍎 Lesson Plans</h2>';
+    if(a.lessons.length){
+      h+='<div class="note">'+esc(a.monthName)+' lesson plans. Pick your child\'s age group.</div><div class="reslist">'+a.lessons.map(function(x){return linkCard('🍎',x.age||x.plan,x.month,x.link);}).join('')+'</div>';
+    } else h+='<div class="empty">The '+esc(a.monthName)+' lesson plans are not ready yet. Please check back soon.</div>';
+    var other={};a.allLessons.forEach(function(x){if(!a.lessons.some(function(c){return c.link===x.link;})){(other[x.month]=other[x.month]||[]).push(x);}});
+    var ks=Object.keys(other);
+    if(ks.length){h+='<div class="section">Other months</div>'+ks.map(function(k){return '<details style="margin:6px 0"><summary style="cursor:pointer;font-weight:800;padding:8px 0">'+esc(k)+'</summary><div class="reslist">'+other[k].map(function(x){return linkCard('📘',x.age||x.plan,'',x.link);}).join('')+'</div></details>';}).join('');}
+    box.innerHTML=h;
+  }catch(e){box.innerHTML='<div class="empty">Could not load right now. Please try again in a moment.</div>';}
+}
+async function showForms(){
+  var box=document.getElementById('formsBox');if(!box)return;
+  if(!school()){needSchool(box);return;}
+  box.innerHTML='<div class="empty">Loading… 🐝</div>';
+  try{
+    var a=await auto(),h='<h2>🥗 Food Program Forms</h2><div class="note">Print, fill out and return these to the office. Ask us if you need help.</div>';
+    if(!a.forms.length)h+='<div class="empty">No forms are posted yet.</div>';
+    else{var cat='';a.forms.forEach(function(f){if(f.cat!==cat){cat=f.cat;h+='<div class="section">'+esc(cat||'Forms')+'</div>';}h+=linkCard('📄',f.doc,'',f.link);});}
+    box.innerHTML=h;
+  }catch(e){box.innerHTML='<div class="empty">Could not load right now. Please try again in a moment.</div>';}
+}
 async function showDoc(kind,boxId,label,re){
   var box=document.getElementById(boxId);if(!box)return;
   if(!school()){needSchool(box);return;}
@@ -68,6 +101,7 @@ async function showDoc(kind,boxId,label,re){
       if(stale(it))h+='<div class="note" style="background:#fff3d6;border-left:5px solid #ffb13d;padding:10px 14px;border-radius:10px;color:var(--ink);font-weight:700">This is the '+esc(monthName(it.month))+' '+esc(label)+'. The new one will be posted soon.</div>';
       h+=docHtml(it,boxId+'_f');box.innerHTML=h;if(it.file)mountFile(it,boxId+'_f');return;
     }
+    if(kind==='newsletter'){try{var a=await auto();box.innerHTML='<div class="note" style="background:#e8f3ff;border-left:5px solid #1d7fd1;padding:10px 14px;border-radius:10px;color:var(--ink);font-weight:700">Your '+esc(a.monthName)+' newsletter</div>'+newsletterHtml(a.newsletter)+(a.lessons.length?'<a class="go g1" style="display:block;margin:10px 0" href="#" onclick="show(\'lessons\',null);PPA.show(\'lessons\');return false">See the '+esc(a.monthName)+' lesson plans →</a>':'');return;}catch(e){}}
     var fb=re?fallbackLink(re):null;
     box.innerHTML=fb?'<div class="note" style="background:#fff3d6;border-left:5px solid #ffb13d;padding:10px 14px;border-radius:10px;color:var(--ink);font-weight:700">The newest '+esc(label)+' is being posted. Here is the last one we have.</div><a class="go g1" style="display:block" href="'+esc(fb.URL)+'">'+esc(fb.Title)+' →</a>':'<div class="empty">The '+esc(label)+' will be posted here soon. 🐝</div>';
   }catch(e){box.innerHTML='<div class="empty">Could not load right now. Please try again in a moment.</div>';}
@@ -161,7 +195,8 @@ function check(id){
 window.PPA={show:function(w){
   if(w==='menu')showDoc('menu','menuBox','menu',/^Menu/i);
   else if(w==='news')showDoc('newsletter','newsBox','newsletter',/^Newsletter/i);
-  else if(w==='lessons')showDoc('lessons','lessonBox','lesson plans',/^Lesson Plans/i);
+  else if(w==='lessons')showLessons();
+  else if(w==='forms')showForms();
   else if(w==='board')showBoard();
   else if(G[w])guide(w);
   else if(w==='learn')renderLearn();
