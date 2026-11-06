@@ -8,7 +8,9 @@ var API='dcf-api.php';
 var NY='America/New_York';
 
 /* ---------- config: what is expected, and the paper form items ---------- */
-var CLASSROOMS = { 'Sanford':['Ones','Fours / VPK','School Age'], 'DeLand 2':['Infant Room','Ones','Twos','Threes'] };
+var CLASSROOMS = { 'Sanford':['Honeybees - Tod./Inf.','VPK/Pre-School (Pollen-Jocks)','Schoolagers (Worker Bees)'], 'DeLand 2':['Infant/Toddler','Honey Bees - Tod. Front',"Three's - Honey Combs","Four's - Honey Combs"] };
+var RM_LEGACY = { 'Sanford':{'Ones':'Honeybees - Tod./Inf.','Fours / VPK':'VPK/Pre-School (Pollen-Jocks)','School Age':'Schoolagers (Worker Bees)'}, 'DeLand 2':{'Infant Room':'Infant/Toddler','Ones':'Honey Bees - Tod. Front','Twos':'Honey Bees - Tod. Front','Threes':"Three's - Honey Combs"} };
+function rmKey(r){ var m=RM_LEGACY[(typeof S!=='undefined'&&S.school)||'']||{}; return m[r]||r; }
 var BLDG='Whole Building / Common Areas';
 var CLOSED = ['2026-07-03','2026-07-31','2026-09-07','2026-11-11','2026-11-26','2026-11-27','2026-12-24','2026-12-25','2027-01-01','2027-01-18','2027-03-26','2027-05-31','2027-06-18']; /* both schools; from the signed 2026-27 ELC holiday schedule (School Closures Tracker). Add any extra closed day here. */
 var DEEP = {1:['Language Center','Writing Center'],2:['Math Center','Music Center'],3:['Dramatic Play','Art Center'],4:['Cars/Blocks Center','Lego Table'],5:['Discovery Center','Wash trash cans']};
@@ -93,7 +95,7 @@ function ensureData(){
 }
 function subsFor(formKey,date,room){
   var f=FORMS[formKey], out=[];
-  for(var id in S.subs){ var x=S.subs[id].fields; if(x.Date!==date) continue; if(sv(x['Form Type'])!==f.type) continue; if(room && f.per==='room' && sv(x['Room / Classroom'])!==room) continue; out.push(S.subs[id]); }
+  for(var id in S.subs){ var x=S.subs[id].fields; if(x.Date!==date) continue; if(sv(x['Form Type'])!==f.type) continue; if(room && f.per==='room' && rmKey(sv(x['Room / Classroom']))!==room) continue; out.push(S.subs[id]); }
   return out;
 }
 function expectedRooms(formKey){ var f=FORMS[formKey]; return f.per==='room' ? CLASSROOMS[S.school] : ['(building)']; }
@@ -1234,7 +1236,7 @@ function clean(s){ return String(s||'').replace(/[^\x20-\x7E -ÿ–—’‘“
 function items(text){ var out=[]; String(text||'').split(/\r?\n/).forEach(function(l){ l=l.trim(); if(!l) return; var flag=/^(⚠|❌|🚨)/.test(l); out.push([l.replace(/^[^\w]+/,''),flag?'flag':'ok']); }); return out; }
 function wdi(s){ return (d2(s).getDay()+6)%7; }
 function blockOf(d,ms){ var fm=addDays(ms,-wdi(ms)), m=addDays(d,-wdi(d)); return Math.round((d2(m)-d2(fm))/604800000); }
-function subsOf(fk,room,from,to){ var out=[]; for(var id in S.subs){ var x=S.subs[id].fields; if(x.Date<from||x.Date>to) continue; if(sv(x['Form Type'])!==FORMS[fk].type) continue; if(room && FORMS[fk].per==='room' && sv(x['Room / Classroom'])!==room) continue; out.push(S.subs[id]); } return out; }
+function subsOf(fk,room,from,to){ var out=[]; for(var id in S.subs){ var x=S.subs[id].fields; if(x.Date<from||x.Date>to) continue; if(sv(x['Form Type'])!==FORMS[fk].type) continue; if(room && FORMS[fk].per==='room' && rmKey(sv(x['Room / Classroom']))!==room) continue; out.push(S.subs[id]); } return out; }
 function fmtUS(s){ var p=s.split('-'); return p[1]+'/'+p[2]+'/'+p[0]; }
 function loadLibs(){
   if(OF.libs) return OF.libs;

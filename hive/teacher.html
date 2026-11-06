@@ -47,7 +47,7 @@ main{max-width:820px;margin:0 auto;padding:8px 16px;}
 a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800;color:var(--soft);}
 </style>
 <script>/* stale-page guard: if this browser is showing an old saved copy, load the fresh one */
-(function(){var V='20261105e';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+'?v='+m[1]);}});}catch(e){}})();</script>
+(function(){var V='20261105f';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+'?v='+m[1]);}});}catch(e){}})();</script>
 </head>
 <body>
 <a class="back" href="index.html">← exit</a>
@@ -247,7 +247,7 @@ window.ftHistory=async function(){var school=document.getElementById('ftSchool')
 window.ftNames=async function(pick){var g=function(id){return document.getElementById(id);},sc=g('ftSchool').value,sel=g('ftName');g('ftAddBox').style.display='none';if(!sc){sel.innerHTML='<option value="">Pick your school first…</option>';return;}sel.innerHTML='<option value="">Loading names…</option>';var j;try{var r=await fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:PIN,action:'staff_names',school:sc})});j=await r.json();if(j.error)throw new Error(j.error);}catch(e){sel.innerHTML='<option value="">Could not load names — tap your school again</option>';return;}var list=(j.staff||[]).map(function(x){return x.name;}).filter(function(n){return !/\(practice\)/i.test(n);});var pend=[];try{pend=JSON.parse(localStorage.getItem('hivePend_'+sc)||'[]');}catch(e){}var keepPend=pend.filter(function(n){return list.indexOf(n)<0;});try{localStorage.setItem('hivePend_'+sc,JSON.stringify(keepPend));}catch(e){}var h='<option value="">Pick your name…</option>';list.forEach(function(n){h+='<option>'+esc(n)+'</option>';});keepPend.forEach(function(n){h+='<option value="'+esc(n)+'">'+esc(n)+' (waiting for director OK)</option>';});h+='<option value="__add__">➕ My name is not on the list</option>';sel.innerHTML=h;var want=pick||localStorage.getItem('hiveName_'+sc)||'';if(want&&(list.indexOf(want)>=0||keepPend.indexOf(want)>=0))sel.value=want;};
 window.ftAddName=async function(){var g=function(id){return document.getElementById(id);},sc=g('ftSchool').value,nm=(g('ftNewName').value||'').trim();if(!sc){ftToast('Pick your school first');return;}if(nm.length<3){ftToast('Type your first and last name');return;}try{var r=await fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:PIN,action:'staff_add_pending',school:sc,name:nm})});var j=await r.json();if(j.error)throw new Error(j.error);if(j.pending){var pend=[];try{pend=JSON.parse(localStorage.getItem('hivePend_'+sc)||'[]');}catch(e){}if(pend.indexOf(j.name)<0)pend.push(j.name);localStorage.setItem('hivePend_'+sc,JSON.stringify(pend));}g('ftNewName').value='';await ftNames(j.name);ftToast(j.pending?'Name added — your director will approve it':'Found you on the list');}catch(e){ftToast("Didn't save — "+e.message);}};
 window.ftInit=function(){var g=function(id){return document.getElementById(id);};var s=window.HIVE_SCHOOL||sessionStorage.getItem('hiveSchool')||'';if(!s)s=localStorage.getItem('hiveSchool')||'';if(s&&g('ftSchool'))g('ftSchool').value=s;ftRooms(s);var c=localStorage.getItem('hiveClass');if(c&&g('ftRoom')&&[].slice.call(g('ftRoom').options).some(function(o){return o.value===c;}))g('ftRoom').value=c;if(g('ftRoom'))g('ftRoom').addEventListener('change',ftHistory);if(g('ftSchool'))g('ftSchool').addEventListener('change',function(){ftNames();ftHistory();});if(g('ftName'))g('ftName').addEventListener('change',function(){g('ftAddBox').style.display=this.value==='__add__'?'block':'none';});ftNames();if(s)ftHistory();};
-window.ftRooms=function(sc){var g=function(id){return document.getElementById(id);},sel=g('ftRoom');if(!sel)return;var R={'Sanford':['Ones','Fours / VPK','School Age'],'DeLand 2':['Infant Room','Ones','Twos','Threes']},common=['Kitchen','Playground','Whole Building / Common Areas'],cur=sel.value,list=(R[sc]||[]).concat(sc?common:[]);if(!sc)return;sel.innerHTML='<option value="">Your room…</option>'+list.map(function(r){return '<option>'+r+'</option>';}).join('');if(list.indexOf(cur)>=0)sel.value=cur;};
+window.ftRooms=function(sc){var g=function(id){return document.getElementById(id);},sel=g('ftRoom');if(!sel)return;var R={'Sanford':['Honeybees - Tod./Inf.','VPK/Pre-School (Pollen-Jocks)','Schoolagers (Worker Bees)'],'DeLand 2':['Infant/Toddler','Honey Bees - Tod. Front',"Three's - Honey Combs","Four's - Honey Combs"]},common=['Kitchen','Playground','Whole Building / Common Areas'],cur=sel.value,list=(R[sc]||[]).concat(sc?common:[]);if(!sc)return;sel.innerHTML='<option value="">Your room…</option>'+list.map(function(r){return '<option>'+r+'</option>';}).join('');if(list.indexOf(cur)>=0)sel.value=cur;};
 window.ftLockSchool=function(sc){if(!sc)return;window.HIVE_SCHOOL=sc;try{sessionStorage.setItem('hiveSchool',sc);}catch(e){}var g=function(id){return document.getElementById(id);};if(g('ftSchool')){g('ftSchool').value=sc;g('ftSchool').style.display='none';}if(g('ftSchoolBadge')){g('ftSchoolBadge').textContent='🏫 Kid City USA '+sc;g('ftSchoolBadge').style.display='block';}if(g('qSchool')){g('qSchool').value=sc;g('qSchool').parentNode.style.display='none';}ftRooms(sc);ftNames();ftHistory();};
 (async function(){try{var d=await api({action:'whoami'});if(d&&d.school)ftLockSchool(d.school);}catch(e){}})();
 
@@ -270,29 +270,5 @@ window.HIVE_CARDS={prompt:'What do you want to open?',order:[
 ]};
 </script>
 <script src="hive-cards.js?v=1"></script>
-
-<!-- closures-new-badge -->
-<script>
-(function(){
-  var KEY='hiveClosuresSeenHoliday2026', MSG="20 holiday closure flyers have been uploaded (10 for DeLand and 10 for Sanford). Tap Closures to see them.";
-  function seen(){try{return localStorage.getItem(KEY)==='1'}catch(e){return false}}
-  function mark(){try{localStorage.setItem(KEY,'1')}catch(e){}}
-  function run(){
-    var tab=[].slice.call(document.querySelectorAll('[onclick]')).filter(function(e){return /closures\.html/.test(e.getAttribute('onclick')||'')})[0];
-    if(!tab||seen())return;
-    var b=document.createElement('span');b.textContent='NEW';
-    b.style.cssText='background:#ffd23f;color:#3b2a1a;font-size:11px;font-weight:900;border-radius:99px;padding:2px 7px;margin-left:6px;vertical-align:middle';
-    tab.appendChild(b);
-    tab.addEventListener('click',mark,true);
-    var t=document.createElement('div');
-    t.style.cssText='position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:99999;max-width:92vw;width:420px;background:#1b2a4e;color:#fff;border:3px solid #ffd23f;border-radius:14px;padding:12px 14px;box-shadow:0 6px 24px rgba(0,0,0,.35);font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;font-size:15px;line-height:1.35';
-    t.innerHTML='<div style="font-weight:900;color:#ffd23f;font-size:16px;margin-bottom:4px">&#127881; NEW on the Closures tab</div><div>'+MSG+'</div><div style="margin-top:10px;display:flex;gap:8px"><button id="cnOpen" style="flex:1;background:#b22234;color:#fff;border:0;border-radius:10px;padding:10px;font-weight:800;font-size:14px;cursor:pointer">See the flyers</button><button id="cnX" style="background:#fff;color:#1b2a4e;border:0;border-radius:10px;padding:10px 14px;font-weight:800;font-size:14px;cursor:pointer">Later</button></div>';
-    document.body.appendChild(t);
-    document.getElementById('cnOpen').onclick=function(){mark();location.href='closures.html'};
-    document.getElementById('cnX').onclick=function(){t.remove()};
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(run,600)});else setTimeout(run,600);
-})();
-</script>
 </body>
 </html>
