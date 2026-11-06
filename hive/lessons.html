@@ -43,7 +43,7 @@ ol.steps li:before{content:counter(s);position:absolute;left:0;top:8px;width:30p
 .msg{min-height:20px;font-weight:700;color:var(--grn)}
 </style></head>
 <body><div id="app"></div>
-<script>(function(){var V='20261106a';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+location.search+(location.search?'&':'?')+'v='+m[1]);}});}catch(e){}})();</script>
+<script>(function(){var V='20261106c';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+location.search+(location.search?'&':'?')+'v='+m[1]);}});}catch(e){}})();</script>
 <script src="training-who.js?v=1"></script>
 <script>
 const PIN=sessionStorage.getItem('hivePin'), ROLE=sessionStorage.getItem('hiveRole')||'teacher', TSCH=sessionStorage.getItem('hiveSchool')||'';
@@ -152,6 +152,16 @@ const LESSONS=[
  stop:'Do not take photos of the board and send them by text. Children\'s information stays in the Hive.',
  quiz:[
   {q:'The Create shortcut button is gray. What is the likely cause?',a:['You are in Guest mode','Your PIN expired','The board is down'],c:0,w:'Guest mode blocks shortcuts. Create a profile.'}]},
+{id:'A7',sec:'A. Daily Rooms Board',title:'Notes from your director',min:3,intro:'Owners and directors can leave a short note on the Rooms Board, for all staff or for one classroom, like "Have a great weekend!" This lesson shows where to find it.',
+ steps:[
+ [ALL,'A pink '+B('Note for all staff')+' box shows at the top of the Rooms Board. When you open your classroom, a '+B('Note for this classroom')+' box shows too.'],
+ [T,'Teachers can only read the notes. You cannot add or change them. If you need something said to the whole team, tell your director.'],
+ [D,'To leave a note, open the Rooms Board, tap '+B('Add a note')+' (or '+B('Change')+'), type it, and tap '+B('Save note')+'. Pick a '+B('Show until')+' date if it should go away on its own. Clear the box and save to remove it.']
+ ],
+ tip:'Use it for good news, reminders and thank-yous, not only problems.',
+ stop:'Never put a child\'s full name or private details in a note. Everyone on staff can read it.',
+ quiz:[
+  {q:'Who can add or change a note on the Rooms Board?',a:['Only owners and directors','Any teacher','Any parent'],c:0,w:'Teachers read; owners and directors write.'}]},
 {id:'B1',sec:'B. Facility and Incidents',title:'Daily facility checklists',min:6,intro:'Every day each room and the building have checklists. They are the proof for DCF that the center is clean and safe. Walking the room and doing the work is the real job; the Hive records it.',
  steps:[
  [T,'From your portal tap '+B('Facility Checklists')+'. Pick your room and the date.'],
@@ -279,7 +289,45 @@ const LESSONS=[
  stop:'Do not send plans or workbooks to parents by personal email or text. Use the take-home sheets from the month folder.',
  quiz:[
   {q:'What two things do you pick in the Lesson Plan Wizard?',a:['Month and age group','Room and teacher','Day and meal'],c:0,w:'Pick your month, then your age group.'},
-  {q:'You want the sound wall cards for a book. Where?',a:['The books section, in that book\'s row','The Rooms Board','Time Off'],c:0,w:'Every book row has Wall Cards, Picture Cards, a Teacher Guide and a Student Workbook.'}]}
+  {q:'You want the sound wall cards for a book. Where?',a:['The books section, in that book\'s row','The Rooms Board','Time Off'],c:0,w:'Every book row has Wall Cards, Picture Cards, a Teacher Guide and a Student Workbook.'}]},
+{id:'E1',sec:'E. Parent Portal',title:'The Parent Portal',min:5,intro:'The Parent Portal is what families see: menu, newsletter, lesson plans, message board and reminders, closures, what to bring, fees, sick policy, drop-off and pick-up, and Parent Orientation. Staff can look at it any time with no parent PIN.',
+ steps:[
+ [ALL,'Open the '+B('Parent Portal')+' card. You see your own school\'s portal exactly as a parent does.'],
+ [T,'Teachers can view only. If something is wrong or missing, tell your director.'],
+ [D,'Tap '+B('Update the parent portal')+'. Upload a PDF, JPG or PNG for the menu, newsletter, lesson plans or a flyer, or fill in the newsletter template. Posting the same thing for the same month replaces the old one.'],
+ [D,'Post reminders and announcements on the '+B('Message Board & Reminders')+'. Pin the important ones, and set a date for them to come down.'],
+ [D,'If the menu, newsletter or lesson plans are not posted for the month, a notice shows in your red Needs Attention box until you post them.'],
+ [D,'The page also lists the parents who signed Parent Orientation.']
+ ],
+ tip:'Post next month\'s menu and lesson plans before the 25th so families can plan ahead.',
+ stop:'Never post a child\'s name with a photo, medical details, or anything private on the Message Board.',
+ quiz:[
+  {q:'Who can post a note on the parent Message Board?',a:['Owners and directors','Teachers','Anyone who opens the portal'],c:0,w:'Only owners and directors post.'},
+  {q:'The November menu is not posted. What do you see?',a:['A notice in Needs Attention','Nothing','An email from DCF'],c:0,w:'It shows in the Needs Attention box until posted.'}]},
+{id:'E2',sec:'E. Parent Portal',title:'Parent Orientation',min:3,intro:'Parents can go through short lessons built from the Parent Handbook and then sign that they finished orientation.',
+ steps:[
+ [ALL,'The '+B('Parent Orientation')+' card on the Parent Portal has short lessons with a quick check at the end of each.'],
+ [ALL,'When all lessons are done, the parent types their name and their child\'s name, checks the box, and taps '+B('Sign orientation')+'.'],
+ [D,'Signed orientations are listed on '+B('Update the parent portal')+'. Ask new families to finish orientation in the first week.']
+ ],
+ tip:'Orientation lessons match what staff learn in the Employee Handbook training, so families and staff hear the same message.',
+ stop:'Do not sign for a parent. They type their own name.',
+ quiz:[
+  {q:'Who types the name when orientation is signed?',a:['The parent','The teacher','The director'],c:0,w:'The parent signs for themselves.'}]},
+{id:'F1',sec:'F. Director Reports',title:'Weekly FTE report',min:4,intro:'The weekly FTE report is no longer sent to corporate. Directors fill it in on the FTE Report card, and it is saved to the vault.',
+ steps:[
+ [D,'Open '+B('FTE Report')+'. The week fills in for you. Type accounts receivable, self-pay and subsidy billed, FTE, license capacity and the other numbers. Use 0 where there is none.'],
+ [D,'Total billed (self-pay plus subsidy) and Occupancy % (FTE divided by capacity) work themselves out.'],
+ [D,'Accounts receivable comes from ProCare: Standard Reports, Family Accounting, Account Balance Summary, Primary Accounts Only. Count only accounts with a balance due. It cannot be a negative number.'],
+ [D,'Tap '+B('Save this week')+'. Your week joins the 20-row sheet, with week-over-week changes and trend charts. Print the filled report or the blank official form any time.'],
+ [D,'When the sheet has 20 weeks, it is filed in the vault and a new sheet starts. Find old sheets under '+B('Filed sheets')+'.'],
+ [D,'Needs Attention reminds you from Thursday if the week is not filed yet.']
+ ],
+ tip:'File it on Thursday or Friday while the week\'s numbers are fresh.',
+ stop:'Do not guess numbers. Use the real ProCare and payroll totals.',
+ quiz:[
+  {q:'What is Occupancy %?',a:['FTE divided by license capacity','Children enrolled divided by staff','Total billed divided by payroll'],c:0,w:'FTE divided by capacity, times 100.'},
+  {q:'Where does the FTE report go now?',a:['Saved in the Hive vault','Emailed to corporate','Nowhere'],c:0,w:'It is saved here in the vault.'}]}
 ];
 
 
