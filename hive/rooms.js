@@ -20,7 +20,12 @@ function niceDate(ds){ var d=new Date(ds+'T12:00:00'); return d.toLocaleDateStri
 function shiftDate(n){ var d=new Date(S.date+'T12:00:00'); d.setDate(d.getDate()+n); S.date=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
 
 /* ---------- api ---------- */
+function isWriteDay(action, table){ return /^(update|updateMany|create|createMany)$/.test(action) && (table==='Room Attendance'||table==='Room Day'); }
 function api(action, table, extra, pinOverride){
+  if(!pinOverride && S.role==='teacher' && !isToday() && isWriteDay(action, table)){
+    if(S.dirPin && Date.now()-S.dirAt<10*60*1000) pinOverride=S.dirPin;
+    else return Promise.reject(new Error('Teachers can only change today. Tell your director to change an earlier day.'));
+  }
   var body = {pin: pinOverride||S.pin, school: S.school, action: action, table: table};
   if(extra) for(var k in extra) body[k]=extra[k];
   return fetch(API, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)})
@@ -169,7 +174,7 @@ function loginHTML(){
 function headerHTML(){
   var h='<div class="hdr"><div class="hl"><b>'+esc(S.school)+'</b><span class="chip">'+(S.role==='director'?'Director':'Teacher')+'</span></div>'
    +'<div class="hr"><span id="sv" class="sv ok">Saved</span><button class="ib" data-act="refresh" title="Refresh">&#8635;</button><button class="ib" data-act="help" title="Help">?</button><button class="ib" data-act="logout" title="Log out">&#9099;</button></div></div>'
-   +'<div class="dnav"><button class="ib" data-act="dprev">&lsaquo;</button><div class="dt">'+esc(niceDate(S.date))+(isToday()?' <span class="chip g">Today</span>':' <span class="chip o">Back-fill</span>')+'</div><button class="ib" data-act="dnext">&rsaquo;</button>'+(isToday()?'':'<button class="btn sec sm" data-act="dtoday">Today</button>')+'</div>';
+   +'<div class="dnav"><button class="ib" data-act="dprev">&lsaquo;</button><div class="dt">'+esc(niceDate(S.date))+(isToday()?' <span class="chip g">Today</span>':' <span class="chip o">Back-fill (director)</span>')+'</div><button class="ib" data-act="dnext">&rsaquo;</button>'+(isToday()?'':'<button class="btn sec sm" data-act="dtoday">Today</button>')+'</div>';
   return h;
 }
 function boardHTML(){
@@ -367,7 +372,7 @@ var ACT = {
  refresh: function(){ reloadAll().then(function(){ toast('Refreshed'); }); },
  help: function(){ openModal('<h3>Put this on your phone</h3><p><b>iPhone / iPad:</b> open this page in Safari &rarr; tap the Share button &rarr; <b>Add to Home Screen</b>.</p><p><b>Android:</b> open in Chrome &rarr; tap the &#8942; menu &rarr; <b>Add to Home screen</b> (or Install app).</p><p>It opens full-screen like an app. You will need your PIN the first time.</p><div class="mrow"><button class="btn" data-act="mclose2">Got it</button></div>'); },
  mclose: function(){ closeModal(); }, mclose2: function(){ closeModal(); },
- dprev: function(){ shiftDate(-1); S.sel={}; refresh(); }, dnext: function(){ shiftDate(1); S.sel={}; refresh(); }, dtoday: function(){ S.date=todayISO(); S.sel={}; refresh(); },
+ dprev: function(){ var go=function(){ shiftDate(-1); S.sel={}; refresh(); }; if(S.role==='teacher') needDirector(go); else go(); }, dnext: function(){ var d=new Date(S.date+'T12:00:00'); d.setDate(d.getDate()+1); var nd=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); if(S.role==='teacher' && nd>todayISO()) return; var go=function(){ shiftDate(1); S.sel={}; refresh(); }; if(S.role==='teacher' && nd!==todayISO()) needDirector(go); else go(); }, dtoday: function(){ S.date=todayISO(); S.sel={}; refresh(); },
  openroom: function(el){ S.room=decodeURIComponent(el.getAttribute('data-r')); S.view='room'; S.tab='sheet'; S.sel={}; render(); window.scrollTo(0,0); },
  back: function(){ S.view='board'; S.sel={}; render(); },
  tab: function(el){ S.tab=el.getAttribute('data-t'); render(); },

@@ -37,6 +37,8 @@ $UPDATE = [
 $DIRECTOR_ONLY_UPDATE = ['Room Children'];          // whole table
 $DIRECTOR_ONLY_FIELDS = ['Room Day' => ['Mgmt']];  // single fields
 
+function today_et(){ $d = new DateTime('now', new DateTimeZone('America/New_York')); return $d->format('Y-m-d'); }
+function day_lock_msg(){ return 'Teachers can only change TODAY. To change an earlier day, tell your director. The director enters their PIN, or fixes it.'; }
 function fail($msg, $code = 400){ http_response_code($code); echo json_encode(['error'=>$msg]); exit; }
 
 function at_request($method, $path, $query = null, $body = null){
@@ -130,6 +132,7 @@ if (!$list || count($list) > 10) fail('1 to 10 records at a time');
 $recs = [];
 foreach ($list as $f){
 if (!is_array($f) || !$f) fail('No fields');
+if (!$isDirector && in_array($table, ['Room Attendance','Room Day']) && isset($f['Date']) && substr((string)$f['Date'], 0, 10) !== today_et()) fail(day_lock_msg(), 403);
 $f['School'] = $school;
 $recs[] = ['fields' => $f];
 }
@@ -148,6 +151,7 @@ if (!$fields || !preg_match('/^rec[A-Za-z0-9]{14}$/', $recId)) fail('Bad update'
 $chk = at_request('GET', [$table, $recId]);
 $recSchool = $chk['fields']['School']['name'] ?? $chk['fields']['School'] ?? '';
 if ($recSchool !== $school) fail('Not your school\'s record', 403);
+if (!$isDirector && in_array($table, ['Room Attendance','Room Day']) && substr((string)($chk['fields']['Date'] ?? ''), 0, 10) !== today_et()) fail(day_lock_msg(), 403);
 $out = at_request('PATCH', [$table, $recId], null, ['fields' => $fields, 'typecast' => true]);
 echo json_encode($out); exit;
 }
@@ -167,8 +171,9 @@ if (!$f || !preg_match('/^rec[A-Za-z0-9]{14}$/', $id)) fail('Bad update');
 $ids[] = $id; $recs[] = ['id' => $id, 'fields' => $f];
 }
 $or = 'OR(' . implode(',', array_map(function($i){ return "RECORD_ID()='" . $i . "'"; }, $ids)) . ')';
-$chk = at_request('GET', [$table], ['maxRecords' => 10, 'filterByFormula' => "AND({School}='" . $school . "'," . $or . ")", 'fields' => ['School']]);
+$chk = at_request('GET', [$table], ['maxRecords' => 10, 'filterByFormula' => "AND({School}='" . $school . "'," . $or . ")", 'fields' => ['School', 'Date']]);
 if (count($chk['records'] ?? []) !== count(array_unique($ids))) fail('Not your school\'s record', 403);
+if (!$isDirector && in_array($table, ['Room Attendance','Room Day'])){ foreach ($chk['records'] as $cr){ if (substr((string)($cr['fields']['Date'] ?? ''), 0, 10) !== today_et()) fail(day_lock_msg(), 403); } }
 $out = at_request('PATCH', [$table], null, ['records' => $recs, 'typecast' => true]);
 echo json_encode($out); exit;
 }

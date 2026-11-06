@@ -43,6 +43,7 @@ ol.steps li:before{content:counter(s);position:absolute;left:0;top:8px;width:30p
 .msg{min-height:20px;font-weight:700;color:var(--grn)}
 </style></head>
 <body><div id="app"></div>
+<script>(function(){var V='20261106a';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+location.search+(location.search?'&':'?')+'v='+m[1]);}});}catch(e){}})();</script>
 <script src="training-who.js?v=1"></script>
 <script>
 const PIN=sessionStorage.getItem('hivePin'), ROLE=sessionStorage.getItem('hiveRole')||'teacher', TSCH=sessionStorage.getItem('hiveSchool')||'';
@@ -72,7 +73,7 @@ const LESSONS=[
  steps:[
  [ALL,'Open the Rooms Board from your portal card '+B('Classroom Attendance')+'. Type your PIN and tap '+B('Open my rooms')+'. Teachers pick their school; directors are set automatically.'],
  [ALL,'You see one big tile per classroom. Each tile shows how many children are in, the ratio right now, and any red notice such as '+B('Headcount due')+'.'],
- [T,'Tap your room tile. You land on '+B('Sign In / Out')+'. Check that the date at the top says '+B('Today')+'. If it says '+B('Back-fill')+', you are on an old day.'],
+ [T,'Tap your room tile. You land on '+B('Sign In / Out')+'. Check that the date at the top says '+B('Today')+'. If it says '+B('Back-fill')+', you are on an old day. Do not change anything. Teachers can only work on today. Tell your director.'],
  [T,'A child arrives: tap the green '+B('IN')+' button next to their name. The time is stamped for you. The button turns orange '+B('OUT')+'.'],
  [T,'A child goes home: tap '+B('OUT')+'. If they come back the same day, tap '+B('Back IN')+'.'],
  [T,'Several children at once: tick their boxes, set the time, and tap '+B('Sign IN')+' or '+B('Sign OUT')+'. '+B('Check all IN')+' signs in the whole room at one time.'],
@@ -85,7 +86,7 @@ const LESSONS=[
  quiz:[
   {q:'A child walks in at 8:10. What do you do?',a:['Tap IN next to the name','Wait until 9:00 and sign in everyone together','Tap B and L only'],c:0,w:'Tap IN right when they arrive so the real time is stamped.'},
   {q:'What does a green chip on B, L or P mean?',a:['That meal is marked for the child','The child is absent','A director signed it'],c:0,w:'Green means the meal is marked.'},
-  {q:'The top of the screen says Back-fill. What does it mean?',a:['You are looking at a past day','The board is full','Charles is filling in the meals'],c:0,w:'Back-fill means an older date. Tap Today to return.'}]},
+  {q:'The top of the screen says Back-fill. What does it mean?',a:['You are looking at a past day','The board is full','Charles is filling in the meals'],c:0,w:'Back-fill means an older date. Do not change it. Tap Today and tell your director.'}]},
 {id:'A2',sec:'A. Daily Rooms Board',title:'Leaving the room and moving children',min:5,intro:'Whenever children leave your room (playground, another classroom, a walk) you sweep and count first, then count again when you return. The board keeps the proof.',
  steps:[
  [T,'Open your room and tap the '+B('Leave Room')+' tab.'],
@@ -119,7 +120,7 @@ const LESSONS=[
  [T,'Tapped OUT by mistake? The button now says '+B('Back IN')+'. Tap it and the child is in the room again.'],
  [T,'A meal chip is wrong? Tap the same chip again to turn it off or on.'],
  [T,'Wrong time on a staff stamp? Open '+B('Staff &amp; Ratio')+', tap '+B('Edit times')+', change the time, and tap '+B('Save times')+'. Teachers enter the director code; directors and Mrs. Bear can change them freely.'],
- [T,'Forgot to sign a child in yesterday? Use the arrows at the top to go to that date (it says Back-fill) and sign them in at the real time, then tap '+B('Today')+'.'],
+ [T,'Forgot to sign a child in on an earlier day? Do not go back and change it. Teachers are locked to today. Tell your director right away. Only a director can fix a past day, and the system also picks up children who were never signed in.'],
  [T,'An accident or illness note is wrong? Tap '+B('AR')+' or '+B('IR')+' on that child, fix the text and tap '+B('Save')+', or tap '+B('Remove report')+'.'],
  [D,'Open '+B('Questions to answer')+' from the board. Each flag has an '+B('Submit answer')+' box, or fix it with '+B('Remove child from this day')+'.']
  ],
@@ -127,7 +128,7 @@ const LESSONS=[
  stop:'Never change a time to something that did not happen.',
  quiz:[
   {q:'You tapped OUT on the wrong child. What do you do?',a:['Tap Back IN','Delete the child','Wait for a director'],c:0,w:'Tap Back IN.'},
-  {q:'You forgot to sign someone in yesterday. What do you do?',a:['Go to yesterday with the arrows and sign them in at the real time','Sign them in today','Leave it'],c:0,w:'Use the date arrows, then come back with Today.'}]},
+  {q:'You forgot to sign someone in yesterday. What do you do?',a:['Tell your director and leave the old day alone','Go to yesterday and sign them in','Sign them in today at the old time'],c:0,w:'Teachers cannot change past days. Tell your director.'}]},
 {id:'A5',sec:'A. Daily Rooms Board',title:'School-agers, lunch and director questions',min:4,intro:'School-age children are away at school on school days, so the board treats them differently. This lesson explains what you will see.',
  steps:[
  [ALL,'On a school day, school-agers are signed out at 8:00 AM and signed back in when they return (about 3:15 PM, or 2:15 PM on early-release Wednesdays). Real times from the transportation log are used when they exist.'],
@@ -295,12 +296,12 @@ function certHtml(name,school,t){
  +'<div class="sm" style="margin-top:8px">In-house training at Kid City USA. Keep in the staff file.</div><div class="sg"><div>Director / Owner signature (signed in the staff file)</div></div></div><p><button onclick="print()">Print</button></p>';}
 function certBox(){
  var l=CUR,c=certSent(l.id);
- if(c){return '<div class="card" style="background:#f6fbf7;border:2px solid #7fc79a"><b>🎓 Certificate sent to '+esc(c.name)+'\'s staff file.</b><div style="color:var(--soft)">'+(c.signed?'Signed by your director. It is in your file.':'Your director or Mrs. Bear will sign it on the screen. You cannot change it after it is sent.')+'</div><button class="btn sec" onclick="showCert()">Print my copy</button></div>';}
+ if(c){return '<div class="card" style="background:#f6fbf7;border:2px solid #7fc79a"><b>🎓 Certificate sent to '+esc(c.name)+'\'s staff file.</b><div style="color:var(--soft)">'+(c.signed?'Signed by your director. It is in your staff file. Ask your director if you want a copy.':'It went to your director to sign on the screen. Once it is signed it is kept in your staff file. Ask your director if you want a copy.')+'</div></div>';}
  return '<div class="card" style="background:#fffbea;border:2px solid #f0c040"><b>🎓 Certificate</b><div style="color:var(--soft);margin:4px 0">It could not be sent just now.</div><button class="btn grn" onclick="sendCert()">Try again</button><div class="msg" id="cm"></div></div>';}
 function sendCert(){
  var w=HW.get();if(!w||!CUR)return;
  HW.submit(CUR.id,'Lesson '+CUR.id+': '+CUR.title,Math.round(CUR.min/60*100)/100).then(function(){$('cert').innerHTML=certBox();$('fin').style.color='';$('fin').textContent='Lesson complete. Your certificate went to your staff file.'}).catch(function(e){$('cert').innerHTML=certBox();var m=$('cm');if(m){m.style.color='#c62828';m.textContent=e.message||'Could not send. Try again.'}});}
-function showCert(){var c=certSent(CUR.id);if(!c)return;var w=window.open('about:blank','_blank');if(!w)return;w.document.write(certHtml(c.name,c.school,c));w.document.close();}
+
 function switchWho(){HW.clear();home();}
 
 let CUR=null;
