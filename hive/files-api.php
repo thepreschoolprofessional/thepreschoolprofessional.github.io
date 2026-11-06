@@ -350,6 +350,12 @@ $all[] = ['id'=>$id,'name'=>$name,'type'=>$type,'from'=>$from,'to'=>$to,'hours'=
 jwrite($f, $all);
 echo json_encode(['ok'=>true,'short'=>($notice < 14),'notice'=>$notice]); exit;
 }
+if ($action === 'to_count'){
+if (!$isDir){ echo json_encode(['count'=>0,'short'=>0]); exit; }
+$f = to_file($school); $all = ($f && is_file($f)) ? jread($f, []) : []; $n = 0; $sh = 0;
+foreach ($all as $r){ if (($r['status'] ?? '') === 'pending'){ $n++; if (!empty($r['short'])) $sh++; } }
+echo json_encode(['count'=>$n,'short'=>$sh]); exit;
+}
 if ($action === 'to_approved'){
 $f = to_file($school); $all = ($f && is_file($f)) ? jread($f, []) : []; $out = [];
 foreach ($all as $r){ if (($r['status'] ?? '') === 'approved') $out[] = ['name'=>$r['name'],'from'=>$r['from'],'to'=>$r['to']]; }
@@ -364,7 +370,7 @@ if ($action === 'to_decide'){
 if (!sop_dir_ok($school, $isDir, $pins, $input['dirpin'] ?? '')) fail('Directors only.', 403);
 $id = (string)($input['id'] ?? ''); $st = (string)($input['status'] ?? ''); if (!in_array($st, ['approved','denied','pending'], true)) fail('Bad choice.');
 $f = to_file($school); $all = ($f && is_file($f)) ? jread($f, []) : []; $hit = null;
-foreach ($all as $i => $r){ if (($r['id'] ?? '') === $id){ $all[$i]['status'] = $st; $all[$i]['note'] = mb_substr(trim((string)($input['note'] ?? '')),0,300); $all[$i]['decidedAt'] = gmdate('c'); $hit = $all[$i]; } }
+foreach ($all as $i => $r){ if (($r['id'] ?? '') === $id){ $all[$i]['status'] = $st; $all[$i]['note'] = mb_substr(trim((string)($input['note'] ?? '')),0,300); $all[$i]['decidedAt'] = gmdate('c'); $sg = (string)($input['sig'] ?? ''); if ($sg !== '' && strpos($sg, 'data:image/png;base64,') === 0 && strlen($sg) < 120000) $all[$i]['sig'] = $sg; $all[$i]['signer'] = mb_substr(trim((string)($input['signer'] ?? '')),0,60); $hit = $all[$i]; } }
 if (!$hit) fail('Request not found.', 404);
 jwrite($f, $all);
 /* approved time off goes onto the schedule as OUT days (weekdays only) */

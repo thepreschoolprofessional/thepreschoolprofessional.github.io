@@ -20,6 +20,7 @@
    '#cardGrid .tt{display:block;font-weight:900;font-size:1.02rem}'+
    '#cardGrid small{display:block;font-weight:500;opacity:.92;font-size:.78rem;margin-top:4px}'+
    '#cardGrid .lst{display:block;text-align:left;margin:8px 0 0;padding:8px 6px 0 6px;border-top:1px solid rgba(255,255,255,.4);font-size:.74rem;font-weight:500;line-height:1.35}#cardGrid .lst i{display:block;font-style:normal;padding-left:11px;text-indent:-11px}'+
+   '#cardGrid .trn{display:block;margin-top:8px}#cardGrid .pill{display:block;margin:4px 0 0;background:rgba(255,255,255,.92);color:#4a3a30;border-radius:999px;padding:5px 8px;font-size:.72rem;font-weight:800;cursor:pointer}'+
    '#cardBack{display:none;position:sticky;top:0;z-index:60;background:rgba(255,247,239,.96);padding:8px 14px;border-bottom:1px solid #eadfce}'+
    'body:not(.home) #cardBack{display:block}'+
    '#cardBack button{border:0;border-radius:14px;padding:10px 18px;font-weight:900;font-size:.95rem;color:#fff;background:#4a3a30;cursor:pointer;font-family:inherit}';
@@ -36,7 +37,7 @@
   var used=[], cards=[];
   (cfg.order||[]).forEach(function(o){
     var t=tabs.filter(function(x){return used.indexOf(x)<0&&label(x).indexOf(o.k)>-1})[0];
-    if(!t) return; used.push(t); cards.push({t:t,s:o.s||'',l:o.l||[],c:o.c||bg(t),base:label(t)});
+    if(!t) return; used.push(t); cards.push({t:t,s:o.s||'',l:o.l||[],tr:o.t||[],c:o.c||bg(t),base:label(t)});
   });
   tabs.forEach(function(t){ if(used.indexOf(t)<0) cards.push({t:t,s:'',c:bg(t),base:label(t)}); });
 
@@ -50,6 +51,7 @@
     b.innerHTML='<span class="ic">'+ic+'</span><span class="tt"></span>'+(cd.s?'<small></small>':'');
     b.querySelector('.tt').textContent=tt; if(cd.s) b.querySelector('small').textContent=cd.s;
     if(cd.l&&cd.l.length){var ul=document.createElement('span');ul.className='lst';cd.l.forEach(function(x){var it=document.createElement('i');it.textContent='\u2022 '+x;ul.appendChild(it);});b.appendChild(ul);}
+    if(cd.tr&&cd.tr.length){var tw=document.createElement('span');tw.className='trn';cd.tr.forEach(function(x){var p=document.createElement('span');p.className='pill';p.setAttribute('role','link');p.textContent='\uD83C\uDF93 '+x[0];p.onclick=function(e){e.stopPropagation();location.href=x[1];};tw.appendChild(p);});b.appendChild(tw);}
     b.onclick=function(){cd.t.click();};
     cd.b=b; grid.appendChild(b);
     function mirror(){var sp=cd.t.querySelector('span[style*="e53935"]'); if(sp) setBadge(cd,sp.textContent.replace(/[^\w\s]/g,'').trim());}

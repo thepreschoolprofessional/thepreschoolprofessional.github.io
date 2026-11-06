@@ -120,6 +120,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 <div class="tab" style="background:#3f8f5c" onclick="show('foodforms',this)">📋 Food Forms</div>
   <div class="tab" style="background:#b0722e" onclick="show('inv',this)">📦 Inventory</div>
 <div class="tab t-facility" onclick="show('facility',this)">🧹 Facility Checklists</div>
+ <div class="tab" style="background:#37474f" onclick="location.href='handbook-training.html'">📘 Employee Handbook Training</div>
  <div class="tab" style="background:#8d5524" onclick="location.href='sop.html'">📖 Standard Operating Procedures</div>
   <div class="tab" style="background:#b22234" onclick="location.href='closures.html'">📅 Closures</div>
 <div class="tab" style="background:#c0392b" onclick="location.href='dcf.html'">📁 DCF Binder</div>
@@ -840,15 +841,16 @@ function openElcTablet(){
 }
 window.HIVE_CARDS={prompt:'What do you want to work on?',order:[
  {k:'Daily Briefing',l:["Today's to-do list (check off, add notes)", "Friday meeting answers", "Red Needs Attention alerts"],s:"Today's to-do list",c:'#2e8b57'},
- {k:'Classroom Attendance',l:["Rooms board: sign children in and out", "Meals checked off by room", "Weekly attendance forms to sign", "Headcounts and ratios"],s:'Room sign-in, meals, headcounts',c:'#1565c0'},
+ {k:'Classroom Attendance',t:[['Rooms Board lessons','lessons.html#A1']],l:["Rooms board: sign children in and out", "Meals checked off by room", "Weekly attendance forms to sign", "Headcounts and ratios"],s:'Room sign-in, meals, headcounts',c:'#1565c0'},
  {k:'ELC Sign-In Tablet',l:["Opens your school's ELC tablet", "Who signed in and out today", "Absence notes and excuse forms", "Month sign-in/out sheets"],s:'Who signed in today',c:'#ef6c00'},
  {k:'Food Program',l:["Daily KidKare meal counts", "What still needs attention", "You submit the claim at month-end"],s:'Meal counts and the claim',c:'#d9822b'},
  {k:'Food Forms',l:["Every CACFP/CCFP form by category", "Open and print the exact form"],s:'Forms to print',c:'#3f8f5c'},
  {k:'DCF Binder',l:["Missing items by day", "Cleaning, inspections, temps and security", "End of day, drills (fire drill log)", "Transportation, attendance, food program", "Month-end packet and forms to print"],s:'Inspector view',c:'#c62828'},
  {k:'Transportation',l:["Trips and riders", "Transportation packet"],s:'Trips, riders, packet',c:'#00838f'},
  {k:'Reporting',l:["Monthly checklist: ELC, Food Program, DCF, meetings", "Audit vault of filed PDFs", "Weekly attendance forms"],s:'Monthly reporting and vault',c:'#37474f'},
- {k:'Facility Checklists',l:["Bathroom and classroom cleaning", "Indoor and playground inspections", "Temperature, security, sanitation", "End of day sweep"],s:'Cleaning and inspections',c:'#00838f'},
- {k:'Standard Operating Procedures',l:['Letter and standing rules','Opening-to-close timeline','Classroom schedules','Staff schedule: weekly hours, call-outs, substitutes','Day planner: coverage, combine rooms','Print staff and classroom schedules'],s:'Schedules, planner, rules',c:'#8d5524'},
+ {k:'Facility Checklists',t:[['Daily facility checklists','lessons.html#B1'],['Incident reports','lessons.html#B2']],l:["Bathroom and classroom cleaning", "Indoor and playground inspections", "Temperature, security, sanitation", "End of day sweep"],s:'Cleaning and inspections',c:'#00838f'},
+ {k:'Employee Handbook Training',l:['Eleven short lessons from the handbook','Time off, calling out, conduct, safety','Quick check after each lesson'],s:'The handbook, step by step',c:'#37474f'},
+ {k:'Standard Operating Procedures',t:[['Handbook: time off and schedules','handbook-training.html?m=timeoff'],['Handbook: calling out','handbook-training.html?m=attend']],l:['Letter and standing rules','Opening-to-close timeline','Classroom schedules','Staff schedule: weekly hours, call-outs, substitutes','Day planner: coverage, combine rooms','Print staff and classroom schedules'],s:'Schedules, planner, rules',c:'#8d5524'},
  {k:'Closures',l:["Closed days calendar", "Closure flyers to share with families"],s:'Closed days and flyers',c:'#b22234'},
  {k:'Staff Hours',l:["Who is on the clock now", "Punch flags to fix", "Hours today and this week"],s:'Hours and pace',c:'#ef6f5e'},
  {k:'Time Fix',l:["Correct a clock-in or clock-out", "Say what happened"],s:'Correct a clock-in or out',c:'#7b4bc9'},
@@ -907,7 +909,16 @@ window.HIVE_CARDS={prompt:'What do you want to work on?',order:[
  setTimeout(run,3200);setTimeout(dates,3400);
 })();
 </script>
-<script src="hive-cards.js?v=4"></script>
+<script src="hive-cards.js?v=5"></script>
+<script>
+(function(){var P=sessionStorage.getItem('hivePin');if(!P)return;
+function chk(){fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:P,action:'to_count'})}).then(function(r){return r.json()}).then(function(j){var old=document.getElementById('toBar');if(old)old.remove();if(!j||!j.count)return;
+ if(window.HiveCards)HiveCards.badge('Standard Operating Procedures',j.count+' time off');
+ var b=document.createElement('div');b.id='toBar';b.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:90;background:#c62828;color:#fff;border-radius:14px;padding:12px 16px;font-weight:800;box-shadow:0 6px 20px rgba(0,0,0,.35);max-width:92%;cursor:pointer';
+ b.textContent='\uD83C\uDF34 '+j.count+' time-off request'+(j.count>1?'s':'')+' waiting for your signature'+(j.short?' ('+j.short+' under two weeks notice)':'')+'. Tap to open.';b.onclick=function(){location.href='sop.html#off';};document.body.appendChild(b);}).catch(function(){});}
+setTimeout(chk,1500);setInterval(chk,300000);})();
+</script>
+
 <script>
 /* red "needs attention" badges on cards: DCF Binder missing count, read from a hidden DCF Binder page */
 (function(){
