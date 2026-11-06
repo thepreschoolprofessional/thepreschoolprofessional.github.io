@@ -48,6 +48,7 @@
     var m=label(cd.t).match(/^(\S+)\s+(.*)$/); var ic=m?m[1]:'', tt=m?m[2]:label(cd.t);
     var b=document.createElement('button'); b.type='button';
     b.style.background=cd.c;
+    var di=cd.t.getAttribute&&cd.t.getAttribute('data-icon'); if(di) ic='<img src="'+di+'" alt="" style="height:46px;width:auto;display:block;margin:0 auto">';
     b.innerHTML='<span class="ic">'+ic+'</span><span class="tt"></span>'+(cd.s?'<small></small>':'');
     b.querySelector('.tt').textContent=tt; if(cd.s) b.querySelector('small').textContent=cd.s;
     if(cd.l&&cd.l.length){var ul=document.createElement('span');ul.className='lst';cd.l.forEach(function(x){var it=document.createElement('i');it.textContent='\u2022 '+x;ul.appendChild(it);});b.appendChild(ul);}
