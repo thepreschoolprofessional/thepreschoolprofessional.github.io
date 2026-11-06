@@ -37,7 +37,7 @@ var DEF={
    {name:'Miss Gul',role:'Toddler classroom',room:'Honey Bees - Tod. Front',week:WK('08:00','17:30',3),brk:{s:'12:00',e:'13:00'},note:'1-hour break between 12 and 2, usually 12:00'},
    {name:'Miss Honey',role:'Lunch/snack lead, office',room:"Four's - Honey Combs",week:WK('08:30','16:30',5),brk:null,note:'Straight shift'},
    {name:'Miss Angelina',role:'Older classroom',room:"Three's - Honey Combs",week:WK('09:00','17:30',1),brk:{s:'14:30',e:'15:00'},brkDay:{3:{s:'13:30',e:'14:00'}},note:'Break 2:30 (Wed 1:30)'},
-   {name:'Miss Emily',role:'Flex: classroom assigned daily',room:"Three's - Honey Combs",week:WK('09:30','17:30',2),brk:null,note:'Can work a straight shift to 5:30'}
+   {name:'Miss Emily',role:'Float (no classroom)',room:'',week:WK('09:30','17:30',2),brk:null,note:'Can work a straight shift to 5:30'}
   ],
   timeline:[
    ['06:30','','Mrs. Bear (opener)','Unlock and open. Sign in on the tablet and open the Attendance Board (Rooms board). Take a walkie-talkie. Lights on, soft music. Greet every parent and child by name; children are signed in on the Attendance Board. If no children yet, start breakfast prep (menu on the fridge).'],
@@ -47,12 +47,12 @@ var DEF={
    ['08:30','','Miss Honey','Signs in. Flexible: finish lunch prep or assist in the front office. If VPK finish eating before 8:30, walk them to the small classroom by the office for morning work. All rooms move into Centers per each room\'s own Daily Routine.'],
    ['08:30','10:00','All classrooms','Follow each classroom\'s individual Daily Routine (times and activities already built). Circle time starts at 9:00. Keep the Attendance Board current as children arrive.'],
    ['09:00','','Miss Angelina','Signs in; takes the classroom she is assigned for the day (normally the combined Three\'s and Four\'s).'],
-   ['09:30','','Miss Emily','Signs in; gets a classroom assignment from the director for the day. She covers any teacher who is out. If no one is out, she joins the combined older classroom.'],
+   ['09:30','','Miss Emily','Signs in as the FLOAT. She is not assigned a classroom. She covers any teacher who is out, covers breaks, and goes wherever ratio needs her; the director tells her where each day.'],
    ['10:00','11:00','Three\'s + Four\'s (combined)','Go to the playroom or outside for the hour (if combined headcount is 20 or under). Staff in the room take a headcount at every move.'],
    ['11:00','','Miss Honey','Serves lunch to the Toddler class (Honey Bees - Tod. Front). Infants eat on their own individual schedule.'],
    ['11:00','11:15','Combined classroom','Come inside, wash hands and sit down for lunch.'],
    ['11:15','11:30','Miss Honey','Serves lunch to the combined classroom (Three\'s + Four\'s), who eat family style with their teachers (lunch starts 11:15).'],
-   ['11:45','12:00','Honey / assigned teachers','Children move to the quiet room: blackout curtains down, music on, tiptoe expectation. Team-clean the lunch room.'],
+   ['11:45','12:00','Honey / teachers','Children move to the quiet room: blackout curtains down, music on, tiptoe expectation. Team-clean the lunch room.'],
    ['12:00','14:30','Staff breaks','Breaks start at 12:00. Miss Gul 1 hour (usually 12:00). Miss Demaury lunch 12:00-2:30. Mrs. Bear is out by 12:30. Keep ratio at all times. Lesson-plan review, next week\'s crafts and materials, and cleaning charts on the teacher portal. Honey verifies every teacher\'s cleaning chart was actually completed and does the outdoor playground inspection (director portal).'],
    ['11:30','12:00','Miss Honey','Children asleep: clean the kitchen and catch up on tasks.'],
    ['14:00','14:15','Honey / assigned teachers','Fours/Fives snack together in the pre-set room. Break down quiet-room beds and blankets.'],
