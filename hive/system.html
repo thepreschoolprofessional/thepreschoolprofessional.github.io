@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>System Check - The Hive</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#eef2f4;color:#222;padding:12px 16px 60px}
+a.back{display:inline-block;margin:4px 0 8px;color:#555;text-decoration:none;font-weight:700}h1{margin:6px 0 2px;font-size:1.5rem}.sub{color:#666;font-size:.9rem;margin-bottom:10px}
+.sec{background:#fff;border:2px solid #d5dde2;border-radius:16px;margin:12px 0;padding:12px 14px}
+.row{display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px solid #eee}.row:first-child{border-top:0}.row b{flex:1}.dot{width:14px;height:14px;border-radius:50%;background:#2e7d32;flex:none}.dot.bad{background:#c62828}
+button{border:0;border-radius:10px;padding:10px 16px;font-weight:800;cursor:pointer;background:#222;color:#fff;font-size:.95rem;margin:8px 6px 0 0}
+.msg{padding:10px;border-radius:10px;background:#e3f4e8;margin:8px 0;display:none;font-weight:700}.msg.err{background:#fde0e0}
+</style></head><body>
+<a class="back" href="director.html">&larr; Director Dashboard</a>
+<h1>System Check <span id="sch" class="sub"></span></h1>
+<div class="sub">Green means that connection is working. Red means tell Mrs. Bear.</div>
+<div class="msg" id="msg"></div><div id="view" class="sec">Checking...</div>
+<div class="sec"><b>Email alerts</b><div class="sub">The Hive emails your school office when a family sends a registration packet, a parent signs orientation, or a new hire signs up, finishes training or signs their packet. Names are shortened. Press the button to send a test and look in the office inbox (also check Spam the first time).</div><button onclick="testMail()">Send a test email alert</button><button style="background:#eee;color:#222" onclick="run()">Run the check again</button></div>
+<script>
+const PIN=sessionStorage.getItem('hivePin');if(!PIN||sessionStorage.getItem('hiveRole')!=='director')location.href='index.html';
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const $=i=>document.getElementById(i);
+async function api(action,extra){const r=await fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({pin:PIN,action},extra||{}))});const j=await r.json();if(j.error)throw new Error(j.error);return j;}
+function say(t,err){const m=$('msg');m.textContent=t;m.className='msg'+(err?' err':'');m.style.display=t?'block':'none';}
+async function run(){say('');try{const j=await api('sys_check');$('sch').textContent=j.school;$('view').innerHTML='<h2 style="margin:0 0 6px;font-size:1.1rem">Connections</h2>'+j.checks.map(c=>'<div class="row"><i class="dot'+(c.ok?'':' bad')+'"></i><b>'+esc(c.k)+'<br><span class="sub">'+esc(c.note)+'</span></b></div>').join('');}catch(e){say(e.message,true)}}
+async function testMail(){say('');try{const j=await api('sys_test_mail');say(j.sent?'Test sent to '+j.to+'. Check that inbox.':'The server could not send email right now. Alerts still show on the red Needs Attention banner. Tell Mrs. Bear.',!j.sent);run();}catch(e){say(e.message,true)}}
+run();
+</script></body></html>

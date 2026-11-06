@@ -240,6 +240,16 @@ return $out;
 if (AIRTABLE_TOKEN === 'PASTE_YOUR_AIRTABLE_TOKEN_HERE') fail('The Airtable token has not been added yet.', 503);
 $input = json_decode(file_get_contents('php://input'), true);
 if (!$input) fail('Bad request');
+/* ---- Notifications: plain emails to the school's own office inbox (first name + last initial only, no private details). Failure is silent; the red Needs Attention banner is the main alert. ---- */
+function hive_notify($school, $subject, $lines){
+$to = ($school === 'Sanford') ? 'sanfordoffice.1320@gmail.com' : 'delandoffice.238@gmail.com';
+$body = implode("\n", (array)$lines)."\n\nOpen the director portal to review: https://thepreschoolprofessional.net/hive/\n(This is an automatic note from the Hive. Names are shortened on purpose.)";
+$hdr = "From: The Hive <noreply@thepreschoolprofessional.net>\r\nContent-Type: text/plain; charset=utf-8";
+$ok = function_exists('mail') ? @mail($to, '=?UTF-8?B?'.base64_encode('[Hive] '.$subject).'?=', $body, $hdr) : false;
+$d = school_dir($school); if ($d){ $lf = $d.'/notify-log.json'; $lg = jread($lf, []); $lg[] = ['at'=>gmdate('c'), 'subject'=>$subject, 'sent'=>(bool)$ok]; if (count($lg) > 60) $lg = array_slice($lg, -60); jwrite($lf, $lg); }
+return (bool)$ok; }
+function short_child($full){ $p = preg_split('/\s+/', trim(preg_replace('/[^A-Za-z\' -]/', ' ', (string)$full))); if (count($p) < 2) return trim((string)$full); return ucfirst(strtolower($p[0])).' '.strtoupper(substr(end($p), 0, 1)).'.'; }
+function strip_private($D){ foreach (array_keys($D) as $k){ if (preg_match('/ssn|social|sec(urity)?num/i', (string)$k)) unset($D[$k]); } return $D; }
 /* ---- Parent orientation: who is taking it, progress, and filing in the child's folder ---- */
 function ori_clean($input){ $t = function($v, $n){ return mb_substr(trim(strip_tags((string)$v)), 0, $n); };
 return ['parent'=>$t($input['parent'] ?? '', 60), 'child'=>$t($input['child'] ?? '', 60), 'phone'=>$t($input['phone'] ?? '', 30), 'email'=>$t($input['email'] ?? '', 80), 'rel'=>$t($input['rel'] ?? '', 30)]; }
@@ -249,8 +259,11 @@ foreach ($o as $i => $x){ if (strtolower(($x['parent'] ?? '').'|'.($x['child'] ?
 if ($hit < 0){ $o[] = ['parent'=>$w['parent'], 'child'=>$w['child'], 'at'=>gmdate('c'), 'date'=>date('Y-m-d'), 'started'=>date('Y-m-d')]; $hit = count($o) - 1; }
 $o[$hit] = array_merge($o[$hit], ['phone'=>$w['phone'], 'email'=>$w['email'], 'rel'=>$w['rel'], 'done'=>max((int)($o[$hit]['done'] ?? 0), (int)$done), 'total'=>(int)$total, 'updated'=>gmdate('c')]);
 if ($isNew) $o[$hit]['new'] = true;
-if ($signed){ $o[$hit]['signed'] = true; $o[$hit]['date'] = date('Y-m-d'); $o[$hit]['at'] = gmdate('c'); }
+if ($signed){ $o[$hit]['signed'] = true; $o[$hit]['date'] = date('Y-m-d'); $o[$hit]['at'] = gmdate('c'); if (!isset($o[$hit]['filed'])) $o[$hit]['filed'] = false; }
 jwrite($pd.'/orientation.json', $o); return $hit; }
+function ori_refile($school){ $pd = pp_dir($school); if (!$pd) return []; $o = jread($pd.'/orientation.json', []); $un = []; $ch = false;
+foreach ($o as $i => $x){ if (empty($x['signed']) || !empty($x['filed'])) continue; $id = ori_file($school, ['child'=>$x['child'] ?? '', 'parent'=>$x['parent'] ?? '']); if ($id !== ''){ $o[$i]['filed'] = true; $ch = true; } else $un[] = $x; }
+if ($ch) jwrite($pd.'/orientation.json', $o); return $un; }
 function ori_file($school, $w){
 $parts = preg_split('/\s+/', trim(preg_replace('/[^A-Za-z\' -]/', ' ', $w['child']))); if (count($parts) < 2) return '';
 $name = strtolower($parts[0].' '.substr(end($parts), 0, 1).'.'); $m = [];
@@ -280,6 +293,7 @@ if (strlen(preg_replace('/\D/', '', $cell)) < 7) fail('Please enter your cell ph
 if (strpos($em, '@') === false) fail('Please enter your email.');
 $id = 'nh'.date('ymdHis').substr(md5(uniqid('', true)), 0, 5); $tok = bin2hex(random_bytes(12));
 jwrite($nd.'/'.$id.'.json', ['id'=>$id, 'token'=>$tok, 'school'=>$ns, 'name'=>$nm, 'role'=>$rl, 'cell'=>$cell, 'email'=>$em, 'start'=>$st, 'at'=>gmdate('c'), 'updated'=>gmdate('c'), 'status'=>'new', 'steps'=>(object)[], 'packet'=>null]);
+hive_notify($ns, 'New hire signed up: '.$nm.' ('.$rl.')', [$nm.' signed up on the new-staff page as '.$rl.'.', 'You can watch their progress in New Hires.']);
 echo json_encode(['ok'=>true, 'id'=>$id, 'token'=>$tok]); exit;
 }
 $id = preg_replace('/[^a-z0-9]/', '', strtolower((string)($input['id'] ?? ''))); $hf = $nd.'/'.$id.'.json';
@@ -288,11 +302,13 @@ $h = jread($hf, []); if (!hash_equals((string)($h['token'] ?? ''), (string)($inp
 if ($na === 'nh_save'){
 $stp = is_array($input['steps'] ?? null) ? $input['steps'] : []; $cur = is_array($h['steps'] ?? null) ? $h['steps'] : [];
 foreach ($NH_KEYS as $k){ if (array_key_exists($k, $stp)) $cur[$k] = !empty($stp[$k]); }
-$h['steps'] = $cur; $h['updated'] = gmdate('c'); jwrite($hf, $h); echo json_encode(['ok'=>true]); exit;
+$h['steps'] = $cur; $h['updated'] = gmdate('c');
+if (nh_train_done($h) >= count($NH_TRAIN) && empty($h['notifiedTrain'])){ $h['notifiedTrain'] = true; hive_notify($ns, 'New hire finished all training steps: '.($h['name'] ?? ''), [($h['name'] ?? '').' ('.($h['role'] ?? '').') ticked every training step. Please check their certificates.']); }
+jwrite($hf, $h); echo json_encode(['ok'=>true]); exit;
 }
 if ($na === 'nh_packet'){
 $raw0 = is_array($input['data'] ?? null) ? $input['data'] : []; $D = [];
-foreach ($raw0 as $k => $v0){ if (!preg_match('/^[A-Za-z0-9_]{1,30}$/', (string)$k) || is_array($v0)) continue; $D[$k] = $t($v0); if (count($D) >= 400) break; }
+foreach ($raw0 as $k => $v0){ if (!preg_match('/^[A-Za-z0-9_]{1,30}$/', (string)$k) || is_array($v0)) continue; $D[$k] = $t($v0); if (count($D) >= 400) break; } $D = strip_private($D);
 $sp = array_values(array_unique(array_map('intval', (array)($input['sigPages'] ?? [])))); if (count($sp) < 3) fail('Please sign the pages first.');
 $pdf = base64_decode((string)($input['pdf'] ?? ''), true); if ($pdf === false || substr($pdf, 0, 4) !== '%PDF' || strlen($pdf) < 20000) fail('The signed packet did not come through. Please try again.');
 if (strlen($pdf) > 14 * 1024 * 1024) fail('The packet is too large.');
@@ -300,7 +316,7 @@ file_put_contents($nd.'/'.$id.'-packet.pdf', $pdf);
 $sg = []; foreach ((is_array($input['sigs'] ?? null) ? $input['sigs'] : []) as $pg => $png){ $pg = (int)$pg; if ($pg < 1 || $pg > 60 || !is_string($png) || strpos($png, 'data:image/png;base64,') !== 0 || strlen($png) > 160000) continue; $sg[$pg] = $png; if (count($sg) >= 30) break; }
 jwrite($nd.'/'.$id.'-sigs.json', $sg); @unlink($nd.'/'.$id.'-final.pdf'); unset($h['final']);
 $h['packet'] = ['at'=>gmdate('c'), 'pages'=>$sp, 'signer'=>$t($input['signer'] ?? '', 60), 'data'=>$D, 'bytes'=>strlen($pdf)]; $h['updated'] = gmdate('c'); if (($h['status'] ?? '') === 'reviewed') $h['status'] = 'new';
-jwrite($hf, $h); echo json_encode(['ok'=>true]); exit;
+jwrite($hf, $h); hive_notify($ns, 'New hire signed their employee packet: '.($h['name'] ?? ''), [($h['name'] ?? '').' ('.($h['role'] ?? '').') filled in and signed the Employee Packet. It is waiting for your signature in New Hires.']); echo json_encode(['ok'=>true]); exit;
 }
 fail('Unknown request.');
 }
@@ -315,7 +331,7 @@ echo json_encode(['school'=>$ws, 'staff'=>$out]); exit;
 }
 /* simple abuse guard: 12 public writes per hour per address */
 $rf = sys_get_temp_dir().'/hive_wl_'.md5(($_SERVER['REMOTE_ADDR'] ?? 'x').date('YmdH')); $cnt = is_file($rf) ? (int)file_get_contents($rf) : 0;
-if ($cnt >= ($wa === 'wl_orient_start' ? 80 : 12)) fail('Too many tries. Please call the school office.', 429); file_put_contents($rf, $cnt + 1);
+if ($cnt >= ($wa === 'wl_orient_start' ? 80 : ($wa === 'wl_orient_sign' ? 40 : 12))) fail('Too many tries. Please call the school office.', 429); file_put_contents($rf, $cnt + 1);
 $wd = school_dir($ws); if (!$wd) fail('Could not open storage.', 500);
 if ($wa === 'wl_orient_start' || $wa === 'wl_orient_sign'){
 $w = ori_clean($input); $signed = ($wa === 'wl_orient_sign');
@@ -323,14 +339,14 @@ if (strlen($w['parent']) < 3 || strlen($w['child']) < 2) fail('Please type your 
 if (strlen(preg_replace('/\D/', '', $w['phone'])) < 7 || strpos($w['email'], '@') === false) fail('Please add your phone number and email.');
 $pd = pp_dir($ws); if (!$pd) fail('Could not open storage.', 500);
 ori_upsert($pd, $w, (int)($input['done'] ?? 0), (int)($input['total'] ?? 9), $signed, true);
-$filed = ''; if ($signed) $filed = ori_file($ws, $w);
+$filed = ''; if ($signed){ $filed = ori_file($ws, $w); if ($filed !== ''){ $o2 = jread($pd.'/orientation.json', []); foreach ($o2 as $i2 => $x2){ if (strtolower(($x2['parent'] ?? '').'|'.($x2['child'] ?? '')) === strtolower($w['parent'].'|'.$w['child']) && !empty($x2['signed'])) $o2[$i2]['filed'] = true; } jwrite($pd.'/orientation.json', $o2); } hive_notify($ws, 'Parent orientation signed: '.short_child($w['child']), ['A parent finished and signed Parent Orientation for '.short_child($w['child']).'.', $filed !== '' ? 'It was filed in the Student File automatically.' : 'The child is not on the roster yet (or the name did not match), so it will be filed when the child is added.']); }
 echo json_encode(['ok'=>true, 'filed'=>($filed !== '')]); exit;
 }
 if ($wa === 'wl_register'){
 $ed = $wd.'/enroll'; if (!is_dir($ed)) @mkdir($ed, 0750, true); if (!is_dir($ed)) fail('Could not open storage.', 500);
 $t = function($v, $n = 300){ return mb_substr(trim(strip_tags((string)$v)), 0, $n); };
 $raw0 = is_array($input['data'] ?? null) ? $input['data'] : []; $D = [];
-foreach ($raw0 as $k => $v0){ if (!preg_match('/^[A-Za-z0-9_]{1,30}$/', (string)$k) || is_array($v0)) continue; $D[$k] = $t($v0); }
+foreach ($raw0 as $k => $v0){ if (!preg_match('/^[A-Za-z0-9_]{1,30}$/', (string)$k) || is_array($v0)) continue; $D[$k] = $t($v0); } $D = strip_private($D);
 $cn = trim(preg_replace('/\s+/', ' ', $D['cname'] ?? '')); $parts = explode(' ', $cn);
 if ($cn === '' || count($parts) < 2) fail('Please enter your child\'s first and last name.');
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $D['dobISO'] ?? '')) fail('Please enter your child\'s date of birth.');
@@ -347,6 +363,7 @@ foreach (['child', 'family'] as $pk0){ $b = $input['photos'][$pk0] ?? ''; if ($b
 if ($rw === false || strlen($rw) < 200 || strlen($rw) > 2 * 1024 * 1024 || substr($rw, 0, 3) !== "\xFF\xD8\xFF") continue; file_put_contents($ed.'/'.$id.'-'.$pk0.'.jpg', $rw); $ph[$pk0] = true; }
 $pk_ = ['id'=>$id, 'school'=>$ws, 'at'=>gmdate('c'), 'status'=>'new', 'child'=>['first'=>$parts[0], 'last'=>end($parts), 'dob'=>$D['dobISO']], 'parents'=>[['name'=>$D['p1name'], 'phone'=>$D['p1cell'], 'email'=>$D['p1email']]], 'data'=>$D, 'assist'=>$as, 'plan'=>$plan, 'sigPages'=>$sp, 'signer'=>$t($input['signer'] ?? '', 60), 'photos'=>$ph, 'photoRelease'=>(($D['photo'] ?? '') === 'yes' || ($D['photo'] ?? '') === 'class'), 'pdf'=>true];
 jwrite($ed.'/'.$id.'.json', $pk_);
+hive_notify($ws, 'New enrollment packet: '.short_child($cn), ['A family finished and signed the registration packet for '.short_child($cn).'.', 'Review it under New Enrollments and approve it to add the child to the roster.']);
 echo json_encode(['ok'=>true, 'id'=>$id]); exit;
 }
 fail('Unknown request.');
@@ -392,6 +409,24 @@ jwrite($nf, $n);
 }
 $today = date('Y-m-d'); foreach ($n as $k => $v){ if (!empty($v['until']) && $v['until'] < $today) unset($n[$k]); }
 echo json_encode(['notes'=>(object)$n]); exit;
+}
+/* ---- System check (directors): is every connection working? ---- */
+if ($action === 'sys_check' || $action === 'sys_test_mail'){
+if (!$isDir) fail('Directors only.', 403);
+if ($action === 'sys_test_mail'){ $ok = hive_notify($school, 'Test notification', ['This is a test from the System Check page. If you can read this, Hive email alerts reach this inbox.']); echo json_encode(['sent'=>$ok, 'to'=>($school === 'Sanford' ? 'sanfordoffice.1320@gmail.com' : 'delandoffice.238@gmail.com')]); exit; }
+$sd = school_dir($school); $out = [];
+$out[] = ['k'=>'Private vault (where signed packets are kept)', 'ok'=>(bool)($sd && is_writable($sd)), 'note'=>($sd ? 'Writable' : 'Cannot write')];
+$pins = get_pins(); $out[] = ['k'=>'PIN list (Airtable Portal Access)', 'ok'=>count($pins) > 0, 'note'=>count($pins).' PINs loaded'];
+$rs = roster($school, 'staff'); $rc = roster($school, 'student');
+$out[] = ['k'=>'Staff list (Airtable Staff Roster)', 'ok'=>$rs !== null, 'note'=>($rs !== null ? count($rs).' active staff' : 'Could not read')];
+$out[] = ['k'=>'Child roster (Airtable Room Children)', 'ok'=>$rc !== null, 'note'=>($rc !== null ? count($rc).' active children' : 'Could not read')];
+$en = en_list_all($school); $nhs = nh_list_all($school); $pdx = pp_dir($school); $oo = $pdx ? jread($pdx.'/orientation.json', []) : [];
+$out[] = ['k'=>'New enrollments waiting', 'ok'=>true, 'note'=>count(array_filter($en, function($x){ return ($x['status'] ?? '') === 'new'; })).' waiting, '.count($en).' total'];
+$out[] = ['k'=>'New hires', 'ok'=>true, 'note'=>count(array_filter($nhs, function($x){ return ($x['status'] ?? 'new') === 'new'; })).' active, '.count($nhs).' total'];
+$out[] = ['k'=>'Parent orientation', 'ok'=>true, 'note'=>count(array_filter($oo, function($x){ return !empty($x['signed']); })).' signed, '.count(array_filter($oo, function($x){ return empty($x['signed']); })).' in progress'];
+$lg = $sd ? jread($sd.'/notify-log.json', []) : []; $last = $lg ? end($lg) : null;
+$out[] = ['k'=>'Email alerts to the school office', 'ok'=>function_exists('mail') && (!$last || !empty($last['sent'])), 'note'=>($last ? 'Last: '.$last['subject'].' ('.($last['sent'] ? 'sent' : 'FAILED').' '.substr($last['at'], 0, 10).')' : 'None sent yet. Use the test button.')];
+echo json_encode(['school'=>$school, 'checks'=>$out]); exit;
 }
 /* ---- New hires (directors only) ---- */
 if (strpos($action, 'nh_') === 0){
@@ -439,7 +474,9 @@ if ($id === '' || !is_file($pf)) fail('That packet was not found.', 404);
 $pk = jread($pf, []);
 if ($action === 'en_get'){
 $files = []; foreach (glob($d.'/'.$id.'-*') ?: [] as $f){ if (substr($f, -4) === '.pdf') continue; $files[basename($f)] = base64_encode(file_get_contents($f)); }
-echo json_encode(['packet'=>$pk, 'files'=>(object)$files]); exit;
+$ori = ['state'=>'none']; $pdo = pp_dir($school); $fn0 = strtolower($pk['child']['first'] ?? '');
+foreach (($pdo ? jread($pdo.'/orientation.json', []) : []) as $ox){ $cf = strtolower(preg_split('/\s+/', trim($ox['child'] ?? ''))[0] ?? ''); if ($cf !== '' && $cf === $fn0){ if (!empty($ox['signed'])){ $ori = ['state'=>'signed', 'date'=>$ox['date'] ?? '', 'parent'=>$ox['parent'] ?? '']; break; } $ori = ['state'=>'started', 'done'=>(int)($ox['done'] ?? 0), 'total'=>(int)($ox['total'] ?? 9), 'parent'=>$ox['parent'] ?? '']; } }
+echo json_encode(['packet'=>$pk, 'files'=>(object)$files, 'orient'=>$ori]); exit;
 }
 if ($action === 'en_pdf'){ $f = $d.'/'.$id.'-packet.pdf'; if (!is_file($f)) fail('No packet PDF.', 404); echo json_encode(['b64'=>base64_encode(file_get_contents($f))]); exit; }
 if ($action === 'en_approve'){
@@ -460,7 +497,7 @@ if (is_file($pf2)){ $fn2 = date('Ymd-His').'_registration-packet_'.$id.'.pdf'; i
 foreach (['reg', 'med', 'em', 'special', 'nut', 'photo', 'foodp', 'fin', 'hb'] as $dk){ if ($dk === 'photo' && empty($pk['photoRelease']) && ($pk['data']['photo'] ?? '') !== 'no') continue; $meta['files'][] = ['doc'=>$dk, 'name'=>$fn2, 'at'=>gmdate('c'), 'size'=>filesize($pf2)]; }
 jwrite($mf, $meta); $pk['filed'] = true; } }
 $pk['status'] = 'approved'; $pk['approvedAt'] = gmdate('c'); $pk['approvedRoom'] = $room; $pk['childRec'] = $res['id']; $pk['childName'] = $name;
-jwrite($pf, $pk); echo json_encode(['ok'=>true, 'name'=>$name, 'recId'=>$res['id'], 'sr'=>$sr]); exit;
+jwrite($pf, $pk); ori_refile($school); echo json_encode(['ok'=>true, 'name'=>$name, 'recId'=>$res['id'], 'sr'=>$sr]); exit;
 }
 if ($action === 'en_decline'){ $pk['status'] = 'declined'; $pk['note'] = mb_substr(trim(strip_tags((string)($input['note'] ?? ''))), 0, 300); jwrite($pf, $pk); echo json_encode(['ok'=>true]); exit; }
 if ($action === 'en_done'){ $k = preg_replace('/[^a-z]/', '', (string)($input['step'] ?? '')); if (!in_array($k, ['food', 'procare', 'welcome', 'cert', 'notary', 'id'], true)) fail('Unknown step'); $pk['steps'][$k] = !empty($input['on']); jwrite($pf, $pk); echo json_encode(['ok'=>true]); exit; }
@@ -473,7 +510,7 @@ $w = ori_clean($input); $signed = ($action === 'pp_orient_sign');
 if (strlen($w['parent']) < 3 || strlen($w['child']) < 2) fail('Please type your full name and your child\'s name.');
 if (strlen(preg_replace('/\D/', '', $w['phone'])) < 7 || strpos($w['email'], '@') === false) fail('Please add your phone number and email.');
 ori_upsert($d, $w, (int)($input['done'] ?? 0), (int)($input['total'] ?? 9), $signed, false);
-$filed = ''; if ($signed) $filed = ori_file($school, $w);
+$filed = ''; if ($signed){ $filed = ori_file($school, $w); if ($filed !== ''){ $o2 = jread($d.'/orientation.json', []); foreach ($o2 as $i2 => $x2){ if (strtolower(($x2['parent'] ?? '').'|'.($x2['child'] ?? '')) === strtolower($w['parent'].'|'.$w['child']) && !empty($x2['signed'])) $o2[$i2]['filed'] = true; } jwrite($d.'/orientation.json', $o2); } hive_notify($school, 'Parent orientation signed: '.short_child($w['child']), ['A parent finished and signed Parent Orientation for '.short_child($w['child']).'.', $filed !== '' ? 'It was filed in the Student File automatically.' : 'The child did not match a roster name yet, so it will be filed when the child is added.']); }
 echo json_encode(['ok'=>true, 'filed'=>($filed !== '')]); exit;
 }
 if ($action === 'pp_orient_list'){
@@ -857,6 +894,7 @@ $pa = at_request('GET', ['Portal Alerts'], http_build_query(['filterByFormula'=>
 if (is_array($pa) && !isset($pa['error'])){ foreach (($pa['records'] ?? []) as $r0){ $f0 = $r0['fields'] ?? []; $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'alert', 'href'=>(($f0['Link'] ?? '') ?: ''), 'label'=>($f0['Alert'] ?? 'Needs attention'), 'status'=>'alert', 'red'=>!empty($f0['Red']), 'alertId'=>$r0['id']]; } }
 if ((int)date('N') >= 4){ $tw = fte_target_week(); if (!fte_have_week($school, $tw)) $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'fte', 'href'=>'fte.html', 'label'=>'Weekly FTE report for the week of '.date('n/j', strtotime($tw)).' not filed yet', 'status'=>'missing', 'red'=>((int)date('N') >= 5)]; }
 foreach (nh_list_all($school) as $nh0){ if (($nh0['status'] ?? 'new') !== 'new') continue; $nn = $nh0['name'] ?? ''; $lab = ''; if (!empty($nh0['packet']) && empty($nh0['final'])) $lab = 'New hire '.$nn.' signed their employee packet — review and sign your lines'; elseif (nh_train_done($nh0) >= count($NH_TRAIN)) $lab = 'New hire '.$nn.' finished all onboarding steps — check their certificates'; if ($lab !== '') $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'newhire', 'href'=>'newhires.html', 'label'=>$lab, 'status'=>'missing', 'red'=>false]; }
+foreach (ori_refile($school) as $uo){ $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'orient', 'href'=>'parent-manage.html', 'label'=>'Parent orientation signed by '.($uo['parent'] ?? '').' for '.short_child($uo['child'] ?? '').' is not in a child\'s file yet (child not on the roster, or the name did not match)', 'status'=>'missing', 'red'=>false]; }
 foreach (en_list_all($school) as $en0){ if (($en0['status'] ?? '') === 'new') $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'enroll', 'href'=>'enroll.html', 'label'=>'New enrollment packet: '.($en0['child']['first'] ?? '').' '.mb_substr($en0['child']['last'] ?? '', 0, 1).'. — review and approve', 'status'=>'missing', 'red'=>false]; }
 foreach (pp_status_list($school) as $ps){ if ($ps['ok']) continue; $isNext = ($ps['month'] !== date('Y-m')); $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'pp', 'href'=>'parent-manage.html', 'label'=>'Parent portal: '.$ps['monthName'].' '.$ps['label'].' not posted yet'.($isNext ? ' (month ends soon)' : ''), 'status'=>'missing', 'red'=>(!$isNext && (int)date('j') >= 5)]; }
 echo json_encode(['school'=>$school, 'items'=>$items]); exit;

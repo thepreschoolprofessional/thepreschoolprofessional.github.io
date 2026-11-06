@@ -52,7 +52,7 @@ async function open_(id){
    +st('food','Food Program: enroll '+esc(c.first)+' (KidKare + the sponsor forms)','Open Monthly Reporting &gt; Forms to Print. Dietary needs: '+esc(D.foodList||'none')+'. Allergies: '+esc(D.allergies||'none')+'.')
    +st('procare','Add '+esc(c.first)+' in ProCare')
    +(p.assist.elc==='yes'?st('cert','ELC: get the payment certificate and file it','Student Files shows it red until it is uploaded. <a href="files.html">Open Student Files</a>'):'')
-   +st('welcome','Send the family their parent portal link and PIN','<a href="'+mail+'">Open a ready-made email</a> (type the parent PIN in it). Then they do the Parent Orientation.')
+   +st('welcome','Send the family their parent portal link and PIN','<a href="'+mail+'">Open a ready-made email</a> (type the parent PIN in it). Then they do the Parent Orientation. <b>Orientation: '+(function(o){o=o||{};return o.state==='signed'?'signed '+esc(o.date||'')+(o.parent?' by '+esc(o.parent):'')+' (filed in the Student File)':o.state==='started'?'in progress, '+(o.done||0)+' of '+(o.total||9)+' lessons':'not started yet'})(j.orient)+'</b>')
    +'<div class="sub" style="margin-top:8px">Still needed from the family: immunization record (DH 680/681) and physical (DH 3040) within 30 days. Student Files will show them red. Family picture '+(f[p.id+'-family.jpg']?'is in this packet (print it for the family tree).':'was not sent. Ask the family for one for the family tree.')+'</div></div>';
  }
  $('view').innerHTML=h;window.scrollTo(0,0);}catch(e){say(e.message,1);}
