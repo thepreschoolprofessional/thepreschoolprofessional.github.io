@@ -260,31 +260,24 @@ jwrite($pd.'/orientation.json', $o); echo json_encode(['ok'=>true]); exit;
 }
 if ($wa === 'wl_register'){
 $ed = $wd.'/enroll'; if (!is_dir($ed)) @mkdir($ed, 0750, true); if (!is_dir($ed)) fail('Could not open storage.', 500);
-$t = function($v, $n = 120){ return mb_substr(trim(strip_tags((string)$v)), 0, $n); };
-$c = $input['child'] ?? []; $ch = ['first'=>$t($c['first'] ?? '', 40), 'last'=>$t($c['last'] ?? '', 40), 'dob'=>$t($c['dob'] ?? '', 10), 'gender'=>$t($c['gender'] ?? '', 20), 'address'=>$t($c['address'] ?? '', 160), 'nickname'=>$t($c['nickname'] ?? '', 40), 'lang'=>$t($c['lang'] ?? '', 40)];
-if ($ch['first'] === '' || $ch['last'] === '') fail('Please enter your child\'s first and last name.');
-if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $ch['dob'])) fail('Please enter your child\'s date of birth.');
-$people = function($arr, $max, $fields) use ($t){ $o = []; if (!is_array($arr)) return $o; foreach (array_slice($arr, 0, $max) as $x){ if (!is_array($x)) continue; $r = []; foreach ($fields as $k) $r[$k] = $t($x[$k] ?? '', 100); if ($r['name'] !== '') $o[] = $r; } return $o; };
-$par = $people($input['parents'] ?? [], 2, ['name', 'rel', 'phone', 'email', 'employer', 'workphone', 'address']);
-if (!$par || strlen($par[0]['phone']) < 7 || strpos($par[0]['email'], '@') === false) fail('Please enter a parent name, phone number and email.');
-$em = $people($input['emergency'] ?? [], 3, ['name', 'rel', 'phone']); $pk = $people($input['pickup'] ?? [], 5, ['name', 'rel', 'phone']);
-$m = $input['medical'] ?? []; $med = []; foreach (['allergies', 'conditions', 'meds', 'doctor', 'doctorPhone', 'diet', 'hospital'] as $k) $med[$k] = $t($m[$k] ?? '', 300);
+$t = function($v, $n = 300){ return mb_substr(trim(strip_tags((string)$v)), 0, $n); };
+$raw0 = is_array($input['data'] ?? null) ? $input['data'] : []; $D = [];
+foreach ($raw0 as $k => $v0){ if (!preg_match('/^[A-Za-z0-9_]{1,30}$/', (string)$k) || is_array($v0)) continue; $D[$k] = $t($v0); }
+$cn = trim(preg_replace('/\s+/', ' ', $D['cname'] ?? '')); $parts = explode(' ', $cn);
+if ($cn === '' || count($parts) < 2) fail('Please enter your child\'s first and last name.');
+if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $D['dobISO'] ?? '')) fail('Please enter your child\'s date of birth.');
+if (($D['p1name'] ?? '') === '' || strlen($D['p1cell'] ?? '') < 7 || strpos($D['p1email'] ?? '', '@') === false) fail('Please enter a parent name, cell phone and email.');
+$sp = array_values(array_unique(array_map('intval', (array)($input['sigPages'] ?? [])))); foreach ([1, 2, 5, 10, 11] as $rq) if (!in_array($rq, $sp, true)) fail('Please sign every page that needs a signature.');
+$pdf = base64_decode((string)($input['pdf'] ?? ''), true); if ($pdf === false || substr($pdf, 0, 4) !== '%PDF' || strlen($pdf) < 20000) fail('The signed packet did not come through. Please try again.');
+if (strlen($pdf) > 14 * 1024 * 1024) fail('The packet is too large. Try without the photos.');
 $asv = $input['assist'] ?? []; $as = ['elc'=>(in_array($asv['elc'] ?? '', ['yes', 'no', 'unsure'], true) ? $asv['elc'] : 'unsure'), 'note'=>$t($asv['note'] ?? '', 300)];
-$pl = $input['plan'] ?? []; $plan = ['start'=>$t($pl['start'] ?? '', 10), 'schedule'=>$t($pl['schedule'] ?? '', 40), 'note'=>$t($pl['note'] ?? '', 300)];
+$pl = $input['plan'] ?? []; $plan = ['start'=>$t($pl['start'] ?? '', 10), 'schedule'=>$t($pl['schedule'] ?? '', 40)];
 $id = 'en'.date('ymdHis').substr(md5(uniqid('', true)), 0, 5);
-$need = ['handbook', 'emergency', 'tuition', 'brochure']; $sigs = []; $got = [];
-foreach ((array)($input['sigs'] ?? []) as $s){
-$doc = $t($s['doc'] ?? '', 20); $nm = $t($s['name'] ?? '', 60); $png = (string)($s['png'] ?? '');
-if (!preg_match('/^data:image\/png;base64,([A-Za-z0-9+\/=]+)$/', $png, $mm) || strlen($nm) < 3) continue;
-$raw = base64_decode($mm[1], true); if ($raw === false || strlen($raw) > 250000 || substr($raw, 0, 8) !== "\x89PNG\r\n\x1a\n") continue;
-if (!preg_match('/^[a-z]+$/', $doc)) continue;
-file_put_contents($ed.'/'.$id.'-sig-'.$doc.'.png', $raw); $sigs[] = ['doc'=>$doc, 'name'=>$nm, 'at'=>gmdate('c'), 'choice'=>$t($s['choice'] ?? '', 40)]; $got[] = $doc;
-}
-foreach ($need as $n0) if (!in_array($n0, $got, true)) { foreach (glob($ed.'/'.$id.'-sig-*') ?: [] as $f0) @unlink($f0); fail('Please sign every page that needs a signature.'); }
+file_put_contents($ed.'/'.$id.'-packet.pdf', $pdf);
 $ph = [];
-foreach (['child', 'family'] as $pk0){ $b = $input['photos'][$pk0] ?? ''; if ($b === '') continue; $raw = base64_decode($b, true);
-if ($raw === false || strlen($raw) < 200 || strlen($raw) > 2 * 1024 * 1024 || substr($raw, 0, 3) !== "\xFF\xD8\xFF") continue; file_put_contents($ed.'/'.$id.'-'.$pk0.'.jpg', $raw); $ph[$pk0] = true; }
-$pk_ = ['id'=>$id, 'school'=>$ws, 'at'=>gmdate('c'), 'status'=>'new', 'child'=>$ch, 'parents'=>$par, 'emergency'=>$em, 'pickup'=>$pk, 'medical'=>$med, 'assist'=>$as, 'plan'=>$plan, 'sigs'=>$sigs, 'photos'=>$ph, 'photoRelease'=>(($input['photoRelease'] ?? '') === 'yes')];
+foreach (['child', 'family'] as $pk0){ $b = $input['photos'][$pk0] ?? ''; if ($b === '') continue; $rw = base64_decode($b, true);
+if ($rw === false || strlen($rw) < 200 || strlen($rw) > 2 * 1024 * 1024 || substr($rw, 0, 3) !== "\xFF\xD8\xFF") continue; file_put_contents($ed.'/'.$id.'-'.$pk0.'.jpg', $rw); $ph[$pk0] = true; }
+$pk_ = ['id'=>$id, 'school'=>$ws, 'at'=>gmdate('c'), 'status'=>'new', 'child'=>['first'=>$parts[0], 'last'=>end($parts), 'dob'=>$D['dobISO']], 'parents'=>[['name'=>$D['p1name'], 'phone'=>$D['p1cell'], 'email'=>$D['p1email']]], 'data'=>$D, 'assist'=>$as, 'plan'=>$plan, 'sigPages'=>$sp, 'signer'=>$t($input['signer'] ?? '', 60), 'photos'=>$ph, 'photoRelease'=>(($D['photo'] ?? '') === 'yes' || ($D['photo'] ?? '') === 'class'), 'pdf'=>true];
 jwrite($ed.'/'.$id.'.json', $pk_);
 echo json_encode(['ok'=>true, 'id'=>$id]); exit;
 }
@@ -343,9 +336,10 @@ $id = preg_replace('/[^a-z0-9]/', '', strtolower($input['id'] ?? '')); $pf = $d.
 if ($id === '' || !is_file($pf)) fail('That packet was not found.', 404);
 $pk = jread($pf, []);
 if ($action === 'en_get'){
-$files = []; foreach (glob($d.'/'.$id.'-*') ?: [] as $f){ $files[basename($f)] = base64_encode(file_get_contents($f)); }
+$files = []; foreach (glob($d.'/'.$id.'-*') ?: [] as $f){ if (substr($f, -4) === '.pdf') continue; $files[basename($f)] = base64_encode(file_get_contents($f)); }
 echo json_encode(['packet'=>$pk, 'files'=>(object)$files]); exit;
 }
+if ($action === 'en_pdf'){ $f = $d.'/'.$id.'-packet.pdf'; if (!is_file($f)) fail('No packet PDF.', 404); echo json_encode(['b64'=>base64_encode(file_get_contents($f))]); exit; }
 if ($action === 'en_approve'){
 if (($pk['status'] ?? '') === 'approved') fail('Already approved.');
 $room = trim((string)($input['room'] ?? '')); if ($room === '') fail('Pick the room first.');
@@ -359,11 +353,15 @@ if (!isset($res['id'])) fail('Could not add the child: '.($res['error']['message
 roster_cache_clear($school);
 $pd = pdir($school, 'student', $res['id']);
 if (!empty($pk['photos']['child']) && is_file($d.'/'.$id.'-child.jpg') && !empty($pk['photoRelease'])) @copy($d.'/'.$id.'-child.jpg', $pd.'/face.jpg');
+$pf2 = $d.'/'.$id.'-packet.pdf';
+if (is_file($pf2)){ $fn2 = date('Ymd-His').'_registration-packet_'.$id.'.pdf'; if (@copy($pf2, $pd.'/'.$fn2)){ $mf = $pd.'/meta.json'; $meta = jread($mf, ['docs'=>[], 'files'=>[]]); if (!is_array($meta['files'])) $meta['files'] = [];
+foreach (['reg', 'med', 'em', 'special', 'nut', 'photo', 'foodp', 'fin', 'hb'] as $dk){ if ($dk === 'photo' && empty($pk['photoRelease']) && ($pk['data']['photo'] ?? '') !== 'no') continue; $meta['files'][] = ['doc'=>$dk, 'name'=>$fn2, 'at'=>gmdate('c'), 'size'=>filesize($pf2)]; }
+jwrite($mf, $meta); $pk['filed'] = true; } }
 $pk['status'] = 'approved'; $pk['approvedAt'] = gmdate('c'); $pk['approvedRoom'] = $room; $pk['childRec'] = $res['id']; $pk['childName'] = $name;
 jwrite($pf, $pk); echo json_encode(['ok'=>true, 'name'=>$name, 'recId'=>$res['id'], 'sr'=>$sr]); exit;
 }
 if ($action === 'en_decline'){ $pk['status'] = 'declined'; $pk['note'] = mb_substr(trim(strip_tags((string)($input['note'] ?? ''))), 0, 300); jwrite($pf, $pk); echo json_encode(['ok'=>true]); exit; }
-if ($action === 'en_done'){ $k = preg_replace('/[^a-z]/', '', (string)($input['step'] ?? '')); if (!in_array($k, ['food', 'procare', 'welcome', 'cert'], true)) fail('Unknown step'); $pk['steps'][$k] = !empty($input['on']); jwrite($pf, $pk); echo json_encode(['ok'=>true]); exit; }
+if ($action === 'en_done'){ $k = preg_replace('/[^a-z]/', '', (string)($input['step'] ?? '')); if (!in_array($k, ['food', 'procare', 'welcome', 'cert', 'notary', 'id'], true)) fail('Unknown step'); $pk['steps'][$k] = !empty($input['on']); jwrite($pf, $pk); echo json_encode(['ok'=>true]); exit; }
 fail('Unknown request.');
 }
 if ($action === 'pp_orient_sign'){

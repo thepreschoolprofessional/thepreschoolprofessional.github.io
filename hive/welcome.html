@@ -80,17 +80,19 @@ label{display:block;font-weight:800;margin:12px 0 4px;font-size:.95rem}
 <div id="mod"><div id="modbox"></div></div>
 
 <script src="bios.js"></script>
+<script src="pdf-lib.min.js?v=117"></script>
+<script src="packet-stamp.js?v=1"></script>
 <script>
 /* ==== EDIT HERE: social links. Leave a link empty and its button is hidden. ==== */
 var SOCIAL=[
- {n:'TikTok',em:'🎵',c:'#111',u:''},
- {n:'Facebook',em:'📘',c:'#1877f2',u:''},
- {n:'Instagram',em:'📸',c:'#d62976',u:''},
+ {n:'TikTok',em:'🎵',c:'#111',u:'https://www.tiktok.com/@sanforddeland2kidcityusa'},
+ {n:'Facebook',em:'📘',c:'#1877f2',u:'https://www.facebook.com/KidCityUSASanford/'},
+ {n:'Instagram',em:'📸',c:'#d62976',u:'https://www.instagram.com/sanford.deland2.kidcityusa/'},
  {n:'Bear Phonics Academy',em:'🐻',c:'#9b6bff',u:'https://bearphonicsacademy.com/'}
 ];
 var INFO={
- 'Sanford':{full:'Kid City USA Sanford',addr:'1320 Hickory Ave, Sanford, FL 32771',phone:'(407) 942-3242',email:'sanfordoffice.1320@gmail.com'},
- 'DeLand 2':{full:'Kid City USA DeLand 2',addr:'238 S Amelia Ave, DeLand, FL 32724',phone:'(386) 279-7553',email:'delandoffice.238@gmail.com'}
+ 'Sanford':{full:'Kid City USA Sanford',addr:'1320 Hickory Ave, Sanford, FL 32771',phone:'(407) 942-3242',email:'sanfordoffice.1320@gmail.com',tour:'https://calendar.app.google/z17uoN2pzNdVsFkr6'},
+ 'DeLand 2':{full:'Kid City USA DeLand 2',addr:'238 S Amelia Ave, DeLand, FL 32724',phone:'(386) 279-7553',email:'delandoffice.238@gmail.com',tour:'https://calendar.app.google/JFXUgb64ePDaM9us8'}
 };
 var SC=''; try{SC=sessionStorage.getItem('wlSchool')||'';}catch(e){}
 (function(){var q=(location.search||'').toLowerCase(); if(q.indexOf('school=sanford')>-1)SC='Sanford'; if(q.indexOf('school=deland')>-1)SC='DeLand 2';})();
@@ -107,10 +109,14 @@ function pick(s){SC=s;try{sessionStorage.setItem('wlSchool',s);}catch(e){}
 function needSchool(){return !SC;}
 function renderAbout(){
  var i=INFO[SC]; if(!i){$('aboutBox').innerHTML='<p>Pick your school above to see more about us. 💛</p>';return;}
- $('aboutBox').innerHTML='<p>Thank you for your interest in <b>'+esc(i.full)+'</b>! We are a family-owned preschool and child care center where children learn through play, music, stories and kindness. Every day your child will be loved, safe and learning with teachers who know them by name.</p>'
- +'<p>Our classrooms follow a simple daily rhythm: welcome and play, a learning block around 9:00 AM, meals and snacks that follow the Child Care Food Program, outdoor play, rest time and more fun. We also use <b>Bear Phonics Academy</b>, our own reading program, to help children fall in love with letters and books.</p>'
- +'<p>This little website is made just for new families. Look around, meet our teachers, see what to bring, and when you are ready, tap <b>Register Online</b> to fill out your child\'s registration right here and sign on the screen. Our director will review it and be in touch.</p>'
- +'<p>We would love to meet you!<br><b>'+esc(i.phone)+'</b> · <a href="mailto:'+esc(i.email)+'">'+esc(i.email)+'</a></p>';
+ $('aboutBox').innerHTML='<p><b>Welcome!</b> Thank you for your interest in <b>'+esc(i.full)+'</b>! We are thrilled at the opportunity to welcome your family into our vibrant, nurturing, and academically enriching community. 🎉</p>'
+ +'<p>We know choosing the right early learning center is a big decision, and we want to make it an easy one! Here is why our schools stand out:</p>'
+ +'<p>✅ <b>Your child can read as young as 3!</b> Our exclusive phonics reading program, designed by our owner, Mrs. Bear, has delivered incredible results in under 30 days. Your child will learn letter recognition, letter sounds, writing and reading. Available for ages 3–12! 📖✨</p>'
+ +'<p>✅ <b>A curriculum that inspires.</b> From infants to preschoolers, our engaging, age-appropriate curriculum fosters intellectual, social and emotional growth.</p>'
+ +'<p>✅ <b>Top-tier educators.</b> Our passionate teachers are highly qualified, with 80% of our staff holding a Bachelor\'s degree or higher. 🏆</p>'
+ +'<p>✅ <b>Safe, state-of-the-art facilities</b> and a <b>family-oriented environment.</b> ❤️</p>'
+ +'<p>🎉 <b>Enrollment is easy:</b> look around this site, then tap <b>Register Online</b> to fill out and sign your registration packet on the screen. Tours are by appointment. Spots are filling fast!</p>'
+ +'<p>📞 <b>'+esc(i.phone)+'</b> · '+esc(i.addr)+'<br>Certified Veteran-Owned Business</p><a class="go" href="'+esc(i.tour)+'" target="_blank" rel="noopener">📅 Book a tour</a>';
 }
 var teachDone='';
 async function loadTeachers(){
@@ -128,105 +134,128 @@ function renderContact(){
  $('contactBox').innerHTML='<p><b>'+esc(i.full)+'</b><br>'+esc(i.addr)+'</p><a class="go" href="tel:'+esc(i.phone.replace(/[^0-9]/g,''))+'">📞 Call '+esc(i.phone)+'</a><a class="go sec" href="mailto:'+esc(i.email)+'">✉️ Email '+esc(i.email)+'</a>';
 }
 
-/* ================= Registration ================= */
-var R=null, STEP=0;
-var DOCS=[
- {k:'handbook',t:'Parent Handbook agreement',req:1,s:'I received the Kid City USA Parent Handbook (or read it in this portal), and I agree to follow our school\'s policies on drop-off and pick-up, health, meals, behavior and communication.'},
- {k:'emergency',t:'Emergency care and health information',req:1,s:'I confirm the health information I entered is true. If an emergency happens and the school cannot reach me or the people I listed, I give permission for the school to call 911 and for my child to receive emergency medical care. I will keep my phone numbers up to date.'},
- {k:'tuition',t:'Tuition and fee agreement',req:1,s:'I understand and agree to the tuition and fee policies shown on the Tuition & Fees page, including weekly tuition, late fees, the $18 uniform shirt, and the $5 charge if the monthly wipes and tissues are not brought in.'},
- {k:'brochure',t:'Know Your Child Care Facility brochure',req:1,s:'I received the Florida DCF brochure "Know Your Child Care Facility" (CF/PI 175-24), which explains how to find inspection reports for this school.'},
- {k:'photo',t:'Photo release',req:0,choice:['Yes, the school may use photos for classroom learning, cubby labels and our private portal','No, please do not take or use photos of my child'],s:'Please choose whether your child\'s photo may be used inside the school (cubby label, learning records and our private family portal).'}
-];
+/* ================= Registration (fills the official packet) ================= */
+var R=null, STEP=0, NSTEP=9, SIGS={};
+var DEVSK=['Walks / runs','Climbs','Jumps & hops on one foot','Uses words to share needs and feelings','Speaks clearly','Follows simple directions','Recognizes some letters','Knows some letter sounds','Counts objects','Uses crayons / pencils','Uses scissors'];
+var FIN=['Tuition is paid in advance every Friday. Unpaid after 6:00 p.m. Monday is past due and a $25.00 late fee is added.','Tuition is due every week regardless of attendance, illness, holidays or closures.','One-time, non-refundable registration fee: $100.00 per child or $150.00 per family.','$25.00 fee for any returned check or declined payment.','If my child is absent a week and tuition is not paid, my child will be withdrawn. Re-enrollment needs a new registration fee and any balance.','I will give two weeks\' written notice before withdrawing, or I will be billed for those two weeks.','Pick-up after closing time is billed at $1.00 per minute, per child.','If my account becomes delinquent, I pay collection costs, attorney fees and court costs.','We are a uniformed school: 5 shirts for $80.00 or $18.00 each. A shirt is provided and charged if my child arrives without one.','If my child receives School Readiness or other help, I am responsible for my parent fee and any charges not covered.','These terms also appear in the Parent Handbook. I agree to them and understand the fees are not negotiable.'];
 function regStart(){
  if(!SC){$('regBox').innerHTML='<div class="result"><h2>📝 Register Online</h2><p>Please pick your school at the top of the page first. 💛</p></div>';return;}
- if(!R){R={child:{},parents:[{},{}],emergency:[{},{},{}],pickup:[{},{},{},{},{}],medical:{},assist:{elc:''},plan:{},sigs:{},photos:{},sent:false};STEP=0;}
+ if(!R){R={D:{},photos:{},assist:{elc:'',note:''},plan:{},sent:false};STEP=0;SIGS={};}
  regDraw();
 }
 function v(id){var e=$(id);return e?e.value.trim():'';}
-function inp(id,lab,val,opt){opt=opt||{};return '<label for="'+id+'">'+lab+'</label><input class="inp" id="'+id+'" type="'+(opt.type||'text')+'" value="'+esc(val||'')+'"'+(opt.ph?' placeholder="'+esc(opt.ph)+'"':'')+'>';}
-function area(id,lab,val){return '<label for="'+id+'">'+lab+'</label><textarea class="inp" id="'+id+'" rows="2">'+esc(val||'')+'</textarea>';}
+function ck(id){var e=$(id);return e&&e.checked?1:'';}
+function rd(n){var e=document.querySelector('input[name="'+n+'"]:checked');return e?e.value:'';}
+function inp(id,lab,opt){opt=opt||{};var val=R.D[id]!=null?R.D[id]:'';return '<label for="'+id+'">'+lab+'</label><input class="inp" id="'+id+'" type="'+(opt.type||'text')+'" value="'+esc(val)+'"'+(opt.ph?' placeholder="'+esc(opt.ph)+'"':'')+'>';}
+function area(id,lab){return '<label for="'+id+'">'+lab+'</label><textarea class="inp" id="'+id+'" rows="2">'+esc(R.D[id]||'')+'</textarea>';}
+function radios(name,lab,opts){var cur=R.D[name]||'';return '<label>'+lab+'</label><div style="display:flex;flex-wrap:wrap;gap:6px 16px">'+opts.map(function(o){return '<label style="display:flex;gap:6px;align-items:center;font-weight:700;margin:2px 0"><input type="radio" name="'+name+'" value="'+esc(o)+'"'+(cur===o?' checked':'')+'> '+esc(o)+'</label>';}).join('')+'</div>';}
+function checks(list){return '<div style="display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:6px">'+list.map(function(c){return '<label style="display:flex;gap:6px;align-items:center;font-weight:700;margin:2px 0"><input type="checkbox" id="'+c[0]+'"'+(R.D[c[0]]?' checked':'')+'> '+esc(c[1])+'</label>';}).join('')+'</div>';}
+function usDate(iso){var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(iso||'');return m?m[2]+'/'+m[3]+'/'+m[1]:(iso||'');}
+function ageOf(iso){var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(iso||'');if(!m)return '';var d=new Date(),a=d.getFullYear()-(+m[1]),mo=d.getMonth()+1-(+m[2]);if(mo<0||(mo===0&&d.getDate()<(+m[3])))a--;if(a<3){var mths=a*12+mo+(d.getDate()<(+m[3])?-1:0);return mths+' mo';}return String(a);}
+function split2(t,n){t=t||'';if(t.length<=n)return [t,''];var i=t.lastIndexOf(' ',n);if(i<10)i=n;return [t.slice(0,i),t.slice(i).trim()];}
 function regSave(){
- var c=R.child,p=R.parents,m=R.medical;
- if(STEP===0){c.first=v('c_first');c.last=v('c_last');c.dob=v('c_dob');c.gender=v('c_gender');c.address=v('c_addr');c.lang=v('c_lang');R.plan.start=v('pl_start');R.plan.schedule=v('pl_sched');}
- if(STEP===1){[0,1].forEach(function(i){['name','rel','phone','email','employer'].forEach(function(k){p[i][k]=v('p'+i+k);});});}
- if(STEP===2){[0,1,2].forEach(function(i){['name','rel','phone'].forEach(function(k){R.emergency[i][k]=v('e'+i+k);});});[0,1,2,3,4].forEach(function(i){['name','rel','phone'].forEach(function(k){R.pickup[i][k]=v('k'+i+k);});});}
- if(STEP===3){['allergies','conditions','meds','doctor','doctorPhone','diet'].forEach(function(k){m[k]=v('m_'+k);});}
- if(STEP===4){var sel=document.querySelector('input[name=elc]:checked');R.assist.elc=sel?sel.value:'';R.assist.note=v('as_note');}
+ var D=R.D,g=function(ids){ids.forEach(function(i){D[i]=v(i);});};
+ if(STEP===0){g(['cname','dobISO','nick','addr','zip','lang']);D.gender=rd('gender');R.plan.start=v('pl_start');R.plan.schedule=v('pl_sched');}
+ if(STEP===1){g(['p1name','p1rel','p1addr','p1cell','p1work','p1home','p1email','p1emp','p2name','p2rel','p2addr','p2cell','p2work','p2email','p2emp']);}
+ if(STEP===2){for(var i=0;i<4;i++)g(['k'+i+'n','k'+i+'r','k'+i+'p','k'+i+'o']);}
+ if(STEP===3){g(['allergies','h_other','physician','physPhone','hospital','dentist','insurance','policy']);['h_asthma','h_conv','h_diab','h_heart','h_bleed'].forEach(function(c){D[c]=ck(c);});}
+ if(STEP===4){g(['sibs','newSit','lang2','favFoods','dislikes','naps','napFrom','napTo','bedtime','comfort','rest','activities','learning','livesOther']);D.cared=rd('cared');D.lives=rd('lives');D.dayType=rd('dayType');D.appetite=rd('appetite');D.feeds=rd('feeds');}
+ if(STEP===5){for(var j=0;j<DEVSK.length;j++)D['dev'+j]=rd('dev'+j);D.potty=rd('potty');D.asks=rd('asks');g(['toiletWords','goals','describe','friends','anything']);['vol_read','vol_share','vol_help','vol_field'].forEach(function(c){D[c]=ck(c);});}
+ if(STEP===6){D.photo=rd('photo');D.food=rd('food');D.foodList=v('foodList');R.assist.elc=rd('elc');R.assist.note=v('as_note');}
+ if(STEP===7){D.finOk=ck('finOk');}
 }
 function regCheck(){
- var c=R.child,p=R.parents[0];
- if(STEP===0&&(!c.first||!c.last||!c.dob))return 'Please enter your child\'s first name, last name and date of birth.';
- if(STEP===1&&(!p.name||!p.phone||!p.email||p.email.indexOf('@')<0))return 'Please enter at least one parent\'s name, phone and email.';
- if(STEP===4&&!R.assist.elc)return 'Please choose one answer.';
+ var D=R.D;
+ if(STEP===0&&(!D.cname||D.cname.indexOf(' ')<0||!D.dobISO))return 'Please enter your child\'s full name (first and last) and date of birth.';
+ if(STEP===1&&(!D.p1name||!D.p1cell||!D.p1email||D.p1email.indexOf('@')<0))return 'Please enter parent 1\'s name, cell phone and email.';
+ if(STEP===6&&(!D.photo||!R.assist.elc))return 'Please answer the photo release and the help-paying question.';
+ if(STEP===7&&!D.finOk)return 'Please check the box to initial the Financial Agreement.';
  return '';
 }
-function regNav(d){
- regSave(); if(d>0){var e=regCheck(); if(e){$('regErr').textContent=e;return;}} STEP+=d; regDraw(); window.scrollTo(0,0);
+function regNav(d){regSave();if(d>0){var e=regCheck();if(e){$('regErr').textContent=e;return;}}STEP+=d;regDraw();window.scrollTo(0,0);}
+function derive(){
+ var D=R.D;D.dob=usDate(D.dobISO);D.age=ageOf(D.dobISO);D.addrFull=[D.addr,D.zip].filter(Boolean).join(' ');D.physPhone2=[D.physician,D.physPhone].filter(Boolean).join(' ');
+ var g=split2(D.goals,70);D.goals1=g[0];D.goals2=g[1];var a=split2(D.anything,48);D.anything1=a[0];D.anything2=a[1];D.p1work2=D.p1work;
+ if(D.lang2&&!D.lang)D.lang=D.lang2; D.food=D.food?String({'No allergy or restriction, may take part':1,'No allergy or restriction, may not take part':2,'Has an allergy or restriction, may take part (list foods below)':3,'Has an allergy or restriction, may not take part':4}[D.food]||D.food):'';
+ D.photoV=D.photo;D.photo=({'Yes, I give permission':'yes','Yes, for classroom/ProCare updates only (no public posts)':'class','No, I do not give permission':'no'})[D.photo]||D.photo;
+ if(D.lives==='Other'&&!D.livesOther)D.livesOther='';
 }
 function regDraw(){
- var c=R.child,p=R.parents,m=R.medical,h='<div class="result"><h2>📝 Register Online — '+esc(INFO[SC].full)+'</h2><div class="steps">';
- for(var i=0;i<7;i++)h+='<i class="'+(i<=STEP?'on':'')+'"></i>'; h+='</div>';
- if(R.sent){ regDone(); return; }
- if(STEP===0){h+='<div class="note">Step 1 of 7 · About your child</div><div class="two">'+inp('c_first','Child\'s first name',c.first)+inp('c_last','Child\'s last name',c.last)+'</div>'+inp('c_dob','Date of birth',c.dob,{type:'date'})
-  +'<div class="two">'+inp('c_gender','Boy / girl (optional)',c.gender)+inp('c_lang','Language spoken at home',c.lang)+'</div>'+inp('c_addr','Home address',c.address)
-  +'<div class="two">'+inp('pl_start','Hoped-for start date',R.plan.start,{type:'date'})+'<div><label for="pl_sched">Schedule</label><select class="inp" id="pl_sched"><option>Full time</option><option>Part time</option><option>Before / after school</option></select></div></div>';}
- if(STEP===1){h+='<div class="note">Step 2 of 7 · Parents or guardians</div>';[0,1].forEach(function(i){h+='<div class="section">'+(i?'Second parent / guardian (optional)':'Parent / guardian')+'</div><div class="two">'+inp('p'+i+'name','Full name',p[i].name)+inp('p'+i+'rel','Relationship (mom, dad…)',p[i].rel)+inp('p'+i+'phone','Cell phone',p[i].phone,{type:'tel'})+inp('p'+i+'email','Email',p[i].email,{type:'email'})+'</div>'+inp('p'+i+'employer','Employer (optional)',p[i].employer);});}
- if(STEP===2){h+='<div class="note">Step 3 of 7 · Emergency contacts and who may pick up</div><div class="section">Emergency contacts (if we cannot reach you)</div>';[0,1,2].forEach(function(i){h+='<div class="two">'+inp('e'+i+'name','Name',R.emergency[i].name)+inp('e'+i+'rel','Relationship',R.emergency[i].rel)+'</div>'+inp('e'+i+'phone','Phone',R.emergency[i].phone,{type:'tel'});});
-  h+='<div class="section">People allowed to pick up your child</div><div class="note">We will ask for a photo ID. Parents are always allowed unless there is a court order.</div>';[0,1,2,3,4].forEach(function(i){h+='<div class="two">'+inp('k'+i+'name','Name',R.pickup[i].name)+inp('k'+i+'rel','Relationship',R.pickup[i].rel)+'</div>'+inp('k'+i+'phone','Phone',R.pickup[i].phone,{type:'tel'});});}
- if(STEP===3){h+='<div class="note">Step 4 of 7 · Health</div>'+area('m_allergies','Allergies (food, medicine, bees…) or write "none"',m.allergies)+area('m_conditions','Health conditions we should know about',m.conditions)+area('m_meds','Medicines your child takes',m.meds)+area('m_diet','Food needs (vegetarian, milk substitute, etc.)',m.diet)+'<div class="two">'+inp('m_doctor','Child\'s doctor',m.doctor)+inp('m_doctorPhone','Doctor\'s phone',m.doctorPhone,{type:'tel'})+'</div>';}
- if(STEP===4){var e=R.assist.elc;h+='<div class="note">Step 5 of 7 · Help paying for child care</div><p style="font-weight:800">Are you receiving help with child care costs (ELC / School Readiness / EEOC / another program), or hoping to apply?</p>'
-  +['yes|Yes, my child has (or is getting) assistance','no|No, we pay on our own','unsure|I am not sure / I would like to ask'].map(function(o){var a=o.split('|');return '<label style="display:flex;gap:10px;align-items:center;font-weight:700"><input type="radio" name="elc" value="'+a[0]+'"'+(e===a[0]?' checked':'')+'> '+a[1]+'</label>';}).join('')
-  +'<div class="note" style="margin-top:10px">If you have assistance, the director will ask for your payment certificate and enter it at the school. You do not need to upload it here.</div>'+area('as_note','Anything else you want us to know (optional)',R.assist.note);}
- if(STEP===5){h+='<div class="note">Step 6 of 7 · Photos (optional, but a big help!)</div><p>A picture of your child helps teachers learn their face and name, and a family picture lets us hang your family on our <b>family tree</b> in the school. You can skip this.</p>'
-  +'<label>Photo of your child</label><input type="file" accept="image/*" id="ph_child" onchange="loadPhoto(\'child\',this)"><div id="ph_child_ok" class="note">'+(R.photos.child?'✅ Added':'')+'</div>'
-  +'<label>Family picture</label><input type="file" accept="image/*" id="ph_family" onchange="loadPhoto(\'family\',this)"><div id="ph_family_ok" class="note">'+(R.photos.family?'✅ Added':'')+'</div>';}
- if(STEP===6){h+='<div class="note">Step 7 of 7 · Read and sign</div>'+DOCS.map(function(d){var s=R.sigs[d.k];return '<div class="signrow'+(s?' done':'')+'"><div class="t">'+(s?'✅ ':'')+esc(d.t)+'<small>'+(d.req?'Required':'Optional')+(s?' · signed by '+esc(s.name):'')+'</small></div><button type="button" onclick="signOpen(\''+d.k+'\')">'+(s?'View / re-sign':'Read &amp; sign')+'</button></div>';}).join('')+'<button class="go" id="subBtn" onclick="regSubmit()">Submit my registration</button>';}
- h+='<div class="err" id="regErr"></div><div style="display:flex;gap:10px;margin-top:6px">'+(STEP>0?'<button class="go sec" onclick="regNav(-1)">← Back</button>':'')+(STEP<6?'<button class="go" onclick="regNav(1)">'+(STEP===5?'Next: sign':'Next →')+'</button>':'')+'</div></div>';
+ var D=R.D,h='<div class="result"><h2>📝 Register Online — '+esc(INFO[SC].full)+'</h2><div class="steps">';
+ for(var i=0;i<NSTEP;i++)h+='<i class="'+(i<=STEP?'on':'')+'"></i>';h+='</div>';
+ if(R.sent){regDone();return;}
+ var n='<div class="note">Step '+(STEP+1)+' of '+NSTEP+' · ';
+ if(STEP===0){h+=n+'About your child</div>'+inp('cname','Child\'s full legal name')+'<div class="two">'+inp('dobISO','Date of birth',{type:'date'})+inp('nick','Goes by (nickname)')+'</div>'+radios('gender','Gender',['Male','Female','Prefer not to say'])+inp('addr','Home address')+'<div class="two">'+inp('zip','ZIP')+inp('lang','Language(s) spoken at home')+'</div>'
+  +'<div class="two">'+inp('pl_start','Hoped-for start date',{type:'date'}).replace('value="'+esc(R.D.pl_start||'')+'"','value="'+esc(R.plan.start||'')+'"')+'<div><label for="pl_sched">Schedule</label><select class="inp" id="pl_sched"><option>Full time</option><option>Part time</option><option>Before / after school</option></select></div></div>';}
+ if(STEP===1){h+=n+'Parents or guardians</div><div class="note">For your safety we do not collect driver\'s license or Social Security numbers online. If we need them, the director will ask you in person.</div>';
+  [1,2].forEach(function(k){h+='<div class="section">'+(k===1?'Parent / guardian 1':'Parent / guardian 2 (optional)')+'</div><div class="two">'+inp('p'+k+'name','Full name')+inp('p'+k+'rel','Relationship')+inp('p'+k+'cell','Cell phone',{type:'tel'})+inp('p'+k+'work','Work phone',{type:'tel'})+'</div>'+(k===1?inp('p1home','Home phone',{type:'tel'}):'')+inp('p'+k+'email','Email',{type:'email'})+inp('p'+k+'emp','Employer')+inp('p'+k+'addr','Address (if different from your child\'s)');});}
+ if(STEP===2){h+=n+'Authorized pick-up and emergency contacts</div><div class="note">Your child is released only to a parent, legal guardian, or an adult listed here who shows photo ID. These adults are called if we cannot reach you.</div>';
+  for(var k=0;k<4;k++)h+='<div class="section">Contact '+(k+1)+(k>=3?' (optional)':'')+'</div><div class="two">'+inp('k'+k+'n','Name')+inp('k'+k+'r','Relationship')+inp('k'+k+'p','Cell phone',{type:'tel'})+inp('k'+k+'o','Other phone',{type:'tel'})+'</div>';}
+ if(STEP===3){h+=n+'Health and doctor</div>'+inp('allergies','Allergies / special needs (or write "none")')+checks([['h_asthma','Asthma'],['h_conv','Convulsions / Epilepsy'],['h_diab','Diabetes'],['h_heart','Heart condition'],['h_bleed','Bleeding / clotting disorder']])+inp('h_other','Other')+'<div class="section">Doctor and insurance</div><div class="two">'+inp('physician','Child\'s physician')+inp('physPhone','Physician phone',{type:'tel'})+inp('hospital','Preferred hospital')+inp('dentist','Dentist / phone')+inp('insurance','Insurance company')+inp('policy','Policy / group #')+'</div><div class="note">If your child has an allergy that needs an Allergy Emergency Care Plan, the director will complete it with you.</div>';}
+ if(STEP===4){h+=n+'All About Me: what makes my child special</div>'+radios('cared','Before enrolling, my child was cared for',['home','center','daycare','relative']).replace('>home<','>At home with me<').replace('>center<','>At another center<').replace('>daycare<','>In a home day care<').replace('>relative<','>By a relative or friend<')+radios('lives','My child lives with',['Mom & Dad','Mom','Dad','Other'])+inp('livesOther','If other, who?')+inp('sibs','Brothers / sisters (names & ages)')+radios('dayType','My child\'s day is usually',['Structured','Flexible'])+inp('newSit','In new situations, my child usually')
+  +'<div class="section">Eating</div>'+radios('appetite','Good appetite?',['Yes','No'])+radios('feeds','Feeds self?',['Yes','No','With help'])+inp('favFoods','Favorite foods')+inp('dislikes','Foods my child dislikes')
+  +'<div class="section">Sleeping</div><div class="two">'+inp('naps','Naps per day')+inp('napFrom','Nap from')+inp('napTo','Nap to')+inp('bedtime','Bedtime / wake time')+'</div>'+inp('comfort','Comfort items (blanket, lovey)')+inp('rest','What helps my child rest')
+  +'<div class="section">Learning &amp; play</div>'+inp('activities','Favorite activities, books, songs or shows')+inp('learning','Things my child is learning right now');}
+ if(STEP===5){h+=n+'All About Me (continued)</div><div class="section">Development</div><div class="note">Pick the choice that best describes your child today. There are no wrong answers.</div>'
+  +DEVSK.map(function(s,i){return radios('dev'+i,s,['Confident','Learning','Needs help','Not yet / N/A']);}).join('')
+  +'<div class="section">Toileting</div>'+radios('potty','Fully potty trained?',['Yes','No','In progress'])+radios('asks','Asks to use the bathroom?',['Yes','No'])+inp('toiletWords','Words and routines you use at home')
+  +'<div class="section">Our partnership</div>'+area('goals','Goals for my child this year')+inp('describe','I would describe my child as (shy, outgoing, a leader…)')+inp('friends','Friends already enrolled here')+area('anything','Anything else that will help us care for your child')
+  +'<label>I\'d like to:</label>'+checks([['vol_read','Read to a class'],['vol_share','Share a skill or career'],['vol_help','Help with events'],['vol_field','Volunteer on field trips']]);}
+ if(STEP===6){h+=n+'Releases and help paying for care</div>'+radios('photo','Photo, audio &amp; video release',['Yes, I give permission','Yes, for classroom/ProCare updates only (no public posts)','No, I do not give permission'])
+  +'<div class="section">Food-related activities</div><div class="note">Florida rule 65C-22.005 requires written permission before a child takes part in cooking, tasting, celebrations and birthdays. Please choose one.</div>'+radios('food','',['No allergy or restriction, may take part','No allergy or restriction, may not take part','Has an allergy or restriction, may take part (list foods below)','Has an allergy or restriction, may not take part'])+inp('foodList','Foods my child may not eat or handle')
+  +'<div class="section">Help paying for child care</div><p style="font-weight:800">Are you receiving help with child care costs (ELC / School Readiness / EEOC / another program), or hoping to apply?</p>'+['yes|Yes, my child has (or is getting) assistance','no|No, we pay on our own','unsure|I am not sure / I would like to ask'].map(function(o){var a=o.split('|');return '<label style="display:flex;gap:10px;align-items:center;font-weight:700"><input type="radio" name="elc" value="'+a[0]+'"'+(R.assist.elc===a[0]?' checked':'')+'> '+a[1]+'</label>';}).join('')+'<div class="note" style="margin-top:8px">If you have assistance, the director will ask for your payment certificate and enter it at the school.</div>'+area('as_note','Anything else you want us to know (optional)');
+  setTimeout(function(){var e=$('as_note');if(e)e.value=R.assist.note||'';},0);}
+ if(STEP===7){h+=n+'Financial agreement</div><div class="note">Please read each item. Checking the box below puts your initials next to all 11 items on the official form.</div><ol style="margin:0 0 10px 20px;line-height:1.5">'+FIN.map(function(t){return '<li>'+esc(t)+'</li>';}).join('')+'</ol><label style="display:flex;gap:10px;align-items:center;font-weight:800"><input type="checkbox" id="finOk"'+(R.D.finOk?' checked':'')+'> I have read and initial all 11 items.</label>';}
+ if(STEP===8){h+=n+'Pictures, then read and sign</div><p><b>Optional pictures.</b> A photo of your child goes on the Emergency Data Card. A family picture lets us hang your family on our <b>family tree</b>. You can skip these.</p>'
+  +'<label>Photo of your child</label><input type="file" accept="image/*" id="ph_child" onchange="loadPhoto(\'child\',this)"><div id="ph_child_ok" class="note">'+(R.photos.child?'✅ Added':'')+'</div><label>Family picture</label><input type="file" accept="image/*" id="ph_family" onchange="loadPhoto(\'family\',this)"><div id="ph_family_ok" class="note">'+(R.photos.family?'✅ Added':'')+'</div>'
+  +'<div class="section">Sign the official packet</div><div class="note">These are the real pages of our registration packet, filled in with your answers. Tap each page to read it and sign with your finger.</div>'
+  +PKT.signPages.map(function(p){var s=SIGS[p];return '<div class="signrow'+(s?' done':'')+'"><div class="t">'+(s?'✅ ':'')+esc(PGNAME[p])+'<small>Page '+p+' of the packet'+(s?' · signed':'')+'</small></div><button type="button" onclick="signOpen('+p+')">'+(s?'View':'Read &amp; sign')+'</button></div>';}).join('')
+  +'<button class="go sec" type="button" onclick="signAll()">Use my signature on all the remaining pages</button><button class="go" id="subBtn" onclick="regSubmit()">Submit my registration</button>';}
+ h+='<div class="err" id="regErr"></div><div style="display:flex;gap:10px;margin-top:6px">'+(STEP>0?'<button class="go sec" onclick="regNav(-1)">← Back</button>':'')+(STEP<NSTEP-1?'<button class="go" onclick="regNav(1)">Next →</button>':'')+'</div></div>';
  $('regBox').innerHTML=h;
  if(STEP===0&&R.plan.schedule)$('pl_sched').value=R.plan.schedule;
 }
+var PGNAME={1:'Registration Form',2:'Authorization for Medical Treatment',5:'Emergency Data Card',7:'Nutrition & Physical Activity Policies',8:'Photo / Video Release',9:'Permission for Food-Related Activities',10:'Financial Agreement',11:'Handbook Receipt',12:'Annual Health & Safety Acknowledgments (flu)'};
 function loadPhoto(k,inp_){
- var f=inp_.files&&inp_.files[0]; if(!f)return; var im=new Image(),u=URL.createObjectURL(f);
+ var f=inp_.files&&inp_.files[0];if(!f)return;var im=new Image(),u=URL.createObjectURL(f);
  im.onload=function(){var s=Math.min(1,1000/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);var x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);
-  R.photos[k]=c.toDataURL('image/jpeg',.8).split(',')[1]; $('ph_'+k+'_ok').textContent='✅ Added';};
- im.onerror=function(){$('ph_'+k+'_ok').textContent='That picture would not open. Try another.';}; im.src=u;
+  R.photos[k]=c.toDataURL('image/jpeg',.8).split(',')[1];$('ph_'+k+'_ok').textContent='✅ Added';};
+ im.onerror=function(){$('ph_'+k+'_ok').textContent='That picture would not open. Try another.';};im.src=u;
 }
-var SG={on:false,drawn:false};
-function signOpen(k){
- var d=DOCS.filter(function(x){return x.k===k})[0],h='<h3 style="margin:0 0 8px">'+esc(d.t)+'</h3><div class="note" style="color:var(--ink);font-size:1rem">'+esc(d.s)+'</div>';
- if(d.choice)h+='<select class="inp" id="sgc">'+d.choice.map(function(c){return '<option>'+esc(c)+'</option>';}).join('')+'</select>';
- h+=inp('sgn','Type your full name',(R.sigs[k]&&R.sigs[k].name)||(R.parents[0].name||''))+'<div class="note" style="margin:10px 0 2px">Sign here with your finger or mouse:</div><canvas id="sgp" width="460" height="150" style="border:2px solid #999;border-radius:10px;width:100%;touch-action:none;background:#fff"></canvas><div class="err" id="sgErr"></div>'
- +'<div style="display:flex;gap:8px"><button class="go sec" onclick="$(\'mod\').style.display=\'none\'">Cancel</button><button class="go sec" onclick="sgClear()">Clear</button><button class="go" onclick="signSave(\''+k+'\')">Sign</button></div>';
- $('modbox').innerHTML=h;$('mod').style.display='flex';SG={on:false,drawn:false};
- var c=$('sgp'),x=c.getContext('2d');x.lineWidth=2.5;x.lineCap='round';x.strokeStyle='#111';
+var SG={on:false,drawn:false},SGP=0;
+async function signOpen(p){
+ regSave();derive();SGP=p;
+ $('modbox').innerHTML='<div class="note" id="pvn">Loading page…</div><div id="pv"></div>';$('mod').style.display='flex';
+ try{var cv=await PKT.renderPage(p,R.D,SIGS,R.photos.child?'data:image/jpeg;base64,'+R.photos.child:null,900);cv.style.cssText='width:100%;border:1px solid #ccc;border-radius:8px';$('pv').innerHTML='';$('pv').appendChild(cv);$('pvn').textContent='Read this page. Then sign at the bottom.';}catch(e){$('pvn').textContent=e.message;}
+ var h='<div class="note" style="margin-top:10px">Type your full name and sign with your finger or mouse:</div><input class="inp" id="sgn" value="'+esc(R.D.p1name||'')+'"><canvas id="sgp" width="460" height="150" style="border:2px solid #999;border-radius:10px;width:100%;touch-action:none;background:#fff;margin-top:8px"></canvas><div class="err" id="sgErr"></div><div style="display:flex;gap:8px"><button class="go sec" onclick="$(\'mod\').style.display=\'none\'">Close</button><button class="go sec" onclick="sgClear()">Clear</button><button class="go" onclick="signSave()">Sign this page</button></div>';
+ $('modbox').insertAdjacentHTML('beforeend',h);SG={on:false,drawn:false};
+ var c=$('sgp'),x=c.getContext('2d');x.lineWidth=2.8;x.lineCap='round';x.lineJoin='round';x.strokeStyle='#10307a';
  var pt=function(e){var r=c.getBoundingClientRect();return[(e.clientX-r.left)*c.width/r.width,(e.clientY-r.top)*c.height/r.height];};
- c.onpointerdown=function(e){SG.on=true;SG.drawn=true;var p=pt(e);x.beginPath();x.moveTo(p[0],p[1]);c.setPointerCapture(e.pointerId);e.preventDefault();};
- c.onpointermove=function(e){if(!SG.on)return;var p=pt(e);x.lineTo(p[0],p[1]);x.stroke();e.preventDefault();};
+ c.onpointerdown=function(e){SG.on=true;SG.drawn=true;var q=pt(e);x.beginPath();x.moveTo(q[0],q[1]);c.setPointerCapture(e.pointerId);e.preventDefault();};
+ c.onpointermove=function(e){if(!SG.on)return;var q=pt(e);x.lineTo(q[0],q[1]);x.stroke();e.preventDefault();};
  c.onpointerup=c.onpointercancel=function(){SG.on=false;};
 }
 function sgClear(){var c=$('sgp');c.getContext('2d').clearRect(0,0,c.width,c.height);SG.drawn=false;}
-function signSave(k){
- var nm=v('sgn'); if(nm.length<3||!SG.drawn){$('sgErr').textContent='Please type your name and sign in the box.';return;}
- var d=DOCS.filter(function(x){return x.k===k})[0],sc=$('sgp'),W=900,pad=40,cv=document.createElement('canvas');cv.width=W;cv.height=560;var x=cv.getContext('2d');
- x.fillStyle='#fff';x.fillRect(0,0,W,560);x.fillStyle='#111';x.font='bold 30px Arial';x.fillText(d.t,pad,60);x.font='20px Arial';x.fillStyle='#444';x.fillText(INFO[SC].full,pad,92);
- x.fillStyle='#111';x.font='22px Arial';x.fillText('Child: '+(R.child.first||'')+' '+(R.child.last||''),pad,130);
- var y=170,l='';x.font='20px Arial';d.s.split(' ').forEach(function(w){if(x.measureText(l+w).width>W-2*pad){x.fillText(l,pad,y);y+=28;l='';}l+=w+' ';});x.fillText(l,pad,y);y+=34;
- var ch=d.choice?$('sgc').value:''; if(ch){x.font='bold 20px Arial';x.fillText(ch.slice(0,70),pad,y);y+=30;}
- x.drawImage(sc,pad,Math.max(y,300),420,137);x.font='20px Arial';x.fillText('Signed on screen by: '+nm,pad,500);x.fillText('Date/time: '+new Date().toLocaleString(),pad,530);
- R.sigs[k]={name:nm,png:cv.toDataURL('image/png'),choice:ch}; $('mod').style.display='none'; regDraw();
+function sigPng(){var c=$('sgp'),t=document.createElement('canvas');t.width=c.width;t.height=c.height;t.getContext('2d').drawImage(c,0,0);return t.toDataURL('image/png');}
+function signSave(){
+ var nm=v('sgn');if(nm.length<3||!SG.drawn){$('sgErr').textContent='Please type your name and sign in the box.';return;}
+ R.D.p1name=R.D.p1name||nm;SIGS[SGP]=sigPng();R.signer=nm;$('mod').style.display='none';regDraw();
 }
+function signAll(){var first=SIGS[PKT.signPages.filter(function(p){return SIGS[p];})[0]];if(!first){$('regErr').textContent='Sign one page first, then use this button.';return;}
+ if(!confirm('Use your signature on every page? Please make sure you have read them. You can still open any page to read it.'))return;PKT.signPages.forEach(function(p){if(!SIGS[p])SIGS[p]=first;});regDraw();}
 async function regSubmit(){
- var miss=DOCS.filter(function(d){return d.req&&!R.sigs[d.k]}); if(miss.length){$('regErr').textContent='Please sign: '+miss.map(function(d){return d.t}).join(', ')+'.';return;}
- $('subBtn').disabled=true;$('regErr').style.color='#7a5a2a';$('regErr').textContent='Sending… 🐝';
- var sigs=Object.keys(R.sigs).map(function(k){return {doc:k,name:R.sigs[k].name,png:R.sigs[k].png,choice:R.sigs[k].choice||''};});
- var pr=R.sigs.photo&&R.sigs.photo.choice&&R.sigs.photo.choice.indexOf('Yes')===0;
- try{var j=await wl('wl_register',{child:R.child,parents:R.parents,emergency:R.emergency,pickup:R.pickup,medical:R.medical,assist:R.assist,plan:R.plan,sigs:sigs,photos:R.photos,photoRelease:pr?'yes':'no'});
-  if(j.error)throw new Error(j.error); R.sent=true; regDraw();
+ regSave();derive();var miss=PKT.reqPages.filter(function(p){return !SIGS[p];});if(miss.length){$('regErr').textContent='Please sign these pages: '+miss.map(function(p){return PGNAME[p];}).join(', ')+'.';return;}
+ $('subBtn').disabled=true;$('regErr').style.color='#7a5a2a';$('regErr').textContent='Building your signed packet… this takes a few seconds 🐝';
+ try{var ph=R.photos.child?'data:image/jpeg;base64,'+R.photos.child:null,cvs=await PKT.render(R.D,SIGS,ph,1000),pdf=await PKT.pdf(cvs),b='',CH=0x8000;
+  for(var i=0;i<pdf.length;i+=CH)b+=String.fromCharCode.apply(null,pdf.subarray(i,i+CH));
+  $('regErr').textContent='Sending… 🐝';
+  var j=await wl('wl_register',{data:R.D,assist:R.assist,plan:R.plan,sigPages:PKT.signPages.filter(function(p){return SIGS[p];}),signer:R.signer||R.D.p1name,photos:R.photos,pdf:btoa(b)});
+  if(j.error)throw new Error(j.error);R.sent=true;regDraw();
  }catch(e){$('subBtn').disabled=false;$('regErr').style.color='#c62828';$('regErr').textContent=e.message||'Could not send. Please try again.';}
 }
 function regDone(){
  var i=INFO[SC];
- $('regBox').innerHTML='<div class="result"><h2>🎉 Thank you!</h2><p>Your registration for <b>'+esc(R.child.first)+'</b> was sent to our director at '+esc(i.full)+'. They will review it and contact you soon.</p><p><b>While you wait:</b></p>'
+ $('regBox').innerHTML='<div class="result"><h2>🎉 Thank you!</h2><p>Your signed registration packet for <b>'+esc((R.D.cname||'').split(' ')[0])+'</b> was sent to our director at '+esc(i.full)+'. They will review it and contact you soon.</p><p><b>While you wait:</b></p>'
  +'<a class="rescard" href="#" onclick="show(\'learn\',document.querySelectorAll(\'nav .tab\')[4]);PPA.show(\'learn\');return false"><div class="em">🎓</div><div><h3>Do the New Family Orientation</h3><p>Short lessons, then sign that you finished.</p></div></a>'
  +'<a class="rescard" href="#" onclick="show(\'bring\',document.querySelectorAll(\'nav .tab\')[5]);PPA.show(\'bring\');return false"><div class="em">🎒</div><div><h3>See what to bring on the first day</h3><p>Change of clothes, wipes, tissues and more.</p></div></a>'
  +'<p class="note">Questions? Call '+esc(i.phone)+' or email <a href="mailto:'+esc(i.email)+'">'+esc(i.email)+'</a>.</p></div>';
