@@ -5,7 +5,7 @@
 <div id="who" style="max-width:860px;margin:0 auto;padding:0 14px"></div>
 <main id="m"></main>
 <script src="training-who.js?v=1"></script>
-<script src="train-data.js?v=2"></script>
+<script src="train-data.js?v=3"></script>
 <script>
 var role='teacher';try{fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:sessionStorage.getItem('hivePin'),action:'whoami'})}).then(function(r){return r.json()}).then(function(j){if(j.role==='director')document.getElementById('bk').href='director.html';}).catch(function(){});}catch(e){}
 function showWho(){var w=document.getElementById('who');w.innerHTML=HW.bar('HW.clear();showWho();HBT.render(document.getElementById(\'m\'),null,false)')||'<div style="color:#9b8576;font-weight:600">You will be asked for your name when you finish a lesson, so it is saved to your own file.</div>';}

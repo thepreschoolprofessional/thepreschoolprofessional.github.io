@@ -257,6 +257,16 @@ if (!in_array($school, $SCHOOLS, true)) fail('Pick your school first.');
 if ($action === 'whoami'){ echo json_encode(['role'=>$isDir ? 'director' : 'teacher', 'school'=>$school]); exit; }
 
 /* ---- Teacher-allowed actions (names list + submit a certificate). Nothing else. ---- */
+if ($action === 'training_status'){
+if (!$isDir) fail('Directors only.', 403);
+$yr = date('Y'); $r = roster($school, 'staff'); if ($r === null) fail('Could not read the staff list right now.', 502);
+$out = []; foreach ($r as $p){ if (strpos($p['id'], 'recTEST') === 0) continue; $cs = [];
+foreach (jread(pdir($school, 'staff', $p['id']).'/certs.json', []) as $c){ if (($c['year'] ?? '') === $yr) $cs[] = ['lesson'=>$c['lesson'],'title'=>$c['title'] ?? '','hrs'=>$c['hrs'] ?? 0,'date'=>$c['date'] ?? '','signed'=>!empty($c['signedAt'])]; }
+$out[] = ['id'=>$p['id'],'name'=>$p['name'],'role'=>$p['sub'] ?? '','certs'=>$cs]; }
+$pf = pend_f($school); $pd = $pf ? jread($pf, []) : []; $pn = [];
+foreach ($pd as $q){ $cs = []; foreach (($q['certs'] ?? []) as $c){ $cs[] = ['lesson'=>$c['lesson'],'title'=>$c['title'],'hrs'=>$c['hrs'],'date'=>$c['date'],'signed'=>false]; } $pn[] = ['id'=>$q['pid'],'name'=>$q['name'],'certs'=>$cs]; }
+echo json_encode(['school'=>$school,'year'=>$yr,'staff'=>$out,'pending'=>$pn]); exit;
+}
 if ($action === 'cert_status'){
 $id = (string)($input['id'] ?? ''); $out = []; $nm = ''; $yr = date('Y');
 if (strpos($id, 'pend_') === 0){ $f = pend_f($school); $pd = $f ? jread($f, []) : []; foreach ($pd as $q){ if (($q['pid'] ?? '') === $id){ $nm = $q['name']; foreach ($q['certs'] as $c){ if (($c['year'] ?? '') === $yr) $out[] = ['lesson'=>$c['lesson'],'title'=>$c['title'],'hrs'=>$c['hrs'],'date'=>$c['date'],'signed'=>!empty($c['signedAt'])]; } } } }

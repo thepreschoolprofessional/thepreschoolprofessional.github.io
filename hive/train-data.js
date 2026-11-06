@@ -26,5 +26,5 @@ window.HBT={modules:M,
   if(ok===m.qs.length){o.style.color='#2e7d32';o.textContent='All correct!';
    function mark(){var d=document.getElementById('hbtd_'+id);if(d)d.innerHTML='&#10003; done';}
    if(!window.HW){ls('hbt_'+id,'1');mark();return;}
-   HW.modal(function(w){if(window.showWho)showWho();o.textContent='All correct! Saving to '+w.name+'\'s file…';HW.submit('HB'+id,'Employee Handbook: '+m.t,0.25).then(function(){o.textContent='All correct! Certificate sent to '+w.name+'\'s staff file for your director to sign.';mark()}).catch(function(e){o.style.color='#c62828';o.textContent=e.message||'Could not save. Try again.'})});}else{o.style.color='#c62828';o.textContent=ok+' of '+m.qs.length+' right. Read the points above and try again.';}}};
+   HW.modal(function(w){if(window.showWho)showWho();o.textContent='All correct! Saving to '+w.name+'\'s file…';HW.submit('HB'+id,'Employee Handbook: '+m.t,0.5).then(function(){o.textContent='All correct! Certificate sent to '+w.name+'\'s staff file for your director to sign.';mark()}).catch(function(e){o.style.color='#c62828';o.textContent=e.message||'Could not save. Try again.'})});}else{o.style.color='#c62828';o.textContent=ok+' of '+m.qs.length+' right. Read the points above and try again.';}}};
 })();
