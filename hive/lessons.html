@@ -44,7 +44,7 @@ ol.steps li:before{content:counter(s);position:absolute;left:0;top:8px;width:30p
 </style></head>
 <body><div id="app"></div>
 <script>
-const PIN=sessionStorage.getItem('hivePin'), ROLE=sessionStorage.getItem('hiveRole')||'teacher';
+const PIN=sessionStorage.getItem('hivePin'), ROLE=sessionStorage.getItem('hiveRole')||'teacher', TSCH=sessionStorage.getItem('hiveSchool')||'';
 if(!PIN) location.href='index.html';
 const HOME = ROLE==='director' ? 'director.html' : (ROLE==='owner' ? 'owner.html' : 'teacher.html');
 const $=id=>document.getElementById(id);
@@ -268,23 +268,23 @@ function certBox(){
  var l=CUR,c=certSent(l.id);
  if(c){return '<div class="card" style="background:#f6fbf7;border:2px solid #7fc79a"><b>🎓 Certificate sent to '+esc(c.name)+'\'s file.</b><div style="color:var(--soft)">Your director or Mrs. Bear signs it there. You cannot change it after it is sent.</div><button class="btn sec" onclick="showCert()">Print my copy</button></div>';}
  return '<div class="card" style="background:#fffbea;border:2px solid #f0c040"><b>🎓 Get my certificate</b> <span style="color:var(--soft)">('+durH(l.min/60)+' of in-service training)</span><div style="color:var(--soft);font-size:.9rem;margin:4px 0">It goes into your staff file so you do not have to keep paper. Pick your name, then send.</div>'
-  +(ROLE==='teacher'?'<select class="fi" id="cs" onchange="loadNames()"><option value="">Which school?</option><option>Sanford</option><option>DeLand 2</option></select>':'')
-  +'<select class="fi" id="cn"><option value="">'+(ROLE==='teacher'?'Pick your school first':'Loading names…')+'</option></select><button class="btn grn" id="cb" onclick="sendCert()">Send certificate to my file</button><div class="msg" id="cm"></div></div>';}
+  +(ROLE==='teacher'&&!TSCH?'<select class="fi" id="cs" onchange="loadNames()"><option value="">Which school?</option><option>Sanford</option><option>DeLand 2</option></select>':'')
+  +'<select class="fi" id="cn"><option value="">'+(ROLE==='teacher'&&!TSCH?'Pick your school first':'Loading names…')+'</option></select><button class="btn grn" id="cb" onclick="sendCert()">Send certificate to my file</button><div class="msg" id="cm"></div></div>';}
 var NAMES=[];
 function loadNames(){
- var sc=$('cs')?$('cs').value:'';var s=$('cn');if(!s)return;if(ROLE==='teacher'&&!sc){s.innerHTML='<option value="">Pick your school first</option>';return;}
+ var sc=$('cs')?$('cs').value:TSCH;var s=$('cn');if(!s)return;if(ROLE==='teacher'&&!sc){s.innerHTML='<option value="">Pick your school first</option>';return;}
  s.innerHTML='<option value="">Loading names…</option>';
  fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:PIN,action:'staff_names',school:sc})}).then(r=>r.json()).then(function(j){if(j.error)throw new Error(j.error);NAMES=j.staff;
   s.innerHTML='<option value="">Pick your name</option>'+NAMES.map(function(p){return '<option value="'+p.id+'">'+esc(p.name)+'</option>'}).join('')+'<option value="__new">➕ My name is not here</option>';s.onchange=function(){if(s.value==='__new')addName();};
  }).catch(function(e){s.innerHTML='<option value="">Could not load names</option>';if($('cm')){$('cm').style.color='#c62828';$('cm').textContent=e.message||'Could not load names.';}});}
 function addName(){
- var sc=$('cs')?$('cs').value:'',s=$('cn'),nm=(prompt('Type your first and last name exactly as it should appear on your certificate:')||'').trim();
+ var sc=$('cs')?$('cs').value:TSCH,s=$('cn'),nm=(prompt('Type your first and last name exactly as it should appear on your certificate:')||'').trim();
  if(!nm){s.value='';return;}
  fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:PIN,action:'staff_add_pending',school:sc,name:nm})}).then(r=>r.json()).then(function(j){if(j.error)throw new Error(j.error);
   var o=document.createElement('option');o.value=j.id;o.textContent=j.name+(j.pending?' (new)':'');s.insertBefore(o,s.lastChild);s.value=j.id;
  }).catch(function(e){s.value='';$('cm').style.color='#c62828';$('cm').textContent=e.message||'Could not add the name.';});}
 function sendCert(){
- var id=$('cn').value,m=$('cm'),sc=$('cs')?$('cs').value:'';m.style.color='#c62828';
+ var id=$('cn').value,m=$('cm'),sc=$('cs')?$('cs').value:TSCH;m.style.color='#c62828';
  if(ROLE==='teacher'&&!sc){m.textContent='Pick your school.';return;}if(!id){m.textContent='Pick your name.';return;}
  $('cb').disabled=true;m.style.color='';m.textContent='Sending…';
  fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:PIN,action:'cert_submit',school:sc,id:id,lesson:CUR.id,title:'Lesson '+CUR.id+': '+CUR.title,hrs:Math.round(CUR.min/60*100)/100})}).then(r=>r.json()).then(function(j){
@@ -311,13 +311,13 @@ function open_(id){
  h+='<button class="btn grn" onclick="finish()">✓ Mark lesson complete</button><div class="msg" id="fin"></div><div id="cert"></div>';
  h+='<h3>Is a step missing or wrong?</h3><textarea class="fi" id="fb" rows="3" placeholder="Tell Mrs. Bear what is missing or confusing"></textarea><input class="fi" id="fn" placeholder="Your name" maxlength="60"><button class="btn sec" onclick="sendFb()">Send to Mrs. Bear</button><div class="msg" id="fbm"></div></div>';
  $('app').innerHTML=h;window.scrollTo(0,0);if(pr)pr.init();
- if(dn()[l.id]){$('cert').innerHTML=certBox();if(!certSent(l.id)&&ROLE!=='teacher')loadNames();}
+ if(dn()[l.id]){$('cert').innerHTML=certBox();if(!certSent(l.id)&&(ROLE!=='teacher'||TSCH))loadNames();}
  try{$('fn').value=localStorage.getItem('hiveName')||''}catch(e){}
 }
 var ANS={};
 function ans(i,j){var q=CUR.quiz[i];var labs=document.querySelectorAll('#q'+i+' label');labs.forEach(function(x,k){var jj=q._o[k];x.className=jj===q.c?'good':(jj===j?'bad':'')});ANS[CUR.id+i]=(j===q.c);$('qm'+i).textContent=j===q.c?'Correct!':q.w;$('qm'+i).style.color=j===q.c?'':'#c62828';}
 function finish(){var ok=CUR.quiz.every((q,i)=>ANS[CUR.id+i]);if(!ok){$('fin').style.color='#c62828';$('fin').textContent='Answer every quick-check question correctly first.';return;}
- setDone(CUR.id);$('fin').style.color='';$('fin').textContent='Lesson complete. Great job!';$('cert').innerHTML=certBox();if(!certSent(CUR.id)&&ROLE!=='teacher')loadNames();}
+ setDone(CUR.id);$('fin').style.color='';$('fin').textContent='Lesson complete. Great job!';$('cert').innerHTML=certBox();if(!certSent(CUR.id)&&(ROLE!=='teacher'||TSCH))loadNames();}
 function sendFb(){var tx=$('fb').value.trim(),nm=$('fn').value.trim();var m=$('fbm');m.style.color='#c62828';
  if(!tx||!nm){m.textContent='Type your note and your name.';return;}
  try{localStorage.setItem('hiveName',nm)}catch(e){}

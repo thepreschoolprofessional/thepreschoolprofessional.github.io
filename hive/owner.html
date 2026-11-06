@@ -49,7 +49,7 @@ async function login(){const pin=$('pin').value.trim().toUpperCase();$('err').te
  catch(e){sessionStorage.removeItem('hiveOwnerPin');try{localStorage.removeItem('hiveKeep_owner');}catch(x){}$('pin').value='';$('err').textContent=e.message;}}
 function logout(){sessionStorage.removeItem('hiveOwnerPin');try{localStorage.removeItem('hiveKeep_owner');}catch(e){}location.reload();}
 async function go(i,j){const s=SCHOOLS[i],t=s.tiles[j];if(t[2]==='ext'){window.open(t[3],'_blank');return}const w=window.open('about:blank','_blank');
- try{const kind=t[2];const door=kind==='teacher'||kind==='rooms-teacher'?'teacher':s.dir;const d=await api('door',{door});
+ try{const kind=t[2];const door=kind==='teacher'||kind==='rooms-teacher'?s.dir.replace('director','teacher'):s.dir;const d=await api('door',{door});
   // hand-off goes through the NEW tab's own storage (same origin), so tabs never overwrite each other
   const payload={pin:d.pin,role:d.role,school:s.n,kind,hiveOwner:'1'};
   const key='hiveHandoff_'+Date.now();localStorage.setItem(key,JSON.stringify(payload));

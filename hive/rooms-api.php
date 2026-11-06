@@ -24,8 +24,8 @@ header('X-Robots-Tag: noindex, nofollow');
 header('Cache-Control: no-store');
 
 $SCHOOLS = ['DeLand 2', 'Sanford'];
-$ROLE_SCHOOL = ['director-sanford' => 'Sanford', 'director-deland' => 'DeLand 2'];
-$STAFF_ROLES = ['teacher', 'director-sanford', 'director-deland'];
+$ROLE_SCHOOL = ['director-sanford' => 'Sanford', 'director-deland' => 'DeLand 2', 'teacher-sanford' => 'Sanford', 'teacher-deland' => 'DeLand 2'];
+$STAFF_ROLES = ['teacher', 'teacher-sanford', 'teacher-deland', 'director-sanford', 'director-deland'];
 $READ   = ['Rooms', 'Room Children', 'Room Attendance', 'Room Day'];
 $CREATE_STAFF = ['Room Attendance', 'Room Day'];
 $CREATE_DIR   = ['Room Children'];

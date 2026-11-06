@@ -22,7 +22,7 @@ define('PIN_CACHE_TTL', 300);
 header('Content-Type: application/json; charset=utf-8');
 header('X-Robots-Tag: noindex, nofollow');
 
-$SCHOOL_BY_ROLE = ['director-sanford' => 'Sanford', 'director-deland' => 'DeLand 2', 'parent-sanford' => 'Sanford', 'parent-deland' => 'DeLand 2'];
+$SCHOOL_BY_ROLE = ['director-sanford' => 'Sanford', 'director-deland' => 'DeLand 2', 'parent-sanford' => 'Sanford', 'parent-deland' => 'DeLand 2', 'teacher-sanford' => 'Sanford', 'teacher-deland' => 'DeLand 2'];
 
 // Tables that carry a School field (server injects the school filter for directors)
 // NOTE: "Buzz Board — All-Time" is deliberately NOT in this list — it's a combined,
@@ -34,9 +34,12 @@ $DIRECTOR_PERMS = [
 'create'=> ['ProCare Message Requests','Staff Time Corrections','Onboarding Tracker','Email Automation Requests','Tab Notes','Inventory','Facility Submissions','Transportation Trips','Packet Requests'],
 'update'=> ['Briefing Checklist' => ['Done','Director Notes'], 'Director Meeting' => ['Director Response','Director Status','Responded At'], 'Onboarding Tracker' => ['Current Step','Status','Notes'], 'Parent Messages' => ['Status'], 'Inventory' => ['On-Hand Qty','Par / Reorder Level','Notes','Last Updated'], 'Facility Checklists' => ['Checked','Checked By','Time','Notes','Status','Room / Classroom'], 'Transportation Trips' => ['Departure Location','Departure Time','Arrival Time','Riders In','Riders Out','Driver Name','Driver Date','Second Staff Name','Second Staff Date','Sweep Confirmed','Status','Notes']]
 ];
+$TEACHER_PERMS = ['read' => ['Lesson Plan Index','Resource Links','Facility Checklists','Facility Submissions','Buzz Board','Buzz Board — All-Time','Transportation Trips','Transportation Riders'], 'create'=>['Teacher Questions','Facility Submissions','Transportation Trips'], 'update'=>['Facility Checklists' => ['Checked','Checked By','Time','Notes','Status','Room / Classroom'], 'Transportation Trips' => ['Departure Location','Departure Time','Arrival Time','Riders In','Riders Out','Driver Name','Driver Date','Second Staff Name','Second Staff Date','Sweep Confirmed','Status','Notes']]];
 $PARENT_PERMS = ['read' => ['Resource Links'], 'create'=>['Parent Messages'], 'update'=>[]];
 $PERMS = [
-'teacher' => ['read' => ['Lesson Plan Index','Resource Links','Facility Checklists','Facility Submissions','Buzz Board','Buzz Board — All-Time','Transportation Trips','Transportation Riders'], 'create'=>['Teacher Questions','Facility Submissions','Transportation Trips'], 'update'=>['Facility Checklists' => ['Checked','Checked By','Time','Notes','Status','Room / Classroom'], 'Transportation Trips' => ['Departure Location','Departure Time','Arrival Time','Riders In','Riders Out','Driver Name','Driver Date','Second Staff Name','Second Staff Date','Sweep Confirmed','Status','Notes']]],
+'teacher' => $TEACHER_PERMS,
+'teacher-sanford' => $TEACHER_PERMS,
+'teacher-deland' => $TEACHER_PERMS,
 'parent' => $PARENT_PERMS,
 'parent-sanford' => $PARENT_PERMS,
 'parent-deland' => $PARENT_PERMS,
@@ -86,11 +89,12 @@ $role = $pins[$pin];
 if (!isset($PERMS[$role])) fail('Role not configured', 403);
 $perm = $PERMS[$role];
 $school = $SCHOOL_BY_ROLE[$role] ?? null;
+$isTeacher = (strpos($role, 'teacher') === 0);
 $action = $input['action'] ?? '';
 $table = $input['table'] ?? '';
 
 if ($action === 'whoami'){
-echo json_encode(['role' => (strpos($role,'director')===0 ? 'director' : (strpos($role,'parent')===0 ? 'parent' : $role)), 'school' => $school]); exit;
+echo json_encode(['role' => (strpos($role,'director')===0 ? 'director' : (strpos($role,'parent')===0 ? 'parent' : (strpos($role,'teacher')===0 ? 'teacher' : $role))), 'school' => $school]); exit;
 }
 
 if ($action === 'list'){
@@ -99,10 +103,10 @@ $q = ['maxRecords' => min(intval($input['maxRecords'] ?? 200), 500)];
 $formulas = [];
 if (!empty($input['filterByFormula'])) $formulas[] = '(' . $input['filterByFormula'] . ')';
 if ($school && in_array($table, $SCHOOL_TABLES)) $formulas[] = "OR({School}='" . $school . "',{School}='Both')";
-if ($role === 'teacher' && $table === 'Resource Links') $formulas[] = "{Audience}='Everyone'"; // teachers never see director-only links
+if ($isTeacher && $table === 'Resource Links') $formulas[] = "{Audience}='Everyone'"; // teachers never see director-only links
 if (strpos($role,'parent')===0 && $table === 'Resource Links') $formulas[] = "{Audience}='Parents'"; // parents only see parent-facing links
-if ($role === 'teacher' && $table === 'Facility Checklists') $formulas[] = "{Portal Visibility}='Both'";
-if ($role === 'teacher' && $table === 'Facility Submissions') $formulas[] = "{Form Type}!='🚨 Incident Report'";
+if ($isTeacher && $table === 'Facility Checklists') $formulas[] = "{Portal Visibility}='Both'";
+if ($isTeacher && $table === 'Facility Submissions') $formulas[] = "{Form Type}!='🚨 Incident Report'";
 if ($formulas) $q['filterByFormula'] = count($formulas) > 1 ? 'AND(' . implode(',', $formulas) . ')' : $formulas[0];
 if (!empty($input['sortField'])) { $q['sort[0][field]'] = $input['sortField']; $q['sort[0][direction]'] = ($input['sortDir'] ?? 'asc') === 'desc' ? 'desc' : 'asc'; }
 $out = at_request('GET', [$table], $q);
@@ -118,10 +122,10 @@ if ($action === 'create'){
 if (!in_array($table, $perm['create'])) fail('Not allowed', 403);
 $fields = $input['fields'] ?? [];
 if (!$fields) fail('No fields');
-if ($role === 'teacher' && $table === 'Facility Submissions' && !empty($fields['Staff Name']) && !empty($fields['School'])){
+if ($isTeacher && $table === 'Facility Submissions' && !empty($fields['Staff Name'])){
 // A name that belongs to the OTHER school's staff can never sign this school's forms.
 $nz = function($x){ return preg_replace('/[^a-z]/', '', strtolower($x)); };
-$nm = $nz($fields['Staff Name']); $sch = trim($fields['School']); $here = false; $other = false;
+$nm = $nz($fields['Staff Name']); $sch = $school ?: trim($fields['School'] ?? ''); $here = false; $other = false;
 $rr = at_request('GET', ['Staff Roster'], ['pageSize' => 100]);
 foreach (($rr['records'] ?? []) as $r){ $f = $r['fields']; if ($nz($f['Name'] ?? '') !== $nm) continue; $rs = $f['School']['name'] ?? ($f['School'] ?? ''); if ($rs === $sch) $here = true; else $other = true; }
 if ($other && !$here) fail('That name belongs to the other school\'s staff. Pick your own school and your own name.', 403);

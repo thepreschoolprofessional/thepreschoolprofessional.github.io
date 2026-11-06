@@ -242,10 +242,11 @@ $pins = get_pins();
 if (!$pin || !isset($pins[$pin])) fail('That PIN isn\'t right. Double-check with Mrs. Bear.', 401);
 $role = $pins[$pin];
 $action = $input['action'] ?? '';
+$TEACHER_SCHOOL = ['teacher-sanford' => 'Sanford', 'teacher-deland' => 'DeLand 2'];
 $isDir = isset($ROLE_SCHOOL[$role]);
-$isTeacher = ($role === 'teacher');
+$isTeacher = (strpos($role, 'teacher') === 0);
 if (!$isDir && !$isTeacher) fail('Files are only available with a director PIN.', 403);
-$school = $isDir ? $ROLE_SCHOOL[$role] : trim($input['school'] ?? '');
+$school = $isDir ? $ROLE_SCHOOL[$role] : (isset($TEACHER_SCHOOL[$role]) ? $TEACHER_SCHOOL[$role] : trim($input['school'] ?? ''));
 if (!in_array($school, $SCHOOLS, true)) fail('Pick your school first.');
 
 if ($action === 'whoami'){ echo json_encode(['role'=>$isDir ? 'director' : 'teacher', 'school'=>$school]); exit; }

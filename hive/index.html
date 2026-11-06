@@ -129,7 +129,7 @@ async function enter(auto){
     const d = await r.json();
     if(d.role){
       if(d.role !== role){ err.textContent = 'That PIN opens the ' + d.role + ' door — try that one! 😉'; return; }
-      sessionStorage.setItem('hivePin', pin); sessionStorage.setItem('hiveRole', d.role);
+      sessionStorage.setItem('hivePin', pin); sessionStorage.setItem('hiveRole', d.role); sessionStorage.setItem('hiveSchool', d.school||'');
       try{ if(document.getElementById('keep').checked) localStorage.setItem('hiveKeep_'+role, JSON.stringify({pin})); else localStorage.removeItem('hiveKeep_'+role); }catch(e){}
       location.href = DEST[d.role] || 'index.html';
     } else {
