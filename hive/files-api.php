@@ -257,6 +257,12 @@ if (!in_array($school, $SCHOOLS, true)) fail('Pick your school first.');
 if ($action === 'whoami'){ echo json_encode(['role'=>$isDir ? 'director' : 'teacher', 'school'=>$school]); exit; }
 
 /* ---- Teacher-allowed actions (names list + submit a certificate). Nothing else. ---- */
+if ($action === 'cert_status'){
+$id = (string)($input['id'] ?? ''); $out = []; $nm = ''; $yr = date('Y');
+if (strpos($id, 'pend_') === 0){ $f = pend_f($school); $pd = $f ? jread($f, []) : []; foreach ($pd as $q){ if (($q['pid'] ?? '') === $id){ $nm = $q['name']; foreach ($q['certs'] as $c){ if (($c['year'] ?? '') === $yr) $out[] = ['lesson'=>$c['lesson'],'title'=>$c['title'],'hrs'=>$c['hrs'],'date'=>$c['date'],'signed'=>!empty($c['signedAt'])]; } } } }
+else { $p = find_person($school, 'staff', $id); if (!$p) fail('That name is not on this school\'s staff list.'); $nm = $p['name']; foreach (jread(pdir($school, 'staff', $id).'/certs.json', []) as $c){ if (($c['year'] ?? '') === $yr) $out[] = ['lesson'=>$c['lesson'],'title'=>$c['title'] ?? '','hrs'=>$c['hrs'] ?? 0,'date'=>$c['date'] ?? '','signed'=>!empty($c['signedAt'])]; } }
+echo json_encode(['name'=>$nm,'school'=>$school,'certs'=>$out]); exit;
+}
 if ($action === 'staff_names'){
 $r = roster($school, 'staff'); if ($r === null) fail('Could not read the staff list right now.', 502);
 echo json_encode(['staff'=>array_map(function($p){ return ['id'=>$p['id'], 'name'=>$p['name']]; }, $r)]); exit;
@@ -354,7 +360,10 @@ if ($action === 'to_count'){
 if (!$isDir){ echo json_encode(['count'=>0,'short'=>0]); exit; }
 $f = to_file($school); $all = ($f && is_file($f)) ? jread($f, []) : []; $n = 0; $sh = 0;
 foreach ($all as $r){ if (($r['status'] ?? '') === 'pending'){ $n++; if (!empty($r['short'])) $sh++; } }
-echo json_encode(['count'=>$n,'short'=>$sh]); exit;
+$cw = 0; $sr = roster($school, 'staff');
+if ($sr){ foreach ($sr as $p0){ if (strpos($p0['id'], 'recTEST') === 0) continue; foreach (jread(pdir($school, 'staff', $p0['id']).'/certs.json', []) as $c0){ if (empty($c0['signedAt'])) $cw++; } } }
+$pf0 = pend_f($school); $pd0 = $pf0 ? jread($pf0, []) : []; $pn = 0; foreach ($pd0 as $q0){ $cw += count($q0['certs'] ?? []); $pn++; }
+echo json_encode(['count'=>$n,'short'=>$sh,'certs'=>$cw,'newnames'=>$pn]); exit;
 }
 if ($action === 'to_approved'){
 $f = to_file($school); $all = ($f && is_file($f)) ? jread($f, []) : []; $out = [];

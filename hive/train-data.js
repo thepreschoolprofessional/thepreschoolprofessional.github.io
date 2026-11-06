@@ -16,12 +16,15 @@ var M=[
 function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v);}catch(e){return null;}}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 window.HBT={modules:M,
- one:function(m,open){var done=ls('hbt_'+m.id)==='1';
+ one:function(m,open){var done=window.HW?HW.done('HB'+m.id):ls('hbt_'+m.id)==='1';
   var h='<details class="hbt" '+(open?'open':'')+' style="background:#fff;border:2px solid '+m.c+';border-radius:14px;margin:10px 0;overflow:hidden"><summary style="background:'+m.c+';color:#fff;padding:12px 14px;font-weight:800;cursor:pointer">'+esc(m.t)+' <span id="hbtd_'+m.id+'" style="float:right;font-weight:700">'+(done?'&#10003; done':'')+'</span></summary><div style="padding:12px 14px"><ul style="margin:0 0 10px 18px;padding:0;line-height:1.5">'+m.pts.map(function(p){return '<li style="margin:5px 0">'+esc(p)+'</li>';}).join('')+'</ul>';
   m.qs.forEach(function(q,qi){h+='<div style="margin:10px 0"><b>Quick check: '+esc(q.q)+'</b>'+q.o.map(function(o,oi){return '<label style="display:block;padding:4px 0"><input type="radio" name="q_'+m.id+'_'+qi+'" value="'+oi+'"> '+esc(o)+'</label>';}).join('')+'</div>';});
   return h+'<button type="button" onclick="HBT.check(\''+m.id+'\')" style="border:0;border-radius:10px;padding:9px 14px;font-weight:800;background:'+m.c+';color:#fff;cursor:pointer">Check my answers</button> <span id="hbtr_'+m.id+'" style="font-weight:700"></span></div></details>';},
- render:function(el,ids,openFirst){var L=ids?ids.map(function(i){return M.filter(function(m){return m.id===i;})[0];}).filter(Boolean):M;el.innerHTML=L.map(function(m,i){return HBT.one(m,openFirst&&i===0);}).join('');},
+ render:function(el,ids,openFirst){if(window.HW&&HW.get()&&!HW.ready&&!HBT._ld){HBT._ld=1;HW.load(function(){HBT._ld=0;HBT.render(el,ids,openFirst)});}var L=ids?ids.map(function(i){return M.filter(function(m){return m.id===i;})[0];}).filter(Boolean):M;el.innerHTML=L.map(function(m,i){return HBT.one(m,openFirst&&i===0);}).join('');},
  check:function(id){var m=M.filter(function(x){return x.id===id;})[0],ok=0,all=true;m.qs.forEach(function(q,qi){var r=document.querySelector('input[name="q_'+id+'_'+qi+'"]:checked');if(!r)all=false;else if(+r.value===q.a)ok++;});var o=document.getElementById('hbtr_'+id);
   if(!all){o.style.color='#c62828';o.textContent='Answer every question first.';return;}
-  if(ok===m.qs.length){o.style.color='#2e7d32';o.textContent='All correct!';ls('hbt_'+id,'1');var d=document.getElementById('hbtd_'+id);if(d)d.innerHTML='&#10003; done';}else{o.style.color='#c62828';o.textContent=ok+' of '+m.qs.length+' right. Read the points above and try again.';}}};
+  if(ok===m.qs.length){o.style.color='#2e7d32';o.textContent='All correct!';
+   function mark(){var d=document.getElementById('hbtd_'+id);if(d)d.innerHTML='&#10003; done';}
+   if(!window.HW){ls('hbt_'+id,'1');mark();return;}
+   HW.modal(function(w){if(window.showWho)showWho();o.textContent='All correct! Saving to '+w.name+'\'s file…';HW.submit('HB'+id,'Employee Handbook: '+m.t,0.25).then(function(){o.textContent='All correct! Certificate sent to '+w.name+'\'s staff file for your director to sign.';mark()}).catch(function(e){o.style.color='#c62828';o.textContent=e.message||'Could not save. Try again.'})});}else{o.style.color='#c62828';o.textContent=ok+' of '+m.qs.length+' right. Read the points above and try again.';}}};
 })();

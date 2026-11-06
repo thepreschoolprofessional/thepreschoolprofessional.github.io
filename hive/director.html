@@ -912,10 +912,17 @@ window.HIVE_CARDS={prompt:'What do you want to work on?',order:[
 <script src="hive-cards.js?v=5"></script>
 <script>
 (function(){var P=sessionStorage.getItem('hivePin');if(!P)return;
-function chk(){fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:P,action:'to_count'})}).then(function(r){return r.json()}).then(function(j){var old=document.getElementById('toBar');if(old)old.remove();if(!j||!j.count)return;
- if(window.HiveCards)HiveCards.badge('Standard Operating Procedures',j.count+' time off');
- var b=document.createElement('div');b.id='toBar';b.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:90;background:#c62828;color:#fff;border-radius:14px;padding:12px 16px;font-weight:800;box-shadow:0 6px 20px rgba(0,0,0,.35);max-width:92%;cursor:pointer';
- b.textContent='\uD83C\uDF34 '+j.count+' time-off request'+(j.count>1?'s':'')+' waiting for your signature'+(j.short?' ('+j.short+' under two weeks notice)':'')+'. Tap to open.';b.onclick=function(){location.href='sop.html#off';};document.body.appendChild(b);}).catch(function(){});}
+function bar(id,bottom,bg,txt,go){var old=document.getElementById(id);if(old)old.remove();if(!txt)return;var b=document.createElement('div');b.id=id;b.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:'+bottom+'px;z-index:90;background:'+bg+';color:#fff;border-radius:14px;padding:12px 16px;font-weight:800;box-shadow:0 6px 20px rgba(0,0,0,.35);max-width:92%;cursor:pointer';b.textContent=txt;b.onclick=go;document.body.appendChild(b);}
+function pop(n,nn){var key='certPop'+n+'_'+nn;try{if(sessionStorage.getItem(key))return;sessionStorage.setItem(key,'1')}catch(e){}
+ var o=document.createElement('div');o.id='certPop';o.style.cssText='position:fixed;inset:0;background:rgba(40,30,20,.55);z-index:9998;display:flex;align-items:center;justify-content:center;padding:16px';
+ o.innerHTML='<div style="background:#fff;border-radius:18px;max-width:420px;width:100%;padding:20px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.4)"><div style="font-size:42px">\uD83C\uDF93</div><h2 style="margin:6px 0">'+n+' training certificate'+(n>1?'s':'')+' waiting for your signature</h2><div style="color:#7a6a5c;margin-bottom:12px">Staff finished training. Each certificate is in that person\'s own Staff Files folder. Open it and sign on the screen.'+(nn?' '+nn+' new name'+(nn>1?'s':'')+' also need to be matched to a staff file.':'')+'</div><button id="cpGo" style="border:0;border-radius:12px;padding:12px 18px;font-weight:800;background:#2e8b57;color:#fff;font-size:1rem;cursor:pointer;width:100%">Open Staff Files to sign</button><button id="cpLater" style="border:0;background:none;margin-top:8px;color:#7a6a5c;font-weight:700;cursor:pointer">Later</button></div>';
+ document.body.appendChild(o);document.getElementById('cpGo').onclick=function(){location.href='staff-files.html'};document.getElementById('cpLater').onclick=function(){o.remove()};}
+function chk(){fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:P,action:'to_count'})}).then(function(r){return r.json()}).then(function(j){if(!j)return;
+ var c=j.count||0,ce=j.certs||0;
+ if(window.HiveCards){if(c)HiveCards.badge('Standard Operating Procedures',c+' time off');if(ce)HiveCards.badge('Staff Files',ce+' to sign');}
+ bar('toBar',14,'#c62828',c?'\uD83C\uDF34 '+c+' time-off request'+(c>1?'s':'')+' waiting for your signature'+(j.short?' ('+j.short+' under two weeks notice)':'')+'. Tap to open.':'',function(){location.href='sop.html#off';});
+ bar('certBar',c?70:14,'#2e8b57',ce?'\uD83C\uDF93 '+ce+' training certificate'+(ce>1?'s':'')+' to sign. Tap to open Staff Files.':'',function(){location.href='staff-files.html';});
+ if(ce&&!document.getElementById('certPop'))pop(ce,j.newnames||0);}).catch(function(){});}
 setTimeout(chk,1500);setInterval(chk,300000);})();
 </script>
 

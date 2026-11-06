@@ -2,10 +2,13 @@
 <style>*{box-sizing:border-box;font-family:'Segoe UI',system-ui,sans-serif}body{margin:0;background:linear-gradient(160deg,#fff7ef,#ffe7d4);color:#4a3a30;padding-bottom:60px}header{padding:18px 20px 6px;text-align:center}h1{margin:0;font-size:1.6rem}.sub{color:#9b8576;font-weight:600;margin-top:4px}a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800;color:#9b8576}main{max-width:860px;margin:14px auto;padding:0 14px}</style></head><body>
 <a class="back" id="bk" href="teacher.html">&larr; Back</a>
 <header><h1>📘 Employee Handbook Training</h1><div class="sub">The Bear Phonics Academy Employee Handbook 2026-27 in short lessons. Open a lesson, read the points, answer the quick check.</div></header>
+<div id="who" style="max-width:860px;margin:0 auto;padding:0 14px"></div>
 <main id="m"></main>
-<script src="train-data.js?v=1"></script>
+<script src="training-who.js?v=1"></script>
+<script src="train-data.js?v=2"></script>
 <script>
 var role='teacher';try{fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:sessionStorage.getItem('hivePin'),action:'whoami'})}).then(function(r){return r.json()}).then(function(j){if(j.role==='director')document.getElementById('bk').href='director.html';}).catch(function(){});}catch(e){}
-HBT.render(document.getElementById('m'),null,false);
+function showWho(){var w=document.getElementById('who');w.innerHTML=HW.bar('HW.clear();showWho();HBT.render(document.getElementById(\'m\'),null,false)')||'<div style="color:#9b8576;font-weight:600">You will be asked for your name when you finish a lesson, so it is saved to your own file.</div>';}
+showWho();HBT.render(document.getElementById('m'),null,false);
 var q=(location.search.match(/m=(\w+)/)||[])[1];if(q){var els=document.querySelectorAll('details.hbt'),idx=HBT.modules.map(function(m){return m.id}).indexOf(q);if(idx>=0&&els[idx]){els[idx].open=true;els[idx].scrollIntoView();}}
 </script></body></html>
