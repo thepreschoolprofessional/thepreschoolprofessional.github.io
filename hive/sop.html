@@ -26,7 +26,7 @@ var $=function(i){return document.getElementById(i);};
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 var SCHOOL='',ROLE='',D=null,DIRPIN='',DIRUNTIL=0,TAB='plan0',ROOM='',DATE=new Date().toLocaleDateString('en-CA',{timeZone:'America/New_York'}),EDIT=false,COUNTS={};
 async function api(action,x){var r=await fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({pin:PIN,action:action},x||{}))});var j=await r.json().catch(function(){return {error:'Server error. Try again in a minute.'};});if(j.error)throw new Error(j.error);return j;}
-function canEdit(){return ROLE==='director'||(DIRPIN&&Date.now()<DIRUNTIL);}
+function canEdit(){return ROLE==='director';}
 function say(t,bad){var m=$('msg');if(m){m.textContent=t||'';m.className='msg '+(bad?'bad':'ok');}}
 async function save(what){try{await api('sop_save',{data:{rooms:D.rooms,staff:D.staff,timeline:D.timeline,days:D.days},dirpin:DIRPIN,what:what||''});say('Saved.');}catch(e){say(e.message,1);if(/PIN/.test(e.message)){DIRPIN='';DIRUNTIL=0;EDIT=false;draw();}}}
 function askPin(then){$('modb').innerHTML='<h2 style="margin-top:0">A director needs to do this</h2><p class="sub">Only directors can change times. Call your director over. They type their own PIN here, then make the change.</p><input id="dp" type="password" inputmode="numeric" placeholder="Director PIN" style="width:100%;font-size:1.2rem"><div class="msg bad" id="dpm"></div><button class="btn" id="dpgo">Unlock</button> <button class="btn sec" id="dpx">Cancel</button>';$('mod').style.display='flex';$('dp').focus();
@@ -40,10 +40,12 @@ async function boot(){
  try{var w=await api('whoami');SCHOOL=w.school;ROLE=w.role;if(!SCHOOL)throw new Error('Please log in with your school\'s PIN.');var j=await api('sop_get');D=SOP.merge(SCHOOL,j.data);ROOM=Object.keys(D.rooms)[0]||'';if(location.hash==='#off')TAB='off';}
  catch(e){$('app').innerHTML='<div class="card"><b>'+esc(e.message)+'</b><p><a class="btn" href="index.html">Back to sign in</a></p></div>';return;}
  draw();}
-var TABS=[['plan0','📖 Letter & Rules'],['time','⏱ Day Timeline'],['rooms','🧸 Classroom Schedules'],['week','📅 Week at a Glance'],['staff','👩‍🏫 Staff Schedule'],['off','🌴 Time Off'],['plan','🧮 Day Planner'],['print','🖨 Print Forms']];
+var ALLTABS=[['plan0','📖 Letter & Rules'],['time','⏱ Day Timeline'],['rooms','🧸 Classroom Schedules'],['week','📅 Week at a Glance'],['staff','👩‍🏫 Staff Schedule'],['off','🌴 Time Off'],['plan','🧮 Day Planner'],['print','🖨 Print Forms']];
+function tabsFor(){return ROLE==='director'?ALLTABS:ALLTABS.filter(function(t){return t[0]!=='plan'&&t[0]!=='print';});}
 function draw(){
+ var TABS=tabsFor();if(!TABS.some(function(t){return t[0]===TAB;}))TAB='plan0';
  var back=ROLE==='director'?'director.html':'teacher.html';
- var h='<div class="top"><div><h1>📖 Standard Operating Procedures</h1><div class="sub">Kid City USA '+esc(SCHOOL)+' &middot; <input type="date" id="dt" value="'+DATE+'" onchange="DATE=this.value;draw()"></div></div><div class="noprint"><a class="btn sec" href="'+back+'">‹ Back to portal</a> <button class="btn '+(EDIT?'g':'')+'" onclick="toggleEdit()">'+(EDIT?'✓ Done changing':'✏️ Change times / names')+'</button></div></div>';
+ var h='<div class="top"><div><h1>📖 Standard Operating Procedures</h1><div class="sub">Kid City USA '+esc(SCHOOL)+' &middot; <input type="date" id="dt" value="'+DATE+'" onchange="DATE=this.value;draw()"></div></div><div class="noprint"><a class="btn sec" href="'+back+'">‹ Back to portal</a> '+(ROLE==='director'?'<button class="btn '+(EDIT?'g':'')+'" onclick="toggleEdit()">'+(EDIT?'✓ Done changing':'✏️ Change times / names')+'</button>':'')+'</div></div>';
  h+='<div class="tabs noprint">'+TABS.map(function(t){return '<button class="'+(TAB===t[0]?'on':'')+'" onclick="TAB=\''+t[0]+'\';draw()">'+t[1]+'</button>';}).join('')+'</div><div class="msg" id="msg"></div>';
  if(EDIT)h+='<div class="card" style="background:#fff8e1;border-color:#e0a100"><b>Changing mode is on.</b> <span class="sub">'+(ROLE==='director'?'':'A director PIN was entered. It turns off after 10 minutes. ')+'Changes save when you tap Save.</span></div>';
  h+=({plan0:letterTab,time:timeTab,rooms:roomsTab,week:weekTab,staff:staffTab,off:offTab,plan:plannerTab,print:printTab})[TAB]();
@@ -64,7 +66,7 @@ function timeTab(){var st=eff(),day=(D.days||{})[DATE]||{},cover=day.cover||{};
  var rows=D.timeline.slice().sort(function(a,b){return mm(a.s)-mm(b.s);});
  var h=clBanner(DATE)+'<div class="card"><div class="sub" style="margin-bottom:6px">The whole day, top to bottom: who is where and what they are doing. Red flags show a step whose person is not working at that time on the date above.'+(EDIT?'':'')+'</div><table><tr><th style="width:130px">Time</th><th style="width:190px">Who</th><th>What</th>'+(EDIT?'<th style="width:70px"></th>':'')+'</tr>';
  rows.forEach(function(r){var i=D.timeline.indexOf(r),sm=matchStaff(r.who,st),flag='';
-  if(sm&&!sm.closed){var a=mm(r.s);if(sm.off)flag='<span class="flag">'+esc(sm.name)+' is out today. Needs cover.</span>';else if(sm.in&&a<mm(sm.in)||sm.out&&a>=mm(sm.out))flag='<span class="flag">'+esc(sm.name)+' works '+rng(sm.in,sm.out)+'. Needs cover.</span>';}
+  if(ROLE==='director'&&sm&&!sm.closed){var a=mm(r.s);if(sm.off)flag='<span class="flag">'+esc(sm.name)+' is out today. Needs cover.</span>';else if(sm.in&&a<mm(sm.in)||sm.out&&a>=mm(sm.out))flag='<span class="flag">'+esc(sm.name)+' works '+rng(sm.in,sm.out)+'. Needs cover.</span>';}
   var cv=cover[r.id];
   if(EDIT)h+='<tr><td><input type="time" value="'+esc(r.s)+'" onchange="D.timeline['+i+'].s=this.value"><br><input type="time" value="'+esc(r.e||'')+'" onchange="D.timeline['+i+'].e=this.value"></td><td><input style="width:100%" value="'+esc(r.who)+'" onchange="D.timeline['+i+'].who=this.value"></td><td><textarea onchange="D.timeline['+i+'].what=this.value">'+esc(r.what)+'</textarea>'+(flag?flag+' <select onchange="setCover(\''+r.id+'\',this.value)"><option value="">Who covers?</option>'+st.filter(function(x){return !x.off;}).map(function(x){return '<option'+(cv===x.name?' selected':'')+'>'+esc(x.name)+'</option>';}).join('')+'</select>':'')+'</td><td><button class="btn sm r" onclick="delRow('+i+')">Delete</button></td></tr>';
   else h+='<tr><td class="fixed">'+esc(rng(r.s,r.e))+'</td><td>'+esc(r.who)+'</td><td>'+esc(r.what)+(flag?'<br>'+flag+(cv?' <b class="ok">Covered by '+esc(cv)+'</b>':''):'')+'</td></tr>';});
@@ -100,6 +102,7 @@ function staffTab(){var rooms=Object.keys(D.rooms),eg=eff();
    h+='<td>'+(s.brk?esc(rng(s.brk.s,s.brk.e)):'')+'</td><td>'+(t.closed?'<span class="flag">CLOSED</span>':t.off?'<span class="flag">OUT</span>':t.changed?'<b>'+esc(rng(t.in,t.out))+'</b>':esc(t.in?rng(t.in,t.out):''))+'</td></tr>';}});
  eg.filter(function(x){return x.sub;}).forEach(function(x){h+='<tr class="now"><td><b>'+esc(x.name)+'</b> <span class="sub">(substitute)</span></td><td>'+esc(x.role)+'</td><td>'+esc(x.room)+'</td><td colspan="5"></td><td></td><td>'+esc(rng(x.in,x.out))+'</td></tr>';});
  h+='</table></div>'+(EDIT?'<p><button class="btn sm sec" onclick="addStaff()">+ Add a staff member</button> <button class="btn g" onclick="save(\'staff\')">Save</button></p>':'')+'</div>';
+ if(ROLE!=='director')return h;
  /* today's changes */
  var day=(D.days||{})[DATE]||{},ov=day.staff||[];
  h+='<div class="card"><h2 style="margin-top:0">Changes for '+DATE+'</h2><div class="sub">A call-out, a late start, or a substitute. The Day Planner re-checks coverage right away. Nothing here changes the regular schedule above.</div>';
