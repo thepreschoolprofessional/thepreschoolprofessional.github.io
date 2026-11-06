@@ -239,6 +239,57 @@ return $out;
 if (AIRTABLE_TOKEN === 'PASTE_YOUR_AIRTABLE_TOKEN_HERE') fail('The Airtable token has not been added yet.', 503);
 $input = json_decode(file_get_contents('php://input'), true);
 if (!$input) fail('Bad request');
+/* ---- PUBLIC: Welcome portal for new / inquiring families (no PIN). Only these wl_ actions work without a PIN. ---- */
+if (strpos((string)($input['action'] ?? ''), 'wl_') === 0){
+$wa = $input['action']; $ws = trim((string)($input['school'] ?? ''));
+if (!in_array($ws, $SCHOOLS, true)) fail('Pick a school.');
+if ($wa === 'wl_bios'){
+$r = roster($ws, 'staff'); if ($r === null) fail('Could not read the staff list right now.', 502);
+$out = []; foreach ($r as $p){ if (strpos($p['id'], 'recTEST') === 0) continue; $row = bio_public_row($ws, $p); if ($row) $out[] = $row; }
+echo json_encode(['school'=>$ws, 'staff'=>$out]); exit;
+}
+/* simple abuse guard: 12 public writes per hour per address */
+$rf = sys_get_temp_dir().'/hive_wl_'.md5(($_SERVER['REMOTE_ADDR'] ?? 'x').date('YmdH')); $cnt = is_file($rf) ? (int)file_get_contents($rf) : 0;
+if ($cnt >= 12) fail('Too many tries. Please call the school office.', 429); file_put_contents($rf, $cnt + 1);
+$wd = school_dir($ws); if (!$wd) fail('Could not open storage.', 500);
+if ($wa === 'wl_orient_sign'){
+$pn = mb_substr(trim(strip_tags((string)($input['parent'] ?? ''))), 0, 60); $cn = mb_substr(trim(strip_tags((string)($input['child'] ?? ''))), 0, 60);
+if (strlen($pn) < 3 || strlen($cn) < 2) fail('Please type your full name and your child\'s name.');
+$pd = pp_dir($ws); $o = jread($pd.'/orientation.json', []); $o[] = ['parent'=>$pn, 'child'=>$cn, 'at'=>gmdate('c'), 'date'=>date('Y-m-d'), 'new'=>true];
+jwrite($pd.'/orientation.json', $o); echo json_encode(['ok'=>true]); exit;
+}
+if ($wa === 'wl_register'){
+$ed = $wd.'/enroll'; if (!is_dir($ed)) @mkdir($ed, 0750, true); if (!is_dir($ed)) fail('Could not open storage.', 500);
+$t = function($v, $n = 120){ return mb_substr(trim(strip_tags((string)$v)), 0, $n); };
+$c = $input['child'] ?? []; $ch = ['first'=>$t($c['first'] ?? '', 40), 'last'=>$t($c['last'] ?? '', 40), 'dob'=>$t($c['dob'] ?? '', 10), 'gender'=>$t($c['gender'] ?? '', 20), 'address'=>$t($c['address'] ?? '', 160), 'nickname'=>$t($c['nickname'] ?? '', 40), 'lang'=>$t($c['lang'] ?? '', 40)];
+if ($ch['first'] === '' || $ch['last'] === '') fail('Please enter your child\'s first and last name.');
+if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $ch['dob'])) fail('Please enter your child\'s date of birth.');
+$people = function($arr, $max, $fields) use ($t){ $o = []; if (!is_array($arr)) return $o; foreach (array_slice($arr, 0, $max) as $x){ if (!is_array($x)) continue; $r = []; foreach ($fields as $k) $r[$k] = $t($x[$k] ?? '', 100); if ($r['name'] !== '') $o[] = $r; } return $o; };
+$par = $people($input['parents'] ?? [], 2, ['name', 'rel', 'phone', 'email', 'employer', 'workphone', 'address']);
+if (!$par || strlen($par[0]['phone']) < 7 || strpos($par[0]['email'], '@') === false) fail('Please enter a parent name, phone number and email.');
+$em = $people($input['emergency'] ?? [], 3, ['name', 'rel', 'phone']); $pk = $people($input['pickup'] ?? [], 5, ['name', 'rel', 'phone']);
+$m = $input['medical'] ?? []; $med = []; foreach (['allergies', 'conditions', 'meds', 'doctor', 'doctorPhone', 'diet', 'hospital'] as $k) $med[$k] = $t($m[$k] ?? '', 300);
+$asv = $input['assist'] ?? []; $as = ['elc'=>(in_array($asv['elc'] ?? '', ['yes', 'no', 'unsure'], true) ? $asv['elc'] : 'unsure'), 'note'=>$t($asv['note'] ?? '', 300)];
+$pl = $input['plan'] ?? []; $plan = ['start'=>$t($pl['start'] ?? '', 10), 'schedule'=>$t($pl['schedule'] ?? '', 40), 'note'=>$t($pl['note'] ?? '', 300)];
+$id = 'en'.date('ymdHis').substr(md5(uniqid('', true)), 0, 5);
+$need = ['handbook', 'emergency', 'tuition', 'brochure']; $sigs = []; $got = [];
+foreach ((array)($input['sigs'] ?? []) as $s){
+$doc = $t($s['doc'] ?? '', 20); $nm = $t($s['name'] ?? '', 60); $png = (string)($s['png'] ?? '');
+if (!preg_match('/^data:image\/png;base64,([A-Za-z0-9+\/=]+)$/', $png, $mm) || strlen($nm) < 3) continue;
+$raw = base64_decode($mm[1], true); if ($raw === false || strlen($raw) > 250000 || substr($raw, 0, 8) !== "\x89PNG\r\n\x1a\n") continue;
+if (!preg_match('/^[a-z]+$/', $doc)) continue;
+file_put_contents($ed.'/'.$id.'-sig-'.$doc.'.png', $raw); $sigs[] = ['doc'=>$doc, 'name'=>$nm, 'at'=>gmdate('c'), 'choice'=>$t($s['choice'] ?? '', 40)]; $got[] = $doc;
+}
+foreach ($need as $n0) if (!in_array($n0, $got, true)) { foreach (glob($ed.'/'.$id.'-sig-*') ?: [] as $f0) @unlink($f0); fail('Please sign every page that needs a signature.'); }
+$ph = [];
+foreach (['child', 'family'] as $pk0){ $b = $input['photos'][$pk0] ?? ''; if ($b === '') continue; $raw = base64_decode($b, true);
+if ($raw === false || strlen($raw) < 200 || strlen($raw) > 2 * 1024 * 1024 || substr($raw, 0, 3) !== "\xFF\xD8\xFF") continue; file_put_contents($ed.'/'.$id.'-'.$pk0.'.jpg', $raw); $ph[$pk0] = true; }
+$pk_ = ['id'=>$id, 'school'=>$ws, 'at'=>gmdate('c'), 'status'=>'new', 'child'=>$ch, 'parents'=>$par, 'emergency'=>$em, 'pickup'=>$pk, 'medical'=>$med, 'assist'=>$as, 'plan'=>$plan, 'sigs'=>$sigs, 'photos'=>$ph, 'photoRelease'=>(($input['photoRelease'] ?? '') === 'yes')];
+jwrite($ed.'/'.$id.'.json', $pk_);
+echo json_encode(['ok'=>true, 'id'=>$id]); exit;
+}
+fail('Unknown request.');
+}
 $pin = strtoupper(trim($input['pin'] ?? ''));
 $pins = get_pins();
 if (!$pin || !isset($pins[$pin])) fail('That PIN isn\'t right. Double-check with Mrs. Bear.', 401);
@@ -280,6 +331,40 @@ jwrite($nf, $n);
 }
 $today = date('Y-m-d'); foreach ($n as $k => $v){ if (!empty($v['until']) && $v['until'] < $today) unset($n[$k]); }
 echo json_encode(['notes'=>(object)$n]); exit;
+}
+/* ---- Enrollment inbox (directors only): packets from the Welcome portal ---- */
+function en_dir($school){ $d = school_dir($school); if (!$d) return null; $p = $d.'/enroll'; if (!is_dir($p)) @mkdir($p, 0750, true); return is_dir($p) ? $p : null; }
+function en_list_all($school){ $d = en_dir($school); $o = []; if (!$d) return $o; foreach (glob($d.'/en*.json') ?: [] as $f){ $x = json_decode(file_get_contents($f), true); if (is_array($x)) $o[] = $x; } usort($o, function($a, $b){ return strcmp($b['at'] ?? '', $a['at'] ?? ''); }); return $o; }
+if (strpos($action, 'en_') === 0){
+if (!$isDir) fail('Only a director can use Enrollment.', 403);
+$d = en_dir($school); if (!$d) fail('Could not open the enrollment storage.', 500);
+if ($action === 'en_list'){ $o = []; foreach (en_list_all($school) as $x){ $o[] = ['id'=>$x['id'], 'at'=>$x['at'], 'status'=>$x['status'], 'name'=>($x['child']['first'] ?? '').' '.($x['child']['last'] ?? ''), 'dob'=>$x['child']['dob'] ?? '', 'parent'=>$x['parents'][0]['name'] ?? '', 'elc'=>($x['assist']['elc'] ?? ''), 'start'=>$x['plan']['start'] ?? '']; } echo json_encode(['items'=>$o]); exit; }
+$id = preg_replace('/[^a-z0-9]/', '', strtolower($input['id'] ?? '')); $pf = $d.'/'.$id.'.json';
+if ($id === '' || !is_file($pf)) fail('That packet was not found.', 404);
+$pk = jread($pf, []);
+if ($action === 'en_get'){
+$files = []; foreach (glob($d.'/'.$id.'-*') ?: [] as $f){ $files[basename($f)] = base64_encode(file_get_contents($f)); }
+echo json_encode(['packet'=>$pk, 'files'=>(object)$files]); exit;
+}
+if ($action === 'en_approve'){
+if (($pk['status'] ?? '') === 'approved') fail('Already approved.');
+$room = trim((string)($input['room'] ?? '')); if ($room === '') fail('Pick the room first.');
+$c = $pk['child']; $fn = trim(preg_replace('/[^A-Za-z\'-]/', '', $c['first'])); $ln = trim(preg_replace('/[^A-Za-z]/', '', $c['last']));
+if ($fn === '' || $ln === '') fail('The child name needs letters. Edit it on paper and add them in Rooms.');
+$name = ucfirst($fn).' '.strtoupper(substr($ln, 0, 1)).'.';
+foreach (roster($school, 'student') ?: [] as $p){ if (strcasecmp($p['name'], $name) === 0) fail($name.' is already on the roster. Add a different letter in Rooms or decline this packet.'); }
+$sr = (($pk['assist']['elc'] ?? '') === 'yes');
+$res = at_request('POST', ['Room Children'], null, ['fields'=>['Child'=>$name, 'School'=>$school, 'Room'=>$room, 'DOB'=>$c['dob'], 'Status'=>'Active', 'Order'=>99, 'SR (ELC)'=>$sr]]);
+if (!isset($res['id'])) fail('Could not add the child: '.($res['error']['message'] ?? 'the roster did not accept it').'.', 502);
+roster_cache_clear($school);
+$pd = pdir($school, 'student', $res['id']);
+if (!empty($pk['photos']['child']) && is_file($d.'/'.$id.'-child.jpg') && !empty($pk['photoRelease'])) @copy($d.'/'.$id.'-child.jpg', $pd.'/face.jpg');
+$pk['status'] = 'approved'; $pk['approvedAt'] = gmdate('c'); $pk['approvedRoom'] = $room; $pk['childRec'] = $res['id']; $pk['childName'] = $name;
+jwrite($pf, $pk); echo json_encode(['ok'=>true, 'name'=>$name, 'recId'=>$res['id'], 'sr'=>$sr]); exit;
+}
+if ($action === 'en_decline'){ $pk['status'] = 'declined'; $pk['note'] = mb_substr(trim(strip_tags((string)($input['note'] ?? ''))), 0, 300); jwrite($pf, $pk); echo json_encode(['ok'=>true]); exit; }
+if ($action === 'en_done'){ $k = preg_replace('/[^a-z]/', '', (string)($input['step'] ?? '')); if (!in_array($k, ['food', 'procare', 'welcome', 'cert'], true)) fail('Unknown step'); $pk['steps'][$k] = !empty($input['on']); jwrite($pf, $pk); echo json_encode(['ok'=>true]); exit; }
+fail('Unknown request.');
 }
 if ($action === 'pp_orient_sign'){
 if (!$isParent) fail('Only a parent signs the orientation.', 403);
@@ -669,6 +754,7 @@ elseif ($days <= 60) $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 's
 $pa = at_request('GET', ['Portal Alerts'], http_build_query(['filterByFormula'=>"AND({School}='".$sc0."',{Status}='Open')", 'pageSize'=>100]));
 if (is_array($pa) && !isset($pa['error'])){ foreach (($pa['records'] ?? []) as $r0){ $f0 = $r0['fields'] ?? []; $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'alert', 'href'=>(($f0['Link'] ?? '') ?: ''), 'label'=>($f0['Alert'] ?? 'Needs attention'), 'status'=>'alert', 'red'=>!empty($f0['Red']), 'alertId'=>$r0['id']]; } }
 if ((int)date('N') >= 4){ $tw = fte_target_week(); if (!fte_have_week($school, $tw)) $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'fte', 'href'=>'fte.html', 'label'=>'Weekly FTE report for the week of '.date('n/j', strtotime($tw)).' not filed yet', 'status'=>'missing', 'red'=>((int)date('N') >= 5)]; }
+foreach (en_list_all($school) as $en0){ if (($en0['status'] ?? '') === 'new') $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'enroll', 'href'=>'enroll.html', 'label'=>'New enrollment packet: '.($en0['child']['first'] ?? '').' '.mb_substr($en0['child']['last'] ?? '', 0, 1).'. — review and approve', 'status'=>'missing', 'red'=>false]; }
 foreach (pp_status_list($school) as $ps){ if ($ps['ok']) continue; $isNext = ($ps['month'] !== date('Y-m')); $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'pp', 'href'=>'parent-manage.html', 'label'=>'Parent portal: '.$ps['monthName'].' '.$ps['label'].' not posted yet'.($isNext ? ' (month ends soon)' : ''), 'status'=>'missing', 'red'=>(!$isNext && (int)date('j') >= 5)]; }
 echo json_encode(['school'=>$school, 'items'=>$items]); exit;
 }

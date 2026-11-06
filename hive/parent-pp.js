@@ -9,7 +9,7 @@ var PP=null,BLOBS={};
 function pin(){return sessionStorage.getItem('hivePin');}
 function school(){return window.PP_SCHOOL?window.PP_SCHOOL():'';}
 async function call(action,extra){
-  var r=await fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({pin:pin(),action:action,school:school()},extra||{}))});
+  var r=await fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({pin:pin(),action:(!pin()&&action==='pp_orient_sign'?'wl_orient_sign':action),school:school()},extra||{}))});
   return r.json();
 }
 async function load(force){

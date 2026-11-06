@@ -99,7 +99,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 .meet-save{display:flex;align-items:center;gap:10px;margin-top:8px;} .meet-save small{color:var(--soft);font-weight:700;}
 </style>
 <script>/* stale-page guard: if this browser is showing an old saved copy, load the fresh one */
-(function(){var V='20261106d';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+'?v='+m[1]);}});}catch(e){}})();</script>
+(function(){var V='20261106e';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+'?v='+m[1]);}});}catch(e){}})();</script>
 </head>
 <body>
 <a class="back" href="index.html">← exit</a>
@@ -143,6 +143,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
   <div class="tab" data-icon="bp-logo.png" style="background:#9b6bff" onclick="window.open('https://bearphonicsacademy.com/online/demo.html?teach=bpa-classroom-26','_blank','noopener')">🐻 Bear Phonics Academy</div>
   <div class="tab" style="background:#e91e63" onclick="location.href='parent.html'">🏡 Parent Portal</div>
   <div class="tab" style="background:#00695c" onclick="location.href='fte.html'">📊 FTE Report</div>
+  <div class="tab" style="background:#2e8b57" onclick="location.href='enroll.html'">🧸 New Enrollments</div>
   <div class="tab" style="background:#5a4cc9" onclick="show('mc',this)">🔗 School Links</div>
   <div class="tab" style="background:linear-gradient(90deg,var(--teal),var(--green))" onclick="show('wb',this)">📚 Lesson Plan Wizard</div>
   <div class="tab t-fund" onclick="show('fund',this)">🐝 Fundraiser</div>
@@ -859,6 +860,7 @@ function openElcTablet(){
 window.HIVE_CARDS={prompt:'What do you want to work on?',order:[
  {k:'Bear Phonics Academy',s:'Free reading lessons for the classroom',c:'#9b6bff'},
  {k:'Parent Portal',t:[['Update the parent portal','parent-manage.html'],['Post to the message board','parent-manage.html']],l:['See what parents see (menu, newsletter, lesson plans, board)','Upload a menu, newsletter or flyer, or fill in the newsletter template','Post notes on the message board','See who signed Parent Orientation'],s:'What parents see and update it',c:'#e91e63'},
+ {k:'New Enrollments',t:[['Review new registrations','enroll.html']],l:['Families fill out and sign the registration on the Welcome page','Review each packet and print it','Approve: adds the child to the roster and Rooms board','Then follow the checklist: Food Program, ProCare, ELC certificate, family welcome'],s:'Registrations from new families',c:'#2e8b57'},
  {k:'FTE Report',l:['Weekly FTE report: fill in and save','Print the filled or blank official form','20-week sheet with changes and charts','Full sheets are filed in the vault'],s:'Weekly FTE, saved here',c:'#00695c'},
  {k:'Daily Briefing',l:["Today's to-do list (check off, add notes)", "Friday meeting answers", "Red Needs Attention alerts"],s:"Today's to-do list",c:'#2e8b57'},
  {k:'Classroom Attendance',t:[['Rooms Board lessons','lessons.html#A1']],l:["Rooms board: sign children in and out", "Meals checked off by room", "Weekly attendance forms to sign", "Headcounts and ratios"],s:'Room sign-in, meals, headcounts',c:'#1565c0'},
@@ -902,7 +904,7 @@ window.HIVE_CARDS={prompt:'What do you want to work on?',order:[
   var pin=sessionStorage.getItem('hivePin');if(!pin)return;
   fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pin,action:'attention'})}).then(function(r){return r.json()}).then(function(j){
    window.alertDone=function(id){fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pin,action:'alert_close',alertId:id})}).then(function(){run();});};
-   if(!j||!j.items)return;try{var pn=j.items.filter(function(i){return i.doc==='pp'}).length;if(pn&&window.HiveCards)HiveCards.badge('Parent Portal',pn+' to update');}catch(e){}var red=j.items.filter(function(i){return i.red}),amb=j.items.length-red.length;
+   if(!j||!j.items)return;try{var pn=j.items.filter(function(i){return i.doc==='pp'}).length;if(pn&&window.HiveCards)HiveCards.badge('Parent Portal',pn+' to update');var en=j.items.filter(function(i){return i.doc==='enroll'}).length;if(en&&window.HiveCards)HiveCards.badge('New Enrollments',en+' new');}catch(e){}var red=j.items.filter(function(i){return i.red}),amb=j.items.length-red.length;
    var old=document.getElementById('needs');if(old)old.remove();
    if(!j.items.length)return;
    var nav=document.querySelector('nav');if(!nav)return;

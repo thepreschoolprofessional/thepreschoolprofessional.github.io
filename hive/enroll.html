@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>New Enrollments - The Hive</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#fbf6ea;color:#222;padding:12px 16px 60px}
+a.back{display:inline-block;margin:4px 0 8px;color:#555;text-decoration:none;font-weight:700}h1{margin:6px 0 2px;font-size:1.5rem}.sub{color:#666;font-size:.9rem;margin-bottom:10px}
+.badge{display:inline-block;background:#222;color:#fff;border-radius:20px;padding:3px 12px;font-size:.85rem;font-weight:700;margin-left:8px}
+.sec{background:#fff;border:2px solid #e6dcc3;border-radius:16px;margin:12px 0;padding:12px 14px}.sec h2{margin:0 0 8px;font-size:1.1rem}
+.row{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid #eee;cursor:pointer}.row:first-child{border-top:0}.row b{flex:1}.pill{border-radius:20px;padding:3px 10px;font-size:.78rem;font-weight:800;color:#fff}
+.new{background:#e0457b}.approved{background:#2e7d32}.declined{background:#888}
+button{border:0;border-radius:10px;padding:10px 16px;font-weight:800;cursor:pointer;background:#222;color:#fff;font-size:.95rem;margin:8px 6px 0 0}button.gr{background:#2e7d32}button.r{background:#c62828}button.sec2{background:#eee;color:#222}
+select,textarea{padding:10px;border-radius:10px;border:1px solid #ccc;font-size:1rem;font-family:inherit}
+.kv{display:grid;grid-template-columns:150px 1fr;gap:4px 10px;font-size:.92rem;margin:6px 0}.kv span:nth-child(odd){color:#777;font-weight:700}
+.sig{border:1px solid #ddd;border-radius:8px;max-width:100%;margin:4px 6px 4px 0}.ph{max-height:180px;border-radius:12px;margin:4px 8px 4px 0}
+.msg{padding:10px;border-radius:10px;background:#e3f4e8;margin:8px 0;display:none;font-weight:700}.msg.err{background:#fde0e0}
+.step{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid #eee}.step input{width:22px;height:22px;margin-top:2px}
+@media print{body{background:#fff;padding:0}.noprint{display:none!important}.sec{border:0;padding:0}}
+</style></head><body>
+<a class="back noprint" href="director.html">← Director Dashboard</a>
+<h1 class="noprint">🧸 New Enrollments <span class="badge" id="sch">…</span></h1>
+<div class="sub noprint">Registration packets families fill out and sign on the Welcome page. Review, approve, then follow the checklist.</div>
+<div class="msg" id="msg"></div>
+<div id="view"></div>
+<script>
+const PIN=sessionStorage.getItem('hivePin');if(!PIN||sessionStorage.getItem('hiveRole')!=='director')location.href='index.html';
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const $=i=>document.getElementById(i);
+async function api(action,extra){const r=await fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({pin:PIN,action},extra||{}))});const j=await r.json();if(j.error)throw new Error(j.error);return j;}
+function say(t,err){const m=$('msg');m.textContent=t;m.className='msg'+(err?' err':'');m.style.display=t?'block':'none';}
+let ROOMS=[];
+async function list(){
+ say('');try{const w=await api('whoami');$('sch').textContent=w.school;const j=await api('en_list');
+ const it=j.items;let h='<div class="sec"><h2>Packets</h2>'+(it.length?it.map(x=>'<div class="row" onclick="open_(\''+x.id+'\')"><b>'+esc(x.name)+'</b><span class="sub">Parent: '+esc(x.parent)+' · sent '+esc((x.at||'').slice(0,10))+'</span>'+(x.elc==='yes'?'<span class="pill" style="background:#1565c0">ELC</span>':'')+'<span class="pill '+x.status+'">'+x.status+'</span></div>').join(''):'<div class="sub">No packets yet. Send families the Welcome page link (see below).</div>')+'</div>'
+ +'<div class="sec"><h2>Send families the Welcome page</h2><div class="sub">Text or email this link to new and inquiring families:</div><input readonly style="width:100%;padding:10px;border-radius:10px;border:1px solid #ccc" value="https://thepreschoolprofessional.net/hive/welcome.html?school='+(w.school==='Sanford'?'sanford':'deland')+'" onclick="this.select()"></div>';
+ $('view').innerHTML=h;}catch(e){say(e.message,1);}
+}
+async function open_(id){
+ try{const j=await api('en_get',{id});const p=j.packet,f=j.files,c=p.child;
+ if(!ROOMS.length){try{ROOMS=(await api('rooms')).rooms||[];}catch(e){}}
+ const kv=(a)=>'<div class="kv">'+a.map(x=>'<span>'+esc(x[0])+'</span><span>'+esc(x[1]||'—')+'</span>').join('')+'</div>';
+ let h='<div class="noprint"><button class="sec2" onclick="list()">← All packets</button><button class="sec2" onclick="window.print()">🖨 Print packet</button></div><div class="sec"><h2>'+esc(c.first)+' '+esc(c.last)+' <span class="pill '+p.status+'">'+p.status+'</span></h2>'
+ +kv([['Date of birth',c.dob],['Gender',c.gender],['Home language',c.lang],['Address',c.address],['Hoped-for start',p.plan.start],['Schedule',p.plan.schedule],['Sent',(p.at||'').slice(0,16).replace('T',' ')+' UTC']])+'</div>'
+ +'<div class="sec"><h2>Parents / guardians</h2>'+p.parents.map(x=>kv([['Name',x.name],['Relationship',x.rel],['Phone',x.phone],['Email',x.email],['Employer',x.employer]])).join('<hr>')+'</div>'
+ +'<div class="sec"><h2>Emergency contacts &amp; pick-up</h2>'+p.emergency.map(x=>kv([['Emergency',x.name+' ('+x.rel+')'],['Phone',x.phone]])).join('')+p.pickup.map(x=>kv([['May pick up',x.name+' ('+x.rel+')'],['Phone',x.phone]])).join('')+'</div>'
+ +'<div class="sec"><h2>Health</h2>'+kv([['Allergies',p.medical.allergies],['Conditions',p.medical.conditions],['Medicines',p.medical.meds],['Food needs',p.medical.diet],['Doctor',p.medical.doctor+' '+(p.medical.doctorPhone||'')]])+'</div>'
+ +'<div class="sec"><h2>Help paying for care</h2>'+kv([['ELC / assistance',({yes:'YES - director must get the payment certificate',no:'No',unsure:'Not sure - ask the family'})[p.assist.elc]],['Note',p.assist.note]])+'</div>'
+ +'<div class="sec"><h2>Signatures</h2>'+p.sigs.map(s=>'<div><b>'+esc(s.doc)+'</b> '+esc(s.name)+' · '+esc((s.at||'').slice(0,10))+'<br>'+(f[p.id+'-sig-'+s.doc+'.png']?'<img class="sig" src="data:image/png;base64,'+f[p.id+'-sig-'+s.doc+'.png']+'">':'')+'</div>').join('')+'</div>'
+ +'<div class="sec"><h2>Pictures</h2>'+(f[p.id+'-child.jpg']?'<img class="ph" src="data:image/jpeg;base64,'+f[p.id+'-child.jpg']+'">':'<span class="sub">No child photo.</span>')+(f[p.id+'-family.jpg']?'<img class="ph" src="data:image/jpeg;base64,'+f[p.id+'-family.jpg']+'">':'<span class="sub"> No family picture.</span>')+'<div class="sub">'+(p.photoRelease?'Photo release: YES':'Photo release: not given. The child photo will not be saved as their face picture.')+'</div></div>';
+ if(p.status==='new'){
+  h+='<div class="sec noprint"><h2>Approve</h2><div class="sub">Pick the room. This adds '+esc(c.first)+' to the roster and Rooms board'+(p.assist.elc==='yes'?', marked School Readiness (ELC), so the payment certificate shows red in Student Files until it is filed':'')+'.</div><select id="rm">'+ROOMS.map(r=>'<option>'+esc(typeof r==='string'?r:(r.name||r))+'</option>').join('')+'</select><br><button class="gr" onclick="approve(\''+id+'\')">✅ Approve and add to the school</button><button class="r" onclick="decline(\''+id+'\')">Decline</button></div>';
+ } else if(p.status==='approved'){
+  const S=p.steps||{};const st=(k,t,extra)=>'<div class="step"><input type="checkbox" '+(S[k]?'checked':'')+' onchange="stepDone(\''+id+'\',\''+k+'\',this.checked)"><div><b>'+t+'</b>'+(extra?'<div class="sub">'+extra+'</div>':'')+'</div></div>';
+  const mail='mailto:'+encodeURIComponent(p.parents[0].email)+'?subject='+encodeURIComponent('Welcome to Kid City USA!')+'&body='+encodeURIComponent('Hello '+p.parents[0].name+',\n\nWelcome! '+c.first+' is all set. Please open our parent portal here:\nhttps://thepreschoolprofessional.net/hive/\nParent PIN: (type it here)\n\nThe Parent Orientation and the first-day list are inside. We cannot wait to meet you!');
+  h+='<div class="sec noprint"><h2>✅ '+esc(p.childName)+' is on the roster in '+esc(p.approvedRoom)+'. Now finish the rest:</h2>'
+   +st('food','Food Program: enroll '+esc(c.first)+' (KidKare + the sponsor forms)','Open Monthly Reporting &gt; Forms to Print. Dietary needs from the family: '+esc(p.medical.diet||'none')+'. Allergies: '+esc(p.medical.allergies||'none')+'.')
+   +st('procare','Add '+esc(c.first)+' in ProCare')
+   +(p.assist.elc==='yes'?st('cert','ELC: get the payment certificate and file it','Student Files shows it red until it is uploaded. <a href="files.html">Open Student Files</a>'):'')
+   +st('welcome','Send the family their parent portal link and PIN','<a href="'+mail+'">Open a ready-made email</a> (type the parent PIN in it). Then they do the Parent Orientation.')
+   +'<div class="sub" style="margin-top:8px">Family picture '+(f[p.id+'-family.jpg']?'is in this packet (print it for the family tree).':'was not sent. Ask the family for one for the family tree.')+'</div></div>';
+ }
+ $('view').innerHTML=h;window.scrollTo(0,0);}catch(e){say(e.message,1);}
+}
+async function approve(id){const room=$('rm').value;if(!room){say('Pick a room first.',1);return;}try{const j=await api('en_approve',{id,room});say(j.name+' was added to '+room+'.');open_(id);}catch(e){say(e.message,1);}}
+async function decline(id){const n=prompt('Short note (optional):','');if(n===null)return;try{await api('en_decline',{id,note:n});list();}catch(e){say(e.message,1);}}
+async function stepDone(id,step,on){try{await api('en_done',{id,step,on});}catch(e){say(e.message,1);}}
+list();
+</script></body></html>

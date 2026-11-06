@@ -43,7 +43,7 @@ ol.steps li:before{content:counter(s);position:absolute;left:0;top:8px;width:30p
 .msg{min-height:20px;font-weight:700;color:var(--grn)}
 </style></head>
 <body><div id="app"></div>
-<script>(function(){var V='20261106c';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+location.search+(location.search?'&':'?')+'v='+m[1]);}});}catch(e){}})();</script>
+<script>(function(){var V='20261106d';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+location.search+(location.search?'&':'?')+'v='+m[1]);}});}catch(e){}})();</script>
 <script src="training-who.js?v=1"></script>
 <script>
 const PIN=sessionStorage.getItem('hivePin'), ROLE=sessionStorage.getItem('hiveRole')||'teacher', TSCH=sessionStorage.getItem('hiveSchool')||'';
@@ -327,7 +327,21 @@ const LESSONS=[
  stop:'Do not guess numbers. Use the real ProCare and payroll totals.',
  quiz:[
   {q:'What is Occupancy %?',a:['FTE divided by license capacity','Children enrolled divided by staff','Total billed divided by payroll'],c:0,w:'FTE divided by capacity, times 100.'},
-  {q:'Where does the FTE report go now?',a:['Saved in the Hive vault','Emailed to corporate','Nowhere'],c:0,w:'It is saved here in the vault.'}]}
+  {q:'Where does the FTE report go now?',a:['Saved in the Hive vault','Emailed to corporate','Nowhere'],c:0,w:'It is saved here in the vault.'}]},
+{id:'E3',sec:'E. Parents and Families',title:'New enrollments and the Welcome page',min:5,intro:'New and inquiring families get their own small website, the Welcome page. They register and sign on the screen. You approve, and the child is added to your school.',
+ steps:[
+ [D,'Open '+B('New Enrollments')+'. At the bottom is the Welcome page link for your school. Text or email it to any family who calls or tours.'],
+ [D,'The family sees only: About Us, Meet Our Teachers, Tuition, Drop-Off, New Family Orientation, What to Bring, Register Online, Follow Us and Contact Us. They do not see the menu, newsletter or staff areas.'],
+ [D,'When they submit, a '+B('New enrollment packet')+' shows in Needs Attention and the card gets a badge. Tap the packet to read it. Use '+B('Print packet')+' for a paper copy.'],
+ [D,'Pick the room and tap '+B('Approve and add to the school')+'. The child goes on the roster and the Rooms board. If the family said they get ELC help, the child is marked School Readiness and the payment certificate shows red in Student Files until you file it.'],
+ [D,'Then follow the checklist on the packet: Food Program, ProCare, ELC certificate, and send the family their parent portal link and PIN. They then finish the Parent Orientation.'],
+ [D,'If the family sent a family picture, print it for the family tree. If they did not, ask for one.']
+ ],
+ tip:'Approve the same day if you can. Families remember how fast you answer.',
+ stop:'Do not approve a packet if the name is already on the roster. Check first.',
+ quiz:[
+  {q:'What happens when you approve a packet?',a:['The child is added to the roster and Rooms board','The family gets a bill','Nothing happens'],c:0,w:'Approving adds the child and then you follow the checklist.'},
+  {q:'The family says they get ELC help. What shows red until you act?',a:['The payment certificate in Student Files','The menu','The newsletter'],c:0,w:'File the payment certificate in Student Files.'}]}
 ];
 
 
