@@ -118,6 +118,14 @@ if ($action === 'create'){
 if (!in_array($table, $perm['create'])) fail('Not allowed', 403);
 $fields = $input['fields'] ?? [];
 if (!$fields) fail('No fields');
+if ($role === 'teacher' && $table === 'Facility Submissions' && !empty($fields['Staff Name']) && !empty($fields['School'])){
+// A name that belongs to the OTHER school's staff can never sign this school's forms.
+$nz = function($x){ return preg_replace('/[^a-z]/', '', strtolower($x)); };
+$nm = $nz($fields['Staff Name']); $sch = trim($fields['School']); $here = false; $other = false;
+$rr = at_request('GET', ['Staff Roster'], ['pageSize' => 100]);
+foreach (($rr['records'] ?? []) as $r){ $f = $r['fields']; if ($nz($f['Name'] ?? '') !== $nm) continue; $rs = $f['School']['name'] ?? ($f['School'] ?? ''); if ($rs === $sch) $here = true; else $other = true; }
+if ($other && !$here) fail('That name belongs to the other school\'s staff. Pick your own school and your own name.', 403);
+}
 if ($school && in_array($table, $SCHOOL_TABLES)) $fields['School'] = $school; // directors + school parents can only file for their own school
 $out = at_request('POST', [$table], null, ['records' => [['fields' => $fields]], 'typecast' => true]);
 echo json_encode($out); exit;
