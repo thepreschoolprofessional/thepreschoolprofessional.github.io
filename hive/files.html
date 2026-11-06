@@ -45,7 +45,7 @@ body{margin:0;background:linear-gradient(160deg,#fff7ef,#ffe7d4);color:var(--ink
 <body><div id="app"><div class="sub">Loading…</div></div>
 <div class="modal" id="mod"><div class="box" id="modbox"></div></div>
 <script>
-(function(){var V='20261105c';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+location.search+(location.search?'&':'?')+'v='+m[1]);}});}catch(e){}})();
+(function(){var V='20261105d';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+location.search+(location.search?'&':'?')+'v='+m[1]);}});}catch(e){}})();
 </script>
 <script>
 const PIN=sessionStorage.getItem('hivePin');
@@ -104,6 +104,9 @@ function pView(){
  h+='<div class="msg" id="gm"></div>';
  if(c.former){h+='<div class="card" style="border:2px solid var(--amb);background:#fff8e6"><b>'+(ST?'No longer on the staff list':'Withdrawn')+'</b>'+(c.left&&c.left.date?' · '+fmt(c.left.date):'')+(c.left&&c.left.reason?' · '+esc(c.left.reason):'')+'<div class="sub">Their file is kept. You can still add pages.</div><button class="btn sm grn" onclick="reinst()">↩ Put back on the '+(ST?'staff list':'roster')+'</button></div>';}
  if(ST&&c.certs){h+=certBlock(c);}
+ if(!ST&&!c.practice&&!c.former){h+='<div class="card" style="border:2px solid #1a73e8;background:#f3f8ff"><b>ELC / School Readiness</b><div class="sub" style="margin:2px 0 6px">Turn this on for School Readiness children. It adds the ELC payment certificate to the list below, with its expiration date and a red alert before it runs out.</div>'
+  +'<label style="display:block;margin:4px 0"><input type="checkbox" '+(c.sr?'checked':'')+' onchange="flag(\'sr\',this.checked)"> <b>School Readiness (ELC) child</b></label>'
+  +(c.sr?'<label style="display:block;margin:4px 0"><input type="checkbox" '+(c.atrisk?'checked':'')+' onchange="flag(\'atrisk\',this.checked)"> <b>At-risk child</b> <span class="sub">(ELC needs notice the same day they are absent)</span></label>':'')+'</div>';}
  if(c.driveFolder){h+='<div class="card" style="border:2px solid #1a73e8;background:#eef4ff"><b>📂 Too big to upload, or short on time?</b><div class="sub" style="margin:4px 0 8px">Put the whole packet (scan, photos or PDF, any size) in this person\'s private Drive folder. Then tap the yellow button so it gets split into the right spots.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn sm blu" style="text-decoration:none" target="_blank" rel="noopener" href="'+esc(c.driveFolder)+'">📂 Open '+esc(c.name)+'\'s Drive folder</a><button class="btn sm '+(c.driveSort?'grn':'sec')+'" onclick="driveSort('+(c.driveSort?0:1)+')">'+(c.driveSort?'✔ Waiting to be sorted · tap to undo':'📥 Packet is in Drive, please sort it')+'</button></div></div>';}
  h+='<div class="card"><h3>'+(ST?'What this file needs':'What this folder needs')+'</h3><div class="sub" style="margin-bottom:6px">Tap Take photo for each page (or choose a PDF). Red means it is missing or out of date.</div>';
  c.docs.forEach(function(d){
@@ -125,6 +128,7 @@ function pillHtml(d,s){
  if(d.marked)return '<span class="pill p-ok">On file (marked)</span> <button class="lk" style="background:none;border:0;color:#999;text-decoration:underline;font-size:.8rem;cursor:pointer" onclick="markDoc(\''+d.key+'\',0)">undo</button>';
  if(d.drive&&d.drive.verified)return '<span class="pill p-ok">On file (Drive)</span>';
  return '<span class="pill '+s[1]+'">'+s[0]+'</span>';}
+async function flag(k,v){try{const b={id:CUR.id};b[k]=!!v;await api('setflag',b);await refresh();say('gm','Saved.');}catch(e){say('gm',e.message,1);await refresh();}}
 async function markDoc(doc,on){
  if(on&&!confirm('Mark this as on file? Use this when you have the paper copy. You can still add photos any time.'))return;
  try{await api('mark',{id:CUR.id,doc,on});await refresh();say('gm',on?'Marked on file.':'Marked missing again.');}catch(e){say('gm',e.message,1);}}
@@ -210,12 +214,12 @@ async function addOpen(){
  if(!ST){try{rooms=(await api('rooms')).rooms;}catch(e){alert(e.message);return;}}
  showMod('<h3 style="margin:0 0 6px">Add '+(ST?'a staff member':'a child')+' · '+esc(SCHOOL)+'</h3>'
  +(ST?'<input class="fi" id="an" placeholder="First and last name" maxlength="60"><select class="fi" id="ar"><option>Teacher</option><option>Director</option><option>Support</option></select>'
-      :'<input class="fi" id="af" placeholder="Child first name" maxlength="30"><input class="fi" id="al" placeholder="Last name (only the first letter is kept)" maxlength="30"><label class="sub">Date of birth</label><input class="fi" id="ad" type="date"><select class="fi" id="aroom"><option value="">Which room?</option>'+rooms.map(r=>'<option>'+esc(r)+'</option>').join('')+'</select>')
+      :'<input class="fi" id="af" placeholder="Child first name" maxlength="30"><input class="fi" id="al" placeholder="Last name (only the first letter is kept)" maxlength="30"><label class="sub">Date of birth</label><input class="fi" id="ad" type="date"><label class="sub" style="display:block;margin:6px 0"><input type="checkbox" id="asr"> School Readiness (ELC) child</label><label class="sub" style="display:block;margin:6px 0"><input type="checkbox" id="aar"> ELC at-risk child (same-day absence notice)</label><select class="fi" id="aroom"><option value="">Which room?</option>'+rooms.map(r=>'<option>'+esc(r)+'</option>').join('')+'</select>')
  +'<div class="sub">'+(ST?'They are added to the staff list. Then you can add their package.':'They are added to the room roster and the Rooms board. Then you can add the registration packet. To also add them in KidKare, use Classroom Attendance → Add child (it collects the KidKare details).')+'</div><div class="msg" id="am"></div>'
  +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn grn" id="ab" onclick="addGo()">Add and open file</button><button class="btn sec" onclick="closeMod()">Cancel</button></div>');}
 async function addGo(){
  const b={};
- if(ST){b.name=$('an').value;b.role=$('ar').value;}else{b.first=$('af').value;b.last=$('al').value;b.dob=$('ad').value;b.room=$('aroom').value;}
+ if(ST){b.name=$('an').value;b.role=$('ar').value;}else{b.first=$('af').value;b.last=$('al').value;b.dob=$('ad').value;b.room=$('aroom').value;b.sr=$('asr').checked;b.atrisk=$('aar').checked;}
  $('ab').disabled=true;say('am','Adding…');
  try{const j=await api('add_person',b);closeMod();const r=await api('roster');PEOPLE=r.people;await openP(j.id);say('gm',j.name+' added. Add their package below.');}
  catch(e){$('ab').disabled=false;say('am',e.message,1);}}

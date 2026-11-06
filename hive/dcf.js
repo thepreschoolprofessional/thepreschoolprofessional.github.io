@@ -179,7 +179,7 @@ function drillView(){
     var fires=mr.filter(function(r){return r.type==='Fire';}).length;
     if(!mr.length) h+='<tr><td><b>'+mn+'</b></td><td colspan="10" style="color:'+(mk<t.slice(0,7)||(mk===t.slice(0,7)&&+t.slice(8)>=25)?'#b71c1c':'#999')+'">'+(mk<=t.slice(0,7)?'No drill logged':'&mdash;')+'</td><td>'+(mk<=t.slice(0,7)?'<button class="btn sec sm" data-adddrill="'+mk+'">Add</button>':'')+'</td></tr>';
     else mr.forEach(function(r,i){ h+='<tr><td>'+(i?'':'<b>'+mn+'</b>')+'</td><td>'+nice(r.date)+'</td><td>'+esc(r.time||'')+'</td><td>'+esc(r.type)+'</td><td>'+esc(r.adults||'')+'</td><td>'+esc(r.kids||'')+'</td><td>'+esc(r.clear||'')+'</td><td>'+esc(r.route||'')+'</td><td>'+esc(r.ext||'')+'</td><td>'+esc(r.note||'')+'</td><td>'+esc(r.init||'')+'</td><td><button class="btn sec sm" data-cell="drl|'+r.date+'|(building)|'+r.id+'">open</button></td></tr>'; }); }
-  h+='</table></div><div class="mrow" style="margin-top:8px"><button class="btn grn" data-adddrill="'+t+'">Log a drill</button> <button class="btn sec" onclick="printDrills()">Print the log (paper form)</button> <button class="btn sec" onclick="drillVault()">Save log to vault</button></div></div>';
+  h+='</table></div><div class="mrow" style="margin-top:8px"><button class="btn grn" data-adddrill="'+t+'">Log a drill</button> <button class="btn sec" onclick="printDrills()">Print the log (paper form)</button> <button class="btn sec" onclick="drillVault()">Save log to vault</button> <label class="btn sec" style="margin:0;cursor:pointer">Upload a paper log (photo or PDF)<input type="file" accept="image/*,application/pdf" style="display:none" onchange="drillUpload(this)"></label></div></div>';
   return h;
 }
 function ascii(s){ return String(s==null?'':s).replace(/[^\x20-\x7e]/g,''); }
@@ -226,6 +226,58 @@ function drillVault(silent){
   }).then(function(j){ if(j&&j.error) throw new Error(j.error); toast('Drill log filed in the vault (DCF / Licensing, '+month+').'); }).catch(function(e){ toast('Drill saved, but the vault copy failed: '+e.message,true); });
 }
 function printDrills(){ var yr=S.date.slice(0,4), w=window.open('about:blank','_blank'); drillPdf(yr).then(function(u8){ var url=URL.createObjectURL(new Blob([u8],{type:'application/pdf'})); if(w) w.location.href=url; else location.href=url; }).catch(function(e){ if(w) w.close(); toast(e.message,true); }); }
+
+function fileB64(file){ return new Promise(function(ok,no){ var r=new FileReader(); r.onload=function(){ ok(String(r.result).split(',')[1]||''); }; r.onerror=function(){ no(new Error('Could not read that file.')); }; r.readAsDataURL(file); }); }
+function drillUpload(inp){
+  var f=inp.files&&inp.files[0]; if(!f) return; var month=todayNY().slice(0,7), ext=/pdf/i.test(f.type)?'pdf':(/png/i.test(f.type)?'png':'jpg');
+  fileB64(f).then(function(b){ return vaultCall('upload',{month:month,cat:'dcf',name:'Fire Drill Log paper copy '+todayNY()+' - '+S.school+'.'+ext,b64:b}); })
+  .then(function(j){ if(j&&j.error) throw new Error(j.error); toast('Paper log filed in the vault (DCF / Licensing). Please also enter the drills above so the red alert clears.'); }).catch(function(e){ toast(e.message,true); });
+  inp.value='';
+}
+/* ----- Food Program papers: every saved hours sheet and form is filed as a PDF in the Reporting vault ----- */
+function parPdf(emp,d,m){
+  return loadLibs().then(function(){
+    var L=PDFLib, rgb=L.rgb; return L.PDFDocument.create().then(function(doc){ return Promise.all([doc.embedFont(L.StandardFonts.Helvetica),doc.embedFont(L.StandardFonts.HelveticaBold)]).then(function(f){
+      var F=f[0], B=f[1], pg=doc.addPage([612,792]), y=752, y0=+m.slice(0,4), mo=+m.slice(5), dim=new Date(y0,mo,0).getDate(), hd=HDR[S.school]||[''];
+      function tx(t,x,yy,sz,font,al,w){ t=String(t==null?'':t); var fo=font||F; if(al==='c'){ x=x+(w-fo.widthOfTextAtSize(t,sz))/2; } if(al==='r'){ x=x+w-fo.widthOfTextAtSize(t,sz); } pg.drawText(t,{x:x,y:yy,size:sz,font:fo,color:rgb(0,0,0)}); }
+      tx('PERSONNEL ACTIVITY REPORT (Child Care Food Program)',36,y,13,B); y-=16;
+      tx(hd[0]+'  '+(hd[1]||'')+'  '+(hd[2]||''),36,y,8.5); y-=14;
+      tx('Employee: '+emp,36,y,10.5,B); tx('Title: '+(d.title||''),300,y,10.5); y-=14;
+      tx('Month: '+MONTHS[mo-1]+' '+y0,36,y,10.5); tx('Sponsor: '+((SITEDEF[S.school]||{}).sponsor||''),300,y,10.5); y-=18;
+      var cols=[['Day',36,40],['Admin hrs',76,90],['Operational hrs',166,110],['Regular hrs',276,90],['Day total',366,90],['Notes',456,120]]; 
+      cols.forEach(function(c){ pg.drawRectangle({x:c[1],y:y-4,width:c[2],height:15,borderColor:rgb(0,0,0),borderWidth:.6,color:rgb(.9,.9,.9)}); tx(c[0],c[1],y,8.5,B,'c',c[2]); }); y-=15;
+      var ta=0,to=0,tr=0,tt=0;
+      for(var dd=1;dd<=dim;dd++){ var r=(d.days||{})[dd]||{}, closed=(r.o==='Closed'), a=parseFloat(r.a)||0, o=closed?0:(parseFloat(r.o)||0), rg=parseFloat(r.r)||0, tot=a+o+rg; ta+=a; to+=o; tr+=rg; tt+=tot;
+        var vals=[String(dd),r.a||'',closed?'Closed':(r.o||''),r.r||'',tot?String(Math.round(tot*100)/100):'',closed?'closed':''];
+        cols.forEach(function(c,i){ pg.drawRectangle({x:c[1],y:y-3,width:c[2],height:15,borderColor:rgb(.5,.5,.5),borderWidth:.4}); tx(vals[i],c[1],y,8.5,F,'c',c[2]); }); y-=15; }
+      var tv=['Total',String(Math.round(ta*100)/100),String(Math.round(to*100)/100),String(Math.round(tr*100)/100),String(Math.round(tt*100)/100),''];
+      cols.forEach(function(c,i){ pg.drawRectangle({x:c[1],y:y-3,width:c[2],height:16,borderColor:rgb(0,0,0),borderWidth:.8,color:rgb(.95,.95,.95)}); tx(tv[i],c[1],y,9,B,'c',c[2]); }); y-=26;
+      tx('I certify that this is an accurate record of the hours worked on the Child Care Food Program.',36,y,8.5); y-=24;
+      tx('Employee signature ________________________   Date __________',36,y,9); y-=22;
+      tx('Director / authorized representative ________________________   Date __________',36,y,9); y-=16;
+      tx('Hours sheet copy of the Food Program Personnel Activity Report, filed from the Hive. Sign the printed official copy.',36,y,7,F);
+      return doc.save();
+    }); });
+  });
+}
+function plainPdf(title,lines){
+  return loadLibs().then(function(){ var L=PDFLib, rgb=L.rgb; return L.PDFDocument.create().then(function(doc){ return Promise.all([doc.embedFont(L.StandardFonts.Helvetica),doc.embedFont(L.StandardFonts.HelveticaBold)]).then(function(f){
+    var pg=doc.addPage([612,792]), y=752; function nl(){ if(y<50){ pg=doc.addPage([612,792]); y=752; } }
+    pg.drawText(title,{x:36,y:y,size:13,font:f[1]}); y-=22;
+    lines.forEach(function(ln){ String(ln).match(/.{1,100}(\s|$)|\S+/g).forEach(function(w){ nl(); pg.drawText(w.replace(/[^\x20-\x7E]/g,' '),{x:36,y:y,size:9,font:f[0]}); y-=12; }); });
+    return doc.save(); }); }); });
+}
+function flat(o,pre,out){ out=out||[]; if(o&&typeof o==='object'){ Object.keys(o).forEach(function(k){ flat(o[k],(pre?pre+' / ':'')+k,out); }); } else if(o!==''&&o!=null&&o!==false){ out.push(pre+': '+o); } return out; }
+function foodVault(silent){
+  var pk=S.pk, m=pk.month, keys=Object.keys(pk.recs).filter(function(k){ var p=k.split('|'); return p[0]===m && p[1]!=='SUBMITTED' && p[1]!=='SIGNED' && p[1]!=='PARENTFORMS'; });
+  var jobs=[]; keys.forEach(function(k){ var p=k.split('|'), form=p[1], emp=p[2], d=pkData(form,emp)||{};
+    if(form==='PAR') jobs.push({name:'Food Program PAR hours sheet - '+emp+' - '+m+'.pdf',make:function(){ return parPdf(emp,d,m); }});
+    else { var lbl=(PFORMS.filter(function(x){return x[0]===form;})[0]||[form,form])[1]; jobs.push({name:'Food Program '+lbl+(emp?' - '+emp:'')+' - '+m+'.pdf',make:function(){ return plainPdf(lbl+(emp?' - '+emp:'')+' - '+S.school+' - '+m,flat(d,'',[])); }}); } });
+  if(!jobs.length){ if(!silent) toast('Nothing saved for this month yet.',true); return Promise.resolve(); }
+  var ok=0, bad=0;
+  return jobs.reduce(function(pr,j){ return pr.then(function(){ return j.make().then(function(u8){ return vaultCall('remove',{month:m,cat:'food',name:j.name}).catch(function(){}).then(function(){ return vaultCall('upload',{month:m,cat:'food',name:j.name,b64:bytesB64(u8)}); }); }).then(function(r){ if(r&&r.error) bad++; else ok++; }).catch(function(){ bad++; }); }); },Promise.resolve())
+  .then(function(){ toast(ok+' Food Program paper'+(ok===1?'':'s')+' filed in the vault (Food Program, '+m+')'+(bad?'; '+bad+' did not save.':'.'),!!bad); });
+}
 function drillForm(date,recId){
   var rec=recId&&S.subs[recId], o=rec?drillInfo(rec):{type:'Fire',date:date}, nm=directorName();
   var h='<div class="mback" data-a="mclose"><div class="mbox" data-stop="1"><h3>Drill log entry</h3>';
@@ -385,7 +437,7 @@ function packView(){
   if(pk.form==='CHECKLIST') body=chkOv(); else if(pk.form==='ENTRANCES') body=entOv(); else if(pk.form==='TERMS') body=termForm(); else if(pk.form==='PAR') body=parOv(); else if(pk.form==='SITEINFO') body=siteOv(); else if(KF[pk.form]) body=kidOv(pk.form); else if(pk.form==='EXPEND') body=expOv(); else if(pk.form==='LABOR') body=labOv(); else body=reviewForm(st);
   if(pk.form==='REVIEW') return h+'<div class="card" id="paper">'+body+'</div>';
   h+='<div class="card paper'+(/^(SITEINFO|CHECKLIST|ENTRANCES|MEDICAL|DIETARY|INFANTFEED|PAR|LABOR|EXPEND)$/.test(pk.form)?' ovwrap '+(pk.form==='EXPEND'?'land':'port'):'')+'" id="paper">'+body+'</div>';
-  h+='<div class="mrow noprint"><button class="btn sec" data-pf="print">Print / Save PDF</button>'+'<button class="btn grn" data-pf="save">Save now</button>'+'</div>';
+  h+='<div class="mrow noprint"><button class="btn sec" data-pf="print">Print / Save PDF</button>'+'<button class="btn grn" data-pf="save">Save now</button>'+'<button class="btn sec" onclick="foodVault()">File this month\'s Food Program papers as PDFs in the vault</button>'+'</div>';
   return h;
 }
 function fld(key,label,req,val,ph){ return '<label class="fl">'+esc(label)+(req?' <span class="rq">*</span>':'')+'<input class="fi'+(req?' rq-in':'')+'" data-f="'+key+'" data-req="'+(req?1:0)+'" value="'+esc(val||'')+'" placeholder="'+esc(ph||'')+'"></label>'; }
@@ -486,7 +538,7 @@ function parMultiGo(){
   if(!directorName()){ $('merr').textContent='Enter your name first.'; return; }
   var btn=$('pmgo'); btn.disabled=true; btn.textContent='Creating 0 of '+rows.length+'…'; var i=0;
   (function next(){
-    if(i>=rows.length){ $('modal').innerHTML=''; pk.emp=rows[0].n; toast(rows.length+' sheet'+(rows.length===1?'':'s')+' saved to '+MONTHS[mo-1]+'.'); render(); return; }
+    if(i>=rows.length){ $('modal').innerHTML=''; pk.emp=rows[0].n; toast(rows.length+' sheet'+(rows.length===1?'':'s')+' saved to '+MONTHS[mo-1]+'.'); render(); foodVault(true); return; }
     var q=rows[i], ex=pkData('PAR',q.n)||{}, days={};
     for(var d=1;d<=dim;d++){ var iso=m+'-'+(d<10?'0':'')+d, w=new Date(y,mo-1,d).getDay();
       if(w===0||w===6||!isSchoolDay(iso)){ days[d]={o:'Closed'}; continue; }
@@ -634,7 +686,7 @@ function submitPacket(){
   if(!miss.length && !confirm('Submit '+mLabel(S.pk.month)+' and lock it?')) return;
   flushSave();
   var now=new Date().toISOString(), pk=S.pk, data={by:nm,at:now,missing:miss,school:S.school};
-  api('create','Monthly Forms',{fields:{Entry:S.school+' · '+pk.month+' · SUBMITTED',Month:pk.month,Form:'SUBMITTED',Employee:'',Data:JSON.stringify(data),'Updated By':nm,'Updated At':now}}).then(function(res){ var r=res.records?res.records[0]:res; if(r&&r.id){ pk.recs[pkKey('SUBMITTED','')]=r; toast('Submitted. Month locked.'); render(); } else toast('Did not submit',true); }).catch(function(e){ toast(e.message,true); });
+  api('create','Monthly Forms',{fields:{Entry:S.school+' · '+pk.month+' · SUBMITTED',Month:pk.month,Form:'SUBMITTED',Employee:'',Data:JSON.stringify(data),'Updated By':nm,'Updated At':now}}).then(function(res){ var r=res.records?res.records[0]:res; if(r&&r.id){ pk.recs[pkKey('SUBMITTED','')]=r; toast('Submitted. Month locked.'); render(); foodVault(true); } else toast('Did not submit',true); }).catch(function(e){ toast(e.message,true); });
 }
 /* ----- required highlighting + lock ----- */
 function postPack(){

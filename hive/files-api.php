@@ -100,7 +100,8 @@ $DEFS = [
  'sleep' => ['Physician authorization (sleep position / feeding device)', false, false, 'Only if a doctor requires one'],
  'broch' => ['Know Your Child Care Facility brochure receipt (CF/PI 175-24)', false, true, 'Signed by parent'],
  'medauth'=> ['Medication authorization (signed, dated, dose and time)', false, false, 'Only if we give any medication. Keep 12 months after the last dose'],
- 'elc'   => ['4C / ELC voucher', false, false, 'Only if the family has one'],
+ 'elcpay'=> ['ELC / School Readiness payment certificate (eligibility)', true, true, 'School Readiness children only. Enter the date the certificate EXPIRES so the red alert comes before it runs out'],
+ 'elc'   => ['Other ELC / 4C paperwork', false, false, 'Only if the family has any'],
  'cust'  => ['Custody / court papers', false, false, 'Only if any'],
 ],
 ];
@@ -156,7 +157,7 @@ $f = $r['fields'];
 if ($kind === 'staff'){ $nm = trim($f['Name'] ?? ''); $sub = $f['Role'] ?? ''; }
 else { $nm = trim($f['Child'] ?? ''); $sub = $f['Room'] ?? ''; if (is_array($sub)) $sub = $sub['name'] ?? ''; }
 if ($nm === '') continue;
-$out[] = ['id'=>$r['id'], 'name'=>$nm, 'sub'=>(string)$sub, 'dob'=>$f['DOB'] ?? '', 'former'=>$inactive];
+$out[] = ['id'=>$r['id'], 'name'=>$nm, 'sub'=>(string)$sub, 'dob'=>$f['DOB'] ?? '', 'former'=>$inactive, 'sr'=>!empty($f['SR (ELC)']), 'atrisk'=>!empty($f['At Risk (ELC)']), 'since'=>substr($r['createdTime'] ?? '', 0, 10)];
 }
 $offset = $res['offset'] ?? null;
 } while ($offset && ++$guard < 10);
@@ -214,15 +215,17 @@ $today = date('Y-m-d'); $docs = []; $red = 0; $amber = 0;
 $mdocs = (array)($meta['docs'] ?? []);
 $dv = drive_links($school)[$kind.':'.$id] ?? null;
 foreach ($DEFS[$kind] as $k => $def){
+if ($kind === 'student' && $k === 'elcpay' && empty($p['sr'])) continue; // only School Readiness children
 $fl = []; foreach (($meta['files'] ?? []) as $f){ if (($f['doc'] ?? '') === $k) $fl[] = $f; }
 $exp = $mdocs[$k]['exp'] ?? '';
 $dn = !empty($mdocs[$k]['done']);
 $dl = $dv['docs'][$k] ?? null; $dok = ($dl && !empty($dl['url']) && !empty($dl['verified']));
 $st = status_for($def, $fl, $exp, $today, $dn || $dok);
+if ($k === 'elcpay' && ($fl || $dn || $dok)){ if (!$exp) $st = 'needdate'; elseif ($st === 'ok' && $exp <= date('Y-m-d', strtotime($today.' +45 days'))) $st = 'soon'; }
 if ($st === 'missing' || $st === 'expired') $red++; elseif ($st === 'soon' || $st === 'needdate') $amber++;
 $docs[] = ['key'=>$k, 'label'=>$def[0], 'needsExp'=>$def[1], 'req'=>$def[2], 'hint'=>($def[3] ?? ''), 'status'=>$st, 'exp'=>$exp, 'files'=>$fl, 'marked'=>($dn && !$fl && !$dok), 'nodate'=>($def[1] && !$exp && ($fl || $dn || $dok)), 'drive'=>(($dl && !empty($dl['url'])) ? ['url'=>$dl['url'], 'label'=>($dl['label'] ?? 'Page in Drive'), 'verified'=>$dok] : null)];
 }
-$out = ['id'=>$id, 'name'=>$p['name'], 'sub'=>$p['sub'], 'dob'=>$p['dob'], 'red'=>$red, 'amber'=>$amber, 'docs'=>$docs, 'former'=>!empty($p['former']), 'left'=>($meta['left'] ?? null), 'practice'=>(strpos($id, 'recTEST') === 0), 'driveFolder'=>($dv['folder'] ?? ''), 'driveSort'=>!empty($dv['sort'])];
+$out = ['id'=>$id, 'name'=>$p['name'], 'sub'=>$p['sub'], 'dob'=>$p['dob'], 'red'=>$red, 'amber'=>$amber, 'docs'=>$docs, 'former'=>!empty($p['former']), 'left'=>($meta['left'] ?? null), 'practice'=>(strpos($id, 'recTEST') === 0), 'sr'=>!empty($p['sr']), 'atrisk'=>!empty($p['atrisk']), 'driveFolder'=>($dv['folder'] ?? ''), 'driveSort'=>!empty($dv['sort'])];
 if ($kind === 'staff'){
 $certs = jread($d.'/certs.json', []); $sign = 0; $hrs = [];
 foreach ($certs as &$c){ if (empty($c['signedAt'])) $sign++; $y = $c['year'] ?? substr($c['date'] ?? '', 0, 4); $hrs[$y] = round(($hrs[$y] ?? 0) + (float)($c['hrs'] ?? 0), 2); } unset($c);
@@ -303,12 +306,53 @@ foreach ($r as $p){ if (strpos($p['id'], 'recTEST') === 0) continue; $v = person
 foreach (($v['docs'] ?? []) as $d){
 $st = $d['status'] ?? ''; if ($st !== 'missing' && $st !== 'expired' && $st !== 'soon' && $st !== 'needdate') continue;
 if ($st === 'missing' && empty($d['req'])) continue;
-$items[] = ['kind'=>$k, 'id'=>$p['id'], 'name'=>$p['name'], 'sub'=>$p['sub'], 'doc'=>$d['key'], 'label'=>$d['label'], 'status'=>$st, 'red'=>($st === 'missing' || $st === 'expired')];
+$lbl = $d['label'];
+if ($k === 'student' && $st === 'missing' && in_array($d['key'], ['imm', 'phys'], true) && !empty($p['since']) && strtotime($p['since']) < time() - 30 * 86400) $lbl = 'OVER 30 DAYS, child may not stay without it: '.$lbl;
+$items[] = ['kind'=>$k, 'id'=>$p['id'], 'name'=>$p['name'], 'sub'=>$p['sub'], 'doc'=>$d['key'], 'label'=>$lbl, 'status'=>$st, 'red'=>($st === 'missing' || $st === 'expired')];
 }
 if ($k === 'staff'){ foreach ((jread(pdir($school, 'staff', $p['id']).'/certs.json', [])) as $c){ if (empty($c['signedAt'])) $items[] = ['kind'=>'staff', 'id'=>$p['id'], 'name'=>$p['name'], 'sub'=>$p['sub'], 'doc'=>'cert', 'label'=>'Training certificate to sign: '.($c['title'] ?? ''), 'status'=>'sign', 'red'=>true]; } }
 }
 }
+
+/* ---- School-level alerts: drills, license / inspections, alerts posted by the scheduled tasks (ELC absence watch etc.) ---- */
+$today0 = date('Y-m-d'); $sc0 = str_replace("'", "", $school);
+$dr = at_request('GET', ['Facility Submissions'], http_build_query(['filterByFormula'=>"AND({School}='".$sc0."',FIND('DRILL:',{Details})>0)", 'pageSize'=>100]));
+if (is_array($dr) && !isset($dr['error'])){
+$drills = []; foreach (($dr['records'] ?? []) as $r0){ $f0 = $r0['fields'] ?? []; $dj = json_decode(substr($f0['Details'] ?? '', 6), true); $dd0 = $f0['Date'] ?? ''; if ($dd0 === '' || !is_array($dj)) continue; $drills[] = ['date'=>$dd0, 'type'=>($dj['type'] ?? 'Fire')]; }
+$sch = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School'];
+if (!$drills){ $items[] = array_merge($sch, ['doc'=>'drill', 'href'=>'dcf.html?tab=drill', 'label'=>'No fire drill log on file. Enter your drills or upload the paper fire drill log', 'status'=>'missing', 'red'=>true]); }
+else {
+$mk = date('Y-m'); $fire = 0; foreach ($drills as $d0){ if ($d0['type'] === 'Fire' && substr($d0['date'], 0, 7) === $mk) $fire++; }
+if (!$fire){ $late = (int)date('j') >= 20; $items[] = array_merge($sch, ['doc'=>'drill', 'href'=>'dcf.html?tab=drill', 'label'=>'Fire drill for '.date('F').' not logged yet'.($late ? ' (month ends soon)' : ''), 'status'=>'missing', 'red'=>$late]); }
+$since = date('Y-m-d', strtotime('-365 days')); $yr = ['Alternate route', 'Nap-time', 'Lockdown', 'Inclement weather'];
+foreach ($yr as $ty){ $have = false; foreach ($drills as $d0){ if ($d0['type'] === $ty && $d0['date'] >= $since) $have = true; } if (!$have) $items[] = array_merge($sch, ['doc'=>'drill', 'href'=>'dcf.html?tab=drill', 'label'=>'Yearly '.strtolower($ty).' drill not logged in the last 12 months', 'status'=>'soon', 'red'=>false]); }
+}
+}
+$sd = jread(school_dir($school).'/_school_dates.json', []);
+foreach (['license'=>'DCF child care license renewal', 'fireinsp'=>'Fire marshal inspection', 'healthinsp'=>'Health department inspection'] as $k0 => $lb0){
+$dt0 = $sd[$k0] ?? '';
+if ($dt0 === ''){ $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'dates', 'href'=>'director.html#schooldates', 'label'=>'Enter the date: '.$lb0, 'status'=>'needdate', 'red'=>false]; continue; }
+$days = (int)floor((strtotime($dt0) - strtotime($today0)) / 86400);
+if ($days < 0) $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'dates', 'href'=>'director.html#schooldates', 'label'=>$lb0.' was due '.$dt0, 'status'=>'expired', 'red'=>true];
+elseif ($days <= 60) $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'dates', 'href'=>'director.html#schooldates', 'label'=>$lb0.' due '.$dt0.' ('.$days.' days)', 'status'=>'soon', 'red'=>($days <= 14)];
+}
+$pa = at_request('GET', ['Portal Alerts'], http_build_query(['filterByFormula'=>"AND({School}='".$sc0."',{Status}='Open')", 'pageSize'=>100]));
+if (is_array($pa) && !isset($pa['error'])){ foreach (($pa['records'] ?? []) as $r0){ $f0 = $r0['fields'] ?? []; $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'alert', 'href'=>(($f0['Link'] ?? '') ?: ''), 'label'=>($f0['Alert'] ?? 'Needs attention'), 'status'=>'alert', 'red'=>!empty($f0['Red']), 'alertId'=>$r0['id']]; } }
 echo json_encode(['school'=>$school, 'items'=>$items]); exit;
+}
+
+if ($action === 'school_dates_get'){
+echo json_encode(['dates'=>jread(school_dir($school).'/_school_dates.json', new stdClass)]); exit;
+}
+if ($action === 'school_dates_set'){
+$sd = jread(school_dir($school).'/_school_dates.json', []); if (!is_array($sd)) $sd = [];
+foreach (['license', 'fireinsp', 'healthinsp'] as $k0){ if (array_key_exists($k0, $input)){ $v0 = $input[$k0]; if ($v0 !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $v0)) fail('That date is not a real date'); $sd[$k0] = $v0; } }
+jwrite(school_dir($school).'/_school_dates.json', $sd); echo json_encode(['ok'=>true]); exit;
+}
+if ($action === 'alert_close'){
+$aid = preg_replace('/[^A-Za-z0-9]/', '', $input['alertId'] ?? ''); if (strpos($aid, 'rec') !== 0) fail('Bad alert');
+$res = at_request('PATCH', ['Portal Alerts', $aid], null, ['fields'=>['Status'=>'Resolved']]);
+if (!isset($res['id'])) fail('Could not close it right now.', 502); echo json_encode(['ok'=>true]); exit;
 }
 if ($action === 'summary'){
 $out = [];
@@ -351,7 +395,7 @@ if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dob)) fail('Enter the date of birth.')
 if ($room === '') fail('Pick the room.');
 $name = ucfirst($fn).' '.strtoupper(substr($ln, 0, 1)).'.';
 foreach (roster($school, 'student') ?: [] as $p){ if (strcasecmp($p['name'], $name) === 0) fail($name.' is already on the roster. Use a different last initial or letter.'); }
-$res = at_request('POST', ['Room Children'], null, ['fields'=>['Child'=>$name, 'School'=>$school, 'Room'=>$room, 'DOB'=>$dob, 'Status'=>'Active', 'Order'=>99]]);
+$res = at_request('POST', ['Room Children'], null, ['fields'=>['Child'=>$name, 'School'=>$school, 'Room'=>$room, 'DOB'=>$dob, 'Status'=>'Active', 'Order'=>99, 'SR (ELC)'=>(!empty($input['sr']) || !empty($input['atrisk'])), 'At Risk (ELC)'=>!empty($input['atrisk'])]]);
 }
 if (!isset($res['id'])) fail('Could not add them: '.($res['error']['message'] ?? 'the roster did not accept it').'.', 502);
 roster_cache_clear($school);
@@ -364,6 +408,20 @@ if (!$p && !in_array($action, ['getfile'], true)) fail('That person is not on th
 
 if ($action === 'person'){ echo json_encode(person_view($school, $kind, $id, $p)); exit; }
 
+
+if ($action === 'setflag'){
+if ($kind !== 'student') fail('Bad request');
+if (strpos($id, 'recTEST') === 0) fail('The practice child cannot be flagged.');
+$f = [];
+if (array_key_exists('sr', $input)) $f['SR (ELC)'] = !empty($input['sr']);
+if (array_key_exists('atrisk', $input)) $f['At Risk (ELC)'] = !empty($input['atrisk']);
+if (isset($f['SR (ELC)']) && !$f['SR (ELC)']) $f['At Risk (ELC)'] = false;
+if (!empty($f['At Risk (ELC)'])) $f['SR (ELC)'] = true;
+if (!$f) fail('Nothing to change');
+$res = at_request('PATCH', ['Room Children', $id], null, ['fields'=>$f]);
+if (!isset($res['id'])) fail('Could not save: '.($res['error']['message'] ?? 'not accepted').'.', 502);
+roster_cache_clear($school); echo json_encode(['ok'=>true]); exit;
+}
 if ($action === 'drive_sort'){
 $dv = drive_links($school)[$kind.':'.$id] ?? null;
 if (!$dv) fail('This person does not have a Drive folder yet. Ask Mrs. Bear to add one.', 404);
