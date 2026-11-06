@@ -333,6 +333,52 @@ $lf = dirname($f).'/sop_log.json'; $lg = jread($lf, []); $lg[] = ['at'=>gmdate('
 if (count($lg) > 300) $lg = array_slice($lg, -300); jwrite($lf, $lg);
 echo json_encode(['ok'=>true]); exit;
 }
+
+function to_file($school){ $d = school_dir($school); return $d ? $d.'/timeoff.json' : null; }
+function to_ymd($v){ $v=(string)$v; return preg_match('/^\d{4}-\d{2}-\d{2}$/',$v) ? $v : ''; }
+if ($action === 'to_submit'){
+$name = mb_substr(trim((string)($input['name'] ?? '')), 0, 60); if ($name === '') fail('Pick your name.');
+$type = (string)($input['type'] ?? ''); if (!in_array($type, ['Vacation','Personal time','Bereavement','Unpaid time off','Other'], true)) fail('Pick the kind of time off.');
+$from = to_ymd($input['from'] ?? ''); $to = to_ymd($input['to'] ?? ''); if (!$from || !$to || $to < $from) fail('Check the dates.');
+$tz = new DateTimeZone('America/New_York'); $today = new DateTime('now', $tz); $today->setTime(0,0);
+$fd = DateTime::createFromFormat('Y-m-d', $from, $tz); if (!$fd) fail('Check the dates.'); $fd->setTime(0,0);
+$notice = (int)$today->diff($fd)->format('%r%a');
+$f = to_file($school); if (!$f) fail('Could not save right now.', 500);
+$all = jread($f, []); if (count($all) > 600) fail('Too many requests on file. Ask your director.');
+$id = 'to_'.bin2hex(random_bytes(5));
+$all[] = ['id'=>$id,'name'=>$name,'type'=>$type,'from'=>$from,'to'=>$to,'hours'=>mb_substr(trim((string)($input['hours'] ?? '')),0,40),'reason'=>mb_substr(trim((string)($input['reason'] ?? '')),0,400),'covered'=>mb_substr(trim((string)($input['covered'] ?? '')),0,200),'at'=>gmdate('c'),'notice'=>$notice,'short'=>($notice < 14),'status'=>'pending','note'=>''];
+jwrite($f, $all);
+echo json_encode(['ok'=>true,'short'=>($notice < 14),'notice'=>$notice]); exit;
+}
+if ($action === 'to_approved'){
+$f = to_file($school); $all = ($f && is_file($f)) ? jread($f, []) : []; $out = [];
+foreach ($all as $r){ if (($r['status'] ?? '') === 'approved') $out[] = ['name'=>$r['name'],'from'=>$r['from'],'to'=>$r['to']]; }
+echo json_encode(['approved'=>$out]); exit;
+}
+if ($action === 'to_list'){
+if (!sop_dir_ok($school, $isDir, $pins, $input['dirpin'] ?? '')) fail('Directors only.', 403);
+$f = to_file($school); $all = ($f && is_file($f)) ? jread($f, []) : [];
+echo json_encode(['requests'=>array_reverse($all)]); exit;
+}
+if ($action === 'to_decide'){
+if (!sop_dir_ok($school, $isDir, $pins, $input['dirpin'] ?? '')) fail('Directors only.', 403);
+$id = (string)($input['id'] ?? ''); $st = (string)($input['status'] ?? ''); if (!in_array($st, ['approved','denied','pending'], true)) fail('Bad choice.');
+$f = to_file($school); $all = ($f && is_file($f)) ? jread($f, []) : []; $hit = null;
+foreach ($all as $i => $r){ if (($r['id'] ?? '') === $id){ $all[$i]['status'] = $st; $all[$i]['note'] = mb_substr(trim((string)($input['note'] ?? '')),0,300); $all[$i]['decidedAt'] = gmdate('c'); $hit = $all[$i]; } }
+if (!$hit) fail('Request not found.', 404);
+jwrite($f, $all);
+/* approved time off goes onto the schedule as OUT days (weekdays only) */
+$sf = sop_file($school); $sd = ($sf && is_file($sf)) ? jread($sf, []) : [];
+if (!isset($sd['days']) || !is_array($sd['days'])) $sd['days'] = [];
+$tag = 'Approved time off ['.$id.']';
+foreach ($sd['days'] as $dk => $dv){ if (isset($dv['staff']) && is_array($dv['staff'])){ $sd['days'][$dk]['staff'] = array_values(array_filter($dv['staff'], function($o) use ($tag){ return ($o['note'] ?? '') !== $tag; })); } }
+if ($st === 'approved'){
+ $d = new DateTime($hit['from']); $e = new DateTime($hit['to']); $n = 0;
+ while ($d <= $e && $n < 120){ if ((int)$d->format('N') <= 5){ $k = $d->format('Y-m-d'); if (!isset($sd['days'][$k]) || !is_array($sd['days'][$k])) $sd['days'][$k] = []; if (!isset($sd['days'][$k]['staff']) || !is_array($sd['days'][$k]['staff'])) $sd['days'][$k]['staff'] = []; $sd['days'][$k]['staff'][] = ['name'=>$hit['name'],'off'=>true,'note'=>$tag]; } $d->modify('+1 day'); $n++; }
+}
+if ($sf) jwrite($sf, $sd);
+echo json_encode(['ok'=>true]); exit;
+}
 if ($action === 'bio_submit'){
 $id = $input['id'] ?? ''; if (strpos($id, 'pend_') === 0) fail('Your name is waiting for your director to add you to the staff list. Ask them, then come back.');
 $p = find_person($school, 'staff', $id); if (!$p || !empty($p['former'])) fail('Pick your name from the list.');

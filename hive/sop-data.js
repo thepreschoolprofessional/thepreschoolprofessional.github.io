@@ -81,6 +81,8 @@ var DEF={
  }
 };
 window.SOP={DAYS:DAYS,AGE:AGE,LETTER:LETTER,RULES:RULES,CLOSING:CLOSING,RATIOS:RATIOS,DEF:DEF};
+SOP.COLORS=[['#ffd9d0','#c0392b'],['#d6ecff','#1565c0'],['#dff3d8','#2e7d32'],['#fff0b8','#b8860b'],['#ead9ff','#6a1b9a'],['#ffe0f0','#ad1457'],['#d3f4f1','#00796b'],['#ffe5c2','#e65100']];
+SOP.color=function(D,name){var i=0,L=D.staff||[];for(var k=0;k<L.length;k++){if(L[k].name===name){i=k;break;}if(k===L.length-1)i=L.length+(name||'').length;}return SOP.COLORS[i%SOP.COLORS.length];};
 SOP.toMin=function(t){if(!t)return null;var p=String(t).split(':');return (+p[0])*60+(+p[1]||0);};
 SOP.fmt=function(t){if(!t)return '';var p=String(t).split(':'),h=+p[0],m=p[1]||'00',ap=h>=12?'PM':'AM';h=h%12;if(h===0)h=12;return h+':'+m+ap.slice(0,0)+' '+ap;};
 SOP.norm=function(s){return String(s||'').toLowerCase().replace(/\b(miss|mrs|ms|mr)\b\.?/g,'').replace(/[^a-z]+/g,' ').trim();};

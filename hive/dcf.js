@@ -1381,7 +1381,8 @@ function schedPdf(kind){
       function hdr(page,title,sub){ page.drawText('NAME OF FACILITY/HOME:',{x:30,y:572,size:10,font:B}); page.drawText('Kid City USA '+ascii(S.school),{x:178,y:572,size:13,font:F}); page.drawText(ascii(title),{x:30,y:548,size:16,font:B}); page.drawText(ascii(sub),{x:30,y:532,size:10,font:F}); page.drawLine({start:{x:30,y:526},end:{x:762,y:526},thickness:1}); }
       function cell(page,t,x,y,w,sz,b){ t=ascii(t); var fo=b?B:F; while(sz>5&&fo.widthOfTextAtSize(t,sz)>w-6) sz-=.5; page.drawText(t,{x:x+3,y:y,size:sz,font:fo}); }
       function foot(page){ page.drawText('Director signature: ______________________________   Date: ______________',{x:30,y:30,size:10,font:F}); }
-      function rect(page,x,y,w,h,fill){ page.drawRectangle({x:x,y:y,width:w,height:h,borderColor:rgb(0,0,0),borderWidth:.7,color:fill?rgb(.92,.92,.92):undefined}); }
+      function hx(c){ return rgb(parseInt(c.slice(1,3),16)/255,parseInt(c.slice(3,5),16)/255,parseInt(c.slice(5,7),16)/255); }
+      function rect(page,x,y,w,h,fill){ page.drawRectangle({x:x,y:y,width:w,height:h,borderColor:rgb(0,0,0),borderWidth:.7,color:fill?(typeof fill==='string'?hx(fill):rgb(.92,.92,.92)):undefined}); }
       function tm(t){ return t?SOP.fmt(t).replace(' AM','a').replace(' PM','p'):''; }
       if(kind==='sched'){
         var page=doc.addPage([792,612]); hdr(page,'Staff Schedule','Posted weekly hours - week of '+nice(monday(S.date)));
@@ -1390,7 +1391,7 @@ function schedPdf(kind){
         (D.staff||[]).forEach(function(st){ y-=26; x=30; var vals=[st.name,st.role||'',st.room||''];
           [1,2,3,4,5].forEach(function(d){ var w=(st.week||{})[d]; vals.push(w?tm(w.in)+'-'+tm(w.out):'OFF'); });
           vals.push(st.brk?tm(st.brk.s)+'-'+tm(st.brk.e):'');
-          cols.forEach(function(c,i){ rect(page,x,y,c[1],26,0); cell(page,vals[i],x,y+9,c[1],i>2?7.5:9,i===0); x+=c[1]; }); });
+          var tint=SOP.color(D,st.name)[0]; cols.forEach(function(c,i){ rect(page,x,y,c[1],26,tint); cell(page,vals[i],x,y+9,c[1],i>2?7.5:9,i===0); x+=c[1]; }); });
         page.drawText('Schedules may change when a staff member is out; changes are recorded in the Hive.',{x:30,y:54,size:9,font:F}); foot(page);
       } else {
         Object.keys(D.rooms).forEach(function(r){ var o=D.rooms[r], age=(SOP.AGE[o.tpl]||{label:''}), page=doc.addPage([792,612]);
