@@ -12,7 +12,7 @@ var AGE={
 };
 var LETTER=['This schedule exists for one reason: so we can run this school in excellence, together.','When we are transparent about our schedules and our timing, we get to understand each other\'s days, and that understanding turns into empathy. We stop guessing and start supporting. If you see a teammate carrying more than their share, you can step in. If someone is new or needs a hand, you will be able to see it and help, because the whole day is laid out in front of you: not just your own classroom, but how the entire school moves together.','I do not want us to be a team where people do not communicate, do not share information, or do not understand what everyone else is carrying. I want the opposite: a team that shows each other grace, because we can see, in black and white, that everyone here is working. That is what accountability really looks like: not pressure, but clarity.','When we stay on schedule and help each other, the children get order and consistency. And when the children have that, our stress goes down: we stop reinventing the day every single day. Preschool runs on repetition, and repetition is a gift, not a grind. The more we practice something, the better we get, and the greater we become at the exact same tasks, done with more heart and more skill every time.','I believe in this team. I believe we can send children into kindergarten ready, because of the excellence we practiced with them here, every single day. Above everything else, we do this for the children. Their best interest comes first, always.'];
 var RULES=[
- ['Arrival procedure (all staff)','Every staff member, when they arrive for their shift, signs in on the tablet AND in the sign-in book, and takes a walkie-talkie from the front office. This keeps everyone able to reach each other all day. It is not optional.'],
+ ['Arrival procedure (all staff)','Every staff member, when they arrive for their shift, signs in on the tablet, opens the Attendance Board (Rooms board; we no longer use a paper sign-in book), and takes a walkie-talkie from the front office. This keeps everyone able to reach each other all day. It is not optional.'],
  ['Customer service (opening procedure)','From the moment the opener unlocks the door at 6:30 AM, and at every drop-off and pickup all day: greet every parent ("good morning" or "hello"), greet the child too, and say "have a great day" when they leave. Non-negotiable.'],
  ['Headcounts and ratios','Take a headcount at every combine point (outside time, lunch, nap) and write down how many children of each age group are in a combined room. DCF will ask for this breakdown. Ratio math is by headcount, not by "feels full," and must check out on paper.'],
  ['Meal-room setup','For lunch and snack, pre-set the next meal room DURING quiet time so that when the children wake they get up, line up, and walk straight over. No bed-breaking or gear-packing for the children.'],
@@ -24,10 +24,12 @@ var CLOSING=['End-of-day inspection completed on the teacher portal.','Teacher c
 var RATIOS=[['Infant','1 : 4','5th infant in the room needs a 2nd teacher.'],['Ones','1 : 6','7th child needs a 2nd teacher.'],['Twos','1 : 11','12th child needs a 2nd teacher.'],['Threes','1 : 15','16th child needs a 2nd teacher.'],['Fours / Fives','1 : 20','21st child needs a 2nd teacher.']];
 function W(i,o,b){var w={};for(var d=1;d<=5;d++)w[d]={in:i,out:o};return w;}
 function WK(i,o,off){var w=W(i,o);delete w[off];return w;}
+function COMB(){return [T('08:30','09:00','Centers & Morning Work'),T('09:00','09:10','School Parade'),T('09:10','09:15','Arrival & Affirmation'),T('09:15','09:20','Morning Meeting'),T('09:20','09:35','Circle / Math Circle'),T('09:35','09:50','Music & Movement'),T('09:50','10:00','Cleanup'),T('10:00','11:00','Playroom or Outside Play (combined)',1),T('11:00','11:15','Come inside, Wash Up / Transition'),T('11:15','12:00','Lunch (served 11:15-11:30)',1),T('12:00','14:00','Quiet Time'),T('14:00','14:30','Snack'),T('14:30','14:45','Afternoon Math Review'),T('14:45','15:30','Centers #1 - Craft'),T('15:30','16:00','Outside Play',1),T('16:00','16:45','Centers #2 - Reading'),T('16:45','17:15','Centers #3 - STREAM'),T('17:15','17:30','Class Meeting / Wind-Down')];}
+function TODD(){return [T('08:30','08:40','Arrival'),T('08:40','08:45','Greeting'),T('08:45','08:50','Morning Meeting'),T('08:50','09:00','Music & Movement'),T('09:00','09:10','Circle Time'),T('09:10','09:15','Cleanup'),T('09:15','09:30','Outside Play',1),T('09:30','09:45','Wash Up'),T('09:45','11:00','Centers - Craft'),T('11:00','11:30','Lunch (served by Miss Honey)',1),T('11:30','14:00','Quiet Time / Nap'),T('14:00','14:30','Snack'),T('14:30','14:45','Afternoon Circle'),T('14:45','15:30','Centers #1'),T('15:30','16:00','Outside Play',1),T('16:00','16:45','Centers #2'),T('16:45','17:15','Centers #3'),T('17:15','17:30','Wind-Down & Goodbye')];}
 var DEF={
  'DeLand 2':{
   signedBy:'Miss Honey',
-  rooms:{'Infant/Toddler':{tpl:'infant'},'Honey Bees - Tod. Front':{tpl:'ones'},"Three's - Honey Combs":{tpl:'threes'},"Four's - Honey Combs":{tpl:'fours'}},
+  rooms:{'Infant/Toddler':{tpl:'infant'},'Honey Bees - Tod. Front':{tpl:'ones',blocks:TODD()},"Three's - Honey Combs":{tpl:'threes',blocks:COMB()},"Four's - Honey Combs":{tpl:'fours',blocks:COMB()}},
   standing:[{rooms:["Three's - Honey Combs","Four's - Honey Combs"],s:'08:30',e:'17:30'}],
   staff:[
    {name:'Mrs. Bear',role:'Owner / opener (no set schedule)',room:'',week:W('06:30','12:30'),brk:null,note:'Opens at 6:30 AM'},
@@ -35,29 +37,30 @@ var DEF={
    {name:'Miss Gul',role:'Toddler classroom',room:'Honey Bees - Tod. Front',week:WK('08:00','17:30',3),brk:{s:'12:00',e:'13:00'},note:'1-hour break between 12 and 2, usually 12:00'},
    {name:'Miss Honey',role:'Lunch/snack lead, office',room:"Four's - Honey Combs",week:WK('08:30','16:30',5),brk:null,note:'Straight shift'},
    {name:'Miss Angelina',role:'Older classroom',room:"Three's - Honey Combs",week:WK('09:00','17:30',1),brk:{s:'14:30',e:'15:00'},brkDay:{3:{s:'13:30',e:'14:00'}},note:'Break 2:30 (Wed 1:30)'},
-   {name:'Miss Emily',role:'Older classroom / flex',room:"Three's - Honey Combs",week:WK('09:30','17:30',2),brk:null,note:'Can work a straight shift to 5:30'}
+   {name:'Miss Emily',role:'Flex: classroom assigned daily',room:"Three's - Honey Combs",week:WK('09:30','17:30',2),brk:null,note:'Can work a straight shift to 5:30'}
   ],
   timeline:[
-   ['06:30','','Mrs. Bear (opener)','Unlock and open. Sign in on the tablet AND the book; take a walkie-talkie. Lights on, soft music. Greet every parent and child by name. If no children yet, start breakfast prep (menu on the fridge).'],
-   ['07:00','','Miss Demaury','Signs in; opens the Infant/Toddler room (up to 4 infants, or up to 6 toddlers if no infants). Early arrivals may get a simple in-room bite (cereal and milk). Full breakfast service starts at 8:00.'],
-   ['07:30','','Mrs. Bear / first teacher in','Open ALL attendance binders (correct date, every child on the right sheet).'],
+   ['06:30','','Mrs. Bear (opener)','Unlock and open. Sign in on the tablet and open the Attendance Board (Rooms board). Take a walkie-talkie. Lights on, soft music. Greet every parent and child by name; children are signed in on the Attendance Board. If no children yet, start breakfast prep (menu on the fridge).'],
+   ['07:00','','Miss Demaury','Signs in on the tablet; opens the Infant/Toddler room (up to 4 infants, or up to 6 toddlers if no infants). Early arrivals may get a simple in-room bite (cereal and milk). Full breakfast service starts at 8:00.'],
+   ['07:30','','Mrs. Bear / first teacher in','Check the Attendance Board: every child who arrived is in the right room, and rooms are ready.'],
    ['08:00','','Miss Gul','Signs in; takes the Toddler classroom (Honey Bees - Tod. Front). Breakfast service starts.'],
    ['08:30','','Miss Honey','Signs in. Flexible: finish lunch prep or assist in the front office. If VPK finish eating before 8:30, walk them to the small classroom by the office for morning work. All rooms move into Centers per each room\'s own Daily Routine.'],
-   ['08:30','10:00','All classrooms','Follow each classroom\'s individual Daily Routine (times and activities already built). Circle time starts at 9:00.'],
-   ['09:00','','Miss Angelina','Signs in; takes the older classroom (Three\'s and Four\'s run together all day).'],
-   ['09:30','','Miss Emily','Signs in; joins the older classroom. Can work a straight shift to 5:30 if needed.'],
-   ['10:00','10:30','Three\'s + Four\'s','Together: go to the playroom or go outside (if combined headcount is 20 or under).'],
-   ['10:15','','Miss Honey','Serves lunch to Infants/Toddlers, then presets the older classroom for lunch (2 tables, 8-10 children each). Quiet room nearly set up.'],
-   ['10:30','11:00','Angelina / Emily','Three\'s and Four\'s eat lunch together in the pre-set room.'],
-   ['10:45','11:00','Honey / Emily / Angelina','Children move to the quiet room: blackout curtains down, music on, tiptoe expectation. Honey starts settling to sleep. The others team-clean the lunch room.'],
+   ['08:30','10:00','All classrooms','Follow each classroom\'s individual Daily Routine (times and activities already built). Circle time starts at 9:00. Keep the Attendance Board current as children arrive.'],
+   ['09:00','','Miss Angelina','Signs in; takes the classroom she is assigned for the day (normally the combined Three\'s and Four\'s).'],
+   ['09:30','','Miss Emily','Signs in; gets a classroom assignment from the director for the day. She covers any teacher who is out. If no one is out, she joins the combined older classroom.'],
+   ['10:00','11:00','Three\'s + Four\'s (combined)','Go to the playroom or outside for the hour (if combined headcount is 20 or under). Staff in the room take a headcount at every move.'],
+   ['11:00','','Miss Honey','Serves lunch to the Toddler class (Honey Bees - Tod. Front). Infants eat on their own individual schedule.'],
+   ['11:00','11:15','Combined classroom','Come inside, wash hands and sit down for lunch.'],
+   ['11:15','11:30','Miss Honey','Serves lunch to the combined classroom (Three\'s + Four\'s), who eat family style with their teachers (lunch starts 11:15).'],
+   ['11:45','12:00','Honey / assigned teachers','Children move to the quiet room: blackout curtains down, music on, tiptoe expectation. Team-clean the lunch room.'],
+   ['12:00','14:30','Staff breaks','Breaks start at 12:00. Miss Gul 1 hour (usually 12:00). Miss Demaury lunch 12:00-2:30. Mrs. Bear is out by 12:30. Keep ratio at all times. Lesson-plan review, next week\'s crafts and materials, and cleaning charts on the teacher portal. Honey verifies every teacher\'s cleaning chart was actually completed and does the outdoor playground inspection (director portal).'],
    ['11:30','12:00','Miss Honey','Children asleep: clean the kitchen and catch up on tasks.'],
-   ['12:00','14:30','Staff breaks','Miss Gul 1 hour (usually 12:00). Miss Demaury lunch 12:00-2:30. Mrs. Bear is out by 12:30. Keep ratio at all times. Lesson-plan review, next week\'s crafts and materials, and cleaning charts on the teacher portal. Honey verifies every teacher\'s cleaning chart was actually completed and does the outdoor playground inspection (director portal).'],
-   ['14:00','14:15','Honey / Emily','Fours/Fives snack together in the pre-set room. Break down quiet-room beds and blankets.'],
-   ['14:30','15:00','Miss Angelina (break)','Half-hour break (1:30 on Wednesday). Honey or Emily covers the older classroom.'],
+   ['14:00','14:15','Honey / assigned teachers','Fours/Fives snack together in the pre-set room. Break down quiet-room beds and blankets.'],
+   ['14:30','15:00','Miss Angelina (break)','Half-hour break (1:30 on Wednesday). Honey or Emily covers her classroom.'],
    ['14:45','15:30','Miss Honey','Preps the VPK room for the next day (full reset), office work, assesses what else needs doing before close.'],
    ['15:30','16:30','Remaining staff','Combine classrooms as headcounts drop and begin end-of-day cleaning. Miss Honey leaves at 4:30.'],
-   ['16:30','17:30','All classrooms','Start closing down your room: tidy, leave 2-3 centers available.'],
-   ['17:30','','Closing','All lights off except the front. AC off, thermostat 79 F overnight (72 F at opening if hot).']
+   ['16:30','17:30','All classrooms','Start closing down your room: tidy, leave 2-3 centers available. Sign out children on the Attendance Board.'],
+   ['17:30','','Closing','Make sure every child is signed out on the Attendance Board. All lights off except the front. AC off, thermostat 79 F overnight (72 F at opening if hot).']
   ]
  },
  'Sanford':{
@@ -69,7 +72,7 @@ var DEF={
    {name:'Miss Juliana',role:'Afterschool teacher',room:'Schoolagers (Worker Bees)',week:{1:{in:'14:30',out:'17:30'},2:{in:'14:30',out:'17:30'},3:{in:'13:30',out:'17:30'},4:{in:'14:30',out:'17:30'},5:{in:'14:30',out:'17:30'}},brk:null}
   ],
   timeline:[
-   ['06:30','','Opener (director to assign)','Unlock and open. Sign in on the tablet AND the book; take a walkie-talkie. Greet every parent and child. Before-School children sit in the VPK room until the 7:45 bus.'],
+   ['06:30','','Opener (director to assign)','Unlock and open. Sign in on the tablet and open the Attendance Board (Rooms board); take a walkie-talkie. Greet every parent and child and sign them in on the board. Before-School children sit in the VPK room until the 7:45 bus.'],
    ['07:45','','Miss Bri','Signs in; runs the Before-School bus.'],
    ['08:30','','Miss Madiha','Signs in; VPK teacher.'],
    ['11:00','12:30','Miss Bri (break)','Break covered by a teacher on the schedule.'],
@@ -88,7 +91,7 @@ SOP.norm=function(s){return String(s||'').toLowerCase().replace(/\b(miss|mrs|ms|
 /* merge saved data over defaults for a school */
 SOP.merge=function(school,saved){
  var d=JSON.parse(JSON.stringify(SOP.DEF[school]||{rooms:{},staff:[],timeline:[]}));saved=saved||{};
- var out={rooms:d.rooms,staff:d.staff,timeline:d.timeline.map(function(r,i){return {id:'t'+i,s:r[0],e:r[1],who:r[2],what:r[3]};}),days:{},signedBy:d.signedBy,standing:d.standing||[]};
+ var out={school:school,rooms:d.rooms,staff:d.staff,timeline:d.timeline.map(function(r,i){return {id:'t'+i,s:r[0],e:r[1],who:r[2],what:r[3]};}),days:{},signedBy:d.signedBy,standing:d.standing||[]};
  ['rooms','staff','timeline','days'].forEach(function(k){if(saved[k]!==undefined&&saved[k]!==null&&!(Array.isArray(saved[k])&&k==='rooms'))out[k]=saved[k];});
  if(Array.isArray(out.days))out.days={};
  Object.keys(out.rooms).forEach(function(r){var o=out.rooms[r];if(!o.blocks){o.blocks=JSON.parse(JSON.stringify((AGE[o.tpl]||{blocks:[]}).blocks));}});
@@ -96,12 +99,21 @@ SOP.merge=function(school,saved){
 };
 SOP.dow=function(ymd){var p=ymd.split('-'),d=new Date(+p[0],+p[1]-1,+p[2],12).getDay();return d;};
 /* who is working on a date, with day overrides */
+
+/* School closure calendar 2026-27 (same dates both schools; from the posted closure flyers). all = closed for everyone; partial = VPK and school-age closed, preschool open; early = closes early. */
+var CL_ALL={'2026-11-11':'Veterans Day','2026-11-26':'Thanksgiving','2026-11-27':'Day after Thanksgiving','2026-12-23':'Christmas Break','2026-12-24':'Christmas Break','2026-12-25':'Christmas Day','2027-01-01':"New Year's Day",'2027-01-18':'Martin Luther King Jr. Day','2027-03-26':'Good Friday','2027-05-31':'Memorial Day','2027-06-18':'Juneteenth'};
+var CL_PART={'2026-11-23':'Thanksgiving Break','2026-11-24':'Thanksgiving Break','2026-11-25':'Thanksgiving Break','2026-12-21':'Winter Break','2026-12-22':'Winter Break','2026-12-28':'Winter Break','2026-12-29':'Winter Break','2026-12-30':'Winter Break','2026-12-31':"New Year's Eve (close early 5 PM)",'2027-01-04':'District holiday','2027-01-05':'District holiday (Sanford)','2027-02-15':"Presidents' Day",'2027-03-15':'Spring Break','2027-03-16':'Spring Break','2027-03-17':'Spring Break','2027-03-18':'Spring Break','2027-03-19':'Spring Break','2027-03-22':'District holiday'};
+var CL_EARLY={'2026-12-31':'17:00'};
+SOP.closure=function(ymd,school){var n=CL_ALL[ymd];if(n)return {type:'all',name:n};n=CL_PART[ymd];if(n){if(ymd==='2027-01-05'&&school==='DeLand 2')n=null;if(n)return {type:'partial',name:n,early:CL_EARLY[ymd]||''};}return null;};
 SOP.effective=function(D,ymd){
  var dw=SOP.dow(ymd),day=(D.days||{})[ymd]||{},out=[];
  (D.staff||[]).forEach(function(s){var w=(s.week||{})[dw];out.push({name:s.name,role:s.role,room:s.room,in:w?w.in:'',out:w?w.out:'',off:!w,brk:(s.brkDay&&s.brkDay[dw])||s.brk||null,sub:false,note:s.note||''});});
  (day.staff||[]).forEach(function(o){var f=out.filter(function(x){return x.name===o.name;})[0];
   if(f){if(o.off){f.off=true;f.offWhy=o.note||'';}else{f.off=false;if(o.in)f.in=o.in;if(o.out)f.out=o.out;if(o.room)f.room=o.room;if(o.brk!==undefined)f.brk=o.brk;f.changed=true;}}
   else if(!o.off)out.push({name:o.name,role:o.role||'Substitute',room:o.room||'',in:o.in||'',out:o.out||'',off:false,brk:o.brk||null,sub:true,note:o.note||''});});
+ var cl=SOP.closure(ymd,D.school||'');
+ if(cl&&cl.type==='all'){out.forEach(function(x){x.off=true;x.offWhy='School closed: '+cl.name;x.closed=true;});}
+ else if(cl&&cl.early){out.forEach(function(x){if(!x.off&&x.out&&SOP.toMin(x.out)>SOP.toMin(cl.early)){x.out=cl.early;x.changed=true;}});}
  return out;
 };
 })();

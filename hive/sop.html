@@ -18,7 +18,7 @@ input,select,textarea{font:inherit;padding:5px 7px;border:2px solid #e0cfb8;bord
 @media print{.noprint{display:none!important}}
 </style></head><body><div class="w" id="app"><div class="sub">Loading…</div></div>
 <div id="mod"><div id="modb"></div></div>
-<script src="sop-data.js?v=2"></script>
+<script src="sop-data.js?v=3"></script>
 <script src="train-data.js?v=1"></script>
 <script>
 var PIN=sessionStorage.getItem('hivePin');if(!PIN)location.href='index.html';
@@ -54,6 +54,7 @@ function letterTab(){var h='<div class="card lt"><h2 style="margin-top:0">A note
  h+='<div class="card"><h2 style="margin-top:0">Standing rules</h2>'+SOP.RULES.map(function(r){return '<p style="margin:0 0 9px"><b>'+esc(r[0])+'.</b> '+esc(r[1])+'</p>';}).join('')+'</div>';
  h+='<div class="card"><h2 style="margin-top:0">Ratios</h2><table><tr><th>Age group</th><th>Max ratio</th><th>Note</th></tr>'+SOP.RATIOS.map(function(r){return '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td></tr>';}).join('')+'</table><p class="sub">If children are asleep and a second teacher is within sight and reach, only one teacher must be in the nap room, but the ratio math still has to check out on paper.</p></div>';
  h+='<div class="card"><h2 style="margin-top:0">Closing checklist</h2>'+SOP.CLOSING.map(function(c){return '<div>☐ '+esc(c)+'</div>';}).join('')+'</div>';return h;}
+function clBanner(dt){var c=SOP.closure(dt,SCHOOL);if(!c)return '';if(c.type==='all')return '<div style="background:#c62828;color:#fff;font-weight:800;border-radius:10px;padding:8px 12px;margin:8px 0">SCHOOL CLOSED: '+esc(c.name)+'. No one is scheduled.</div>';return '<div style="background:#ffd23f;border:2px dashed #3b2a1d;font-weight:800;border-radius:10px;padding:8px 12px;margin:8px 0">'+esc(c.name)+': VPK and school-age classes are closed. Preschool, toddlers and infants are OPEN.'+(c.early?' We close at '+SOP.fmt(c.early)+'.':'')+'</div>';}
 /* ---------- helpers: who is on ---------- */
 function eff(){return SOP.effective(D,DATE);}
 function matchStaff(who,list){var n=SOP.norm(who);if(!n)return null;for(var i=0;i<list.length;i++){var s=SOP.norm(list[i].name);if(s&&(n.indexOf(s)>=0))return list[i];}return null;}
@@ -61,9 +62,9 @@ function dayRec(){D.days=D.days||{};D.days[DATE]=D.days[DATE]||{};return D.days[
 /* ---------- day timeline ---------- */
 function timeTab(){var st=eff(),day=(D.days||{})[DATE]||{},cover=day.cover||{};
  var rows=D.timeline.slice().sort(function(a,b){return mm(a.s)-mm(b.s);});
- var h='<div class="card"><div class="sub" style="margin-bottom:6px">The whole day, top to bottom: who is where and what they are doing. Red flags show a step whose person is not working at that time on the date above.'+(EDIT?'':'')+'</div><table><tr><th style="width:130px">Time</th><th style="width:190px">Who</th><th>What</th>'+(EDIT?'<th style="width:70px"></th>':'')+'</tr>';
+ var h=clBanner(DATE)+'<div class="card"><div class="sub" style="margin-bottom:6px">The whole day, top to bottom: who is where and what they are doing. Red flags show a step whose person is not working at that time on the date above.'+(EDIT?'':'')+'</div><table><tr><th style="width:130px">Time</th><th style="width:190px">Who</th><th>What</th>'+(EDIT?'<th style="width:70px"></th>':'')+'</tr>';
  rows.forEach(function(r){var i=D.timeline.indexOf(r),sm=matchStaff(r.who,st),flag='';
-  if(sm){var a=mm(r.s);if(sm.off)flag='<span class="flag">'+esc(sm.name)+' is out today. Needs cover.</span>';else if(sm.in&&a<mm(sm.in)||sm.out&&a>=mm(sm.out))flag='<span class="flag">'+esc(sm.name)+' works '+rng(sm.in,sm.out)+'. Needs cover.</span>';}
+  if(sm&&!sm.closed){var a=mm(r.s);if(sm.off)flag='<span class="flag">'+esc(sm.name)+' is out today. Needs cover.</span>';else if(sm.in&&a<mm(sm.in)||sm.out&&a>=mm(sm.out))flag='<span class="flag">'+esc(sm.name)+' works '+rng(sm.in,sm.out)+'. Needs cover.</span>';}
   var cv=cover[r.id];
   if(EDIT)h+='<tr><td><input type="time" value="'+esc(r.s)+'" onchange="D.timeline['+i+'].s=this.value"><br><input type="time" value="'+esc(r.e||'')+'" onchange="D.timeline['+i+'].e=this.value"></td><td><input style="width:100%" value="'+esc(r.who)+'" onchange="D.timeline['+i+'].who=this.value"></td><td><textarea onchange="D.timeline['+i+'].what=this.value">'+esc(r.what)+'</textarea>'+(flag?flag+' <select onchange="setCover(\''+r.id+'\',this.value)"><option value="">Who covers?</option>'+st.filter(function(x){return !x.off;}).map(function(x){return '<option'+(cv===x.name?' selected':'')+'>'+esc(x.name)+'</option>';}).join('')+'</select>':'')+'</td><td><button class="btn sm r" onclick="delRow('+i+')">Delete</button></td></tr>';
   else h+='<tr><td class="fixed">'+esc(rng(r.s,r.e))+'</td><td>'+esc(r.who)+'</td><td>'+esc(r.what)+(flag?'<br>'+flag+(cv?' <b class="ok">Covered by '+esc(cv)+'</b>':''):'')+'</td></tr>';});
@@ -73,7 +74,7 @@ function delRow(i){if(!confirm('Delete this step?'))return;D.timeline.splice(i,1
 function addRow(){D.timeline.push({id:'t'+Date.now(),s:'12:00',e:'',who:'',what:''});draw();}
 /* ---------- classroom schedules ---------- */
 function roomsTab(){var names=Object.keys(D.rooms),r=D.rooms[ROOM];
- var h='<div class="card"><div style="display:flex;gap:6px;flex-wrap:wrap">'+names.map(function(n){return '<button class="btn '+(n===ROOM?'':'sec')+'" onclick="ROOM=\''+esc(n).replace(/'/g,"\\'")+'\';draw()">'+esc(n)+'</button>';}).join('')+'</div></div>';
+ var h=clBanner(DATE)+'<div class="card"><div style="display:flex;gap:6px;flex-wrap:wrap">'+names.map(function(n){return '<button class="btn '+(n===ROOM?'':'sec')+'" onclick="ROOM=\''+esc(n).replace(/'/g,"\\'")+'\';draw()">'+esc(n)+'</button>';}).join('')+'</div></div>';
  if(!r)return h;var age=SOP.AGE[r.tpl]||{label:'',ratio:''};
  var st=eff().filter(function(x){return x.room===ROOM&&!x.off;});
  h+='<div class="card"><h2 style="margin-top:0">'+esc(ROOM)+'</h2><div class="sub">Age group: '+(EDIT?'<select onchange="D.rooms[ROOM].tpl=this.value">'+Object.keys(SOP.AGE).map(function(k){return '<option value="'+k+'"'+(k===r.tpl?' selected':'')+'>'+SOP.AGE[k].label+'</option>';}).join('')+'</select> <button class="btn sm sec" onclick="resetRoom()">Reset times to this age group\'s schedule</button>':esc(age.label))+' &middot; Ratio 1:'+age.ratio+' &middot; Teachers today: '+(st.length?st.map(function(x){return esc(x.name)+' ('+rng(x.in,x.out)+')';}).join(', '):'none assigned')+'</div>';
@@ -96,7 +97,7 @@ function staffTab(){var rooms=Object.keys(D.rooms),eg=eff();
    for(var d=1;d<=5;d++){var w=(s.week||{})[d];h+='<td><input type="time" value="'+(w?esc(w.in):'')+'" onchange="wk('+i+','+d+',\'in\',this.value)"><br><input type="time" value="'+(w?esc(w.out):'')+'" onchange="wk('+i+','+d+',\'out\',this.value)"></td>';}
    h+='<td><input type="time" value="'+(s.brk?esc(s.brk.s):'')+'" onchange="brk('+i+',\'s\',this.value)"><br><input type="time" value="'+(s.brk?esc(s.brk.e):'')+'" onchange="brk('+i+',\'e\',this.value)"></td><td></td><td><button class="btn sm r" onclick="if(confirm(\'Remove '+esc(s.name).replace(/'/g,'')+' from the schedule?\')){D.staff.splice('+i+',1);draw();}">X</button></td></tr>';}
   else{h+='<tr><td><b>'+esc(s.name)+'</b></td><td>'+esc(s.role||'')+'</td><td>'+esc(s.room||'')+'</td>';for(var d=1;d<=5;d++){var w=(s.week||{})[d];h+='<td>'+(w?esc(SOP.fmt(w.in)+' - '+SOP.fmt(w.out)):'off')+'</td>';}
-   h+='<td>'+(s.brk?esc(rng(s.brk.s,s.brk.e)):'')+'</td><td>'+(t.off?'<span class="flag">OUT</span>':t.changed?'<b>'+esc(rng(t.in,t.out))+'</b>':esc(t.in?rng(t.in,t.out):''))+'</td></tr>';}});
+   h+='<td>'+(s.brk?esc(rng(s.brk.s,s.brk.e)):'')+'</td><td>'+(t.closed?'<span class="flag">CLOSED</span>':t.off?'<span class="flag">OUT</span>':t.changed?'<b>'+esc(rng(t.in,t.out))+'</b>':esc(t.in?rng(t.in,t.out):''))+'</td></tr>';}});
  eg.filter(function(x){return x.sub;}).forEach(function(x){h+='<tr class="now"><td><b>'+esc(x.name)+'</b> <span class="sub">(substitute)</span></td><td>'+esc(x.role)+'</td><td>'+esc(x.room)+'</td><td colspan="5"></td><td></td><td>'+esc(rng(x.in,x.out))+'</td></tr>';});
  h+='</table></div>'+(EDIT?'<p><button class="btn sm sec" onclick="addStaff()">+ Add a staff member</button> <button class="btn g" onclick="save(\'staff\')">Save</button></p>':'')+'</div>';
  /* today's changes */
@@ -138,7 +139,8 @@ function analyze(){var st=eff(),rooms=Object.keys(D.rooms),cn=dayCounts(),cb=(D.
   it.floaters=fl;it.combine=[];Object.keys(D.rooms).forEach(function(q){if(q===it.room)return;var cq=res.cells[q+'|'+a];if(!cq||cq.g.length>1)return;var tot=(cn[it.room]!==undefined&&cn[it.room]!==''?+cn[it.room]:null),tq=(cn[q]!==undefined&&cn[q]!==''?+cn[q]:null);if(tot===null||tq===null)return;var rt=Math.min(ratioOf(it.room),ratioOf(q));var sup=it.c.sup+cq.sup;if(sup>=1&&Math.ceil((tot+tq)/rt)<=sup)it.combine.push(q+' ('+(tot+tq)+' children, 1:'+rt+')');});});
  return res;}
 function plannerTab(){var st=eff(),rooms=Object.keys(D.rooms),cn=dayCounts(),A=analyze();
- var h='<div class="card"><h2 style="margin-top:0">Day planner for '+DATE+'</h2><div class="sub">Shows whether every room has enough teachers all day, based on who is working (Staff Schedule tab) and how many children are in each room. Type headcounts below (leave blank if unknown: one teacher per room is assumed). The classroom schedules and what teachers do (circle time, lunch, cleaning charts) stay the same; this only shows who covers what.</div>';
+ var cl0=SOP.closure(DATE,SCHOOL);if(cl0&&cl0.type==='all')return clBanner(DATE);
+ var h=clBanner(DATE)+'<div class="card"><h2 style="margin-top:0">Day planner for '+DATE+'</h2><div class="sub">Shows whether every room has enough teachers all day, based on who is working (Staff Schedule tab) and how many children are in each room. Type headcounts below (leave blank if unknown: one teacher per room is assumed). The classroom schedules and what teachers do (circle time, lunch, cleaning charts) stay the same; this only shows who covers what.</div>';
  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">'+rooms.map(function(r){return '<label>'+esc(r)+' <input type="number" min="0" style="width:62px" value="'+(cn[r]===undefined?'':cn[r])+'" onchange="setCount(\''+esc(r).replace(/'/g,"\\'")+'\',this.value)"> <span class="sub">1:'+ratioOf(r)+'</span></label>';}).join('')+'</div>';
  h+='<div class="grid"><table><tr><th style="text-align:left">Room</th>'+A.slots.map(function(a){return '<th>'+SOP.fmt(hm(a)).replace(':00','').replace(' ','')+'</th>';}).join('')+'</tr>';
  rooms.forEach(function(r){h+='<tr><td style="text-align:left"><b>'+esc(r)+'</b></td>'+A.slots.map(function(a){var c=A.cells[r+'|'+a];if(!c)return '<td></td>';var bad=c.sup<c.dem;return '<td class="'+(bad?'shortc':'okc')+'">'+c.sup+'/'+c.dem+(c.g.length>1?'*':'')+'</td>';}).join('')+'</tr>';});
@@ -169,16 +171,16 @@ function weekDates(){var p=DATE.split('-'),d=new Date(+p[0],+p[1]-1,+p[2],12);d.
 function weekShift(n){var p=DATE.split('-'),d=new Date(+p[0],+p[1]-1,+p[2],12);d.setDate(d.getDate()+n);DATE=d.toLocaleDateString('en-CA');draw();}
 function weekGrid(forPrint){var ds=weekDates(),names=[];
  ds.forEach(function(dt){SOP.effective(D,dt).forEach(function(x){if(names.indexOf(x.name)<0)names.push(x.name);});});
- var S0=390,S1=1050,W=S1-S0,h='<table style="width:100%;border-collapse:collapse;font-size:'+(forPrint?'11':'13')+'px"><tr><th style="width:15%">Staff</th>'+ds.map(function(dt,i){var p=dt.split('-');return '<th>'+SOP.DAYS[i+1]+' '+(+p[1])+'/'+(+p[2])+'</th>';}).join('')+'</tr>';
+ var S0=390,S1=1050,W=S1-S0,h='<table style="width:100%;border-collapse:collapse;font-size:'+(forPrint?'11':'13')+'px"><tr><th style="width:15%">Staff</th>'+ds.map(function(dt,i){var p=dt.split('-');var cc=SOP.closure(dt,SCHOOL);return '<th'+(cc&&cc.type==='all'?' style="background:#c62828;color:#fff"':cc?' style="background:#ffd23f"':'')+'>'+SOP.DAYS[i+1]+' '+(+p[1])+'/'+(+p[2])+(cc?'<div style="font-size:.72em;font-weight:700">'+(cc.type==='all'?'CLOSED: ':'VPK/SA closed: ')+esc(cc.name)+'</div>':'')+'</th>';}).join('')+'</tr>';
  names.forEach(function(nm){var c=SOP.color(D,nm),st=D.staff.filter(function(s){return s.name===nm;})[0]||{};
   h+='<tr><td style="background:'+c[0]+';border:1px solid #ccc;border-left:6px solid '+c[1]+';padding:5px"><b>'+esc(nm)+'</b><br><span style="font-size:.8em;color:#555">'+esc(st.room||st.role||'')+'</span></td>';
   ds.forEach(function(dt){var e=SOP.effective(D,dt).filter(function(x){return x.name===nm;})[0];
-   if(!e||e.off||!e.in){h+='<td style="border:1px solid #ccc;text-align:center;color:#999;background:#f4f4f4">'+(e&&e.off?'OFF':'')+'</td>';return;}
+   if(!e||e.off||!e.in){h+='<td style="border:1px solid #ccc;text-align:center;'+(e&&e.closed?'color:#fff;background:#e57373;font-weight:700':'color:#999;background:#f4f4f4')+'">'+(e&&e.closed?'CLOSED':e&&e.off?'OFF':'')+'</td>';return;}
    var a=Math.max(S0,mm(e.in)),b=Math.min(S1,mm(e.out)),l=(a-S0)/W*100,w=(b-a)/W*100;
    var br=e.brk?('<div style="position:absolute;top:0;bottom:0;left:'+((Math.max(S0,mm(e.brk.s))-S0)/W*100)+'%;width:'+((mm(e.brk.e)-mm(e.brk.s))/W*100)+'%;background:repeating-linear-gradient(45deg,#fff,#fff 3px,'+c[0]+' 3px,'+c[0]+' 6px);opacity:.95"></div>'):'';
    h+='<td style="border:1px solid #ccc;padding:3px 4px;vertical-align:middle"><div style="text-align:center;font-weight:700;font-size:.9em">'+SOP.fmt(e.in).replace(':00','').replace(' ','').toLowerCase()+' - '+SOP.fmt(e.out).replace(':00','').replace(' ','').toLowerCase()+'</div><div style="position:relative;height:9px;background:#eee;border-radius:5px;overflow:hidden;margin-top:2px"><div style="position:absolute;top:0;bottom:0;left:'+l+'%;width:'+w+'%;background:'+c[1]+'"></div>'+br+'</div>'+(e.brk?'<div style="font-size:.78em;color:#555;text-align:center">break '+SOP.fmt(e.brk.s).replace(':00','').replace(' ','').toLowerCase()+'</div>':'')+(e.sub?'<div style="font-size:.78em;text-align:center">substitute</div>':'')+'</td>';});
   h+='</tr>';});
- return h+'</table><div style="font-size:.8em;color:#666;margin-top:4px">Bars run 6:30 AM to 5:30 PM. Striped = scheduled break. OFF = day off or approved time off.</div>';}
+ return h+'</table><div style="font-size:.8em;color:#666;margin-top:4px">Bars run 6:30 AM to 5:30 PM. Striped = scheduled break. OFF = day off or approved time off. Red = school closed (closure calendar). Yellow day = VPK and school-age closed only.</div>';}
 function weekTab(){var ds=weekDates();return '<div class="card"><div class="top"><h2 style="margin:0">Week of '+ds[0].slice(5).replace('-','/')+' - '+ds[4].slice(5).replace('-','/')+'</h2><div class="noprint"><button class="btn sm sec" onclick="weekShift(-7)">‹ Last week</button> <button class="btn sm sec" onclick="weekShift(7)">Next week ›</button> <button class="btn sm" onclick="printWeek()">🖨 Print this week</button></div></div><div class="sub" style="margin:4px 0 8px">Everyone\'s hours for the whole week, one color per person. Includes call-outs, substitutes and approved time off.</div>'+weekGrid(false)+'</div>';}
 function printWeek(){openPrint('<h1>Kid City USA '+esc(SCHOOL)+'</h1><h2>Weekly Staff Schedule &middot; week of '+weekDates()[0].split('-').slice(1).join('/')+'</h2>'+weekGrid(true)+'<div class="f">Posted for staff. Director signature: ______________________ Date: __________</div>');}
 /* ---------- time off ---------- */
