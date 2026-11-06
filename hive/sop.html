@@ -18,7 +18,7 @@ input,select,textarea{font:inherit;padding:5px 7px;border:2px solid #e0cfb8;bord
 @media print{.noprint{display:none!important}}
 </style></head><body><div class="w" id="app"><div class="sub">Loading…</div></div>
 <div id="mod"><div id="modb"></div></div>
-<script src="sop-data.js?v=4"></script>
+<script src="sop-data.js?v=5"></script>
 <script src="training-who.js?v=1"></script>
 <script src="train-data.js?v=3"></script>
 <script>
@@ -54,8 +54,8 @@ function draw(){
  $('app').innerHTML=h;if(TR&&window.HBT)HBT.render($('trn'),TR,TAB==='off');if(typeof initPads==='function')initPads();}
 /* ---------- letter & rules ---------- */
 function letterTab(){var h='<div class="card lt"><h2 style="margin-top:0">A note from Mrs. Bear</h2>'+SOP.LETTER.map(function(p){return '<p>'+esc(p)+'</p>';}).join('')+'<p><b>— Mrs. Bear</b></p><div class="sub">Questions? Reach out to '+esc(D.signedBy||'your director')+' or Mrs. Bear.</div></div>';
- h+='<div class="card"><h2 style="margin-top:0">Standing rules</h2>'+SOP.RULES.map(function(r){return '<p style="margin:0 0 9px"><b>'+esc(r[0])+'.</b> '+esc(r[1])+'</p>';}).join('')+'</div>';
- h+='<div class="card"><h2 style="margin-top:0">Ratios</h2><table><tr><th>Age group</th><th>Max ratio</th><th>Note</th></tr>'+SOP.RATIOS.map(function(r){return '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td></tr>';}).join('')+'</table><p class="sub">If children are asleep and a second teacher is within sight and reach, only one teacher must be in the nap room, but the ratio math still has to check out on paper.</p></div>';
+ h+='<div class="card"><h2 style="margin-top:0">Standing rules</h2>'+(D.rules||SOP.RULES).map(function(r){return '<p style="margin:0 0 9px"><b>'+esc(r[0])+'.</b> '+esc(r[1])+'</p>';}).join('')+'</div>';
+ h+='<div class="card"><h2 style="margin-top:0">Ratios</h2><table><tr><th>Age group</th><th>Max ratio</th><th>Note</th></tr>'+(D.ratios||SOP.RATIOS).map(function(r){return '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td></tr>';}).join('')+'</table><p class="sub">If children are asleep and a second teacher is within sight and reach, only one teacher must be in the nap room, but the ratio math still has to check out on paper.</p></div>';
  h+='<div class="card"><h2 style="margin-top:0">Closing checklist</h2>'+SOP.CLOSING.map(function(c){return '<div>☐ '+esc(c)+'</div>';}).join('')+'</div>';return h;}
 function clBanner(dt){var c=SOP.closure(dt,SCHOOL);if(!c)return '';if(c.type==='all')return '<div style="background:#c62828;color:#fff;font-weight:800;border-radius:10px;padding:8px 12px;margin:8px 0">SCHOOL CLOSED: '+esc(c.name)+'. No one is scheduled.</div>';return '<div style="background:#ffd23f;border:2px dashed #3b2a1d;font-weight:800;border-radius:10px;padding:8px 12px;margin:8px 0">'+esc(c.name)+': VPK and school-age classes are closed. Preschool, toddlers and infants are OPEN.'+(c.early?' We close at '+SOP.fmt(c.early)+'.':'')+'</div>';}
 /* ---------- helpers: who is on ---------- */
@@ -67,7 +67,7 @@ function timeTab(){var st=eff(),day=(D.days||{})[DATE]||{},cover=day.cover||{};
  var rows=D.timeline.slice().sort(function(a,b){return mm(a.s)-mm(b.s);});
  var h=clBanner(DATE)+'<div class="card"><div class="sub" style="margin-bottom:6px">The whole day, top to bottom: who is where and what they are doing. Red flags show a step whose person is not working at that time on the date above.'+(EDIT?'':'')+'</div><table><tr><th style="width:130px">Time</th><th style="width:190px">Who</th><th>What</th>'+(EDIT?'<th style="width:70px"></th>':'')+'</tr>';
  rows.forEach(function(r){var i=D.timeline.indexOf(r),sm=matchStaff(r.who,st),flag='';
-  if(ROLE==='director'&&sm&&!sm.closed){var a=mm(r.s);if(sm.off)flag='<span class="flag">'+esc(sm.name)+' is out today. Needs cover.</span>';else if(sm.in&&a<mm(sm.in)||sm.out&&a>=mm(sm.out))flag='<span class="flag">'+esc(sm.name)+' works '+rng(sm.in,sm.out)+'. Needs cover.</span>';}
+  if(ROLE==='director'&&sm&&!sm.closed&&!(/^WED ONLY/.test(r.who)&&SOP.dow(DATE)!==3)){var a=mm(r.s);if(sm.off)flag='<span class="flag">'+esc(sm.name)+' is out today. Needs cover.</span>';else if(sm.in&&a<mm(sm.in)||sm.out&&a>=mm(sm.out))flag='<span class="flag">'+esc(sm.name)+' works '+rng(sm.in,sm.out)+'. Needs cover.</span>';}
   var cv=cover[r.id];
   if(EDIT)h+='<tr><td><input type="time" value="'+esc(r.s)+'" onchange="D.timeline['+i+'].s=this.value"><br><input type="time" value="'+esc(r.e||'')+'" onchange="D.timeline['+i+'].e=this.value"></td><td><input style="width:100%" value="'+esc(r.who)+'" onchange="D.timeline['+i+'].who=this.value"></td><td><textarea onchange="D.timeline['+i+'].what=this.value">'+esc(r.what)+'</textarea>'+(flag?flag+' <select onchange="setCover(\''+r.id+'\',this.value)"><option value="">Who covers?</option>'+st.filter(function(x){return !x.off;}).map(function(x){return '<option'+(cv===x.name?' selected':'')+'>'+esc(x.name)+'</option>';}).join('')+'</select>':'')+'</td><td><button class="btn sm r" onclick="delRow('+i+')">Delete</button></td></tr>';
   else h+='<tr><td class="fixed">'+esc(rng(r.s,r.e))+'</td><td>'+esc(r.who)+'</td><td>'+esc(r.what)+(flag?'<br>'+flag+(cv?' <b class="ok">Covered by '+esc(cv)+'</b>':''):'')+'</td></tr>';});
