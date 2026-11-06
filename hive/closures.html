@@ -40,7 +40,7 @@ main{max-width:900px;margin:0 auto;padding:14px 12px 40px}
 </head>
 <body>
 <a class="back" id="backLink" href="index.html">&larr; back</a>
-<header><h1>&#128197; School Closures 2026&ndash;27</h1><div class="sub" id="sub">Kid City USA</div></header>
+<header><h1>&#128197; School Calendar 2026&ndash;27</h1><div class="sub" id="sub">Kid City USA</div></header>
 <main id="main"><div class="msg">Loading&hellip;</div></main>
 <script>
 const PIN = sessionStorage.getItem('hivePin');
@@ -66,10 +66,13 @@ function render(key, locked, role){
   h += '<div class="flyer"><img src="'+s.file+'.png" alt="'+s.name+' closure calendar 2026-27"></div>';
   h += '<div class="dl"><a href="'+s.file+'.pdf" target="_blank" rel="noopener">&#128196; Open / print the PDF</a><a class="sec" href="'+s.file+'.png" download>&#11015; Save the picture</a></div>';
   h += '<div class="note">'+s.name+' VPK follows the '+s.cal+' school calendar. Questions or Break Camp pricing? Contact your school&rsquo;s front office.</div>';
+  const parentView = (role==='parent') || /parent\.html/.test(document.referrer||'');
+  if(!parentView){
   h += '<div class="hol"><h2>&#127881; Holiday closure flyers</h2><div class="hs">Tap a flyer to open it full size, then save or print.</div><div class="grid">';
   const slug = s.name.toLowerCase();
   HOL.forEach(x=>{ const f='files/holiday-'+slug+'-'+x[0]+'.jpg'; h += '<div class="card"><a href="'+f+'" target="_blank" rel="noopener"><img loading="lazy" src="'+f+'" alt="'+x[1]+' closure flyer"></a><div>'+x[1]+'</div><a href="'+f+'" download>&#11015; Save</a></div>'; });
   h += '</div></div>';
+  }
   document.getElementById('main').innerHTML = h;
   document.getElementById('sub').textContent = 'Kid City USA · ' + s.name;
   document.querySelectorAll('.pick button').forEach(b=>b.onclick=()=>{ try{localStorage.setItem('hiveClosureSchool',b.dataset.k)}catch(e){} render(b.dataset.k,false,role); });

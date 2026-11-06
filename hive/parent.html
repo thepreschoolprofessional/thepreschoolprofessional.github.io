@@ -169,7 +169,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 </div>
 </main>
 <script src="bios.js?v=1"></script>
-<script src="parent-pp.js?v=2"></script>
+<script src="parent-pp.js?v=3"></script>
 <script>
 const PIN = sessionStorage.getItem('hivePin');
 if(!PIN) location.href='index.html';
@@ -316,8 +316,8 @@ window.HIVE_CARDS={prompt:'What do you want to see?',order:[
  {k:'Menu',s:'This month\'s menu',c:'#2e8b57'},
  {k:'Newsletter',s:'News from your school',c:'#1d7fd1'},
  {k:'Lesson Plans',s:'What your child is learning',c:'#3a9d5d'},
- {k:'Message Board & Reminders',s:'Announcements, reminders and flyers',c:'#e0457b'},
- {k:'Closures',s:'Closed days and flyers',c:'#b22234'},
+ {k:'Message Board & Reminders',s:'Announcements and reminders',c:'#e0457b'},
+ {k:'Closures',s:'The whole-year calendar',c:'#b22234'},
  {k:'What to Bring',s:'Wipes, tissues, clothes and more',c:'#ef6c00'},
  {k:'Tuition',s:'Tuition, fees and holidays',c:'#8d5524'},
  {k:'When Your Child Is Sick',s:'When to stay home, medicine',c:'#c62828'},
@@ -334,7 +334,7 @@ window.HIVE_CARDS={prompt:'What do you want to see?',order:[
 <!-- closures-new-badge -->
 <script>
 (function(){
-  var KEY='hiveClosuresSeenHoliday2026', MSG="New holiday closure flyers have been added. Tap Closures to see our holiday closure dates and Break Camp info.";
+  var KEY='hiveClosuresSeenHoliday2026', MSG="The school calendar for the whole year is on the Closures card. Tap it to see every closed day and Break Camp info.";
   function seen(){try{return localStorage.getItem(KEY)==='1'}catch(e){return false}}
   function mark(){try{localStorage.setItem(KEY,'1')}catch(e){}}
   function run(){

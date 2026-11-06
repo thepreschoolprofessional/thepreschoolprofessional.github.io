@@ -81,8 +81,6 @@ async function showBoard(){
     var B=PP.board||[];
     h+='<div class="section">📌 Messages from your school</div>';
     h+=B.length?B.map(function(b){return '<div class="rescard" style="display:block;cursor:default;'+(b.pinned?'border-left:6px solid #e0457b;':'')+'"><h3>'+(b.pinned?'📌 ':'')+esc(b.title)+'</h3><p style="font-size:.92rem;color:var(--ink);margin:6px 0">'+esc(b.message).replace(/\n/g,'<br>')+'</p><p style="font-size:.78rem">'+esc((b.at||'').slice(0,10))+(b.by?' · '+esc(b.by):'')+'</p></div>';}).join(''):'<div class="empty">No new messages right now.</div>';
-    var F=(PP.items||[]).filter(function(x){return x.kind==='flyer'});
-    if(F.length){h+='<div class="section">🖼️ Flyers</div><div class="reslist">'+F.map(function(x){return '<a class="rescard" href="javascript:void(0)" onclick="PPA.openFile(\''+esc(x.file)+'\')"><div class="em">🖼️</div><div class="txt"><h3>'+esc(x.title)+'</h3><p>'+(x.expires?'Until '+esc(x.expires):'Tap to open')+'</p></div><div class="arrow">→</div></a>';}).join('')+'</div>';}
     box.innerHTML=h;
   }catch(e){box.innerHTML='<div class="empty">Could not load right now. Please try again in a moment.</div>';}
 }
