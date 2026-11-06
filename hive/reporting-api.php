@@ -37,6 +37,8 @@ $CREATE_FIELDS = ['Entry','Month','Form','Employee','Data','Updated By','Updated
 $DATE_FIELD = ['Facility Submissions'=>'Date','Transportation Trips'=>'Date','Daily Meal Counts'=>'Date','Room Attendance'=>'Date','Room Day'=>'Date'];
 
 function fail($msg, $code = 400){ http_response_code($code); echo json_encode(['error'=>$msg]); exit; }
+// Old room names saved on earlier forms map to the current room names (same as dcf.js RM_LEGACY), so both schools are judged on the same rooms.
+function rm_norm($school, $r){ static $M = ['Sanford'=>['Ones'=>'Honeybees - Tod./Inf.','Fours / VPK'=>'VPK/Pre-School (Pollen-Jocks)','School Age'=>'Schoolagers (Worker Bees)'], 'DeLand 2'=>['Infant Room'=>'Infant/Toddler','Ones'=>'Honey Bees - Tod. Front','Twos'=>'Honey Bees - Tod. Front','Threes'=>"Three's - Honey Combs"]]; return $M[$school][$r] ?? $r; }
 
 function at_request($method, $path, $query = null, $body = null){
 $url = 'https://api.airtable.com/v0/' . BASE_ID . '/' . rawurlencode($path[0]) . (isset($path[1]) ? '/'.$path[1] : '');
@@ -237,7 +239,7 @@ $res = at_request('GET', ['Facility Submissions'], $qs);
 if (isset($res['error'])) fail('Could not read the facility checklists right now.', 502);
 foreach (($res['records'] ?? []) as $r){
 $f = $r['fields'];
-$rows[] = ['type'=>$f['Form Type'] ?? 'Other', 'room'=>$f['Room / Classroom'] ?? '', 'staff'=>$f['Staff Name'] ?? '', 'date'=>$f['Date'] ?? '', 'link'=>$f['Drive Link'] ?? '', 'overall'=>$f['Overall Status'] ?? '', 'at'=>$f['Submitted At'] ?? '', 'items'=>substr($f['Items'] ?? '', 0, 4000), 'details'=>substr($f['Details'] ?? '', 0, 4000)];
+$rows[] = ['type'=>$f['Form Type'] ?? 'Other', 'room'=>rm_norm($school, $f['Room / Classroom'] ?? ''), 'staff'=>$f['Staff Name'] ?? '', 'date'=>$f['Date'] ?? '', 'link'=>$f['Drive Link'] ?? '', 'overall'=>$f['Overall Status'] ?? '', 'at'=>$f['Submitted At'] ?? '', 'items'=>substr($f['Items'] ?? '', 0, 4000), 'details'=>substr($f['Details'] ?? '', 0, 4000)];
 }
 $offset = $res['offset'] ?? null;
 } while ($offset && ++$guard < 20);
@@ -268,12 +270,12 @@ $f = $r['fields']; $d = $f['Date'] ?? ''; if (!preg_match('/^\d{4}-\d{2}-\d{2}$/
 $m = date('Y-m-d', strtotime('monday this week', strtotime($d.' 12:00:00')));
 if ((int)date('N', strtotime($d.' 12:00:00')) === 7) $m = date('Y-m-d', strtotime($m.' -7 days'));
 if (!isset($byWeek[$m])) continue;
-$byWeek[$m][] = ['type'=>$f['Form Type'] ?? 'Other', 'room'=>$f['Room / Classroom'] ?? '', 'staff'=>$f['Staff Name'] ?? '', 'date'=>$d, 'overall'=>$f['Overall Status'] ?? '', 'items'=>(preg_match('/Indoor Inspection|Playground|End of Day/u', $f['Form Type'] ?? '') ? substr($f['Items'] ?? '', 0, 3500) : '')];
+$byWeek[$m][] = ['type'=>$f['Form Type'] ?? 'Other', 'room'=>rm_norm($school, $f['Room / Classroom'] ?? ''), 'staff'=>$f['Staff Name'] ?? '', 'date'=>$d, 'overall'=>$f['Overall Status'] ?? '', 'items'=>(preg_match('/Indoor Inspection|Playground|End of Day/u', $f['Form Type'] ?? '') ? substr($f['Items'] ?? '', 0, 3500) : '')];
 }
 $offset = $res['offset'] ?? null;
 } while ($offset && ++$guard < 30);
 // Same rules as the Inspector view (dcf.js): which daily charts each school must complete, and which days are closed.
-$CLASSROOMS = ['Sanford'=>['Ones','Fours / VPK','School Age'], 'DeLand 2'=>['Infant Room','Ones','Twos','Threes']];
+$CLASSROOMS = ['Sanford'=>['Honeybees - Tod./Inf.','VPK/Pre-School (Pollen-Jocks)','Schoolagers (Worker Bees)'], 'DeLand 2'=>['Infant/Toddler','Honey Bees - Tod. Front',"Three's - Honey Combs","Four's - Honey Combs"]];
 $CLOSED = ['2026-07-03','2026-07-31','2026-09-07','2026-11-11','2026-11-26','2026-11-27','2026-12-24','2026-12-25','2027-01-01','2027-01-18','2027-03-26','2027-05-31','2027-06-18'];
 $BLDG = 'Whole Building / Common Areas';
 $DAILY = [ // key => [form type, room-based?, building-form room label]

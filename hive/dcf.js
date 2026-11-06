@@ -810,7 +810,8 @@ function parTotals(){
 /* ---------- FORMS TO PRINT (prefilled, fillable PDFs + month-end forms) ---------- */
 var RECEIPTS={'2026-10':[['Sep 30 order, delivered Oct 1 &middot; $813.01','files/food-program/receipt-2026-10-walmart-sep30-order.pdf'],['Sep 21 order, Oct 2 delivery only (It\'s Delish) &middot; $19.99','files/food-program/receipt-2026-10-walmart-sep21-itsdelish.pdf'],['Oct 15 order, delivered Oct 19 &middot; $564.65','files/food-program/receipt-2026-10-walmart-oct15-order.pdf'],['Oct 30 order, delivery Nov 3 &middot; $1,005.13','files/food-program/receipt-2026-10-walmart-oct30-order.pdf']]};
 var CNLABELS={};
-var BLANKS=[['Free &amp; Reduced-Price Meal Application (blank, DeLand 2)','files/food-program/deland2-free-reduced-application-blank.pdf'],['Infant Feeding Form (blank, DeLand 2)','files/food-program/deland2-infant-feeding-form-blank.pdf']];
+var BLANKS={'DeLand 2':[['Free &amp; Reduced-Price Meal Application (blank, DeLand 2)','files/food-program/deland2-free-reduced-application-blank.pdf'],['Infant Feeding Form (blank, DeLand 2)','files/food-program/deland2-infant-feeding-form-blank.pdf']],
+ 'Sanford':[['Infant Feeding Form (blank, 4C)','https://4cflorida.org/wp-content/uploads/2023/09/Infant-Feeding-Form-FINAL-fillable-1.pdf'],['Dietary Preference Request Form (blank, 4C)','https://4cflorida.org/wp-content/uploads/2025/07/Dietary-Preference-Request-Form-2025.pdf'],['Parent Request for Milk Substitution (blank, 4C)','https://4cflorida.org/wp-content/uploads/2023/09/Parent-Request-For-Milk-Substitution.pdf'],['Parent Request for Food Substitution (blank, 4C)','https://4cflorida.org/wp-content/uploads/2024/07/Food-Substitution-Request-20190624.pdf'],['Meal Count Summary (blank, 4C)','https://4cflorida.org/wp-content/uploads/2024/07/Meal-Count-Summary-Blank-02242021.pdf']]};
 function savePF(data){
   var pk=S.pk, nm=directorName()||'Director', ex=pk.recs[pkKey('PARENTFORMS','')], now=new Date().toISOString(), p;
   if(ex) p=api('update','Monthly Forms',{recordId:ex.id,fields:{Data:JSON.stringify(data),'Updated By':nm,'Updated At':now}});
@@ -881,7 +882,7 @@ function formsView(){
     CN.forEach(function(r){ h+='<div class="line"><a class="btn sm" target="_blank" href="'+r[1]+'">Open &amp; print</a> '+r[0]+'</div>'; });
     h+='</div>';
   }
-  if(S.school==='DeLand 2'){ h+='<div class="card"><div class="ct">Blank forms</div>'; BLANKS.forEach(function(b){ h+='<div class="line"><a target="_blank" href="'+b[1]+'">'+b[0]+'</a></div>'; }); h+='</div>'; }
+  if(BLANKS[S.school]){ h+='<div class="card"><div class="ct">Blank forms</div>'; BLANKS[S.school].forEach(function(b){ h+='<div class="line"><a target="_blank" href="'+b[1]+'">'+b[0]+'</a></div>'; }); h+='</div>'; }
   return h;
 }
 
