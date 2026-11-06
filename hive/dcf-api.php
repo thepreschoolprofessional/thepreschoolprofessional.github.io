@@ -91,7 +91,12 @@ $formulas = ["{School}='" . $school . "'"];
 if (isset($DATE_FIELD[$table])){
 $from = $input['from'] ?? ''; $to = $input['to'] ?? '';
 if (!valid_date($from) || !valid_date($to)) fail('Bad date range');
-if ((strtotime($to) - strtotime($from)) > 62 * 86400) fail('Date range too long (62 days max)');
+$ftok = ['drl'=>'Drills & Emergency','eod'=>'End of Day','tmp'=>'Temp & Safety','sec'=>'Security','san'=>'Sanitation'];
+$ft = $input['formType'] ?? '';
+if ($table === 'Facility Submissions' && $ft !== '' && isset($ftok[$ft])){
+if ((strtotime($to) - strtotime($from)) > 400 * 86400) fail('Date range too long');
+$formulas[] = "FIND('" . $ftok[$ft] . "',{Form Type}&'')>0";
+} elseif ((strtotime($to) - strtotime($from)) > 62 * 86400) fail('Date range too long (62 days max)');
 $f = $DATE_FIELD[$table];
 $formulas[] = "IS_AFTER({" . $f . "},'" . date('Y-m-d', strtotime($from . ' -1 day')) . "')";
 $formulas[] = "IS_BEFORE({" . $f . "},'" . date('Y-m-d', strtotime($to . ' +1 day')) . "')";

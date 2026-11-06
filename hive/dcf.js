@@ -169,21 +169,37 @@ function gridFor(k){
 var DTYPES=['Fire','Alternate route','Nap-time','Lockdown','Inclement weather','Other emergency'];
 function drillInfo(r){ var d=String(r.fields.Details||''), i=d.indexOf('DRILL:'); var o={}; if(i>-1){ try{ o=JSON.parse(d.slice(i+6).split('\n')[0]); }catch(e){} } o.date=r.fields.Date; o.by=r.fields['Staff Name']||''; o.id=r.id; if(!o.type) o.type='Fire'; return o; }
 function drillRows(from,to){ var rows=[]; for(var id in S.subs){ var x=S.subs[id]; if(sv(x.fields['Form Type'])===FORMS.drl.type && x.fields.Date>=from && x.fields.Date<=to) rows.push(drillInfo(x)); } rows.sort(function(a,b){return a.date<b.date?-1:1;}); return rows; }
+var _mainLibs=null;
+function loadLibs(){
+  if(_mainLibs) return _mainLibs;
+  function sc(src){ return new Promise(function(res,rej){ var el=document.createElement('script'); el.src=src; el.onload=res; el.onerror=function(){ rej(new Error('Could not load '+src)); }; document.head.appendChild(el); }); }
+  _mainLibs=(window.PDFLib?Promise.resolve():sc('pdf-lib.min.js?v=117')).catch(function(e){ _mainLibs=null; throw e; });
+  return _mainLibs;
+}
+function drillEnsureP(yr){
+  var key='drl|'+yr; if(S.loaded[key]===true) return Promise.resolve();
+  if(S.loaded[key] && S.loaded[key].then) return S.loaded[key];
+  S.loaded[key]=api('list','Facility Submissions',{from:yr+'-01-01',to:yr+'-12-31',formType:'drl'}).then(function(res){ (res.records||[]).forEach(function(x){ S.subs[x.id]=x; }); S.loaded[key]=true; }).catch(function(e){ S.loaded[key]='err'; toast('Could not load all of the year\'s drills: '+e.message,true); });
+  return S.loaded[key];
+}
+function drillEnsure(yr){ var key='drl|'+yr; if(S.loaded[key]) return; drillEnsureP(yr).then(function(){ render(); }); }
 function drillView(){
-  var t=todayNY(), yr=S.date.slice(0,4), rows=drillRows(addDays(t,-365)>yr+'-01-01'?addDays(t,-365):yr+'-01-01', '9999-12-31');
+  var t=todayNY(), yr=S.date.slice(0,4); drillEnsure(yr);
+  var _yl=S.loaded['drl|'+yr]!==true && S.loaded['drl|'+yr]!=='err', rows=drillRows(addDays(t,-365)>yr+'-01-01'?addDays(t,-365):yr+'-01-01', '9999-12-31');
   var y0=yr+'-01-01', y1=yr+'-12-31', yrows=drillRows(y0,y1), h='<div class="card"><div class="ct">Fire &amp; emergency drill log &mdash; '+yr+'</div>';
-  h+='<div class="sub">DCF: a fire drill every month at varied dates and times. Once a year: alternate-route, nap-time, lockdown and inclement-weather drills. Keep records 12 months.</div>';
+  h+=(_yl?'<div class="sub"><b>Loading all of '+yr+'&hellip;</b></div>':'')+'<div class="sub">DCF: a fire drill every month at varied dates and times. Once a year: alternate-route, nap-time, lockdown and inclement-weather drills. Keep records 12 months.</div>';
   h+='<div style="margin:8px 0">'+DTYPES.slice(1,5).map(function(ty){ var n=yrows.filter(function(r){return r.type===ty;}).length; return '<span style="display:inline-block;margin:2px 4px 2px 0;padding:4px 10px;border-radius:12px;font-weight:700;background:'+(n?'#e3f4e8':'#fdeaea')+';color:'+(n?'#1c7c3f':'#b71c1c')+'">'+(n?'&#10003; ':'&#9679; ')+ty+': '+(n?n+' done':'needed in '+yr)+'</span>'; }).join('')+'</div>';
   h+='<div class="tbl" style="overflow:auto"><table class="gr" style="font-size:12px;border-collapse:collapse"><tr><th>Month</th><th>Date</th><th>Time</th><th>Type</th><th>Adults</th><th>Children</th><th>Time to clear</th><th>Route</th><th>Extinguisher checked</th><th>Comments</th><th>Dir.</th><th></th></tr>';
   for(var m=1;m<=12;m++){ var mk=yr+'-'+(m<10?'0':'')+m, mr=yrows.filter(function(r){return r.date.slice(0,7)===mk;}), mn=d2(mk+'-01').toLocaleDateString('en-US',{month:'short'});
     var fires=mr.filter(function(r){return r.type==='Fire';}).length;
     if(!mr.length) h+='<tr><td><b>'+mn+'</b></td><td colspan="10" style="color:'+(mk<t.slice(0,7)||(mk===t.slice(0,7)&&+t.slice(8)>=25)?'#b71c1c':'#999')+'">'+(mk<=t.slice(0,7)?'No drill logged':'&mdash;')+'</td><td>'+(mk<=t.slice(0,7)?'<button class="btn sec sm" data-adddrill="'+mk+'">Add</button>':'')+'</td></tr>';
     else mr.forEach(function(r,i){ h+='<tr><td>'+(i?'':'<b>'+mn+'</b>')+'</td><td>'+nice(r.date)+'</td><td>'+esc(r.time||'')+'</td><td>'+esc(r.type)+'</td><td>'+esc(r.adults||'')+'</td><td>'+esc(r.kids||'')+'</td><td>'+esc(r.clear||'')+'</td><td>'+esc(r.route||'')+'</td><td>'+esc(r.ext||'')+'</td><td>'+esc(r.note||'')+'</td><td>'+esc(r.init||'')+'</td><td><button class="btn sec sm" data-cell="drl|'+r.date+'|(building)|'+r.id+'">open</button></td></tr>'; }); }
-  h+='</table></div><div class="mrow" style="margin-top:8px"><button class="btn grn" data-adddrill="'+t+'">Log a drill</button> <button class="btn sec" onclick="printDrills()">Print the log (paper form)</button> <button class="btn sec" onclick="drillVault()">Save log to vault</button> <label class="btn sec" style="margin:0;cursor:pointer">Upload a paper log (photo or PDF)<input type="file" accept="image/*,application/pdf" style="display:none" onchange="drillUpload(this)"></label></div></div>';
+  h+='</table></div><div class="mrow" style="margin-top:8px"><button class="btn grn" data-adddrill="'+t+'">Log a drill</button> <button class="btn" data-ofgo="drill">See &amp; print the official fire log</button> <button class="btn sec" data-dact="vault">Save log to vault</button> <label class="btn sec" style="margin:0;cursor:pointer">Upload a paper log (photo or PDF)<input type="file" accept="image/*,application/pdf" style="display:none" data-dact="upload"></label></div></div>';
   return h;
 }
 function ascii(s){ return String(s==null?'':s).replace(/[^\x20-\x7e]/g,''); }
-function drillPdf(yr){
+function drillPdf(yr){ return drillEnsureP(yr).then(function(){ return drillPdf0(yr); }); }
+function drillPdf0(yr){
   var rows=drillRows(yr+'-01-01',yr+'-12-31'), fire=rows.filter(function(r){return r.type==='Fire'||r.type==='Alternate route'||r.type==='Nap-time';}), em=rows.filter(function(r){return !(r.type==='Fire'||r.type==='Alternate route'||r.type==='Nap-time');});
   return loadLibs().then(function(){
     var L=PDFLib, rgb=L.rgb;
@@ -356,7 +372,8 @@ function openCell(k,date,room,recId){
   if(rec){ items=parseItems(rec.fields.Items); who=rec.fields['Staff Name']||''; when=rec.fields['Submitted At']?new Date(rec.fields['Submitted At']).toLocaleString('en-US',{timeZone:NY}):''; link=rec.fields['Drive Link']||''; details=rec.fields.Details||''; }
   else items=f.items(dow(date)).map(function(t){return {ok:true,text:t};});
   var h='<div class="mback" data-a="mclose"><div class="mbox" data-stop="1"><h3>'+esc(f.label)+'</h3><div class="sub">'+(f.per==='room'?esc(room)+' &middot; ':'')+nice(date)+'</div>';
-  if(rec) h+='<div class="sub">Done by <b>'+esc(who||'?')+'</b>'+(when?' &middot; '+esc(when):'')+(link?' &middot; <a href="'+esc(link)+'" target="_blank" rel="noopener">PDF</a>':'')+'</div>';
+  if(rec){ h+='<div class="sub">Signed / done by <b>'+esc(who||'?')+'</b>'+(when?' &middot; '+esc(when):'')+(link?' &middot; <a href="'+esc(link)+'" target="_blank" rel="noopener">PDF</a>':'')+'</div>';
+    c.list.slice(1).forEach(function(o){ h+='<div class="sub">Also signed by <b>'+esc(o.fields['Staff Name']||'?')+'</b>'+(o.fields['Submitted At']?' &middot; '+esc(new Date(o.fields['Submitted At']).toLocaleString('en-US',{timeZone:NY})):'')+'</div>'; }); }
   else h+='<div class="miss">Not recorded. Fill it in below if it was done (every box starts checked &mdash; uncheck anything that was not OK).</div>';
   h+='<div class="items">'+items.map(function(it,i){ return '<label class="it"><input type="checkbox" class="ck" data-i="'+i+'" '+(it.ok?'checked':'')+'> <span>'+esc(it.text)+'</span></label>'; }).join('')+'</div>';
   h+='<label class="lbl">Note (optional)</label><input class="inp" id="mnote" value="'+esc(details)+'" placeholder="Anything that needs attention">';
@@ -1203,7 +1220,11 @@ var OFS={
  bath:{label:'Bathroom Cleaning Log',page:1,fk:'bath',per:'room',span:'month',sign:false},
  ind:{label:'Daily Indoor Inspection',page:2,fk:'ind',per:'room',span:'week',sign:true},
  out:{label:'Daily Playground Inspection',page:3,fk:'out',per:'one',span:'week',sign:true},
+ san:{label:'Sanitation & Safety Log',custom:'log',fk:'san',per:'one',span:'month',sign:false},
+ tmp:{label:'Temperature Log (fridge / freezer / water)',custom:'log',fk:'tmp',per:'one',span:'month',sign:false},
+ sec:{label:'Security & Sign-in Log',custom:'log',fk:'sec',per:'one',span:'month',sign:false},
  eod:{label:'End of Day Building Sweep',page:4,fk:'eod',per:'one',span:'month',sign:false},
+ drill:{label:'Fire & Emergency Drill Log',custom:'drill',per:'one',span:'year',sign:false},
  trans:{label:'Transportation Log',page:5,per:'trip',span:'week',sign:false}
 };
 function mid(a,b){return (a+b)/2;}
@@ -1310,8 +1331,52 @@ function stampTrans(c,mon,combo){
     function us(s){ s=String(s||'').slice(0,10); return /^\d{4}-/.test(s)?fmtUS(s):''; }
     if(f['Driver Date']) c.text(x0+8,TL_DRIVER_TOP+1,us(f['Driver Date']),7.5); if(f['Second Staff Date']) c.text(x0+8,TL_SECOND_TOP+1,us(f['Second Staff Date']),7.5); });
 }
+function logPdf(fk,ms){
+  var f=FORMS[fk], me=monthEnd(ms), subs=subsOf(fk,null,ms,me).sort(function(a,b){ return a.fields.Date<b.fields.Date?-1:(a.fields.Date>b.fields.Date?1:0); }), days=[];
+  for(var d=ms; d<=me; d=addDays(d,1)) if(isSchoolDay(d)) days.push(d);
+  var cols=[], keys=[];
+  subs.forEach(function(sb){ items(sb.fields.Items).forEach(function(it){ var k=bestMatch(it[0],keys); if(!k){ k=norm(it[0]); keys.push(k); cols.push(clean(it[0])); } }); });
+  if(!cols.length) f.items(1).forEach(function(t){ keys.push(norm(t)); cols.push(clean(t)); });
+  return PDFLib.PDFDocument.create().then(function(doc){ return Promise.all([doc.embedFont(PDFLib.StandardFonts.Helvetica),doc.embedFont(PDFLib.StandardFonts.HelveticaBold)]).then(function(fs){
+    var F=fs[0], B=fs[1], rgb=PDFLib.rgb, page=doc.addPage([792,612]), H=612, L=30, W=732;
+    function T(s,x,y,sz,b,maxw){ s=clean(s); if(!s) return; while(maxw&&(b?B:F).widthOfTextAtSize(s,sz)>maxw&&sz>4.5) sz-=.5; page.drawText(s,{x:x,y:y,size:sz,font:b?B:F}); }
+    var title=f.label.replace(/^./,function(c){return c.toUpperCase();}), mon=d2(ms).toLocaleDateString('en-US',{month:'long',year:'numeric'});
+    T('KID CITY USA - '+S.school.toUpperCase(),L,H-36,15,true); T(title+' - '+mon,L,H-54,12,true);
+    T('Done every school day. Each person who completes it signs with their name. A director reviews the page at the end of the month.',L,H-68,8);
+    var wDate=62, wBy=125, wTime=52, wRev=62, wItem=Math.max(48,Math.min(150,(W-wDate-wBy-wTime-wRev)/cols.length)), used=wDate+wBy+wTime+wRev+wItem*cols.length;
+    var hy=H-80, hh=52, x=L;
+    function cell(x0,y0,w,h,fill){ page.drawRectangle({x:x0,y:y0,width:w,height:h,borderColor:rgb(0,0,0),borderWidth:.7,color:fill||undefined}); }
+    function wrap(s,w,sz){ var out=[],line=''; clean(s).split(' ').forEach(function(wd){ if(F.widthOfTextAtSize((line+' '+wd).trim(),sz)>w-6&&line){ out.push(line); line=wd; } else line=(line+' '+wd).trim(); }); if(line) out.push(line); return out; }
+    cell(x,hy-hh,wDate,hh,rgb(.9,.9,.9)); T('DATE',x+8,hy-hh/2-3,8,true); x+=wDate;
+    cols.forEach(function(c){ cell(x,hy-hh,wItem,hh,rgb(.9,.9,.9)); var ls=wrap(c,wItem,6.5).slice(0,5); ls.forEach(function(l,i){ T(l,x+3,hy-10-i*8,6.5,true); }); x+=wItem; });
+    cell(x,hy-hh,wBy,hh,rgb(.9,.9,.9)); T('SIGNED BY (staff name)',x+4,hy-hh/2-3,7.5,true); x+=wBy;
+    cell(x,hy-hh,wTime,hh,rgb(.9,.9,.9)); T('TIME',x+10,hy-hh/2-3,8,true); x+=wTime;
+    cell(x,hy-hh,wRev,hh,rgb(.9,.9,.9)); T('DIRECTOR',x+6,hy-hh/2+2,7.5,true); T('INITIALS',x+8,hy-hh/2-8,7.5,true);
+    var rh=Math.min(20,(hy-hh-52)/Math.max(days.length,1)), y=hy-hh;
+    days.forEach(function(dd){
+      y-=rh; x=L; var list=subs.filter(function(sb){ return sb.fields.Date===dd; }), done={}, names=[], flag={}, tm='';
+      list.forEach(function(sb){ items(sb.fields.Items).forEach(function(it){ var k=bestMatch(it[0],keys); if(k){ if(it[1]==='flag') flag[k]=1; else done[k]=1; } }); var n=String(sb.fields['Staff Name']||'').trim(); if(n&&names.indexOf(n)<0) names.push(n); if(!tm&&sb.fields['Submitted At']) tm=new Date(sb.fields['Submitted At']).toLocaleTimeString('en-US',{timeZone:NY,hour:'numeric',minute:'2-digit'}); });
+      cell(x,y,wDate,rh); T(fmtUS(dd).slice(0,5)+'  '+d2(dd).toLocaleDateString('en-US',{weekday:'short'}),x+4,y+rh/2-3,8,false); x+=wDate;
+      keys.forEach(function(k){ cell(x,y,wItem,rh); if(done[k]){ var cx=x+wItem/2, cy=y+rh/2, g=rgb(.05,.45,.15); page.drawLine({start:{x:cx-4,y:cy},end:{x:cx-1,y:cy-3.5},thickness:1.5,color:g}); page.drawLine({start:{x:cx-1,y:cy-3.5},end:{x:cx+5,y:cy+4},thickness:1.5,color:g}); } else if(flag[k]){ T('!',x+wItem/2-2,y+rh/2-3,10,true); } x+=wItem; });
+      cell(x,y,wBy,rh); T(names.join(', '),x+4,y+rh/2-3,7.5,false,wBy-8); x+=wBy;
+      cell(x,y,wTime,rh); T(tm,x+4,y+rh/2-3,7.5,false,wTime-6); x+=wTime;
+      cell(x,y,wRev,rh);
+    });
+    T('Check mark = done and OK.   ! = flagged, needs attention.   Blank row = not recorded.',L,y-16,8);
+    T('Director review:  ______________________________     Date: ______________',L,y-34,10);
+    T('Printed from the Hive portal - '+title+' - '+mon,L,14,7);
+    return doc.save();
+  }); });
+}
+function buildCustom(F,collect){
+  return loadLibs().then(function(){
+    if(F.custom==='drill') return drillPdf(S.date.slice(0,4));
+    return logPdf(F.fk,monthStart(S.date));
+  }).then(function(bytes){ return {bytes:bytes,texts:[]}; });
+}
 function build(collect){
   var F=OFS[OF.form], mon=monday(S.date), ms=monthStart(S.date), room=OF.room, combo=null;
+  if(F.custom) return buildCustom(F,collect);
   return Promise.all([loadLibs(),loadBlank()]).then(function(){
     return PDFLib.PDFDocument.load(OF.blank);
   }).then(function(src){
@@ -1327,14 +1392,21 @@ function build(collect){
   });
 }
 function paint(bytes,texts){
-  return pdfjsLib.getDocument({data:bytes.slice(0)}).promise.then(function(doc){ return doc.getPage(1); }).then(function(pg){
-    var vp=pg.getViewport({scale:3}), cv=document.createElement('canvas'); cv.width=vp.width; cv.height=vp.height;
-    return pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise.then(function(){ var x=cv.getContext('2d'), sc=3; (texts||[]).forEach(function(t){ x.fillStyle='rgb('+Math.round(t.color[0]*255)+','+Math.round(t.color[1]*255)+','+Math.round(t.color[2]*255)+')'; x.font=(t.b?'bold ':'')+(t.size*sc)+'px Helvetica, Arial, sans-serif'; x.textBaseline='alphabetic'; x.fillText(t.s,t.x*sc,t.top*sc); }); return {url:cv.toDataURL('image/jpeg',.92),landscape:vp.width>vp.height}; });
+  return pdfjsLib.getDocument({data:bytes.slice(0)}).promise.then(function(doc){
+    var n=Math.min(doc.numPages,8), urls=[], land=false;
+    function one(i){
+      return doc.getPage(i).then(function(pg){
+        var vp=pg.getViewport({scale:3}), cv=document.createElement('canvas'); cv.width=vp.width; cv.height=vp.height; land=vp.width>vp.height;
+        return pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise.then(function(){ var x=cv.getContext('2d'), sc=3; if(i===1) (texts||[]).forEach(function(t){ x.fillStyle='rgb('+Math.round(t.color[0]*255)+','+Math.round(t.color[1]*255)+','+Math.round(t.color[2]*255)+')'; x.font=(t.b?'bold ':'')+(t.size*sc)+'px Helvetica, Arial, sans-serif'; x.textBaseline='alphabetic'; x.fillText(t.s,t.x*sc,t.top*sc); }); urls.push(cv.toDataURL('image/jpeg',.92)); return i<n?one(i+1):null; });
+      });
+    }
+    return one(1).then(function(){ return {url:urls[0],urls:urls,landscape:land}; });
   });
 }
 function hashOf(){
   var mon=monday(S.date), ms=monthStart(S.date), F=OFS[OF.form], bits=[OF.form,OF.room,OF.trip,S.school,S.date];
   if(F.fk){ var from=F.span==='month'?ms:mon, to=F.span==='month'?monthEnd(ms):addDays(mon,4); subsOf(F.fk,OF.room,from,to).forEach(function(s){ bits.push(s.id+(s.fields.Items||'').length+(s.fields['Staff Name']||'')); }); }
+  else if(F.custom==='drill'){ var yy=S.date.slice(0,4); bits.push(S.loaded['drl|'+yy]===true); drillRows(yy+'-01-01',yy+'-12-31').forEach(function(r){ bits.push(r.id+JSON.stringify(r).length); }); }
   else tripsOf(mon).forEach(function(t){ bits.push(t.id+JSON.stringify(t.fields).length); });
   if(F.sign){ var d=sgData(OF.form,mon,OF.form==='out'?'Playground':OF.room); bits.push(d?d.date+d.sig.length:'nosig'); }
   var s=bits.join('~'), h=5381; for(var i=0;i<s.length;i++) h=((h<<5)+h+s.charCodeAt(i))|0; return String(h);
@@ -1344,20 +1416,34 @@ function missRows(){
   for(var d=from; d<=to&&d<t; d=addDays(d,1)){ if(!isSchoolDay(d)) continue; var r=F.per==='room'?OF.room:(F.fk==='out'?'Playground':'(building)'); if(cellState(F.fk,d,r).s==='miss') out.push({d:d,r:r}); }
   return out;
 }
+function detailCard(fk){
+  var ms=monthStart(S.date), me=monthEnd(ms), t=todayNY(), f=FORMS[fk], mn=d2(ms).toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  var h='<div class="card"><div class="ct">Who did it &mdash; '+esc(f.label)+', '+mn+'</div><div class="sub">Every check that was marked and the staff name that signed it, day by day. Tap Open to look at a day or fix it.</div><div class="gw"><table class="grid" style="font-size:12px;min-width:640px"><tr><th>Day</th><th>Checks</th><th>Signed by (and time)</th><th></th></tr>';
+  for(var d=ms; d<=me && d<=t; d=addDays(d,1)){
+    var list=subsFor(fk,d,null).sort(function(a,b){ return String(a.fields['Submitted At']||'')<String(b.fields['Submitted At']||'')?-1:1; });
+    if(!list.length){ if(!isSchoolDay(d)) continue; h+='<tr><td>'+nice(d)+'</td><td colspan="2" style="color:'+(d<t?'#c62828':'#888')+'">'+(d<t?'&#9679; Not recorded':'Not done yet today')+'</td><td><button class="btn sec sm" data-cell="'+fk+'|'+d+'|(building)">'+(d<t?'Fill in':'Open')+'</button></td></tr>'; continue; }
+    var its=[], seen={}; list.forEach(function(sb){ parseItems(sb.fields.Items).forEach(function(it){ var k=norm(it.text); if(!seen[k]){ seen[k]=1; its.push(it); } else if(!it.ok) its.forEach(function(o){ if(norm(o.text)===k) o.ok=false; }); }); });
+    var names=list.map(function(sb){ var tm=sb.fields['Submitted At']?new Date(sb.fields['Submitted At']).toLocaleTimeString('en-US',{timeZone:NY,hour:'numeric',minute:'2-digit'}):''; return '<b>'+esc(sb.fields['Staff Name']||'?')+'</b>'+(tm?' <span style="color:#666">'+esc(tm)+'</span>':''); });
+    var notes=list.map(function(sb){ return String(sb.fields.Details||'').trim(); }).filter(Boolean);
+    h+='<tr><td style="white-space:nowrap">'+nice(d)+'</td><td>'+its.map(function(it){ return '<div style="color:'+(it.ok?'#1c7c3f':'#c62828')+'">'+(it.ok?'&#10003; ':'&#9888; ')+esc(it.text)+'</div>'; }).join('')+(notes.length?'<div style="color:#666;margin-top:3px">Note: '+esc(notes.join(' | '))+'</div>':'')+'</td><td>'+names.join('<br>')+'</td><td><button class="btn sec sm" data-cell="'+fk+'|'+d+'|(building)">Open</button></td></tr>';
+  }
+  return h+'</table></div></div>';
+}
 function ofView(){
-  var F=OFS[OF.form], mon=monday(S.date); sgEnsure();
+  var F=OFS[OF.form], mon=monday(S.date); sgEnsure(); if(F.custom==='drill') drillEnsure(S.date.slice(0,4));
   var rooms=CLASSROOMS[S.school]||[]; if(F.per==='room'&&(!OF.room||rooms.indexOf(OF.room)<0)) OF.room=rooms[0];
   var h='<div class="card"><div class="ct">Official forms &mdash; the real paper forms, filled in</div><div class="sub">These are the same Kid City / Bee System forms DCF expects to see, filled in from what staff entered on the portal. Blank = not done or not entered yet. Use the &lsaquo; &rsaquo; buttons above for the week or month.</div><div class="rpbar">';
   Object.keys(OFS).forEach(function(k){ h+='<button class="btn'+(OF.form===k?'':' sec')+' sm" data-of="form" data-v="'+k+'">'+OFS[k].label+'</button>'; });
   h+='</div>';
   if(F.per==='room'){ h+='<div class="rpbar">'; rooms.forEach(function(r){ var nd=F.sign&&needSign(OF.form,mon,r); h+='<button class="btn'+(OF.room===r?'':' sec')+' sm" data-of="room" data-v="'+esc(r)+'">'+esc(r)+(nd?' <span style="color:#ff5252">&#9679;</span>':'')+'</button>'; }); h+='</div>'; }
   if(OF.form==='trans'){ var cs=tripCombos(mon); if(!cs.length) h+='<div class="sub">No bus trips logged for this week.</div>'; else { h+='<div class="rpbar">'; cs.forEach(function(c,i){ h+='<button class="btn'+(OF.trip===i?'':' sec')+' sm" data-of="trip" data-v="'+i+'">'+esc(c.dest)+' &middot; '+esc(c.run)+'</button>'; }); h+='</div>'; } }
-  h+='<div class="sub"><b>'+(F.span==='month'?d2(monthStart(S.date)).toLocaleDateString('en-US',{month:'long',year:'numeric'}):'Week of '+nice(mon))+'</b></div>';
+  h+='<div class="sub"><b>'+(F.span==='year'?'Year '+S.date.slice(0,4):F.span==='month'?d2(monthStart(S.date)).toLocaleDateString('en-US',{month:'long',year:'numeric'}):'Week of '+nice(mon))+'</b></div>';
   var mr=missRows(); if(mr.length){ h+='<div class="wkbar bad"><b style="color:#c62828">&#9679; Not updated yet ('+mr.length+'):</b> '; mr.forEach(function(m){ h+='<button class="btn sec sm" data-cell="'+F.fk+'|'+m.d+'|'+esc(m.r)+'">'+nice(m.d)+'</button> '; }); h+='<div class="hint">Tap a day to fill it in or fix it. It stays blank on the form until it is entered.</div></div>'; }
   if(F.sign){ var sr=OF.form==='out'?'Playground':OF.room, d=sgData(OF.form,mon,sr), ended=addDays(mon,4)<=todayNY();
     h+='<div class="wkbar'+(d||!ended?'':' bad')+'">'+(d?'<b style="color:#2e7d32">&#10003; Director signed '+esc(d.date||'')+' by '+esc(d.by||'')+'</b>':'<b'+(ended?' style="color:#c62828"':'')+'>'+(ended?'&#9679; ':'')+'Director signature and date '+(ended?'needed for this week':'(sign at the end of the week)')+'</b>')+' <button class="btn grn sm" data-of="sign">'+(d?'Re-sign':'Sign')+'</button>'+(d?' <button class="btn sec sm" data-of="sdate">Change date</button> <button class="btn sec sm" data-of="sclear">Clear</button>':'')+'<div class="hint">Directors sign, change the date or clear the sign-off. Staff fill in the daily checklists on their phones; a director fixes a day with the buttons above.</div></div>'; }
   var key=hashOf(), cached=OF.cache[key];
-  h+='<div class="sub"><b>'+esc(S.school)+'</b>'+(F.per==='room'&&OF.room?' &middot; <b>'+esc(OF.room)+'</b>':'')+' &middot; '+(F.span==='month'?d2(monthStart(S.date)).toLocaleDateString('en-US',{month:'long',year:'numeric'}):'week of '+fmtUS(mon)+' to '+fmtUS(addDays(mon,4)))+' &mdash; on a phone, slide the form left and right to see all of it.</div><div class="rpbar"><button class="btn grn sm" data-of="print">Print this form</button><button class="btn sec sm" data-of="dl">Download PDF</button></div><div class="rpscroll" id="ofbox">'+(cached?'<img src="'+cached.url+'" style="width:100%;min-width:900px;max-width:1100px;display:block;margin:auto;background:#fff">':'<div class="sub">Drawing the form&hellip;</div>')+'</div></div>';
+  h+='<div class="sub"><b>'+esc(S.school)+'</b>'+(F.per==='room'&&OF.room?' &middot; <b>'+esc(OF.room)+'</b>':'')+' &middot; '+(F.span==='year'?'year '+S.date.slice(0,4):F.span==='month'?d2(monthStart(S.date)).toLocaleDateString('en-US',{month:'long',year:'numeric'}):'week of '+fmtUS(mon)+' to '+fmtUS(addDays(mon,4)))+' &mdash; on a phone, slide the form left and right to see all of it.</div><div class="rpbar"><button class="btn grn sm" data-of="print">Print this form</button><button class="btn sec sm" data-of="dl">Download PDF</button></div><div class="rpscroll" id="ofbox">'+(cached?(cached.urls||[cached.url]).map(function(u){ return '<img src="'+u+'" style="width:100%;min-width:900px;max-width:1100px;display:block;margin:0 auto 10px;background:#fff">'; }).join(''):'<div class="sub">Drawing the form&hellip;</div>')+'</div></div>';
+  if(F.fk && F.per==='one' && F.fk!=='out') h+=detailCard(F.fk);
   OF.want=key; return h;
 }
 function ofAfter(){
@@ -1369,6 +1455,10 @@ function ofAfter(){
 TABS.splice(7,0,{id:'ofc',label:'Official Forms',forms:[]});
 var oldBody=body; body=function(){ return S.tab==='ofc'?ofView():oldBody(); };
 var oldRender=render; render=function(){ oldRender(); if(S.tab==='ofc') ofAfter(); };
+var body2=body; body=function(){ var h=body2(), m={clean:['bee','bath'],insp:['ind','out','san'],temp:['tmp','sec'],eod:['eod']}[S.tab];
+  if(m) h='<div class="card"><div class="ct">The official paper form</div><div class="sub">Tap to see the real form filled in from what staff entered, with who signed. You can print it from there.</div><div class="mrow">'+m.map(function(k){ return '<button class="btn" data-ofgo="'+k+'">'+OFS[k].label+' &mdash; see &amp; print</button>'; }).join(' ')+'</div></div>'+h;
+  return h; };
+document.addEventListener('click',function(e){ var el=e.target.closest&&e.target.closest('[data-ofgo]'); if(!el) return; e.preventDefault(); OF.form=el.getAttribute('data-ofgo'); OF.trip=0; S.tab='ofc'; render(); try{ window.scrollTo(0,0); }catch(x){} });
 var oldMissing=missingList;
 missingList=function(from,to){ var out=oldMissing(from,to); try{ ['ind','out'].forEach(function(f){ var seen={}; for(var d=from; d<=to; d=addDays(d,1)){ var mon=monday(d); if(seen[mon]||addDays(mon,4)<from||addDays(mon,4)>to) continue; seen[mon]=1; signRooms(f).forEach(function(r){ if(needSign(f,mon,r)) out.push({kind:'of',form:f,mon:mon,room:r}); }); } }); }catch(e){} return out; };
 document.addEventListener('click',function(e){
@@ -1381,10 +1471,12 @@ document.addEventListener('click',function(e){
   else if(a==='sclear'){ if(!sgData(OF.form,mon,sr)) return; if(!confirm('Clear this signature and date? The form will show as NOT signed until it is signed again.')) return; sgSave(OF.form,mon,sr,{}); }
   else if(a==='print'||a==='dl'){ var c=OF.cache[OF.want]; if(!c) return toast('The form is still drawing.',true);
     if(a==='dl'){ var b=new Blob([c.bytes],{type:'application/pdf'}), u=URL.createObjectURL(b), l=document.createElement('a'); l.href=u; l.download=(S.school+' - '+F.label+' - '+(F.span==='month'?monthStart(S.date).slice(0,7):mon)+(OF.room?' - '+OF.room:'')+'.pdf').replace(/[\/\\]/g,'-'); document.body.appendChild(l); l.click(); l.remove(); setTimeout(function(){ URL.revokeObjectURL(u); },4000); }
-    else { $('repprint').innerHTML='<img src="'+c.url+'" style="width:100%;display:block">'; window.repDoPrint(c.landscape?'landscape':'portrait'); } }
+    else { $('repprint').innerHTML=(c.urls||[c.url]).map(function(u){ return '<img class="rp" src="'+u+'" style="width:100%;display:block">'; }).join(''); window.repDoPrint(c.landscape?'landscape':'portrait'); } }
 });
-window.__dcfOf={OF:OF,build:build};
+window.__dcfOf={OF:OF,OFS:OFS,build:build};
 })();
 
+document.addEventListener('click',function(e){ var el=e.target.closest&&e.target.closest('[data-dact]'); if(!el) return; var a=el.getAttribute('data-dact'); if(a==='vault'){ e.preventDefault(); drillVault(); } });
+document.addEventListener('change',function(e){ var el=e.target; if(el&&el.getAttribute&&el.getAttribute('data-dact')==='upload') drillUpload(el); });
 window.__dcf={S:S,cellState:cellState,missingList:missingList,drillMissing:drillMissing,parseItems:parseItems};
 })();
