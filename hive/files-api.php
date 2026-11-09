@@ -777,11 +777,13 @@ $from = to_ymd($input['from'] ?? ''); $to = to_ymd($input['to'] ?? ''); if (!$fr
 $tz = new DateTimeZone('America/New_York'); $today = new DateTime('now', $tz); $today->setTime(0,0);
 $fd = DateTime::createFromFormat('Y-m-d', $from, $tz); if (!$fd) fail('Check the dates.'); $fd->setTime(0,0);
 $notice = (int)$today->diff($fd)->format('%r%a');
+$esig = (string)($input['esig'] ?? ''); if ($esig !== '' && !(strpos($esig, 'data:image/png;base64,') === 0 && strlen($esig) < 120000)) $esig = '';
 $f = to_file($school); if (!$f) fail('Could not save right now.', 500);
 $all = jread($f, []); if (count($all) > 600) fail('Too many requests on file. Ask your director.');
 $id = 'to_'.bin2hex(random_bytes(5));
-$all[] = ['id'=>$id,'name'=>$name,'type'=>$type,'from'=>$from,'to'=>$to,'hours'=>mb_substr(trim((string)($input['hours'] ?? '')),0,40),'reason'=>mb_substr(trim((string)($input['reason'] ?? '')),0,400),'covered'=>mb_substr(trim((string)($input['covered'] ?? '')),0,200),'at'=>gmdate('c'),'notice'=>$notice,'short'=>($notice < 14),'status'=>'pending','note'=>''];
+$all[] = ['id'=>$id,'name'=>$name,'type'=>$type,'from'=>$from,'to'=>$to,'hours'=>mb_substr(trim((string)($input['hours'] ?? '')),0,40),'reason'=>mb_substr(trim((string)($input['reason'] ?? '')),0,400),'covered'=>mb_substr(trim((string)($input['covered'] ?? '')),0,200),'at'=>gmdate('c'),'notice'=>$notice,'short'=>($notice < 14),'status'=>'pending','note'=>'','esig'=>$esig];
 jwrite($f, $all);
+hive_notify($school, 'Time off request: '.preg_replace('/\s+\S+$/', '', $name).($notice < 14 ? ' (UNDER 2 WEEKS)' : ''), [$name.' sent an Employee Vacation Request for '.$from.($to !== $from ? ' to '.$to : '').'.', ($notice < 14 ? 'It is under the two-week requirement ('.$notice.' days ahead).' : 'It meets the two-week requirement.'), 'It is waiting for your signature in the Standard Operating Procedures card, Time Off tab.']);
 echo json_encode(['ok'=>true,'short'=>($notice < 14),'notice'=>$notice]); exit;
 }
 if ($action === 'to_count'){
@@ -807,7 +809,7 @@ if ($action === 'to_decide'){
 if (!sop_dir_ok($school, $isDir, $pins, $input['dirpin'] ?? '')) fail('Directors only.', 403);
 $id = (string)($input['id'] ?? ''); $st = (string)($input['status'] ?? ''); if (!in_array($st, ['approved','denied','pending'], true)) fail('Bad choice.');
 $f = to_file($school); $all = ($f && is_file($f)) ? jread($f, []) : []; $hit = null;
-foreach ($all as $i => $r){ if (($r['id'] ?? '') === $id){ $all[$i]['status'] = $st; $all[$i]['note'] = mb_substr(trim((string)($input['note'] ?? '')),0,300); $all[$i]['decidedAt'] = gmdate('c'); $sg = (string)($input['sig'] ?? ''); if ($sg !== '' && strpos($sg, 'data:image/png;base64,') === 0 && strlen($sg) < 120000) $all[$i]['sig'] = $sg; $all[$i]['signer'] = mb_substr(trim((string)($input['signer'] ?? '')),0,60); $hit = $all[$i]; } }
+foreach ($all as $i => $r){ if (($r['id'] ?? '') === $id){ $all[$i]['status'] = $st; $all[$i]['note'] = mb_substr(trim((string)($input['note'] ?? '')),0,300); $all[$i]['decidedAt'] = gmdate('c'); $sg = (string)($input['sig'] ?? ''); if ($sg !== '' && strpos($sg, 'data:image/png;base64,') === 0 && strlen($sg) < 120000) $all[$i]['sig'] = $sg; $all[$i]['signer'] = mb_substr(trim((string)($input['signer'] ?? '')),0,60); $us = (string)($input['use'] ?? ''); $all[$i]['use'] = in_array($us, ['vacation','personal'], true) ? $us : ''; $hit = $all[$i]; } }
 if (!$hit) fail('Request not found.', 404);
 jwrite($f, $all);
 /* approved time off goes onto the schedule as OUT days (weekdays only) */
