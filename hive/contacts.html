@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Emergency Contacts</title>
+<style>
+:root{--ink:#4a3a30;--soft:#9b8576;--line:#eadfce;--grn:#2e8b57;--blu:#1565c0;--red:#d32f2f;--y:#f5a800}
+*{box-sizing:border-box;font-family:'Segoe UI',system-ui,sans-serif}
+body{margin:0;background:linear-gradient(160deg,#fff7ef,#ffe7d4);color:var(--ink);min-height:100vh;line-height:1.4}
+#app{max-width:900px;margin:0 auto;padding:12px 14px 60px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0 10px}
+.top h1{font-size:1.4rem;margin:0}.sub{color:var(--soft);font-weight:700;font-size:.9rem}
+.btn{border:0;border-radius:12px;padding:10px 16px;font-weight:800;font-size:.95rem;cursor:pointer;background:var(--ink);color:#fff;text-decoration:none;display:inline-block}
+.btn.sec{background:#fff;color:var(--ink);border:1px solid var(--line)}.btn.sm{padding:7px 12px;font-size:.85rem;border-radius:10px}
+.fi{width:100%;padding:11px;border:1px solid var(--line);border-radius:10px;font-size:16px;margin:4px 0}
+.note{background:#fff8e1;border:1px solid #f0d9a6;border-radius:12px;padding:9px 12px;font-size:.86rem;margin:8px 0}
+.room{background:#fff;border:3px solid var(--y);border-radius:16px;margin:14px 0;overflow:hidden}
+.rh{background:var(--y);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.rh b{font-size:1.15rem}.rh small{display:block;color:#6b5a1f}
+.kid{border-top:1px solid var(--line);padding:10px 14px}
+.kid:first-of-type{border-top:0}
+.kn{font-weight:800;font-size:1.05rem;margin-bottom:4px}
+.pp{display:grid;grid-template-columns:minmax(120px,1.2fr) minmax(160px,1.6fr) minmax(120px,1fr);gap:4px 10px;align-items:center;padding:4px 0;font-size:.92rem}
+.pp .nm small{display:block;color:var(--soft);font-size:.78rem}
+.pp.em .nm::after{content:"Emergency contact";display:inline-block;margin-left:6px;background:var(--red);color:#fff;border-radius:99px;padding:1px 8px;font-size:.68rem;font-weight:800;vertical-align:1px}
+.pp a{color:var(--blu);font-weight:700;word-break:break-all}
+.call{display:inline-block;background:var(--grn);color:#fff!important;border-radius:10px;padding:6px 12px;text-decoration:none;font-weight:800}
+.none{color:var(--soft);font-style:italic}
+@media(max-width:560px){.pp{grid-template-columns:1fr}}
+@media print{.noprint{display:none!important}body{background:#fff}.room{break-inside:avoid;border-width:1px}}
+</style></head>
+<body><div id="app"><div class="sub">Loading…</div></div>
+<script>
+const PIN=sessionStorage.getItem('hivePin');
+if(!PIN) location.href='index.html';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const norm=s=>String(s||'').toLowerCase().replace(/[^a-z]/g,'');
+const tel=p=>String(p||'').replace(/[^\d+]/g,'');
+let D=null;
+async function api(action,x){
+ const r=await fetch('contacts-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({pin:PIN,action},x||{}))});
+ const j=await r.json().catch(()=>({error:'Server error. Try again in a minute.'}));
+ if(j.error)throw new Error(j.error);return j;}
+/* match a Rooms-board child name ("Nyalisse A.", "E Carl M.") to the contact list */
+function findContact(name){
+ const C=D.contacts||{}; const d=norm(name); if(C[d]) return C[d];
+ const t=String(name||'').replace(/\./g,'').trim().split(/\s+/); if(t.length<2) return null;
+ const ini=norm(t[t.length-1]).charAt(0);
+ for(let i=0;i<t.length-1;i++){const k=norm(t[i])+ini; if(C[k]) return C[k];}
+ return null;}
+function person(p,em){
+ const ph=[p.phone,p.phone2].filter(Boolean);
+ return '<div class="pp'+(em?' em':'')+'"><div class="nm"><b>'+esc(p.name)+'</b>'+(p.rel?'<small>'+esc(p.rel)+'</small>':'')+'</div>'
+  +'<div>'+(p.email?'<a href="mailto:'+esc(p.email)+'?subject='+encodeURIComponent('Kid City USA')+'">'+esc(p.email)+'</a>':'<span class="none">no email on file</span>')+'</div>'
+  +'<div>'+(ph.length?ph.map(x=>'<a class="call" href="tel:'+esc(tel(x))+'">&#128222; '+esc(x)+'</a>').join(' '):'<span class="none">no phone on file</span>')+'</div></div>';}
+function draw(){
+ const q=norm($('q')?$('q').value:'');
+ let h='<div class="top"><div><h1>&#128222; Emergency Contacts</h1><div class="sub">'+esc(D.school)+'</div></div>'
+  +'<div class="noprint"><button class="btn sec sm" onclick="print()">Print</button> <a class="btn sec" href="'+(sessionStorage.getItem('hiveOwner')?'owner.html':'director.html')+'">&lsaquo; Back to portal</a></div></div>'
+  +'<input class="fi noprint" id="q" placeholder="Search a child or a parent" value="'+esc($('q')?$('q').value:'')+'">'
+  +'<div class="note noprint">Tap a phone number to call. Tap an email to write to that person. Same rooms and same order as the Rooms board. Source: ProCare'+(D.updated?' (copied '+esc(D.updated)+')':'')+'. Keep this private: names and numbers are for emergencies and for reaching a family.</div>';
+ let shown=0;
+ D.rooms.forEach(r=>{
+  const ks=D.kids.filter(k=>k.room===r.name);
+  const rows=ks.map(k=>{const c=findContact(k.name)||{people:[],emergency:[]};return {k,c};})
+   .filter(x=>!q||norm(x.k.name).includes(q)||(x.c.people.concat(x.c.emergency)).some(p=>norm(p.name).includes(q)));
+  if(!rows.length) return;
+  const mails=[...new Set(rows.flatMap(x=>x.c.people.map(p=>p.email).filter(Boolean)))];
+  h+='<div class="room"><div class="rh"><div><b>'+esc(r.name)+'</b><small>'+esc(r.teachers)+'</small></div>'
+   +(mails.length?'<a class="btn sm noprint" href="mailto:?bcc='+encodeURIComponent(mails.join(','))+'&subject='+encodeURIComponent('Kid City USA - '+r.name)+'">&#9993; Email this room</a>':'')+'</div>';
+  rows.forEach(x=>{shown++;
+   h+='<div class="kid"><div class="kn">'+esc(x.k.name)+'</div>'
+    +(x.c.people.length||x.c.emergency.length? x.c.people.map(p=>person(p,false)).join('')+x.c.emergency.map(p=>person(p,true)).join('') : '<div class="none">No contacts on file. Add them in ProCare, then ask Charles to refresh this page.</div>')
+    +'</div>';});
+  h+='</div>';});
+ if(!shown) h+='<div class="note">Nothing matches.</div>';
+ h+='<div class="note noprint"><b>Update from ProCare:</b> choose the contacts file Charles gives you (a .json file). It replaces this school\'s list. <input type="file" id="imp" accept=".json,application/json"> <span id="impm"></span></div>';
+ const keep=$('q')&&document.activeElement===$('q'); $('app').innerHTML=h;
+ $('imp').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{let j=JSON.parse(await f.text());if(j.contacts)j=j.contacts;const r=await api('cx_save',{contacts:j});D=await api('cx_get');draw();$('impm').textContent='Saved '+r.count+' children.';}catch(er){$('impm').textContent=er.message;}};
+ $('q').oninput=draw; if(keep){const e=$('q');e.focus();e.setSelectionRange(e.value.length,e.value.length);}}
+(async()=>{try{D=await api('cx_get'); draw();}
+ catch(e){$('app').innerHTML='<div class="note"><b>'+esc(e.message)+'</b><p><a class="btn" href="index.html">Back to sign in</a></p></div>';}})();
+</script></body></html>
