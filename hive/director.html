@@ -99,7 +99,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 .meet-save{display:flex;align-items:center;gap:10px;margin-top:8px;} .meet-save small{color:var(--soft);font-weight:700;}
 </style>
 <script>/* stale-page guard: if this browser is showing an old saved copy, load the fresh one */
-(function(){var V='20261110a';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+'?v='+m[1]);}});}catch(e){}})();</script>
+(function(){var V='20261110b';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+'?v='+m[1]);}});}catch(e){}})();</script>
 </head>
 <body>
 <a class="back" href="index.html">← exit</a>
@@ -121,7 +121,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
   <div class="tab" style="background:#b0722e" onclick="show('inv',this)">📦 Inventory</div>
 <div class="tab t-facility" onclick="show('facility',this)">🧹 Facility Checklists</div>
  <div class="tab" style="background:#37474f" onclick="location.href='handbook-training.html'">📘 Employee Handbook Training</div>
- <div class="tab" style="background:#8d5524" onclick="location.href='sop.html'">📖 Standard Operating Procedures</div>
+ <div class="tab" style="background:#8d5524" onclick="location.href='sop.html'">📖 Schedules &amp; Requests</div>
   <div class="tab" style="background:#b22234" onclick="location.href='closures.html'">📅 Closures</div>
 <div class="tab" style="background:#c0392b" onclick="location.href='dcf.html'">📁 DCF Binder</div>
   <div class="tab" style="background:#37474f" onclick="location.href='reporting.html'">🗄️ Reporting</div>
@@ -877,7 +877,7 @@ window.HIVE_CARDS={prompt:'What do you want to work on?',order:[
  {k:'Reporting',l:["Monthly checklist: ELC, Food Program, DCF, meetings", "Audit vault of filed PDFs", "Weekly attendance forms"],s:'Monthly reporting and vault',c:'#37474f'},
  {k:'Facility Checklists',t:[['Daily facility checklists','lessons.html#B1'],['Incident reports','lessons.html#B2']],l:["Bathroom and classroom cleaning", "Indoor and playground inspections", "Temperature, security, sanitation", "End of day sweep"],s:'Cleaning and inspections',c:'#00838f'},
  {k:'Employee Handbook Training',l:['Eleven short lessons from the handbook','Time off, calling out, conduct, safety','Quick check after each lesson'],s:'The handbook, step by step',c:'#37474f'},
- {k:'Standard Operating Procedures',t:[['Handbook: time off and schedules','handbook-training.html?m=timeoff'],['Handbook: calling out','handbook-training.html?m=attend']],l:['Letter and standing rules','Opening-to-close timeline','Classroom schedules','Staff schedule: weekly hours, call-outs, substitutes','Day planner: coverage, combine rooms','Print staff and classroom schedules'],s:'Schedules, planner, rules',c:'#8d5524'},
+ {k:'Schedules & Requests',t:[['Handbook: time off and schedules','handbook-training.html?m=timeoff'],['Handbook: calling out','handbook-training.html?m=attend']],l:['Request time off: the director approves it','Letter and standing rules','Opening-to-close timeline','Classroom schedules','Staff schedule: weekly hours, call-outs, substitutes','Day planner: coverage, combine rooms','Print staff and classroom schedules'],s:'Schedules, time off, planner',c:'#8d5524'},
  {k:'Closures',l:["Closed days calendar", "Closure flyers to share with families"],s:'Closed days and flyers',c:'#b22234'},
  {k:'Staff Hours',l:["Who is on the clock now", "Punch flags to fix", "Hours today and this week"],s:'Hours and pace',c:'#ef6f5e'},
  {k:'Time Fix',l:["Correct a clock-in or clock-out", "Say what happened"],s:'Correct a clock-in or out',c:'#7b4bc9'},
@@ -947,7 +947,7 @@ function pop(n,nn){var key='certPop'+n+'_'+nn;try{if(sessionStorage.getItem(key)
  document.body.appendChild(o);document.getElementById('cpGo').onclick=function(){location.href='staff-files.html'};document.getElementById('cpLater').onclick=function(){o.remove()};}
 function chk(){fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:P,action:'to_count'})}).then(function(r){return r.json()}).then(function(j){if(!j)return;
  var c=j.count||0,ce=j.certs||0;
- if(window.HiveCards){if(c)HiveCards.badge('Standard Operating Procedures',c+' time off');if(ce)HiveCards.badge('Staff Files',ce+' to sign');}
+ if(window.HiveCards){if(c)HiveCards.badge('Schedules & Requests',c+' time off');if(ce)HiveCards.badge('Staff Files',ce+' to sign');}
  bar('toBar',14,'#c62828',c?'\uD83C\uDF34 '+c+' time-off request'+(c>1?'s':'')+' waiting for your signature'+(j.short?' ('+j.short+' under two weeks notice)':'')+'. Tap to open.':'',function(){location.href='sop.html#off';});
  bar('certBar',c?70:14,'#2e8b57',ce?'\uD83C\uDF93 '+ce+' training certificate'+(ce>1?'s':'')+' to sign. Tap to open Staff Files.':'',function(){location.href='staff-files.html';});
  if(ce&&!document.getElementById('certPop'))pop(ce,j.newnames||0);}).catch(function(){});}

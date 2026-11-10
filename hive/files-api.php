@@ -822,6 +822,18 @@ if ($st === 'approved'){
  while ($d <= $e && $n < 120){ if ((int)$d->format('N') <= 5){ $k = $d->format('Y-m-d'); if (!isset($sd['days'][$k]) || !is_array($sd['days'][$k])) $sd['days'][$k] = []; if (!isset($sd['days'][$k]['staff']) || !is_array($sd['days'][$k]['staff'])) $sd['days'][$k]['staff'] = []; $sd['days'][$k]['staff'][] = ['name'=>$hit['name'],'off'=>true,'note'=>$tag]; } $d->modify('+1 day'); $n++; }
 }
 if ($sf) jwrite($sf, $sd);
+/* file the decision in the staff member's own file (director-only view in Files) */
+try{
+ $sr2 = roster($school, 'staff'); $pid = '';
+ if (is_array($sr2)){ foreach ($sr2 as $p2){ if (mb_strtolower(trim($p2['name'])) === mb_strtolower(trim($hit['name']))){ $pid = $p2['id']; break; } } }
+ if ($pid !== '' && strpos($pid, 'pend_') !== 0){
+  $pd = pdir($school, 'staff', $pid); $tf2 = $pd.'/timeoff.json'; $tl = jread($tf2, []); if (!is_array($tl)) $tl = [];
+  $tl = array_values(array_filter($tl, function($x) use ($id){ return ($x['id'] ?? '') !== $id; }));
+  if ($st === 'approved' || $st === 'denied'){ $tl[] = ['id'=>$id,'status'=>$st,'type'=>$hit['type'],'from'=>$hit['from'],'to'=>$hit['to'],'hours'=>$hit['hours'] ?? '','reason'=>$hit['reason'] ?? '','use'=>$hit['use'] ?? '','signer'=>$hit['signer'] ?? '','decidedAt'=>$hit['decidedAt'] ?? '','requestedAt'=>$hit['at'] ?? '','short'=>!empty($hit['short']),'notice'=>$hit['notice'] ?? null,'note'=>$hit['note'] ?? '','esig'=>$hit['esig'] ?? '','sig'=>$hit['sig'] ?? '']; }
+  usort($tl, function($a, $b){ return strcmp($b['from'], $a['from']); });
+  jwrite($tf2, $tl);
+ }
+}catch(Throwable $e){}
 echo json_encode(['ok'=>true]); exit;
 }
 if ($action === 'bio_submit'){
@@ -1044,6 +1056,10 @@ $d = pdir($school, $kind, $id); $mf = $d.'/meta.json'; $meta = jread($mf, ['docs
 if (!is_array($meta['docs'])) $meta['docs'] = [];
 $meta['docs'][$doc] = array_merge((array)($meta['docs'][$doc] ?? []), ['exp'=>$exp]); jwrite($mf, $meta);
 echo json_encode(['ok'=>true]); exit;
+}
+if ($action === 'to_person'){
+$d = pdir($school, 'staff', $id); $l = jread($d.'/timeoff.json', []);
+echo json_encode(['list'=>is_array($l) ? $l : []]); exit;
 }
 if ($action === 'bio_get'){
 $d = pdir($school, 'staff', $id); $b = jread($d.'/bio.json', []); $fp = $d.'/face.jpg';
