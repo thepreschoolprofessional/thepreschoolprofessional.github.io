@@ -589,7 +589,7 @@ function openPad(box){
       if(dm){ var kind=dm.split(':')[0], did=dm.split(":")[1], sc=box.closest('.parsheet')||document.querySelector('#paper'), de=sc.querySelector(kind==='f'?'[data-f="'+did+'"]':'[data-sp="'+did+'"]'); if(de&&!de.value) de.value=todayUS(); }
       hid.dispatchEvent(new Event('input',{bubbles:true})); ov.remove(); postPack(); schedSave(); } });
 }
-document.addEventListener('change',function(e){ var t=e.target; if(t.id&&/^qf-.-d$/.test(t.id)){ var c=$(t.id.replace(/-d$/,'-c')); if(c) c.style.display=t.value==='cus'?'':'none'; } });
+document.addEventListener('change',function(e){ var t=e.target; if(t.classList&&t.classList.contains('sc')){ if(isLocked()){ t.checked=!t.checked; return; } var c=sendCfg(); c.c[t.getAttribute('data-k')]=t.checked; sendSaveChk({to:($('scTo')||{value:c.to||''}).value.trim()}).then(function(){ render(); }); return; } if(t.id&&/^qf-.-d$/.test(t.id)){ var c=$(t.id.replace(/-d$/,'-c')); if(c) c.style.display=t.value==='cus'?'':'none'; } });
 document.addEventListener('click',function(e){ var b=e.target.closest&&e.target.closest('.ovsig'); if(b) openPad(b); });
 function parSheet(emp,stk){
   var pk=S.pk, m=pk.month, d=pkData('PAR',emp)||{days:{}}, sp=d.sp||{}, dim=new Date(+m.slice(0,4),+m.slice(5),0).getDate();
@@ -720,8 +720,57 @@ function reviewForm(st){
   var miss=[];
   rows.forEach(function(r){ var s=st[r[0]]; if(!s.ok) miss.push(s.why); h+='<div class="line '+(s.ok?'ok':'bad')+'">'+(s.ok?'&#10003; ':'&#9679; ')+r[1]+(s.ok?'':' &mdash; '+esc(s.why))+(PFORMS.some(function(f){return f[0]===r[0];})?' <button class="btn sec sm" data-pf="form" data-v="'+r[0]+'">open</button>':'')+(r[0]==='WEEKSIGN'&&s.first?' <button class="btn sec sm" data-tab="att" data-d="'+s.first.mon+'" data-wkroom="'+esc(s.first.room)+'">open</button>':'')+'</div>'; });
   if(lk) return h+'<div class="okline" style="margin-top:12px">&#128274; Submitted and locked.</div>';
-  h+='<div class="mrow"><button class="btn grn" data-pf="submit">Submit month-end packet</button></div><div class="hint">Submitting locks '+mLabel(S.pk.month)+' and tells Charles to build the Food Program email draft. It does not send anything to the sponsor.</div>';
+  h+=sendPanel(st);
   return h;
+}
+/* ----- Submit Food Program email: completeness check + recipient per school ----- */
+var SPONSOR_TO={'DeLand 2':'ccfp@ccswfl.org','Sanford':''}, OFFICE_MAIL={'Sanford':'sanfordoffice.1320@gmail.com','DeLand 2':'delandoffice.238@gmail.com'};
+function monthWeeks(m){
+  var y=+m.slice(0,4), mo=+m.slice(5), out=[], d=new Date(y,mo-1,1,12); d.setDate(d.getDate()-((d.getDay()+6)%7));
+  while(true){ var days=[]; for(var i=0;i<5;i++){ var x=new Date(d); x.setDate(x.getDate()+i); if(x.getMonth()+1===mo&&x.getFullYear()===y) days.push(x); }
+    if(d.getFullYear()>y||(d.getFullYear()===y&&d.getMonth()+1>mo)) break;
+    if(days.length) out.push({mon:iso(d),label:(d.getMonth()+1)+'/'+d.getDate()});
+    d.setDate(d.getDate()+7); }
+  return out;
+}
+function sendCfg(){ var c=pkData('SENDCHK')||{}; c.c=c.c||{}; return c; }
+function sendPanel(st){
+  var pk=S.pk, c=sendCfg(), ck=c.c, to=c.to||SPONSOR_TO[S.school]||'', wk=monthWeeks(pk.month);
+  var kids=entRows().map(function(r){return r.n;}).filter(Boolean), openPF=((pkData('PARENTFORMS')||{}).items||[]).filter(function(i){return !i.done;});
+  var sh=parSheets(), noPar=(pk.staff||[]).filter(function(n){ return sh.indexOf(n)<0; });
+  function box(k,label,extra){ return '<label class="ck2" style="display:block;margin:6px 0"><input type="checkbox" class="sc" data-k="'+k+'"'+(ck[k]?' checked':'')+'> <span>'+label+'</span></label>'+(extra||''); }
+  var h='<div class="card" style="border:2px solid #2e7d32;margin-top:14px"><div class="ct">Submit food program email</div><div class="sub">Answer each question below. Then one button locks the month and sends the packet request for the email to the sponsor with every saved form attached.</div>';
+  h+='<div class="line '+(kids.length&&!ck.kids?'bad':'ok')+'" style="margin-top:8px"><b>1. Children&rsquo;s forms</b>'+(kids.length?'<div class="hint">New this month: '+kids.map(esc).join(', ')+'. Each needs their enrollment / Free-Reduced or Child Participation form.</div>':'<div class="hint">No new children listed under Entrances this month.</div>')+(openPF.length?'<div class="hint" style="color:#c62828">Not returned signed yet: '+openPF.map(function(i){return esc(i.name||i.child||i.t||'a form');}).join(', ')+'</div>':'')+box('kids','Yes, every child&rsquo;s form is in (or none are needed).')+'</div>';
+  h+='<div class="line '+(ck.pars?'ok':'bad')+'"><b>2. Personnel Activity Reports (PARs)</b><div class="hint">Saved for: '+(sh.length?sh.map(esc).join(', '):'nobody yet')+'.'+(noPar.length?' No sheet for: '+noPar.map(esc).join(', ')+'.':'')+' <button class="btn sec sm" data-pf="form" data-v="PAR">open PARs</button></div>'+box('pars','Yes, I have all the PARs for this month.')+'</div>';
+  h+='<div class="line '+(wk.every(function(w){return ck['w'+w.mon];})?'ok':'bad')+'"><b>3. Receipts, week by week</b><div class="hint">'+((S.school==='DeLand 2'?RECEIPTS[pk.month]:RECEIPTS['S|'+pk.month])||[]).length+' receipt file(s) loaded for the month.</div>'+wk.map(function(w){ return box('w'+w.mon,'Are all receipts here for the week of '+w.label+'?'); }).join('')+'</div>';
+  h+='<div class="line '+(ck.cover?'ok':'bad')+'"><b>4. Cover page</b><div class="hint">The Monthly Provider Check List is the cover page. <button class="btn sec sm" data-pf="form" data-v="CHECKLIST">open</button></div>'+box('cover','Yes, the cover page is complete and signed.')+'</div>';
+  h+='<label class="fl" style="margin-top:8px">Send to (sponsor email for '+esc(S.school)+')<input class="fi" id="scTo" value="'+esc(to)+'" placeholder="'+(S.school==='Sanford'?'Type the 4C food program email once':'')+'"></label>';
+  if(isLocked()) return h+'<div class="okline" style="margin-top:8px">&#128274; Submitted. '+(c.requested?'The email to '+esc(c.to||to)+' has been requested.':'')+'</div></div>';
+  h+='<div class="mrow"><button class="btn grn" data-pf="sendfp">Submit food program email</button> <button class="btn sec" data-pf="gmailfp">Open a blank email in Gmail</button></div><div class="hint">Locks '+mLabel(pk.month)+'. Charles then builds the email to the address above from the school office account with every saved form and receipt attached, and it waits in Drafts for the final send. Nothing leaves until you press Send in Gmail.</div></div>';
+  return h;
+}
+function sendSaveChk(extra){
+  var c=sendCfg(); Object.keys(extra||{}).forEach(function(k){ c[k]=extra[k]; });
+  return writeRec({form:'SENDCHK',emp:'',data:c},true);
+}
+function sendSubject(){ return S.school+' CCFP Monthly Claim Packet - '+mLabel(S.pk.month); }
+function sendGmail(){
+  var to=($('scTo')||{value:''}).value.trim(); var u='https://mail.google.com/mail/?authuser='+encodeURIComponent(OFFICE_MAIL[S.school]||'')+'&view=cm&fs=1&to='+encodeURIComponent(to)+'&su='+encodeURIComponent(sendSubject())+'&body='+encodeURIComponent('Hello,\n\nAttached is the '+mLabel(S.pk.month)+' CCFP packet for Kid City USA '+S.school+'.\n\nThank you.');
+  window.open(u,'_blank');
+}
+function sendFoodEmail(){
+  var pk=S.pk, nm=directorName(); if(!nm) return toast('Enter your name first.',true);
+  var to=($('scTo')||{value:''}).value.trim(); if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) return toast('Type the sponsor email address first.',true);
+  var c=sendCfg(), ck=c.c, wk=monthWeeks(pk.month), un=[];
+  if(!ck.kids) un.push('children\u2019s forms'); if(!ck.pars) un.push('PARs'); wk.forEach(function(w){ if(!ck['w'+w.mon]) un.push('receipts, week of '+w.label); }); if(!ck.cover) un.push('cover page');
+  var st=pkStatus(), miss=[]; Object.keys(st).forEach(function(k){ if(st[k]&&!st[k].ok&&st[k].why) miss.push(st[k].why); });
+  var msg=''; if(un.length) msg+='Not confirmed yet:\n- '+un.join('\n- ')+'\n\n'; if(miss.length) msg+='Still missing in the packet:\n- '+miss.join('\n- ')+'\n\n';
+  if(msg){ if(!confirm(msg+'Submit the food program email anyway? The month will be locked.')) return; } else if(!confirm('Submit '+mLabel(pk.month)+' and request the email to '+to+'?')) return;
+  flushSave();
+  var now=new Date().toISOString(), data={by:nm,at:now,missing:miss,unconfirmed:un,school:S.school,email:{to:to,from:OFFICE_MAIL[S.school]||'',subject:sendSubject(),requested:true}};
+  sendSaveChk({to:to,requested:true,by:nm,at:now}).then(function(){
+    return api('create','Monthly Forms',{fields:{Entry:S.school+' · '+pk.month+' · SUBMITTED',Month:pk.month,Form:'SUBMITTED',Employee:'',Data:JSON.stringify(data),'Updated By':nm,'Updated At':now}});
+  }).then(function(res){ var r=res.records?res.records[0]:res; if(r&&r.id){ pk.recs[pkKey('SUBMITTED','')]=r; toast('Submitted. Charles is building the email to '+to+'.'); render(); foodVault(true); } else toast('Did not submit',true); }).catch(function(e){ toast(e.message,true); });
 }
 function submitPacket(){
   var st=pkStatus(), miss=[]; Object.keys(st).forEach(function(k){ if(st[k]&&!st[k].ok&&st[k].why) miss.push(st[k].why); });
@@ -934,7 +983,7 @@ document.addEventListener('click',function(e){
   var dl=e.target.closest&&e.target.closest('[data-dl]'); if(dl){ e.preventDefault(); downloadSigned(dl.getAttribute('data-dl'),dl.getAttribute('data-nm')); return; }
   var el=e.target.closest('[data-cell],[data-tab],[data-a],[data-adddrill],[data-pf],[data-goto]'); if(!el) return;
   if(el.hasAttribute('data-goto')){ S.tab='pack'; S.pk.form=el.getAttribute('data-goto'); render(); return; }
-  if(el.hasAttribute('data-pf')){ var a2=el.getAttribute('data-pf'),pk=S.pk; if(a2==='parone'){ parPick(el.getAttribute('data-v')); return; } if(a2==='prev'||a2==='next'){ flushSave().then(function(){ pk.parView=''; pk.month=shiftMonth(pk.month,a2==='prev'?-1:1); pk.loaded=''; render(); }); } else if(a2==='form'){ var fv=el.getAttribute('data-v'); flushSave().then(function(){ pk.form=fv; render(); }); } else if(a2==='save') savePacket(); else if(a2==='submit') submitPacket(); else if(a2==='parfill') parFill(); else if(a2==='parmulti') parMulti(); else if(a2==='pmgo') parMultiGo(); else if(a2==='parclear') parClear(); else if(a2==='print'){ var ls=pk.form==='EXPEND', stt=$('pgst'); if(!stt){ stt=document.createElement('style'); stt.id='pgst'; document.head.appendChild(stt); } stt.textContent='@page{size:letter '+(ls?'landscape':'portrait')+';margin:'+(/^(SITEINFO|CHECKLIST|ENTRANCES|MEDICAL|DIETARY|INFANTFEED|PAR|LABOR|EXPEND)$/.test(pk.form)?'0':'0.4in')+'}'; window.print(); } return; }
+  if(el.hasAttribute('data-pf')){ var a2=el.getAttribute('data-pf'),pk=S.pk; if(a2==='parone'){ parPick(el.getAttribute('data-v')); return; } if(a2==='sendfp'){ sendFoodEmail(); return; } if(a2==='gmailfp'){ sendGmail(); return; } if(a2==='prev'||a2==='next'){ flushSave().then(function(){ pk.parView=''; pk.month=shiftMonth(pk.month,a2==='prev'?-1:1); pk.loaded=''; render(); }); } else if(a2==='form'){ var fv=el.getAttribute('data-v'); flushSave().then(function(){ pk.form=fv; render(); }); } else if(a2==='save') savePacket(); else if(a2==='submit') submitPacket(); else if(a2==='parfill') parFill(); else if(a2==='parmulti') parMulti(); else if(a2==='pmgo') parMultiGo(); else if(a2==='parclear') parClear(); else if(a2==='print'){ var ls=pk.form==='EXPEND', stt=$('pgst'); if(!stt){ stt=document.createElement('style'); stt.id='pgst'; document.head.appendChild(stt); } stt.textContent='@page{size:letter '+(ls?'landscape':'portrait')+';margin:'+(/^(SITEINFO|CHECKLIST|ENTRANCES|MEDICAL|DIETARY|INFANTFEED|PAR|LABOR|EXPEND)$/.test(pk.form)?'0':'0.4in')+'}'; window.print(); } return; }
   if(el.getAttribute('data-a')==='mclose' && e.target.closest('[data-stop]') && !e.target.classList.contains('btn')) return;
   if(el.hasAttribute('data-adddrill')){ var ad=el.getAttribute('data-adddrill'); addDrill(ad.length===7?ad+'-'+todayNY().slice(8):ad); return; }
   if(el.hasAttribute('data-cell')){ var p=el.getAttribute('data-cell').split('|'); openCell(p[0],p[1],p[2],p[3]); return; }
