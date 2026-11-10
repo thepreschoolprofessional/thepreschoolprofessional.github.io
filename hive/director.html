@@ -144,6 +144,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
   <div class="tab" data-icon="bp-logo.png" style="background:#9b6bff" onclick="window.open('https://bearphonicsacademy.com/online/demo.html?teach=bpa-classroom-26','_blank','noopener')">🐻 Bear Phonics Academy</div>
   <div class="tab" style="background:#e91e63" onclick="location.href='parent.html'">🏡 Parent Portal</div>
   <div class="tab" style="background:#e07b00" onclick="window.open(SCHOOL==='Sanford'?'https://bearphonicsacademy.com/elc-94f077be04/bearline.html':'https://bearphonicsacademy.com/elc-1ce53ee46c/bearline.html','_blank','noopener')">⏱ Staff Sign In/Out</div>
+  <div class="tab" style="background:#c2185b" onclick="window.open(SCHOOL==='Sanford'?'https://bearphonicsacademy.com/elc-94f077be04/bearline.html':'https://bearphonicsacademy.com/elc-1ce53ee46c/bearline.html','_blank','noopener')">💬 Parent Messages</div>
   <div class="tab" style="background:#00695c" onclick="location.href='fte.html'">📊 FTE Report</div>
   <div class="tab" style="background:#2e8b57" onclick="location.href='enroll.html'">🧸 New Enrollments</div>
   <div class="tab" style="background:#1565c0" onclick="location.href='newhires.html'">🧑‍🏫 New Hires</div>
@@ -862,6 +863,7 @@ function openElcTablet(){
 }
 window.HIVE_CARDS={prompt:'What do you want to work on?',order:[
  {k:'Bear Phonics Academy',s:'Free reading lessons for the classroom',c:'#9b6bff'},
+ {k:'Parent Messages',l:['Messages parents send from the Bear Line sign-in screen','Reply to a family, or start a message to any family','Each family only sees its own conversation','Also: post to the front-screen Board (tuition posting days, holidays, reminders)','Opens Bear Line: tap Director, enter your PIN, then Messages or Board'],s:'Parent messages and the front-screen board',c:'#c2185b'},
  {k:'Staff Sign In/Out',l:['Hours each staff member has worked so far','Missed sign-ins, sign-outs and lunch punches','Change a time (director or owner PIN, every change is logged)','Opens Bear Line: tap Director, then enter your PIN'],s:'Staff hours, missed punches, fixes',c:'#e07b00'},
  {k:'Parent Portal',t:[['Update the parent portal','parent-manage.html'],['Post to the message board','parent-manage.html']],l:['See what parents see (menu, newsletter, lesson plans, board)','Upload a menu, newsletter or flyer, or fill in the newsletter template','Post notes on the message board','See who signed Parent Orientation'],s:'What parents see and update it',c:'#e91e63'},
  {k:'New Staff Onboarding',t:[['Review new hires','newhires.html'],['Open the new-staff page','onboard.html']],l:['New teachers, interns and volunteers sign up on the new-staff page','See what training they finished, as they finish it','They fill in and sign the official Employee Packet; you review it and sign your lines on screen','Add them to Staff Files and the signed packet is filed','Send the link: thepreschoolprofessional.net/hive/onboard.html'],s:'New hires and interns',c:'#1565c0'},
