@@ -72,7 +72,13 @@ if ($op==='pincheck' || $op==='roster'){
   } else $board='board_lookup_failed';
   $now=new DateTime('now',new DateTimeZone('America/New_York'));
   at('POST',TBL_LOG,['fields'=>['Entry'=>($act==='add'?'Added ':'Removed ').$child.' - '.$sname.' - '.$now->format('Y-m-d'),'School'=>$sname,'Action'=>$act==='add'?'Added':'Removed','Child'=>$child,'Room Code'=>$room,'Done By'=>$who,'When'=>$now->format('c'),'Rooms Board'=>$board]]);
-  out(['ok'=>true,'who'=>$who,'board'=>$board]);
+  $catch=null;
+  if ($act==='add'){
+    $ctx=stream_context_create(['http'=>['method'=>'POST','header'=>"Content-Type: application/json\r\n",'content'=>json_encode(['action'=>'elc_catchup','code'=>$code,'school'=>$school,'first'=>$first,'ini'=>$ini]),'timeout'=>25,'ignore_errors'=>true]]);
+    $cr=@file_get_contents('https://thepreschoolprofessional.net/hive/files-api.php',false,$ctx);
+    $cj=json_decode($cr?:'',true); if (is_array($cj) && isset($cj['found'])) $catch=$cj;
+  }
+  out(['ok'=>true,'who'=>$who,'board'=>$board,'catchup'=>$catch]);
 }
 if (!preg_match('/^(sanford|deland)__(\d{4}-\d{2})__([A-Za-z0-9_\-]{1,60})__(\d{2})$/',$id,$m)) out(['ok'=>false,'error'=>'bad_id'],400);
 $q='filterByFormula='.rawurlencode("{Entry ID}='".$id."'").'&maxRecords=1&fields%5B%5D=Entry%20ID';

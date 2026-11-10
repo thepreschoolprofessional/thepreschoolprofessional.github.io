@@ -751,9 +751,10 @@ function sendPanel(st){
   h+='<div class="line '+(ck.pars?'ok':'bad')+'"><b>2. Personnel Activity Reports (PARs)</b><div class="hint">Saved for: '+(sh.length?sh.map(esc).join(', '):'nobody yet')+'.'+(noPar.length?' No sheet for: '+noPar.map(esc).join(', ')+'.':'')+' <button class="btn sec sm" data-pf="form" data-v="PAR">open PARs</button></div>'+box('pars','Yes, I have all the PARs for this month.')+'</div>';
   h+='<div class="line '+(wk.every(function(w){return ck['w'+w.mon];})?'ok':'bad')+'"><b>3. Receipts, week by week</b><div class="hint">'+((S.school==='DeLand 2'?RECEIPTS[pk.month]:RECEIPTS['S|'+pk.month])||[]).length+' receipt file(s) loaded for the month.</div>'+rcLinks()+wk.map(function(w){ return box('w'+w.mon,'Are all receipts here for the week of '+w.label+'?'); }).join('')+'</div>';
   h+='<div class="line '+(ck.cover?'ok':'bad')+'"><b>4. Cover page</b><div class="hint">The Monthly Provider Check List is the cover page. <button class="btn sec sm" data-pf="form" data-v="CHECKLIST">open</button></div>'+box('cover','Yes, the cover page is complete and signed.')+'</div>';
-  h+='<label class="fl" style="margin-top:8px">Send to (sponsor email for '+esc(S.school)+')<input class="fi" id="scTo" value="'+esc(to)+'" placeholder="'+(S.school==='Sanford'?'Type the 4C food program email once':'')+'"></label>';
-  if(isLocked()) return h+'<div class="okline" style="margin-top:8px">&#128274; Submitted. '+(c.requested?'The email to '+esc(c.to||to)+' has been requested.':'')+'</div></div>';
-  h+='<div class="mrow"><button class="btn grn" data-pf="sendfp">Submit food program email</button> <button class="btn sec" data-pf="gmailfp">Open a blank email in Gmail</button></div><div class="hint">Locks '+mLabel(pk.month)+'. Charles then builds the email to the address above from the school office account with every saved form and receipt attached, and it waits in Drafts for the final send. Nothing leaves until you press Send in Gmail.</div></div>';
+  var kk=(S.school==='Sanford');
+  h+='<label class="fl" style="margin-top:8px">'+(kk?'Sponsor email (optional &mdash; Sanford submits through KidKare)':'Send to (sponsor email for '+esc(S.school)+')')+'<input class="fi" id="scTo" value="'+esc(to)+'" placeholder="'+(kk?'Leave blank if you submit in KidKare':'')+'"></label>';
+  if(isLocked()) return h+'<div class="okline" style="margin-top:8px">&#128274; Submitted. '+(c.requested?'The email to '+esc(c.to||to)+' has been requested.':(kk?'Marked ready. Submit the claim in KidKare.':''))+'</div></div>';
+  h+='<div class="mrow"><button class="btn grn" data-pf="sendfp">'+(kk?'Mark packet ready (submit in KidKare)':'Submit food program email')+'</button> <button class="btn sec" data-pf="gmailfp">Open a blank email in Gmail</button></div><div class="hint">'+(kk?'With no email address this only locks '+mLabel(pk.month)+' and marks the packet ready; you then submit the claim in KidKare. If you do type an address, Charles builds the email as described next. ':'')+'Locks '+mLabel(pk.month)+'. Charles then builds the email to the address above from the school office account with every saved form and receipt attached, and it waits in Drafts for the final send. Nothing leaves until you press Send in Gmail.</div></div>';
   return h;
 }
 function sendSaveChk(extra){
@@ -767,17 +768,17 @@ function sendGmail(){
 }
 function sendFoodEmail(){
   var pk=S.pk, nm=directorName(); if(!nm) return toast('Enter your name first.',true);
-  var to=($('scTo')||{value:''}).value.trim(); if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) return toast('Type the sponsor email address first.',true);
+  var to=($('scTo')||{value:''}).value.trim(), noMail=(S.school==='Sanford'&&!to); if(!noMail&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) return toast('Type the sponsor email address first.',true);
   var c=sendCfg(), ck=c.c, wk=monthWeeks(pk.month), un=[];
   if(!ck.kids) un.push('children\u2019s forms'); if(!ck.pars) un.push('PARs'); wk.forEach(function(w){ if(!ck['w'+w.mon]) un.push('receipts, week of '+w.label); }); if(!ck.cover) un.push('cover page');
   var st=pkStatus(), miss=[]; Object.keys(st).forEach(function(k){ if(st[k]&&!st[k].ok&&st[k].why) miss.push(st[k].why); });
   var msg=''; if(un.length) msg+='Not confirmed yet:\n- '+un.join('\n- ')+'\n\n'; if(miss.length) msg+='Still missing in the packet:\n- '+miss.join('\n- ')+'\n\n';
-  if(msg){ if(!confirm(msg+'Submit the food program email anyway? The month will be locked.')) return; } else if(!confirm('Submit '+mLabel(pk.month)+' and request the email to '+to+'?')) return;
+  if(msg){ if(!confirm(msg+'Submit the food program email anyway? The month will be locked.')) return; } else if(!confirm(noMail?'Mark '+mLabel(pk.month)+' ready and lock it? You will submit the claim in KidKare.':'Submit '+mLabel(pk.month)+' and request the email to '+to+'?')) return;
   flushSave();
-  var now=new Date().toISOString(), data={by:nm,at:now,missing:miss,unconfirmed:un,school:S.school,email:{to:to,from:OFFICE_MAIL[S.school]||'',subject:sendSubject(),requested:true}};
-  sendSaveChk({to:to,requested:true,by:nm,at:now}).then(function(){
+  var now=new Date().toISOString(), data={by:nm,at:now,missing:miss,unconfirmed:un,school:S.school,email:{to:to,from:OFFICE_MAIL[S.school]||'',subject:sendSubject(),requested:!noMail},kidkare:noMail};
+  sendSaveChk({to:to,requested:!noMail,by:nm,at:now}).then(function(){
     return api('create','Monthly Forms',{fields:{Entry:S.school+' · '+pk.month+' · SUBMITTED',Month:pk.month,Form:'SUBMITTED',Employee:'',Data:JSON.stringify(data),'Updated By':nm,'Updated At':now}});
-  }).then(function(res){ var r=res.records?res.records[0]:res; if(r&&r.id){ pk.recs[pkKey('SUBMITTED','')]=r; toast('Submitted. Charles is building the email to '+to+'.'); render(); foodVault(true); } else toast('Did not submit',true); }).catch(function(e){ toast(e.message,true); });
+  }).then(function(res){ var r=res.records?res.records[0]:res; if(r&&r.id){ pk.recs[pkKey('SUBMITTED','')]=r; toast(noMail?'Marked ready and locked. Submit the claim in KidKare.':'Submitted. Charles is building the email to '+to+'.'); render(); foodVault(true); } else toast('Did not submit',true); }).catch(function(e){ toast(e.message,true); });
 }
 function submitPacket(){
   var st=pkStatus(), miss=[]; Object.keys(st).forEach(function(k){ if(st[k]&&!st[k].ok&&st[k].why) miss.push(st[k].why); });

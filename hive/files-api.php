@@ -368,6 +368,35 @@ echo json_encode(['ok'=>true, 'id'=>$id]); exit;
 }
 fail('Unknown request.');
 }
+/* ---- Server-to-server only (from elc-sync.php, authorised by the private ELC sync code): what a child added on the ELC tablet still needs ---- */
+if (($input['action'] ?? '') === 'elc_catchup'){
+foreach ([dirname(__DIR__, 2), dirname(__DIR__), __DIR__] as $d0){ if (file_exists($d0.'/elc-sync-code.php')) include_once $d0.'/elc-sync-code.php'; }
+if (!defined('ELC_SYNC_CODE') || !hash_equals(ELC_SYNC_CODE, (string)($input['code'] ?? ''))) fail('Not allowed.', 403);
+$cs = (($input['school'] ?? '') === 'sanford') ? 'Sanford' : 'DeLand 2';
+$cf = strtolower(preg_replace('/[^A-Za-z]/', '', (string)($input['first'] ?? ''))); $ci = strtolower(preg_replace('/[^A-Za-z]/', '', (string)($input['ini'] ?? '')));
+if ($cf === '' || $ci === '') fail('Bad child.');
+roster_cache_clear($cs);
+$rs = roster($cs, 'student'); if ($rs === null) fail('Could not read the roster.', 502);
+$hit = null;
+foreach ($rs as $p0){ if (strpos($p0['id'], 'recTEST') === 0) continue; $w = preg_split('/\s+/', trim($p0['name'])); $f0 = strtolower(preg_replace('/[^A-Za-z]/', '', $w[0] ?? '')); $l0 = strtolower(preg_replace('/[^A-Za-z]/', '', end($w) ?: '')); if ($f0 === $cf && substr($l0, 0, 1) === $ci){ $hit = $p0; break; } }
+$out = ['found'=>false, 'missing'=>[], 'amber'=>[], 'enroll'=>[], 'sr'=>false];
+foreach (en_list_all($cs) as $x){ $fx = strtolower(preg_replace('/[^A-Za-z]/', '', (string)($x['child']['first'] ?? ''))); $lx = strtolower(preg_replace('/[^A-Za-z]/', '', (string)($x['child']['last'] ?? ''))); if ($fx === $cf && substr($lx, 0, 1) === $ci) $out['enroll'][] = ['status'=>($x['status'] ?? 'new'), 'at'=>substr((string)($x['at'] ?? ''), 0, 10)]; }
+if ($hit){
+$v = person_view($cs, 'student', $hit['id'], $hit); $out['found'] = true; $out['sr'] = !empty($v['sr']);
+foreach ($v['docs'] as $dd){
+if ($dd['status'] === 'missing' || $dd['status'] === 'expired') $out['missing'][] = ($dd['status'] === 'expired' ? 'EXPIRED: ' : '').$dd['label'];
+elseif ($dd['status'] === 'soon' || $dd['status'] === 'needdate') $out['amber'][] = $dd['label'].($dd['status'] === 'needdate' ? ' (enter the date)' : ' (expires soon)');
+}
+}
+$nm = ucfirst($cf).' '.strtoupper($ci).'.';
+$ln = [$nm.' was just added to the ELC list on the tablet by a director or the owner.'];
+if (!$out['found']) $ln[] = 'They are not on the Rooms board yet. Add them there first (room, birth date) so Student Files can track them.';
+else { $ln[] = count($out['missing']).' required item(s) are missing or expired in Student Files.'; foreach (array_slice($out['missing'], 0, 25) as $m0) $ln[] = ' - '.$m0; }
+if ($out['enroll']) $ln[] = 'An online enrollment packet is on file (status: '.$out['enroll'][0]['status'].').'; else $ln[] = 'No online enrollment packet found for this child.';
+$ln[] = 'Also: add them in ProCare and KidKare, and get their Free & Reduced application and Food Program enrollment.';
+$out['mailed'] = hive_notify($cs, 'ELC child added: '.$nm.' - paperwork to catch up', $ln);
+echo json_encode($out); exit;
+}
 $pin = strtoupper(trim($input['pin'] ?? ''));
 $pins = get_pins();
 if (!$pin || !isset($pins[$pin])) fail('That PIN isn\'t right. Double-check with Mrs. Bear.', 401);
