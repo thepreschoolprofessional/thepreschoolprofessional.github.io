@@ -26,6 +26,13 @@ body{margin:0;background:linear-gradient(160deg,#fff7ef,#ffe7d4);color:var(--ink
 .pp a{color:var(--blu);font-weight:700;word-break:break-all}
 .call{display:inline-block;background:var(--grn);color:#fff!important;border-radius:10px;padding:6px 12px;text-decoration:none;font-weight:800}
 .none{color:var(--soft);font-style:italic}
+.ed{border:0;background:#fff;border:1px solid var(--line);border-radius:8px;padding:3px 9px;font-size:.75rem;font-weight:800;cursor:pointer;margin-left:6px;color:var(--ink)}
+.need{background:#fff3f3;border:3px solid var(--red);border-radius:14px;padding:10px 14px;margin:10px 0}.need h3{margin:0 0 6px;color:var(--red);font-size:1rem}.need .ni{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:5px 0;border-top:1px solid #f3c9c9;font-size:.9rem}.need .ni:first-of-type{border-top:0}
+.addp{border:2px dashed var(--line);background:#fff;border-radius:10px;padding:6px 12px;font-weight:800;font-size:.85rem;cursor:pointer;margin-top:6px;color:var(--blu)}
+.mod{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:50;padding:12px}
+.mod .box{background:#fff;border-radius:16px;padding:16px;max-width:460px;width:100%;max-height:92vh;overflow:auto}
+.mod label{display:block;font-weight:800;font-size:.8rem;margin-top:8px}
+.mod .row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
 @media(max-width:560px){.pp{grid-template-columns:1fr}}
 @media print{.noprint{display:none!important}body{background:#fff}.room{break-inside:avoid;border-width:1px}}
 </style></head>
@@ -46,15 +53,16 @@ async function api(action,x){
  const j=await r.json().catch(()=>({error:'Server error. Try again in a minute.'}));
  if(j.error)throw new Error(j.error);return j;}
 /* match a Rooms-board child name ("Nyalisse A.", "E Carl M.") to the contact list */
-function findContact(name){
- const C=D.contacts||{}; const d=norm(name); if(C[d]) return C[d];
- const t=String(name||'').replace(/\./g,'').trim().split(/\s+/); if(t.length<2) return null;
+function keyFor(name){
+ const C=D.contacts||{}; const d=norm(name); if(C[d]) return d;
+ const t=String(name||'').replace(/\./g,'').trim().split(/\s+/); if(t.length<2) return d;
  const ini=norm(t[t.length-1]).charAt(0);
- for(let i=0;i<t.length-1;i++){const k=norm(t[i])+ini; if(C[k]) return C[k];}
- return null;}
-function person(p,em){
+ for(let i=0;i<t.length-1;i++){const k=norm(t[i])+ini; if(C[k]) return k;}
+ return norm(t[0])+ini;}
+function findContact(name){ return (D.contacts||{})[keyFor(name)]||null; }
+function person(p,em,k,i){
  const ph=[p.phone,p.phone2].filter(Boolean);
- return '<div class="pp'+(em?' em':'')+'"><div class="nm"><b>'+esc(p.name)+'</b>'+(p.rel?'<small>'+esc(p.rel)+'</small>':'')+'</div>'
+ return '<div class="pp'+(em?' em':'')+'"><div class="nm"><b>'+esc(p.name)+'</b><button class="ed noprint" data-ed="'+esc(k)+'|'+(em?1:0)+'|'+i+'">Edit</button>'+(p.rel?'<small>'+esc(p.rel)+'</small>':'')+'</div>'
   +'<div>'+(p.email?'<a target="_blank" rel="noopener" href="'+esc(gm({to:p.email}))+'">'+esc(p.email)+'</a>':'<span class="none">no email on file</span>')+'</div>'
   +'<div>'+(ph.length?ph.map(x=>'<a class="call" href="tel:'+esc(tel(x))+'">&#128222; '+esc(x)+'</a>').join(' '):'<span class="none">no phone on file</span>')+'</div></div>';}
 function draw(){
@@ -63,10 +71,21 @@ function draw(){
   +'<div class="noprint"><button class="btn sec sm" onclick="print()">Print</button> <a class="btn sec" href="'+(sessionStorage.getItem('hiveOwner')?'owner.html':'director.html')+'">&lsaquo; Back to portal</a></div></div>'
   +'<input class="fi noprint" id="q" placeholder="Search a child or a parent" value="'+esc($('q')?$('q').value:'')+'">'
   +'<div class="note noprint">Tap a phone number to call. Tap an email to write to that person; it opens Gmail in your school office inbox ('+OFFICE()+'), so the email comes from the office address. Same rooms and same order as the Rooms board. Source: ProCare'+(D.updated?' (copied '+esc(D.updated)+')':'')+'. Keep this private: names and numbers are for emergencies and for reaching a family.</div>';
+ const issues=[];
+ D.rooms.forEach(r=>D.kids.filter(k=>k.room===r.name).forEach(k=>{
+  const key=keyFor(k.name), c=findContact(k.name);
+  if(!String(k.name||'').trim()) issues.push({t:'A child in '+r.name+' has no name on the Rooms board. Fix it on the Rooms board roster.',key:null});
+  else if(!c||(!c.people.length&&!c.emergency.length)) issues.push({t:'<b>'+esc(k.name)+'</b> ('+esc(r.name)+'): no parent or emergency contact on file',key:key,add:1});
+  else { c.people.forEach((p,i)=>{ if(!p.phone&&!p.phone2) issues.push({t:'<b>'+esc(k.name)+'</b>: '+esc(p.name)+' has no phone number',key:key,ed:key+'|0|'+i}); else if(!p.email) issues.push({t:'<b>'+esc(k.name)+'</b>: '+esc(p.name)+' has no email',key:key,ed:key+'|0|'+i}); });
+    c.emergency.forEach((p,i)=>{ if(!p.phone&&!p.phone2) issues.push({t:'<b>'+esc(k.name)+'</b>: emergency contact '+esc(p.name)+' has no phone number',key:key,ed:key+'|1|'+i}); });
+    if(!c.people.length) issues.push({t:'<b>'+esc(k.name)+'</b>: no parent listed (only emergency contacts)',key:key,add:1}); }
+ }));
+ if(issues.length){h+='<div class="need noprint"><h3>&#9888; Missing information ('+issues.length+')</h3>'+issues.map((x,n)=>'<div class="ni"><span>'+x.t+'</span>'+(x.key?'<button class="ed" data-iss="'+n+'">'+(x.add?'Add now':'Fix now')+'</button>':'')+'</div>').join('')+'</div>';}
+ window.__issues=issues;
  let shown=0;
  D.rooms.forEach(r=>{
   const ks=D.kids.filter(k=>k.room===r.name);
-  const rows=ks.map(k=>{const c=findContact(k.name)||{people:[],emergency:[]};return {k,c};})
+  const rows=ks.map(k=>{const c=findContact(k.name)||{people:[],emergency:[]};return {k,c,key:keyFor(k.name)};})
    .filter(x=>!q||norm(x.k.name).includes(q)||(x.c.people.concat(x.c.emergency)).some(p=>norm(p.name).includes(q)));
   if(!rows.length) return;
   const mails=[...new Set(rows.flatMap(x=>x.c.people.map(p=>p.email).filter(Boolean)))];
@@ -74,14 +93,50 @@ function draw(){
    +(mails.length?'<a class="btn sm noprint" target="_blank" rel="noopener" href="'+esc(gm({bcc:mails.join(','),su:'Kid City USA - '+r.name}))+'">&#9993; Email this room</a>':'')+'</div>';
   rows.forEach(x=>{shown++;
    h+='<div class="kid"><div class="kn">'+esc(x.k.name)+'</div>'
-    +(x.c.people.length||x.c.emergency.length? x.c.people.map(p=>person(p,false)).join('')+x.c.emergency.map(p=>person(p,true)).join('') : '<div class="none">No contacts on file. Add them in ProCare, then ask Charles to refresh this page.</div>')
+    +(x.c.people.length||x.c.emergency.length? x.c.people.map((p,i)=>person(p,false,x.key,i)).join('')+x.c.emergency.map((p,i)=>person(p,true,x.key,i)).join('') : '<div class="none">No contacts on file yet.</div>')+'<button class="addp noprint" data-add="'+esc(x.key)+'">+ Add a phone number or email</button>'
     +'</div>';});
   h+='</div>';});
  if(!shown) h+='<div class="note">Nothing matches.</div>';
- h+='<div class="note noprint"><b>Update from ProCare:</b> choose the contacts file Charles gives you (a .json file). It replaces this school\'s list. <input type="file" id="imp" accept=".json,application/json"> <span id="impm"></span></div>';
+ h+='<div class="note noprint"><b>Add or fix a number:</b> tap Edit next to a name, or + Add under a child. Charles can also reload the whole list from ProCare: choose that .json file here (it replaces this school\'s list). <input type="file" id="imp" accept=".json,application/json"> <span id="impm"></span></div>';
  const keep=$('q')&&document.activeElement===$('q'); $('app').innerHTML=h;
  $('imp').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{let j=JSON.parse(await f.text());if(j.contacts)j=j.contacts;const r=await api('cx_save',{contacts:j});D=await api('cx_get');draw();$('impm').textContent='Saved '+r.count+' children.';}catch(er){$('impm').textContent=er.message;}};
+ document.querySelectorAll('[data-iss]').forEach(b=>b.onclick=()=>{const x=window.__issues[+b.dataset.iss]; if(x.add) openEd(x.key,'new'); else openEd(...x.ed.split('|'));});
+ document.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>openEd(...b.dataset.ed.split('|')));
+ document.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>openEd(b.dataset.add,'new'));
  $('q').oninput=draw; if(keep){const e=$('q');e.focus();e.setSelectionRange(e.value.length,e.value.length);}}
+function openEd(key,em,i){
+ const C=D.contacts; const e=C[key]||{people:[],emergency:[]};
+ const isNew=em==='new'; const list=em==='1'?e.emergency:e.people; const p=isNew?{name:'',rel:'',phone:'',phone2:'',email:''}:list[+i];
+ const m=document.createElement('div');m.className='mod';
+ m.innerHTML='<div class="box"><h3 style="margin:0">'+(isNew?'Add a contact':'Edit contact')+'</h3>'
+ +'<label>Name</label><input class="fi" id="en" value="'+esc(p.name)+'">'
+ +'<label>Relationship (Mom, Dad, Grandmother, Aunt...)</label><input class="fi" id="er" value="'+esc(p.rel)+'">'
+ +'<label>Phone</label><input class="fi" id="ep" type="tel" value="'+esc(p.phone)+'">'
+ +'<label>Second phone (optional)</label><input class="fi" id="ep2" type="tel" value="'+esc(p.phone2)+'">'
+ +'<label>Email</label><input class="fi" id="ee" type="email" value="'+esc(p.email)+'">'
+ +'<label><input type="checkbox" id="eem"'+((em==='1')?' checked':'')+'> This is an emergency contact (not a parent)</label>'
+ +(isNew?'':'<label><input type="checkbox" id="eall" checked> Change it for every child this person is listed under (brothers and sisters)</label>')
+ +'<div class="msg" id="emsg" style="color:#d32f2f;font-weight:700;min-height:18px"></div>'
+ +'<div class="row"><button class="btn" id="esv">Save</button><button class="btn sec" id="ecx">Cancel</button>'+(isNew?'':'<button class="btn sec" id="edl" style="margin-left:auto;color:#d32f2f">Remove</button>')+'</div></div>';
+ document.body.appendChild(m);
+ const close=()=>m.remove(); m.querySelector('#ecx').onclick=close;
+ const commit=async(fn)=>{try{const nc=JSON.parse(JSON.stringify(C));fn(nc);await api('cx_save',{contacts:nc});D=await api('cx_get');close();draw();}catch(er){m.querySelector('#emsg').textContent=er.message;}};
+ m.querySelector('#esv').onclick=()=>{
+  const np={name:m.querySelector('#en').value.trim(),rel:m.querySelector('#er').value.trim(),phone:m.querySelector('#ep').value.trim(),phone2:m.querySelector('#ep2').value.trim(),email:m.querySelector('#ee').value.trim().toLowerCase()};
+  if(!np.name){m.querySelector('#emsg').textContent='Please type a name.';return;}
+  if(np.email&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(np.email)){m.querySelector('#emsg').textContent='That email does not look right.';return;}
+  const toEm=m.querySelector('#eem').checked;
+  commit(nc=>{
+   if(isNew){const t=nc[key]||(nc[key]={people:[],emergency:[]});(toEm?t.emergency:t.people).push(np);return;}
+   const all=m.querySelector('#eall').checked, old=p.name.toLowerCase();
+   const g0=em==='1'?'emergency':'people', g1=toEm?'emergency':'people', t=nc[key];
+   if(g0===g1) t[g0][+i]=np; else {t[g0].splice(+i,1);t[g1].push(np);}
+   if(all) Object.keys(nc).forEach(k=>{ if(k===key) return;
+    ['people','emergency'].forEach(g=>{(nc[k][g]||[]).forEach((x,j)=>{ if(x.name.toLowerCase()===old) nc[k][g][j]=Object.assign({},x,np); });});
+   });
+  });};
+ const dl=m.querySelector('#edl'); if(dl) dl.onclick=()=>{ if(!confirm('Remove '+p.name+' from this child\'s list?')) return; commit(nc=>{(em==='1'?nc[key].emergency:nc[key].people).splice(+i,1);}); };
+}
 (async()=>{try{D=await api('cx_get'); draw();}
  catch(e){$('app').innerHTML='<div class="note"><b>'+esc(e.message)+'</b><p><a class="btn" href="index.html">Back to sign in</a></p></div>';}})();
 </script></body></html>
