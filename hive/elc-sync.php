@@ -35,6 +35,24 @@ function who_by_pin($pin,$school){
   }
   return false;
 }
+if ($op==='setprog'){
+  $school=$_POST['school'] ?? ''; if (!in_array($school,['sanford','deland'],true)) out(['ok'=>false,'error'=>'bad_school'],400);
+  $child=trim($_POST['child'] ?? ''); $pg=($_POST['prog'] ?? '')==='ELC'?'ELC':'PP';
+  if (!preg_match('/^[A-Za-z\'\- ]{1,20} [A-Z]\.$/',$child)) out(['ok'=>false,'error'=>'bad_data'],400);
+  $sname=$school==='sanford'?'Sanford':'DeLand 2';
+  $q='filterByFormula='.rawurlencode("AND({School}='".$sname."',LOWER({Child})='".str_replace("'","\\'",mb_strtolower($child))."')").'&maxRecords=5';
+  $f=at('GET',TBL_KIDS.'?'.$q); $board='board_lookup_failed';
+  if (isset($f['records'])){
+    $rec=$f['records'][0] ?? null;
+    if (!$rec) $board='not_on_board';
+    else {
+      $fl=['SR (ELC)'=>$pg==='ELC']; if ($pg==='PP') $fl['At Risk (ELC)']=false;
+      $r=at('PATCH',TBL_KIDS.'/'.$rec['id'],['fields'=>$fl]);
+      $board=isset($r['error'])?'board_update_failed':($pg==='ELC'?'board_marked_elc':'board_marked_private');
+    }
+  }
+  out(['ok'=>true,'board'=>$board]);
+}
 if ($op==='pincheck' || $op==='roster'){
   $school=$_POST['school'] ?? ''; if (!in_array($school,['sanford','deland'],true)) out(['ok'=>false,'error'=>'bad_school'],400);
   $who=who_by_pin($_POST['pin'] ?? '',$school);
