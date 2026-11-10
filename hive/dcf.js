@@ -557,7 +557,7 @@ function parMultiGo(){
   if(!directorName()){ $('merr').textContent='Enter your name first.'; return; }
   var btn=$('pmgo'); btn.disabled=true; btn.textContent='Creating 0 of '+rows.length+'…'; var i=0;
   (function next(){
-    if(i>=rows.length){ $('modal').innerHTML=''; pk.emp=rows[0].n; toast(rows.length+' sheet'+(rows.length===1?'':'s')+' saved to '+MONTHS[mo-1]+'.'); render(); foodVault(true); return; }
+    if(i>=rows.length){ $('modal').innerHTML=''; pk.emp=rows[0].n; pk.parView=rows.length>1?'all':'one'; toast(rows.length+' sheet'+(rows.length===1?'':'s')+' saved to '+MONTHS[mo-1]+'.'); render(); foodVault(true); return; }
     var q=rows[i], ex=pkData('PAR',q.n)||{}, days={};
     for(var d=1;d<=dim;d++){ var iso=m+'-'+(d<10?'0':'')+d, w=new Date(y,mo-1,d).getDay();
       if(w===0||w===6||!isSchoolDay(iso)){ days[d]={o:'Closed'}; continue; }
@@ -586,29 +586,54 @@ function openPad(box){
       var t=document.createElement('canvas'); t.width=350; t.height=110; t.getContext('2d').drawImage(c,0,0,350,110);
       var url=t.toDataURL('image/png'), hid=box.querySelector('input'); hid.value=url; box.querySelector('span,img')&&box.querySelector('span,img').remove(); var im=new Image(); im.src=url; box.insertBefore(im,hid);
       var form=box.getAttribute('data-form'), id=box.getAttribute('data-sig'), dm=(SIGDATE[form]||{})[id];
-      if(dm){ var kind=dm.split(':')[0], did=dm.split(':')[1], de=document.querySelector(kind==='f'?'#paper [data-f="'+did+'"]':'#paper [data-sp="'+did+'"]'); if(de&&!de.value) de.value=todayUS(); }
+      if(dm){ var kind=dm.split(':')[0], did=dm.split(":")[1], sc=box.closest('.parsheet')||document.querySelector('#paper'), de=sc.querySelector(kind==='f'?'[data-f="'+did+'"]':'[data-sp="'+did+'"]'); if(de&&!de.value) de.value=todayUS(); }
       hid.dispatchEvent(new Event('input',{bubbles:true})); ov.remove(); postPack(); schedSave(); } });
 }
 document.addEventListener('change',function(e){ var t=e.target; if(t.id&&/^qf-.-d$/.test(t.id)){ var c=$(t.id.replace(/-d$/,'-c')); if(c) c.style.display=t.value==='cus'?'':'none'; } });
 document.addEventListener('click',function(e){ var b=e.target.closest&&e.target.closest('.ovsig'); if(b) openPad(b); });
-function parOv(){
-  var pk=S.pk, m=pk.month, d=pkData('PAR',pk.emp)||{days:{}}, sp=d.sp||{}, dim=new Date(+m.slice(0,4),+m.slice(5),0).getDate();
-  var h=parQuick()+'<label class="fl noprint">Employee <span class="rq">*</span> <span class="hint">(pick from the list or type any name, then press Enter)</span><input id="pEmp" class="inp" list="pEmpL" autocomplete="off" value="'+esc(pk.emp||'')+'"><datalist id="pEmpL">'+(pk.staff||[]).map(function(n){return '<option value="'+esc(n)+'">';}).join('')+'</datalist></label>';
+function parSheet(emp,stk){
+  var pk=S.pk, m=pk.month, d=pkData('PAR',emp)||{days:{}}, sp=d.sp||{}, dim=new Date(+m.slice(0,4),+m.slice(5),0).getDate();
+  var h='';
   h+=ovForm('PAR',function(id){return sp[id]||'';},{render:function(f){
     if(f.t==='s') return null;
     if(f.id==='center') return '<span class="ovs">'+esc((SITEDEF[S.school]||{}).sname||'')+'</span>';
-    if(f.id==='emp') return '<span class="ovs">'+esc(pk.emp||'')+'</span>';
+    if(f.id==='emp') return '<span class="ovs">'+esc(emp||'')+'</span>';
     if(f.id==='month') return '<span class="ovs sm">'+m.slice(5)+'/'+m.slice(0,4)+'</span>';
-    if(f.id==='title') return '<input id="pTitle" class="ovi ovl rq-in" style="position:static;width:100%;height:100%" value="'+esc(d.title||'')+'">';
-    if(f.tot) return '<div class="ovt" id="pt-'+f.tot+'">0</div>';
+    if(f.id==='title') return  '<input class="ptitle ovi ovl rq-in" style="position:static;width:100%;height:100%" value="'+esc(d.title||'')+'">';
+    if(f.tot) return '<div class="ovt" data-pt="'+f.tot+'">0</div>';
     if(PARB.indexOf(f.id)>-1) return false;
-    if(f.sp){ var dv=sp[f.id]||''; if(!dv&&(f.id==='aw'||f.id==='ow')) dv=String(wageFor(pk.emp)); return '<input class="ovi ovl spi" data-sp="'+f.id+'" style="position:static;width:100%;height:100%" value="'+esc(dv)+'">'; }
+    if(f.sp){ var dv=sp[f.id]||''; if(!dv&&(f.id==='aw'||f.id==='ow')) dv=String(wageFor(emp)); return '<input class="ovi ovl spi" data-sp="'+f.id+'" style="position:static;width:100%;height:100%" value="'+esc(dv)+'">'; }
     var r=(d.days||{})[f.day]||{}, off=f.day>dim;
     return '<input class="ovi pv num" data-d="'+f.day+'" data-k="'+f.k+'" inputmode="decimal" style="position:static;width:100%;height:100%" value="'+esc(r[f.k]||'')+'"'+(off?' disabled':'')+'>';
   }});
   var li=h.lastIndexOf('</div>'); h=h.slice(0,li)+'<div class="ovx ovwhite" style="left:4.3%;top:'+(656/792*100).toFixed(3)+'%;width:91%;height:'+(62/792*100).toFixed(3)+'%"></div>'+h.slice(li);
   return h+'<div class="hint noprint">Part A (hourly staff) fills in as you type; wages are filled in for you (type over them if one changes). Part B is not used. The sponsor/director signs the printed copy.</div>';
 }
+function parHas(n){ var d=pkData('PAR',n); return !!(d&&d.days&&Object.keys(d.days).length); }
+function parSheets(){ var pk=S.pk, seen={}, out=[]; (pk.staff||[]).forEach(function(n){ if(parHas(n)){ seen[n]=1; out.push(n); } }); Object.keys(pk.recs).forEach(function(k){ var p=k.split('|'); if(p[1]==='PAR'&&p[2]&&!seen[p[2]]&&parHas(p[2])){ seen[p[2]]=1; out.push(p[2]); } }); return out; }
+function parOv(){
+  var pk=S.pk, sh=parSheets();
+  if(!pk.parView) pk.parView=(sh.length>1?'all':'one');
+  if(pk.parView==='all'&&!sh.length) pk.parView='one';
+  var names=(pk.staff||[]).slice(); sh.forEach(function(n){ if(names.indexOf(n)<0) names.push(n); }); if(pk.emp&&names.indexOf(pk.emp)<0) names.push(pk.emp);
+  var cur=pk.parView==='all'?'__all':pk.emp;
+  var sel='<label class="fl noprint">Show <select id="pEmp" class="inp"><option value="__all"'+(cur==='__all'?' selected':'')+'>All teachers with a sheet ('+sh.length+') &mdash; stacked, scroll down</option>'+names.map(function(n){return '<option value="'+esc(n)+'"'+(cur===n?' selected':'')+'>'+esc(n)+(parHas(n)?' &#10003;':' (no sheet yet)')+'</option>';}).join('')+'<option value="__new">+ Add another name&hellip;</option></select></label>';
+  if(pk.parView==='all'){
+    var h=sel+'<div class="hint noprint">Every teacher&rsquo;s Personnel Activity Report for this month, one after another. Scroll down to see them all, or pick one teacher above to see just theirs and use Quick fill. Anything you type here saves automatically.</div>';
+    h+=sh.map(function(n){ return '<div class="parsheet" data-emp="'+esc(n)+'"><div class="parttl noprint"><b>'+esc(n)+'</b> <button class="btn sec sm" data-pf="parone" data-v="'+esc(n)+'">Open just '+esc(n)+'</button></div>'+parSheet(n,true)+'</div>'; }).join('');
+    return h;
+  }
+  return parQuick()+sel+'<div class="parsheet" data-emp="'+esc(pk.emp||'')+'">'+parSheet(pk.emp,false)+'</div>';
+}
+function parPick(v){
+  var pk=S.pk;
+  flushSave().then(function(){
+    if(v==='__all'){ pk.parView='all'; render(); }
+    else if(v==='__new'){ var nm=(prompt('Type the employee name')||'').trim(); if(nm){ pk.emp=nm; pk.parView='one'; } render(); }
+    else { pk.emp=v; pk.parView='one'; render(); }
+  });
+}
+
 var SD={'Sanford':{cname:'Kid City USA Sanford',street:'1320 Hickory Ave.',city:'Sanford',state:'FL',zip:'32771',phone:'(407) 942-3242',m_br:'1',m_lu:'1',m_as:'1',sv0:'1',sv0_br:'1',sv0_lu:'1',sv0_as:'1'},'DeLand 2':{auth:'4-2677',cname:'Kid City USA DeLand 2',street:'238 S. Armelia Ave.',city:'DeLand',state:'FL',zip:'32724',phone:'386-279-7553',fn:'Shanika',ln:'Preston',title:'Owner',phone2:'386-279-7553',m_br:'1',m_lu:'1',m_as:'1',sv0:'1',sv0_br:'1',sv0_lu:'1',sv0_as:'1',ts_br:'7am',tf_br:'9am',ts_lu:'10:30',tf_lu:'12pm',ts_as:'2pm',tf_as:'4pm'}};
 
 function schImg(k){ return k.toLowerCase()+(S.school==='Sanford'?'_sanford':'_deland'); }
@@ -713,7 +738,7 @@ function postPack(){
   p.querySelectorAll('.rq-in').forEach(function(i){ i.classList.toggle('need',!String(i.value).trim()); });
   if(S.pk.form==='EXPEND'||S.pk.form==='LABOR') wsCalc();
   if(S.pk.form==='CHECKLIST'){ var NEED=[0,2,4,5,6,7]; p.querySelectorAll('.pc').forEach(function(c){ var l=c.closest('label')||c; if(l) l.classList.toggle('need',NEED.indexOf(+c.getAttribute('data-i'))>-1&&!c.checked); }); }
-  if(S.pk.form==='PAR'){ ['pAuth','pTitle'].forEach(function(id){ var e=$(id); if(e) e.classList.toggle('need',!e.value.trim()); }); }
+  if(S.pk.form==='PAR'){ p.querySelectorAll('.ptitle').forEach(function(e){ e.classList.toggle('need',!e.value.trim()); }); }
   if(S.pk.form==='ENTRANCES'){ var nn=$('entNone'), has=[].some.call(p.querySelectorAll('.en'),function(x){return x.value.trim();}); p.classList.toggle('needbox',!(nn&&nn.checked)&&!has); }
   if(isLocked()) p.querySelectorAll('input,select,textarea').forEach(function(i){ i.disabled=true; });
 }
@@ -723,11 +748,21 @@ function collect(form){
   if(form==='CHECKLIST'){ data={c:[].map.call(document.querySelectorAll('.pc'),function(x){return x.checked;}),other:[].map.call(document.querySelectorAll('.po'),function(x){return x.value;}),sug:[].map.call(document.querySelectorAll('.ps'),function(x){return x.value;})}; }
   else if(form==='ENTRANCES'){ var n=document.querySelectorAll('.en'), dd=document.querySelectorAll('.ed'), rows=[]; for(var i=0;i<n.length;i++) if(n[i].value.trim()||dd[i].value.trim()) rows.push({n:n[i].value.trim(),d:dd[i].value.trim()}); var nn=$('entNone'); data={rows:rows,none:!!(nn&&nn.checked)}; }
   else if(form==='TERMS'){ data=termCollect(); }
-  else if(form==='PAR'){ emp=pk.emp; var days={}; document.querySelectorAll('.pv').forEach(function(x){ if(x.value.trim()){ var k=x.getAttribute('data-d'); (days[k]=days[k]||{})[x.getAttribute('data-k')]=x.value.trim(); } }); var sp={}; document.querySelectorAll('.spi').forEach(function(x){ if(x.value.trim()) sp[x.getAttribute('data-sp')]=x.value.trim(); }); data={auth:'',title:($('pTitle')||{value:''}).value.trim(),days:days,sp:sp}; }
+  else if(form==='PAR'){ var r0=document.querySelector('.parsheet'); if(!r0) return null; return parCollect(r0); }
   else if(form==='SITEINFO'||KF[form]){ if(KF[form]) emp=pk.kid||''; document.querySelectorAll('#paper [data-f]').forEach(function(x){ data[x.getAttribute('data-f')]=x.type==='checkbox'?(x.checked?'1':''):x.value.trim(); }); if(KF[form]&&!emp) return null; }
   else if(form==='EXPEND'||form==='LABOR'){ var per=form==='EXPEND'?7:1, all=[].map.call(document.querySelectorAll('#paper input.ws'),function(x){return x.value.trim();}), rows=[]; for(var q=0;q<all.length;q+=per) rows.push(all.slice(q,q+per)); data={rows:rows}; var sgl=document.querySelector('#paper [data-f=sig]'); if(sgl&&form==='LABOR') data.sig=sgl.value; }
   else return null;
   return {form:form,emp:emp,data:data};
+}
+function parCollect(r){
+  var days={}; r.querySelectorAll('.pv').forEach(function(x){ if(x.value.trim()){ var k=x.getAttribute('data-d'); (days[k]=days[k]||{})[x.getAttribute('data-k')]=x.value.trim(); } });
+  var sp={}; r.querySelectorAll('.spi').forEach(function(x){ if(x.value.trim()) sp[x.getAttribute('data-sp')]=x.value.trim(); });
+  var t=r.querySelector('.ptitle');
+  return {form:'PAR',emp:r.getAttribute('data-emp'),data:{auth:'',title:t?t.value.trim():'',days:days,sp:sp}};
+}
+function collectAll(form,every){
+  if(form!=='PAR'){ var c=collect(form); return c?[c]:[]; }
+  var out=[]; document.querySelectorAll('.parsheet').forEach(function(r){ var e=r.getAttribute('data-emp'); if(!e) return; if(!every&&!PARDIRTY[e]) return; out.push(parCollect(r)); }); return out;
 }
 function writeRec(c,silent){
   var pk=S.pk, nm=directorName()||'Director', ex=pk.recs[pkKey(c.form,c.emp)], now=new Date().toISOString(), p;
@@ -736,9 +771,9 @@ function writeRec(c,silent){
   return p.then(function(res){ var r=res.records?res.records[0]:res; if(r&&r.id){ pk.recs[pkKey(c.form,c.emp)]=r; var e=$('svst'); if(e) e.textContent='Saved '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}); if(!silent){ toast('Saved.'); render(); } } else toast('Did not save',true); }).catch(function(e){ toast(e.message,true); });
 }
 var saveT=null;
-function flushSave(){ if(saveT){ clearTimeout(saveT); saveT=null; var c=collect(S.pk.form); if(c) return writeRec(c,true); } return Promise.resolve(); }
-function schedSave(){ if(isLocked()) return; var e=$('svst'); if(e) e.textContent='Saving…'; clearTimeout(saveT); saveT=setTimeout(function(){ saveT=null; var c=collect(S.pk.form); if(c) writeRec(c,true); },1200); }
-function savePacket(){ var nm=directorName(); if(!nm) return toast('Enter your name first.',true); clearTimeout(saveT); saveT=null; var c=collect(S.pk.form); if(!c) return toast('Nothing to save on this tab.'); writeRec(c,false); }
+function flushSave(){ if(saveT){ clearTimeout(saveT); saveT=null; var cs=collectAll(S.pk.form,S.pk.parView!=='all'); PARDIRTY={}; if(cs.length) return Promise.all(cs.map(function(c){ return writeRec(c,true); })); } return Promise.resolve(); }
+function schedSave(){ if(isLocked()) return; var e=$('svst'); if(e) e.textContent='Saving…'; clearTimeout(saveT); saveT=setTimeout(function(){ saveT=null; var cs=collectAll(S.pk.form,S.pk.parView!=='all'); PARDIRTY={}; cs.forEach(function(c){ writeRec(c,true); }); },1200); }
+function savePacket(){ var nm=directorName(); if(!nm) return toast('Enter your name first.',true); clearTimeout(saveT); saveT=null; var cs=collectAll(S.pk.form,true); if(!cs.length) return toast('Nothing to save on this tab.'); PARDIRTY={}; Promise.all(cs.map(function(c){ return writeRec(c,true); })).then(function(){ toast(cs.length>1?('Saved '+cs.length+' sheets.'):'Saved.'); render(); }); }
 function letterhead(){ var a=HDR[S.school]||[]; return '<div class="lh">'+a.map(esc).join('<br>')+'</div>'; }
 function chkForm(){
   var d=pkData('CHECKLIST')||{c:[],other:[],sug:[]}, m=S.pk.month;
@@ -790,22 +825,26 @@ function parForm(){
   h+='<div class="hint noprint">The pay section fills in as you type. Hours carry over from the table above when left blank; amounts and percentages calculate themselves.</div><div class="rev">Revised 2/2011 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; I-026-04</div>';
   return h;
 }
-function spCalc(){
-  var g=function(k){ var e=document.querySelector('[data-sp='+k+']'); return e?e:null; }, v=function(k){ var e=g(k); return e?parseFloat(e.value):NaN; };
+function spCalc(root){
+  root=root||document.querySelector('.parsheet')||document;
+  var g=function(k){ var e=root.querySelector('[data-sp='+k+']'); return e?e:null; }, v=function(k){ var e=g(k); return e?parseFloat(e.value):NaN; };
   var set=function(k,val,dec){ var e=g(k); if(!e||document.activeElement===e) return; e.value=(isNaN(val)||!isFinite(val))?'':(dec==null?String(Math.round(val*100)/100):val.toFixed(dec)); };
-  var T={a:0,o:0,r:0,p:0}; document.querySelectorAll('.pv').forEach(function(i){ var x=parseFloat(i.value); if(!isNaN(x)) T[i.getAttribute('data-k')]+=x; });
+  var T={a:0,o:0,r:0,p:0}; root.querySelectorAll('.pv').forEach(function(i){ var x=parseFloat(i.value); if(!isNaN(x)) T[i.getAttribute('data-k')]+=x; });
   var ah=g('ah'); if(ah&&!ah.value&&T.a) ah.value=Math.round(T.a*100)/100; var oh=g('oh'); if(oh&&!oh.value&&T.o) oh.value=Math.round(T.o*100)/100;
   var bah=g('bah'); if(bah&&!bah.value&&T.a) bah.value=Math.round(T.a*100)/100; var boh=g('boh'); if(boh&&!boh.value&&T.o) boh.value=Math.round(T.o*100)/100;
   var tot=T.r+T.p; ['bth','bth2'].forEach(function(k){ var e=g(k); if(e&&!e.value&&tot) e.value=Math.round(tot*100)/100; });
-  var wg=wageFor(S.pk.emp); ['aw','ow'].forEach(function(k){ var e=g(k); if(e&&!e.value) e.value=wg; });
+  var wg=wageFor((root.getAttribute&&root.getAttribute('data-emp'))||S.pk.emp); ['aw','ow'].forEach(function(k){ var e=g(k); if(e&&!e.value) e.value=wg; });
   set('aa',v('ah')*v('aw'),2); set('oa',v('oh')*v('ow'),2);
   set('bap',v('bah')/v('bth')*100,2); set('bap2',v('bah')/v('bth')*100,2); set('baa',v('bs')*(v('bah')/v('bth')),2);
   set('bop',v('boh')/v('bth2')*100,2); set('bop2',v('boh')/v('bth2')*100,2); set('boa',v('bs2')*(v('boh')/v('bth2')),2);
 }
-function parTotals(){
-  var t={a:0,o:0,r:0,p:0}; document.querySelectorAll('.pv').forEach(function(i){ var v=parseFloat(i.value); if(!isNaN(v)) t[i.getAttribute('data-k')]+=v; });
-  ['a','o','r','p'].forEach(function(k){ var e=$('pt-'+k); if(e) e.textContent=Math.round(t[k]*100)/100; });
-  spCalc();
+function parTotals(root){
+  var roots=root?[root]:[].slice.call(document.querySelectorAll('.parsheet'));
+  roots.forEach(function(r){
+    var t={a:0,o:0,r:0,p:0}; r.querySelectorAll('.pv').forEach(function(i){ var v=parseFloat(i.value); if(!isNaN(v)) t[i.getAttribute('data-k')]+=v; });
+    ['a','o','r','p'].forEach(function(k){ var e=r.querySelector('[data-pt='+k+']'); if(e) e.textContent=Math.round(t[k]*100)/100; });
+    spCalc(r);
+  });
 }
 /* ---------- FORMS TO PRINT (prefilled, fillable PDFs + month-end forms) ---------- */
 var RECEIPTS={'2026-10':[['Sep 30 order, delivered Oct 1 &middot; $813.01','files/food-program/receipt-2026-10-walmart-sep30-order.pdf'],['Sep 21 order, Oct 2 delivery only (It\'s Delish) &middot; $19.99','files/food-program/receipt-2026-10-walmart-sep21-itsdelish.pdf'],['Oct 15 order, delivered Oct 19 &middot; $564.65','files/food-program/receipt-2026-10-walmart-oct15-order.pdf'],['Oct 30 order, delivery Nov 3 &middot; $1,005.13','files/food-program/receipt-2026-10-walmart-oct30-order.pdf']]};
@@ -887,14 +926,15 @@ function formsView(){
 }
 
 /* ---------- events ---------- */
-document.addEventListener('input',function(e){ var t=e.target; if(t.classList.contains('pv')) parTotals(); if(t.classList.contains('spi')) spCalc(); if(t.closest&&t.closest('#paper')){ if(t.classList.contains('ws')) wsCalc(); postPack(); schedSave(); } });
+var PARDIRTY={};
+document.addEventListener('input',function(e){ var t=e.target, ps=t.closest&&t.closest('.parsheet'); if(ps){ PARDIRTY[ps.getAttribute('data-emp')]=1; if(t.classList.contains('pv')) parTotals(ps); if(t.classList.contains('spi')) spCalc(ps); } if(t.closest&&t.closest('#paper')){ if(t.classList.contains('ws')) wsCalc(); postPack(); schedSave(); } });
 document.addEventListener('change',function(e){ var t=e.target; if(t.classList&&t.classList.contains('wsflag')){ var w=pkData('WORKSHEETS')||{}; w[t.getAttribute('data-w')]=t.checked; writeRec({form:'WORKSHEETS',emp:'',data:w},false); return; } if(t.id==='kidSel'){ flushSave().then(function(){ S.pk.kid=t.value; render(); }); return; } if(t.closest&&t.closest('#paper')&&(t.type==='checkbox')&&!t.classList.contains('ws')){ postPack(); schedSave(); } });
-document.addEventListener('change',function(e){ if(e.target.classList&&e.target.classList.contains('pfup')){ var fl=e.target.files; uploadSigned(fl,+e.target.getAttribute('data-i')); return; } if(e.target.classList&&e.target.classList.contains('pfdone')){ var dd=pkData('PARENTFORMS')||{items:[]}; var it=dd.items[+e.target.getAttribute('data-i')]; if(it){ it.done=e.target.checked; savePF(dd); } return; } if(e.target.id==='pEmp'){ var nv=e.target.value; flushSave().then(function(){ S.pk.emp=nv; render(); }); } });
+document.addEventListener('change',function(e){ if(e.target.classList&&e.target.classList.contains('pfup')){ var fl=e.target.files; uploadSigned(fl,+e.target.getAttribute('data-i')); return; } if(e.target.classList&&e.target.classList.contains('pfdone')){ var dd=pkData('PARENTFORMS')||{items:[]}; var it=dd.items[+e.target.getAttribute('data-i')]; if(it){ it.done=e.target.checked; savePF(dd); } return; } if(e.target.id==='pEmp'){ parPick(e.target.value); } });
 document.addEventListener('click',function(e){
   var dl=e.target.closest&&e.target.closest('[data-dl]'); if(dl){ e.preventDefault(); downloadSigned(dl.getAttribute('data-dl'),dl.getAttribute('data-nm')); return; }
   var el=e.target.closest('[data-cell],[data-tab],[data-a],[data-adddrill],[data-pf],[data-goto]'); if(!el) return;
   if(el.hasAttribute('data-goto')){ S.tab='pack'; S.pk.form=el.getAttribute('data-goto'); render(); return; }
-  if(el.hasAttribute('data-pf')){ var a2=el.getAttribute('data-pf'),pk=S.pk; if(a2==='prev'||a2==='next'){ flushSave().then(function(){ pk.month=shiftMonth(pk.month,a2==='prev'?-1:1); pk.loaded=''; render(); }); } else if(a2==='form'){ var fv=el.getAttribute('data-v'); flushSave().then(function(){ pk.form=fv; render(); }); } else if(a2==='save') savePacket(); else if(a2==='submit') submitPacket(); else if(a2==='parfill') parFill(); else if(a2==='parmulti') parMulti(); else if(a2==='pmgo') parMultiGo(); else if(a2==='parclear') parClear(); else if(a2==='print'){ var ls=pk.form==='EXPEND', stt=$('pgst'); if(!stt){ stt=document.createElement('style'); stt.id='pgst'; document.head.appendChild(stt); } stt.textContent='@page{size:letter '+(ls?'landscape':'portrait')+';margin:'+(/^(SITEINFO|CHECKLIST|ENTRANCES|MEDICAL|DIETARY|INFANTFEED|PAR|LABOR|EXPEND)$/.test(pk.form)?'0':'0.4in')+'}'; window.print(); } return; }
+  if(el.hasAttribute('data-pf')){ var a2=el.getAttribute('data-pf'),pk=S.pk; if(a2==='parone'){ parPick(el.getAttribute('data-v')); return; } if(a2==='prev'||a2==='next'){ flushSave().then(function(){ pk.parView=''; pk.month=shiftMonth(pk.month,a2==='prev'?-1:1); pk.loaded=''; render(); }); } else if(a2==='form'){ var fv=el.getAttribute('data-v'); flushSave().then(function(){ pk.form=fv; render(); }); } else if(a2==='save') savePacket(); else if(a2==='submit') submitPacket(); else if(a2==='parfill') parFill(); else if(a2==='parmulti') parMulti(); else if(a2==='pmgo') parMultiGo(); else if(a2==='parclear') parClear(); else if(a2==='print'){ var ls=pk.form==='EXPEND', stt=$('pgst'); if(!stt){ stt=document.createElement('style'); stt.id='pgst'; document.head.appendChild(stt); } stt.textContent='@page{size:letter '+(ls?'landscape':'portrait')+';margin:'+(/^(SITEINFO|CHECKLIST|ENTRANCES|MEDICAL|DIETARY|INFANTFEED|PAR|LABOR|EXPEND)$/.test(pk.form)?'0':'0.4in')+'}'; window.print(); } return; }
   if(el.getAttribute('data-a')==='mclose' && e.target.closest('[data-stop]') && !e.target.classList.contains('btn')) return;
   if(el.hasAttribute('data-adddrill')){ var ad=el.getAttribute('data-adddrill'); addDrill(ad.length===7?ad+'-'+todayNY().slice(8):ad); return; }
   if(el.hasAttribute('data-cell')){ var p=el.getAttribute('data-cell').split('|'); openCell(p[0],p[1],p[2],p[3]); return; }
