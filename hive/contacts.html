@@ -38,6 +38,9 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;',
 const norm=s=>String(s||'').toLowerCase().replace(/[^a-z]/g,'');
 const tel=p=>String(p||'').replace(/[^\d+]/g,'');
 let D=null;
+const OFFICE=()=>D.school==='Sanford'?'sanfordoffice.1320@gmail.com':'delandoffice.238@gmail.com';
+/* opens Gmail already set to THIS school's office inbox, so the email goes out from the office address */
+const gm=(o)=>'https://mail.google.com/mail/?authuser='+encodeURIComponent(OFFICE())+'&view=cm&fs=1'+(o.to?'&to='+encodeURIComponent(o.to):'')+(o.bcc?'&bcc='+encodeURIComponent(o.bcc):'')+'&su='+encodeURIComponent(o.su||'Kid City USA');
 async function api(action,x){
  const r=await fetch('contacts-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({pin:PIN,action},x||{}))});
  const j=await r.json().catch(()=>({error:'Server error. Try again in a minute.'}));
@@ -52,14 +55,14 @@ function findContact(name){
 function person(p,em){
  const ph=[p.phone,p.phone2].filter(Boolean);
  return '<div class="pp'+(em?' em':'')+'"><div class="nm"><b>'+esc(p.name)+'</b>'+(p.rel?'<small>'+esc(p.rel)+'</small>':'')+'</div>'
-  +'<div>'+(p.email?'<a href="mailto:'+esc(p.email)+'?subject='+encodeURIComponent('Kid City USA')+'">'+esc(p.email)+'</a>':'<span class="none">no email on file</span>')+'</div>'
+  +'<div>'+(p.email?'<a target="_blank" rel="noopener" href="'+esc(gm({to:p.email}))+'">'+esc(p.email)+'</a>':'<span class="none">no email on file</span>')+'</div>'
   +'<div>'+(ph.length?ph.map(x=>'<a class="call" href="tel:'+esc(tel(x))+'">&#128222; '+esc(x)+'</a>').join(' '):'<span class="none">no phone on file</span>')+'</div></div>';}
 function draw(){
  const q=norm($('q')?$('q').value:'');
  let h='<div class="top"><div><h1>&#128222; Emergency Contacts</h1><div class="sub">'+esc(D.school)+'</div></div>'
   +'<div class="noprint"><button class="btn sec sm" onclick="print()">Print</button> <a class="btn sec" href="'+(sessionStorage.getItem('hiveOwner')?'owner.html':'director.html')+'">&lsaquo; Back to portal</a></div></div>'
   +'<input class="fi noprint" id="q" placeholder="Search a child or a parent" value="'+esc($('q')?$('q').value:'')+'">'
-  +'<div class="note noprint">Tap a phone number to call. Tap an email to write to that person. Same rooms and same order as the Rooms board. Source: ProCare'+(D.updated?' (copied '+esc(D.updated)+')':'')+'. Keep this private: names and numbers are for emergencies and for reaching a family.</div>';
+  +'<div class="note noprint">Tap a phone number to call. Tap an email to write to that person; it opens Gmail in your school office inbox ('+OFFICE()+'), so the email comes from the office address. Same rooms and same order as the Rooms board. Source: ProCare'+(D.updated?' (copied '+esc(D.updated)+')':'')+'. Keep this private: names and numbers are for emergencies and for reaching a family.</div>';
  let shown=0;
  D.rooms.forEach(r=>{
   const ks=D.kids.filter(k=>k.room===r.name);
@@ -68,7 +71,7 @@ function draw(){
   if(!rows.length) return;
   const mails=[...new Set(rows.flatMap(x=>x.c.people.map(p=>p.email).filter(Boolean)))];
   h+='<div class="room"><div class="rh"><div><b>'+esc(r.name)+'</b><small>'+esc(r.teachers)+'</small></div>'
-   +(mails.length?'<a class="btn sm noprint" href="mailto:?bcc='+encodeURIComponent(mails.join(','))+'&subject='+encodeURIComponent('Kid City USA - '+r.name)+'">&#9993; Email this room</a>':'')+'</div>';
+   +(mails.length?'<a class="btn sm noprint" target="_blank" rel="noopener" href="'+esc(gm({bcc:mails.join(','),su:'Kid City USA - '+r.name}))+'">&#9993; Email this room</a>':'')+'</div>';
   rows.forEach(x=>{shown++;
    h+='<div class="kid"><div class="kn">'+esc(x.k.name)+'</div>'
     +(x.c.people.length||x.c.emergency.length? x.c.people.map(p=>person(p,false)).join('')+x.c.emergency.map(p=>person(p,true)).join('') : '<div class="none">No contacts on file. Add them in ProCare, then ask Charles to refresh this page.</div>')
