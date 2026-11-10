@@ -705,7 +705,7 @@ function pkStatus(){
   var ck=pkData('CHECKLIST'); var need=[0,2,4,5,6,7]; s.CHECKLIST={ok:!!ck&&need.every(function(i){return ck.c&&ck.c[i];}), why:'Check list items still unchecked'};
   var en=pkData('ENTRANCES'); s.ENTRANCES={ok:!!en&&((en.rows&&en.rows.length)||en.none), why:'Entrances not reviewed (add rows or tick "none this month")'};
   var tm=pkData('TERMS'); s.TERMS={ok:!!tm&&((tm.rows&&tm.rows.length)||tm.none), why:'Terminations not reviewed (add rows or tick "none this month")'};
-  s.PAR={ok:any('PAR').length>0, why:'No Personnel Activity Report saved'};
+  s.PAR={ok:parSheets().length>0, why:'No Personnel Activity Report with hours saved'};
   var pf=pkData('PARENTFORMS')||{items:[]}; var openPF=(pf.items||[]).filter(function(i){return !i.done;});
   s.INFANTFEED={ok:true}; s.MEDICAL={ok:true}; s.DIETARY={ok:true};
   s.PARENTSIGN={ok:openPF.length===0, why:openPF.length+' parent form(s) not returned signed'};
@@ -747,7 +747,7 @@ function sendPanel(st){
   var sh=parSheets(), noPar=(pk.staff||[]).filter(function(n){ return sh.indexOf(n)<0; });
   function box(k,label,extra){ return '<label class="ck2" style="display:block;margin:6px 0"><input type="checkbox" class="sc" data-k="'+k+'"'+(ck[k]?' checked':'')+'> <span>'+label+'</span></label>'+(extra||''); }
   var h='<div class="card" style="border:2px solid #2e7d32;margin-top:14px"><div class="ct">Submit food program email</div><div class="sub">Answer each question below. Then one button locks the month and sends the packet request for the email to the sponsor with every saved form attached.</div>';
-  h+='<div class="line '+(kids.length&&!ck.kids?'bad':'ok')+'" style="margin-top:8px"><b>1. Children&rsquo;s forms</b>'+(kids.length?'<div class="hint">New this month: '+kids.map(esc).join(', ')+'. Each needs their enrollment / Free-Reduced or Child Participation form.</div>':'<div class="hint">No new children listed under Entrances this month.</div>')+pfLinks()+box('kids','Yes, every child&rsquo;s form is in (or none are needed).')+'</div>';
+  h+='<div class="line '+((kids.length||openPF.length)&&!ck.kids?'bad':'ok')+'" style="margin-top:8px"><b>1. Children&rsquo;s forms</b>'+(kids.length?'<div class="hint">New this month: '+kids.map(esc).join(', ')+'. Each needs their enrollment / Free-Reduced or Child Participation form.</div>':'<div class="hint">No new children listed under Entrances this month.</div>')+pfLinks()+box('kids','Yes, every child&rsquo;s form is in (or none are needed).')+'</div>';
   h+='<div class="line '+(ck.pars?'ok':'bad')+'"><b>2. Personnel Activity Reports (PARs)</b><div class="hint">Saved for: '+(sh.length?sh.map(esc).join(', '):'nobody yet')+'.'+(noPar.length?' No sheet for: '+noPar.map(esc).join(', ')+'.':'')+' <button class="btn sec sm" data-pf="form" data-v="PAR">open PARs</button></div>'+box('pars','Yes, I have all the PARs for this month.')+'</div>';
   h+='<div class="line '+(wk.every(function(w){return ck['w'+w.mon];})?'ok':'bad')+'"><b>3. Receipts, week by week</b><div class="hint">'+((S.school==='DeLand 2'?RECEIPTS[pk.month]:RECEIPTS['S|'+pk.month])||[]).length+' receipt file(s) loaded for the month.</div>'+rcLinks()+wk.map(function(w){ return box('w'+w.mon,'Are all receipts here for the week of '+w.label+'?'); }).join('')+'</div>';
   h+='<div class="line '+(ck.cover?'ok':'bad')+'"><b>4. Cover page</b><div class="hint">The Monthly Provider Check List is the cover page. <button class="btn sec sm" data-pf="form" data-v="CHECKLIST">open</button></div>'+box('cover','Yes, the cover page is complete and signed.')+'</div>';
