@@ -131,6 +131,34 @@ async function showWeekly(kind,boxId){
     box.innerHTML=h;
   }catch(e){box.innerHTML='<div class="empty">Could not load right now. Please try again in a moment.</div>';}
 }
+function evWhen(e){try{var d=new Date(e.when+'T12:00');var t=(e.time||'').split(':'),h=+t[0],m=t[1]||'00';var tt=e.time?(' at '+((h%12)||12)+':'+m+(h>=12?' PM':' AM')):'';return d.toLocaleDateString([], {weekday:'long',month:'long',day:'numeric'})+tt;}catch(x){return e.when;}}
+async function showEvents(){
+  var box=document.getElementById('evBox');if(!box)return;
+  if(!school()){needSchool(box);return;}
+  box.innerHTML='<div class="empty">Loading… 🐝</div>';
+  try{
+    var r=await call('pp_ev_list'),E=(r&&r.events)||[];
+    var h='<div style="border-radius:20px;overflow:hidden;box-shadow:0 4px 16px rgba(74,58,48,.15);background:#fffaf0"><div style="background:linear-gradient(135deg,#9b6bff,#ff6b9d);padding:22px 16px;text-align:center;color:#fff"><div style="font-size:2.4rem">🎉✨</div><div style="font-size:1.45rem;font-weight:800;text-shadow:0 1px 3px rgba(0,0,0,.25)">Events &amp; Sign-Ups</div><div style="font-weight:700;margin-top:4px;text-shadow:0 1px 2px rgba(0,0,0,.25)">Pick what you can bring. It comes off the list for everyone else, and your director sees it right away.</div></div><div style="padding:10px 14px 16px">';
+    if(!E.length)h+='<div class="empty" style="margin:16px 0">No events need sign-ups right now. 🐝 Check back soon!</div>';
+    E.forEach(function(e,ei){
+      h+='<div data-ev="'+esc(e.id)+'" style="background:#fff;border-radius:16px;padding:14px;margin:12px 0;box-shadow:0 2px 8px rgba(74,58,48,.1);border-top:6px solid '+['#9b6bff','#ff6b9d','#2fc4b2','#ef6c00'][ei%4]+'"><div style="font-weight:800;font-size:1.2rem;color:var(--ink)">🍂 '+esc(e.title)+'</div><div style="color:var(--soft);font-weight:700;margin:2px 0 8px">'+esc(evWhen(e))+(e.rooms&&e.rooms.length?' · '+esc(e.rooms.join(', ')):'')+'</div>'+(e.note?'<div style="line-height:1.5;margin-bottom:10px;color:var(--ink)">'+esc(e.note)+'</div>':'');
+      e.items.forEach(function(it,ii){var gone=it.left<1;h+='<label style="display:flex;gap:10px;align-items:center;padding:9px 10px;margin:6px 0;border-radius:12px;background:'+(gone?'#f2efea':'#fff8ec')+';border:1px solid #f1e3c8;'+(gone?'opacity:.55':'')+'"><input type="checkbox" value="'+esc(it.name)+'" '+(gone?'disabled':'')+' style="width:20px;height:20px"><span style="flex:1;line-height:1.35">'+esc(it.name)+'</span><b style="font-size:.85rem;color:'+(gone?'#9b8576':'#2e8b57')+'">'+(gone?'All taken':it.left+' left')+'</b></label>';});
+      h+='<input data-o placeholder="Something else you would like to bring (optional)" style="width:100%;padding:10px;border-radius:10px;border:1px solid #ccc;font-size:1rem;margin-top:8px"><input data-f placeholder="Your family last name" style="width:100%;padding:10px;border-radius:10px;border:1px solid #ccc;font-size:1rem;margin-top:8px"><input data-k placeholder="Child first name and last initial (example: Mia R.)" style="width:100%;padding:10px;border-radius:10px;border:1px solid #ccc;font-size:1rem;margin-top:8px"><button type="button" class="go g1" data-go style="margin-top:10px">🎉 Sign me up</button><div data-m style="font-weight:800;margin-top:8px"></div></div>';
+    });
+    box.innerHTML=h+'</div></div>';
+    box.querySelectorAll('[data-go]').forEach(function(b){b.onclick=async function(){
+      var c=b.closest('[data-ev]'),m=c.querySelector('[data-m]'),items=[].map.call(c.querySelectorAll('input[type=checkbox]:checked'),function(x){return x.value;}),o=c.querySelector('[data-o]').value.trim(),f=c.querySelector('[data-f]').value.trim(),k=c.querySelector('[data-k]').value.trim();
+      m.style.color='#c62828';
+      if(!items.length&&!o){m.textContent='Check at least one item, or type what you will bring.';return;}
+      if(f.length<2||k.length<2){m.textContent='Please add your family name and your child\'s name.';return;}
+      b.disabled=true;m.style.color='var(--ink)';m.textContent='Saving…';
+      try{var rr=await call('pp_ev_claim',{event:c.getAttribute('data-ev'),items:items,other:o,family:f,kids:k});
+        if(rr&&rr.ok){m.style.color='#2e8b57';m.textContent='Thank you! You are signed up for: '+(rr.claimed||[]).join(', ')+'.'+((rr.taken||[]).length?' (Already taken by someone else: '+rr.taken.join(', ')+')':'');setTimeout(showEvents,3500);}
+        else{b.disabled=false;m.style.color='#c62828';m.textContent=(rr&&rr.error)||'Could not save. Please try again.';}
+      }catch(x){b.disabled=false;m.style.color='#c62828';m.textContent='Could not save right now. Please try again in a minute.';}
+    };});
+  }catch(e){box.innerHTML='<div class="empty">Could not load events right now. Please try again in a moment.</div>';}
+}
 async function showBoard(){
   var box=document.getElementById('boardBox');if(!box)return;
   if(!school()){needSchool(box);return;}
@@ -236,6 +264,7 @@ window.PPA={show:function(w){
   else if(w==='news')showDoc('newsletter','newsBox','newsletter',/^Newsletter/i);
   else if(w==='lessons')showLessons();
   else if(w==='todo')showWeekly('Things to do','todoBox');
+  else if(w==='events')showEvents();
   else if(w==='tbt')showWeekly('Teddy Bear Talk','tbtBox');
   else if(w==='forms')showForms();
   else if(w==='board')showBoard();

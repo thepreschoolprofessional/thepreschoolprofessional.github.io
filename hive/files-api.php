@@ -406,7 +406,7 @@ $TEACHER_SCHOOL = ['teacher-sanford' => 'Sanford', 'teacher-deland' => 'DeLand 2
 $isDir = isset($ROLE_SCHOOL[$role]);
 $isTeacher = (strpos($role, 'teacher') === 0);
 $isParent = (strpos($role, 'parent') === 0);
-if ($isParent && !in_array(($input['action'] ?? ''), ['bios_public', 'pp_list', 'pp_get', 'pp_orient_sign', 'pp_orient_start', 'pp_auto'], true)) fail('Files are only available with a director PIN.', 403);
+if ($isParent && !in_array(($input['action'] ?? ''), ['bios_public', 'pp_list', 'pp_get', 'pp_orient_sign', 'pp_orient_start', 'pp_auto', 'pp_ev_list', 'pp_ev_claim'], true)) fail('Files are only available with a director PIN.', 403);
 if (!$isDir && !$isTeacher && !$isParent) fail('Files are only available with a director PIN.', 403);
 $PARENT_SCHOOL = ['parent-sanford' => 'Sanford', 'parent-deland' => 'DeLand 2'];
 $school = $isDir ? $ROLE_SCHOOL[$role] : (isset($TEACHER_SCHOOL[$role]) ? $TEACHER_SCHOOL[$role] : (isset($PARENT_SCHOOL[$role]) ? $PARENT_SCHOOL[$role] : trim($input['school'] ?? '')));
@@ -554,6 +554,20 @@ $bd = array_values(array_filter($bd, function($b) use ($today){ return empty($b[
 usort($bd, function($a, $b){ $pa = !empty($a['pinned']) ? 1 : 0; $pb = !empty($b['pinned']) ? 1 : 0; if ($pa !== $pb) return $pb - $pa; return strcmp($b['at'] ?? '', $a['at'] ?? ''); });
 $it = array_values(array_filter($it, function($x) use ($today){ return empty($x['expires']) || $x['expires'] >= $today; }));
 echo json_encode(['school'=>$school, 'month'=>date('Y-m'), 'items'=>$it, 'board'=>$bd]); exit;
+}
+if ($action === 'pp_ev_list' || $action === 'pp_ev_claim'){
+/* Parent Portal events: read and claim through the Bear Line saver (same list the directors see in Staff > Events). */
+foreach ([dirname(__DIR__, 2), dirname(__DIR__), __DIR__] as $d0){ if (file_exists($d0.'/elc-sync-code.php')) include_once $d0.'/elc-sync-code.php'; }
+if (!defined('ELC_SYNC_CODE')) fail('Events are not connected yet.', 503);
+$bl = ($school === 'Sanford') ? 'https://bearphonicsacademy.com/elc-94f077be04/bearline-api.php' : (($school === 'DeLand 2') ? 'https://bearphonicsacademy.com/elc-1ce53ee46c/bearline-api.php' : '');
+if ($bl === '') fail('Pick your school first.');
+$pl = ['code'=>ELC_SYNC_CODE, 'action'=>($action === 'pp_ev_list' ? 'ev_list' : 'ev_claim')];
+if ($action === 'pp_ev_claim'){ $pl['event'] = (string)($input['event'] ?? ''); $pl['items'] = array_slice((array)($input['items'] ?? []), 0, 30); $pl['other'] = (string)($input['other'] ?? ''); $pl['family'] = (string)($input['family'] ?? ''); $pl['kids'] = (string)($input['kids'] ?? ''); }
+$ctx = stream_context_create(['http'=>['method'=>'POST', 'header'=>"Content-Type: application/json\r\n", 'content'=>json_encode($pl), 'timeout'=>15, 'ignore_errors'=>true]]);
+$r = @file_get_contents($bl, false, $ctx); $j = json_decode($r ?: '', true);
+if (!is_array($j)) fail('Could not reach the events list right now. Please try again in a minute.', 502);
+if ($action === 'pp_ev_claim' && !empty($j['ok']) && !empty($j['claimed'])){ hive_notify($school, 'Parent Portal event sign-up', ['A parent signed up for an event in the Parent Portal.', 'Family: '.trim((string)($input['family'] ?? '')).' ('.trim((string)($input['kids'] ?? '')).')', 'Bringing: '.implode(', ', $j['claimed']), 'See it in Bear Line > Staff > Events.']); }
+echo json_encode($j); exit;
 }
 if ($action === 'pp_auto'){
 /* Automatic parent content: lesson plans (from the teacher Lesson Plan Index), food program forms, and a prebuilt monthly newsletter. */
