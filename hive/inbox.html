@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Parent Messages</title>
+<style>
+:root{--ink:#4a3a30;--soft:#9b8576;--line:#eadfce;--grn:#2e8b57;--blu:#1565c0;--red:#d32f2f;--pink:#c2185b}
+*{box-sizing:border-box;font-family:'Segoe UI',system-ui,sans-serif}
+body{margin:0;background:linear-gradient(160deg,#fff7ef,#ffe7d4);color:var(--ink);min-height:100vh;line-height:1.4}
+#app{max-width:860px;margin:0 auto;padding:12px 14px 60px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0 10px}
+.top h1{font-size:1.4rem;margin:0}.sub{color:var(--soft);font-weight:700;font-size:.9rem}
+.btn{border:0;border-radius:12px;padding:10px 16px;font-weight:800;font-size:.95rem;cursor:pointer;background:var(--ink);color:#fff;text-decoration:none;display:inline-block}
+.btn.sec{background:#fff;color:var(--ink);border:1px solid var(--line)}.btn.sm{padding:8px 14px;font-size:.88rem;border-radius:10px}
+.btn.rep{background:var(--blu)}.btn.ok{background:var(--grn)}
+.note{background:#fff8e1;border:1px solid #f0d9a6;border-radius:12px;padding:9px 12px;font-size:.86rem;margin:8px 0}
+.tabs{display:flex;gap:8px;margin:10px 0;flex-wrap:wrap}
+.tabs button{border:1px solid var(--line);background:#fff;border-radius:99px;padding:7px 14px;font-weight:800;cursor:pointer;color:var(--ink)}
+.tabs button.on{background:var(--pink);color:#fff;border-color:var(--pink)}
+.msg{background:#fff;border:3px solid var(--pink);border-radius:16px;margin:12px 0;padding:12px 14px}
+.msg.abs{border-color:var(--red)}.msg.done{border-color:var(--line);opacity:.8}
+.mh{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline}
+.mh b{font-size:1.05rem}.mh small{color:var(--soft);font-weight:700}
+.tag{display:inline-block;border-radius:99px;padding:1px 9px;font-size:.7rem;font-weight:800;color:#fff;margin-left:6px;vertical-align:1px}
+.tag.abs{background:var(--red)}.tag.src{background:var(--soft)}.tag.done{background:var(--grn)}
+.body{white-space:pre-wrap;margin:8px 0;font-size:.95rem;word-break:break-word}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.none{color:var(--soft);font-style:italic;padding:18px 4px}
+@media print{.noprint{display:none!important}body{background:#fff}}
+</style></head>
+<body><div id="app"><div class="sub">Loading…</div></div>
+<script>
+const PIN=sessionStorage.getItem('hivePin');
+if(!PIN) location.href='index.html';
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let D=null,TAB='new';
+const OFFICE=()=>D.school==='Sanford'?'sanfordoffice.1320@gmail.com':'delandoffice.238@gmail.com';
+/* opens Gmail already set to THIS school's office inbox, so the reply goes out from the office address */
+const gm=(to,su)=>'https://mail.google.com/mail/?authuser='+encodeURIComponent(OFFICE())+'&view=cm&fs=1&to='+encodeURIComponent(to)+'&su='+encodeURIComponent(su);
+async function api(action,x){
+ const r=await fetch('inbox-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({pin:PIN,action},x||{}))});
+ const j=await r.json().catch(()=>({error:'Server error. Try again in a minute.'}));
+ if(j.error)throw new Error(j.error);return j;}
+function render(){
+ const all=D.messages, nw=all.filter(m=>m.status!=='Answered'), dn=all.filter(m=>m.status==='Answered');
+ const list=TAB==='new'?nw:dn;
+ let h='<div class="top"><div><h1>💬 Parent Messages</h1><div class="sub">'+esc(D.school)+' &middot; from your office email ('+esc(OFFICE())+'), ProCare and the Parent Portal</div></div>'
+  +'<div class="noprint"><a class="btn sec" href="'+(sessionStorage.getItem('hiveOwner')?'owner.html':'director.html')+'">&lsaquo; Back to portal</a></div></div>'
+  +'<div class="note">Every parent reply also sits in your office Gmail. <b>Reply</b> opens Gmail from the office address, already addressed to the parent, so it threads like normal email. Messages that came through ProCare have no email on file here: answer those in ProCare. Tap <b>Mark answered</b> when done.</div>'
+  +'<div class="tabs noprint"><button class="'+(TAB==='new'?'on':'')+'" onclick="TAB=\'new\';render()">Need an answer ('+nw.length+')</button><button class="'+(TAB==='done'?'on':'')+'" onclick="TAB=\'done\';render()">Answered ('+dn.length+')</button><button onclick="load()">Refresh</button></div>';
+ if(!list.length) h+='<div class="none">'+(TAB==='new'?'Nothing waiting. You are all caught up.':'No answered messages yet.')+'</div>';
+ list.forEach(m=>{
+  const abs=m.type==='Absence', who=esc(m.parent||'Parent')+(m.child?' &middot; '+esc(m.child):'');
+  h+='<div class="msg '+(abs?'abs ':'')+(m.status==='Answered'?'done':'')+'"><div class="mh"><b>'+who+(abs?'<span class="tag abs">Absence</span>':'')+'<span class="tag src">'+esc(m.source||'')+'</span>'+(m.status==='Answered'?'<span class="tag done">Answered</span>':'')+'</b><small>'+esc(m.received)+'</small></div>'
+   +(m.subject?'<div class="sub">'+esc(m.subject)+'</div>':'')+'<div class="body">'+esc(m.message)+'</div><div class="acts noprint">'
+   +(m.email?'<a class="btn rep sm" target="_blank" rel="noopener" href="'+gm(m.email,(/^re:/i.test(m.subject||'')?m.subject:'Re: '+(m.subject||'Your message to Kid City USA')))+'">Reply from office email</a>':'<span class="sub">No email on file'+(m.source==='ProCare'?' &mdash; answer in ProCare':'')+'</span>')
+   +(m.kind==='inbox'?(m.status==='Answered'?'<button class="btn sec sm" onclick="ans(\''+m.id+'\',true)">Move back</button>':'<button class="btn ok sm" onclick="ans(\''+m.id+'\')">Mark answered</button>'):'')
+   +'</div>'+(m.status==='Answered'&&m.on?'<div class="sub">Answered '+esc(m.on)+'</div>':'')+'</div>';
+ });
+ document.getElementById('app').innerHTML=h;
+}
+async function ans(id,undo){try{await api('pi_answer',{id,undo:!!undo});await load();}catch(e){alert(e.message);}}
+async function load(){try{D=await api('pi_list');render();}catch(e){document.getElementById('app').innerHTML='<div class="note">'+esc(e.message)+'</div><a class="btn sec" href="index.html">Back to sign in</a>';}}
+load();
+</script></body></html>

@@ -145,6 +145,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
   <div class="tab" style="background:#e91e63" onclick="location.href='parent.html'">🏡 Parent Portal</div>
   <div class="tab" style="background:#e07b00" onclick="window.open(SCHOOL==='Sanford'?'https://bearphonicsacademy.com/elc-94f077be04/bearline.html':'https://bearphonicsacademy.com/elc-1ce53ee46c/bearline.html','_blank','noopener')">⏱ Staff Sign In/Out</div>
   <div class="tab" style="background:#c2185b" onclick="window.open(SCHOOL==='Sanford'?'https://bearphonicsacademy.com/elc-94f077be04/bearline.html':'https://bearphonicsacademy.com/elc-1ce53ee46c/bearline.html','_blank','noopener')">💬 Parent Messages</div>
+  <div class="tab" style="background:#ad1457" onclick="location.href='inbox.html'">📬 Parent Replies (email)</div>
   <div class="tab" style="background:#00695c" onclick="location.href='fte.html'">📊 FTE Report</div>
   <div class="tab" style="background:#2e8b57" onclick="location.href='enroll.html'">🧸 New Enrollments</div>
   <div class="tab" style="background:#1565c0" onclick="location.href='newhires.html'">🧑‍🏫 New Hires</div>
@@ -863,6 +864,7 @@ function openElcTablet(){
 }
 window.HIVE_CARDS={prompt:'What do you want to work on?',order:[
  {k:'Bear Phonics Academy',s:'Free reading lessons for the classroom',c:'#9b6bff'},
+ {k:'Parent Replies (email)',l:['Parents reply to the Monday and Friday emails and those replies land here too','Tap Reply: Gmail opens from your office address, already addressed to the parent','Mark answered when done; answered ones move to their own list','Absences show in red','Also shows Parent Portal contact-form messages'],s:'See and answer parent replies',c:'#ad1457'},
  {k:'Parent Messages',l:['Messages parents send from the Bear Line sign-in screen','Reply to a family, or start a message to any family','Each family only sees its own conversation','Also: post to the front-screen Board (tuition posting days, holidays, reminders)','Opens Bear Line: tap Director, enter your PIN, then Messages or Board'],s:'Parent messages and the front-screen board',c:'#c2185b'},
  {k:'Staff Sign In/Out',l:['Hours each staff member has worked so far','Missed sign-ins, sign-outs and lunch punches','Change a time (director or owner PIN, every change is logged)','Opens Bear Line: tap Director, then enter your PIN'],s:'Staff hours, missed punches, fixes',c:'#e07b00'},
  {k:'Parent Portal',t:[['Update the parent portal','parent-manage.html'],['Post to the message board','parent-manage.html']],l:['See what parents see (menu, newsletter, lesson plans, board)','Upload a menu, newsletter or flyer, or fill in the newsletter template','Post notes on the message board','See who signed Parent Orientation'],s:'What parents see and update it',c:'#e91e63'},
