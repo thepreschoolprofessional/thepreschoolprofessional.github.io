@@ -577,7 +577,7 @@ $CLP = ['2026-11-23'=>'Thanksgiving Break','2026-11-24'=>'Thanksgiving Break','2
 $dates = []; $dim = (int)date('t', $mt);
 for ($d = 1; $d <= $dim; $d++){ $ymd = $mk.'-'.sprintf('%02d', $d); $lab = date('D, M j', strtotime($ymd));
 if (isset($CLA[$ymd])) $dates[] = [$lab, 'CLOSED: '.$CLA[$ymd]];
-elseif (isset($CLP[$ymd]) && !($ymd === '2027-01-05' && $school === 'DeLand 2')) $dates[] = [$lab, ($ymd === '2026-12-31' ? $CLP[$ymd] : 'Please check with the office: '.$CLP[$ymd])]; }
+elseif (isset($CLP[$ymd]) && !($ymd === '2027-01-05' && $school === 'DeLand 2')) $dates[] = [$lab, ($ymd === '2026-12-31' ? $CLP[$ymd] : (strpos($CLP[$ymd], 'Thanksgiving') !== false ? 'Thanksgiving Break: VPK and school-age are closed. Preschool is open.' : 'Partial closure: '.$CLP[$ymd]))]; }
 /* birthdays: children (first name + last initial + day only) and staff (director-kept list) */
 $bd = []; $RC = pp_at_all('tblpEsTQ8EKbe63FA');
 foreach ($RC as $f){ if (($f['School'] ?? '') !== $school) continue; $st = strtolower($f['Status'] ?? 'active'); if ($st !== '' && $st !== 'active' && $st !== 'enrolled') continue;
@@ -588,9 +588,13 @@ $sd = school_dir($school); $sb = $sd ? jread($sd.'/staff-birthdays.json', []) : 
 foreach ($sb as $s){ if (preg_match('/^(\d{2})-(\d{2})$/', $s['md'] ?? '', $m) && $m[1] === date('m', $mt)) $bd[] = [(int)$m[2], trim($s['name'] ?? '').' (teacher)']; }
 usort($bd, function($a, $b){ return $a[0] - $b[0]; });
 $bt = implode("\n", array_map(function($x) use ($mname){ return $mname.' '.$x[0].': '.$x[1]; }, $bd));
+$weekly = []; $td = date('Y-m-d');
+foreach (pp_at_all('tbl88lfmyoO6ImePK') as $f){ $sc = $f['School'] ?? 'Both'; if ($sc !== 'Both' && $sc !== $school) continue; $fr = $f['Show From'] ?? ''; $un = $f['Show Until'] ?? ''; if (($fr !== '' && $fr > $td) || ($un !== '' && $un < $td)) continue; $weekly[] = ['title'=>$f['Title'] ?? '', 'kind'=>$f['Kind'] ?? 'Update', 'body'=>$f['Body'] ?? '']; }
+$QS = ['Children learn more from what you are than what you teach. - W.E.B. Du Bois', 'Play is the highest form of research. - Albert Einstein', 'It is easier to build strong children than to repair broken men. - Frederick Douglass', 'Every child is a different kind of flower, and all together make this world a beautiful garden.', 'Tell me and I forget. Teach me and I remember. Involve me and I learn. - Benjamin Franklin', 'A child who is loved and encouraged can do anything.', 'The more that you read, the more things you will know. - Dr. Seuss'];
+$quote = $QS[(int)date('z') % count($QS)];
 $rem = ['Please bring 160 wipes and 1 box of tissues each month. If we have not received them, a $5 supply fee is added.', 'Uniform shirts are $18. Ask the office if your child needs a new one.', 'Send a labeled change of clothes: 3 sets for infants and toddlers, 2 for preschoolers.', 'Please sign your child in and out on the tablet every day.'];
-$out = ['school'=>$school, 'month'=>$mk, 'monthName'=>$mname, 'lessons'=>$cur, 'allLessons'=>$lessons, 'forms'=>$forms,
-'newsletter'=>['title'=>$mname.' Newsletter (auto)', 'month'=>$mk, 'auto'=>true, 'form'=>['welcome'=>'Welcome to '.$mname.' at Kid City USA '.$school.'! Here is everything you need to know this month.', 'dates'=>$dates, 'reminders'=>$rem, 'news'=>[], 'birthdays'=>$bt, 'thanks'=>'Thank you for trusting us with your little ones. We love being part of your family!', 'lessonsMonth'=>count($cur) > 0]]];
+$out = ['school'=>$school, 'month'=>$mk, 'monthName'=>$mname, 'weekly'=>$weekly, 'lessons'=>$cur, 'allLessons'=>$lessons, 'forms'=>$forms,
+'newsletter'=>['title'=>$mname.' at Kid City USA '.$school, 'month'=>$mk, 'auto'=>true, 'form'=>['welcome'=>'Welcome to '.$mname.' at Kid City USA '.$school.'! Here is everything you need to know this month.', 'dates'=>$dates, 'reminders'=>$rem, 'news'=>[], 'weekly'=>$weekly, 'quote'=>$quote, 'birthdays'=>$bt, 'thanks'=>'Thank you for trusting us with your little ones. We love being part of your family!', 'lessonsMonth'=>count($cur) > 0]]];
 $j = json_encode($out); @file_put_contents($cf, $j); echo $j; exit;
 }
 if ($action === 'pp_get'){

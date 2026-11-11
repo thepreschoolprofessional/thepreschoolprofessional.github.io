@@ -48,15 +48,22 @@ async function mountFile(it,id){
     box.innerHTML=(it.ext==='pdf'?'<iframe src="'+u+'" style="width:100%;height:78vh;border:2px solid #eadfce;border-radius:14px;background:#fff"></iframe>':'<img src="'+u+'" alt="'+esc(it.title)+'" style="width:100%;border-radius:14px;box-shadow:0 4px 14px rgba(74,58,48,.15)">')+open;
   }catch(e){box.innerHTML='<div class="empty">Could not open this file right now.</div>';}
 }
+function nlIcon(t){t=(t||'').toLowerCase();return /closed|break|holiday|christmas|thanksgiving|veterans|new year|juneteenth|memorial|presidents|good friday|king/.test(t)?'🏫':/friendsgiving|party|picnic|celebrat|event|sign.?up/.test(t)?'🍂':/early|5 pm/.test(t)?'⏰':'📅';}
+function nlKindIcon(k){return k==='Things to do'?'🌳':k==='Teddy Bear Talk'?'🧸':k==='Quote'?'💬':'📣';}
+function nlSec(ic,t,body,bg){return '<div style="margin:16px 0;background:'+(bg||'#fff')+';border:2px solid #f1e3c8;border-radius:16px;padding:14px 16px"><div style="font-weight:800;font-size:1.05rem;color:var(--ink);margin-bottom:8px">'+ic+' '+t+'</div>'+body+'</div>';}
 function newsletterHtml(it){
-  var f=it.form||{},h='<div class="result" style="border-top-color:#1d7fd1"><h2>📰 '+esc(it.title)+'</h2><div class="note">'+esc(monthName(it.month))+'</div>';
-  if(f.welcome)h+='<p style="line-height:1.5;margin-bottom:14px">'+esc(f.welcome).replace(/\n/g,'<br>')+'</p>';
-  if((f.dates||[]).length){h+='<div class="section">📅 Important dates</div><div class="reslist">'+f.dates.map(function(d){return '<div class="rescard" style="cursor:default"><div class="em">📌</div><div class="txt"><h3>'+esc(d[0])+'</h3><p>'+esc(d[1])+'</p></div></div>';}).join('')+'</div>';}
-  if((f.reminders||[]).length){h+='<div class="section">✅ Reminders</div><ul style="margin:0 0 10px 22px;line-height:1.55">'+f.reminders.map(function(r){return '<li>'+esc(r)+'</li>';}).join('')+'</ul>';}
-  if((f.news||[]).length){h+='<div class="section">🐝 News from the classrooms</div>'+f.news.map(function(n){return '<div class="rescard" style="cursor:default;display:block"><h3>'+esc(n[0]||'Our school')+'</h3><p style="font-size:.92rem;color:var(--ink);margin-top:4px">'+esc(n[1]).replace(/\n/g,'<br>')+'</p></div>';}).join('');}
-  if(f.birthdays)h+='<div class="section">🎂 Birthdays</div><p style="line-height:1.5">'+esc(f.birthdays).replace(/\n/g,'<br>')+'</p>';
-  if(f.thanks)h+='<div class="section">💛 Thank you</div><p style="line-height:1.5">'+esc(f.thanks).replace(/\n/g,'<br>')+'</p>';
-  return h+'</div>';
+  var f=it.form||{},h='<div style="border-radius:18px;overflow:hidden;box-shadow:0 4px 16px rgba(74,58,48,.12);background:#fffaf0">';
+  h+='<div style="background:linear-gradient(135deg,#ffb13d,#ffd36e);padding:20px 18px;text-align:center"><div style="font-size:2rem">🐻🍯</div><div style="font-size:1.35rem;font-weight:800;color:#4a3a30">'+esc(it.title)+'</div><div style="color:#6b4f2a;font-weight:700;margin-top:2px">'+esc(monthName(it.month))+'</div></div><div style="padding:6px 14px 14px">';
+  if(f.welcome)h+='<p style="line-height:1.55;margin:14px 2px">'+esc(f.welcome).replace(/\n/g,'<br>')+'</p>';
+  (f.weekly||[]).forEach(function(w){h+=nlSec(nlKindIcon(w.kind),esc(w.title||w.kind),'<div style="line-height:1.55">'+esc(w.body).replace(/\n/g,'<br>')+'</div>','#fff6e0');});
+  if((f.dates||[]).length){h+=nlSec('📅','Important dates','<div>'+f.dates.map(function(d){return '<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px dashed #efe2c9"><div style="font-size:1.2rem">'+nlIcon(d[1])+'</div><div><b>'+esc(d[0])+'</b><br><span style="color:var(--ink)">'+esc(d[1])+'</span></div></div>';}).join('')+'</div>');}
+  if(f.lessonsMonth)h+=nlSec('📚','Lesson plans','<div style="line-height:1.5">This month\'s lesson plans for every classroom are in the Parent Portal under <b>Lesson Plans</b>. Ask your child about their letter, color and story of the week!</div>','#eef7ff');
+  if(f.birthdays)h+=nlSec('🎂','Birthdays this month','<div style="line-height:1.7">'+esc(f.birthdays).replace(/\n/g,'<br>')+'</div>','#fff0f5');
+  if((f.reminders||[]).length)h+=nlSec('🧺','Good to remember','<ul style="margin:0 0 0 20px;line-height:1.6">'+f.reminders.map(function(r){return '<li>'+esc(r)+'</li>';}).join('')+'</ul>');
+  if((f.news||[]).length)h+=f.news.map(function(n){return nlSec('🐝',esc(n[0]||'Our school'),'<div style="line-height:1.55">'+esc(n[1]).replace(/\n/g,'<br>')+'</div>');}).join('');
+  if(f.quote)h+='<div style="margin:16px 0;text-align:center;font-style:italic;color:#6b4f2a;padding:14px;background:#fdf1d4;border-radius:16px">“'+esc(f.quote)+'”</div>';
+  if(f.thanks)h+='<p style="text-align:center;line-height:1.5;margin:10px 0 0">💛 '+esc(f.thanks)+'</p>';
+  return h+'</div></div>';
 }
 
 var AUTO=null;
@@ -104,6 +111,24 @@ async function showDoc(kind,boxId,label,re){
     if(kind==='newsletter'){try{var a=await auto();box.innerHTML='<div class="note" style="background:#e8f3ff;border-left:5px solid #1d7fd1;padding:10px 14px;border-radius:10px;color:var(--ink);font-weight:700">Your '+esc(a.monthName)+' newsletter</div>'+newsletterHtml(a.newsletter)+(a.lessons.length?'<a class="go g1" style="display:block;margin:10px 0" href="#" onclick="show(\'lessons\',null);PPA.show(\'lessons\');return false">See the '+esc(a.monthName)+' lesson plans →</a>':'');return;}catch(e){}}
     var fb=re?fallbackLink(re):null;
     box.innerHTML=fb?'<div class="note" style="background:#fff3d6;border-left:5px solid #ffb13d;padding:10px 14px;border-radius:10px;color:var(--ink);font-weight:700">The newest '+esc(label)+' is being posted. Here is the last one we have.</div><a class="go g1" style="display:block" href="'+esc(fb.URL)+'">'+esc(fb.Title)+' →</a>':'<div class="empty">The '+esc(label)+' will be posted here soon. 🐝</div>';
+  }catch(e){box.innerHTML='<div class="empty">Could not load right now. Please try again in a moment.</div>';}
+}
+async function showWeekly(kind,boxId){
+  var box=document.getElementById(boxId);if(!box)return;
+  if(!school()){needSchool(box);return;}
+  box.innerHTML='<div class="empty">Loading… 🐝</div>';
+  var T=kind==='Teddy Bear Talk'?{ic:'🧸',h:'Teddy Bear Talk',sub:'A little something to talk about with your child this week.',g:'linear-gradient(135deg,#ff8fb1,#ffb86b)',cols:['#e0457b','#ef6c00','#9b6bff','#2fc4b2'],em:['💬','🌈','💛','⭐']}:{ic:'🌳',h:'Things to Do This Weekend',sub:'Fun, family-friendly ideas close to home. Updated every week!',g:'linear-gradient(135deg,#46c97f,#5aa9ff)',cols:['#2e8b57','#1d7fd1','#ef6c00','#9b6bff','#e0457b'],em:['🎈','🎨','🍦','🚲','🎪']};
+  try{
+    var a=await auto(),W=(a.weekly||[]).filter(function(w){return w.kind===kind;});
+    var h='<div style="border-radius:20px;overflow:hidden;box-shadow:0 4px 16px rgba(74,58,48,.15);background:#fffaf0"><div style="background:'+T.g+';padding:22px 16px;text-align:center;color:#fff"><div style="font-size:2.4rem">'+T.ic+'✨</div><div style="font-size:1.45rem;font-weight:800;text-shadow:0 1px 3px rgba(0,0,0,.25)">'+T.h+'</div><div style="font-weight:700;margin-top:4px;text-shadow:0 1px 2px rgba(0,0,0,.25)">'+T.sub+'</div></div><div style="padding:10px 14px 16px">';
+    if(!W.length)h+='<div class="empty" style="margin:16px 0">This week\'s '+esc(T.h)+' is being written. Check back soon! '+T.ic+'</div>';
+    W.forEach(function(w,wi){
+      var lines=String(w.body||'').split(/\n+/).map(function(s){return s.replace(/^\s*[-•*]\s*/,'').trim();}).filter(Boolean);
+      h+='<div style="font-weight:800;font-size:1.15rem;color:var(--ink);margin:14px 2px 6px">'+esc(w.title)+'</div>';
+      lines.forEach(function(l,i){var c=T.cols[i%T.cols.length],e=T.em[i%T.em.length];h+='<div style="display:flex;gap:12px;align-items:flex-start;background:#fff;border-left:7px solid '+c+';border-radius:14px;padding:12px 14px;margin:9px 0;box-shadow:0 2px 8px rgba(74,58,48,.08)"><div style="font-size:1.6rem">'+e+'</div><div style="line-height:1.5;color:var(--ink)">'+esc(l)+'</div></div>';});
+    });
+    h+='<div style="text-align:center;color:var(--soft);font-weight:700;margin-top:12px;font-size:.9rem">New one every week 🐝</div></div></div>';
+    box.innerHTML=h;
   }catch(e){box.innerHTML='<div class="empty">Could not load right now. Please try again in a moment.</div>';}
 }
 async function showBoard(){
@@ -210,6 +235,8 @@ window.PPA={show:function(w){
   if(w==='menu')showDoc('menu','menuBox','menu',/^Menu/i);
   else if(w==='news')showDoc('newsletter','newsBox','newsletter',/^Newsletter/i);
   else if(w==='lessons')showLessons();
+  else if(w==='todo')showWeekly('Things to do','todoBox');
+  else if(w==='tbt')showWeekly('Teddy Bear Talk','tbtBox');
   else if(w==='forms')showForms();
   else if(w==='board')showBoard();
   else if(G[w])guide(w);

@@ -50,6 +50,8 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 <nav>
 <div class="tab" style="background:#2e8b57" onclick="show('menu',this);PPA.show('menu')">🥦 Menu</div>
 <div class="tab" style="background:#1d7fd1" onclick="show('news',this);PPA.show('news')">📰 Newsletter</div>
+<div class="tab" style="background:#2e8b57" onclick="show('todo',this);PPA.show('todo')">🌳 Things to Do This Weekend</div>
+<div class="tab" style="background:#e0457b" onclick="show('tbt',this);PPA.show('tbt')">🧸 Teddy Bear Talk</div>
 <div class="tab" style="background:#3a9d5d" onclick="show('lessons',this);PPA.show('lessons')">🍎 Lesson Plans</div>
 <div class="tab" style="background:#e0457b" onclick="show('board',this);PPA.show('board')">📌 Message Board & Reminders</div>
 <div class="tab" style="background:#b22234" onclick="location.href='closures.html'">📅 Closures</div>
@@ -77,6 +79,8 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 
 <div class="panel" id="p-menu"><div id="menuBox" class="empty">Loading…</div></div>
 <div class="panel" id="p-news"><div id="newsBox" class="empty">Loading…</div></div>
+<div class="panel" id="p-todo"><div id="todoBox" class="empty">Loading…</div></div>
+<div class="panel" id="p-tbt"><div id="tbtBox" class="empty">Loading…</div></div>
 <div class="panel" id="p-lessons"><div id="lessonBox" class="empty">Loading…</div></div>
 <div class="panel" id="p-forms"><div id="formsBox" class="empty">Loading…</div></div>
 <div class="panel" id="p-board"><div id="boardBox" class="empty">Loading…</div></div>
@@ -171,7 +175,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 </div>
 </main>
 <script src="bios.js?v=1"></script>
-<script src="parent-pp.js?v=6"></script>
+<script src="parent-pp.js?v=7"></script>
 <script>
 const PIN = sessionStorage.getItem('hivePin');
 if(!PIN) location.href='index.html';
