@@ -43,7 +43,7 @@ ol.steps li:before{content:counter(s);position:absolute;left:0;top:8px;width:30p
 .msg{min-height:20px;font-weight:700;color:var(--grn)}
 </style></head>
 <body><div id="app"></div>
-<script>(function(){var V='20261106d';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+location.search+(location.search?'&':'?')+'v='+m[1]);}});}catch(e){}})();</script>
+<script>(function(){var V='20261110a';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+location.search+(location.search?'&':'?')+'v='+m[1]);}});}catch(e){}})();</script>
 <script src="training-who.js?v=1"></script>
 <script>
 const PIN=sessionStorage.getItem('hivePin'), ROLE=sessionStorage.getItem('hiveRole')||'teacher', TSCH=sessionStorage.getItem('hiveSchool')||'';
@@ -341,7 +341,64 @@ const LESSONS=[
  stop:'Do not approve a packet if the name is already on the roster. Check first.',
  quiz:[
   {q:'What happens when you approve a packet?',a:['The child is added to the roster and Rooms board','The family gets a bill','Nothing happens'],c:0,w:'Approving adds the child and then you follow the checklist.'},
-  {q:'The family says they get ELC help. What shows red until you act?',a:['The payment certificate in Student Files','The menu','The newsletter'],c:0,w:'File the payment certificate in Student Files.'}]}
+  {q:'The family says they get ELC help. What shows red until you act?',a:['The payment certificate in Student Files','The menu','The newsletter'],c:0,w:'File the payment certificate in Student Files.'}]},
+{id:'G1',sec:'G. Bear Line and Families',title:'The Bear Line front screen and Bear Notes',min:5,intro:'The Bear Line is the tablet by the door where families sign children in and out. Before a family types a PIN they see a short Bear Note, so it is the fastest way to tell every family something important.',
+ steps:[
+ [ALL,'The front screen shows short notes such as a holiday, Friendsgiving, or the tuition reminder. Each note has a start and end date, and it goes away by itself the day after its end date. Holidays that have passed disappear on their own.'],
+ [ALL,'A line called '+B('Closed this month')+' lists the days we are closed. Days that have passed drop off automatically.'],
+ [D,'To add or remove a note, open '+B('Staff Sign In/Out')+', tap '+B('Director')+', enter your PIN, and open the '+B('Board')+' tab. Add the words, pick the dates, and save. Removing a built-in note is safe and does not break future updates.'],
+ [D,'To add a new closed day to the Closed this month line, tell Mrs. Bear. It is set in the page code for both schools so the two stay the same.'],
+ [D,'Keep it short. Families are standing at the door. Anything longer goes in the Family Corner (next lesson).']
+ ],
+ tip:'One clear sentence is better than three. Parents read it while their child is signing in.',
+ stop:'The front screen is public. Never put a child\'s name, a balance or any private detail on it. Late-payment reminders for one family go in that family\'s private message, not on the front screen.',
+ quiz:[
+  {q:'Where is a note about one family\'s balance allowed?',a:['In that family\'s private message','On the front screen','On the Closed this month line'],c:0,w:'The front screen is public. Individual balances are private.'},
+  {q:'What happens to a holiday note after its end date?',a:['It disappears by itself','You must delete it','It stays forever'],c:0,w:'Notes have an end date and remove themselves.'}]},
+{id:'G2',sec:'G. Bear Line and Families',title:'Family Corner and event sign-ups',min:5,intro:'After a parent signs in on the Bear Line, they can tap Family Corner for longer items like Teddy Bear Talk and ideas for the weekend. Events such as Friendsgiving also live here so families can claim what they will bring.',
+ steps:[
+ [D,'In the '+B('Board')+' tab, add a post and set '+B('Where')+' to '+B('Family Corner')+'. Give it a title. Family Corner posts can be English and Spanish.'],
+ [ALL,'For an event with a list, such as the Friendsgiving Lunch, the parent sees each item with how many are left, for example '+B('Hawaiian rolls (5 left)')+'. They tap what they can bring.'],
+ [D,'To see who is bringing what, open '+B('Staff')+' and then '+B('Events')+'. Every claim shows there.'],
+ [D,'You can print or read the list to plan the lunch. If an item runs out, add more slots or tell families what is still needed.']
+ ],
+ tip:'Check the Events list two days before the event so there is time to fill gaps.',
+ stop:'Do not take down an event that families have already claimed items for. Ask Mrs. Bear first.',
+ quiz:[
+  {q:'Where do you see who claimed an item?',a:['Staff, then Events','The front screen','The menu'],c:0,w:'Claims show in Staff, then Events.'}]},
+{id:'G3',sec:'G. Bear Line and Families',title:'Parents sign in at school only',min:3,intro:'Families sign children in and out on the school tablet when they are standing at the door. We do not want anyone signing in or out from home or from the car.',
+ steps:[
+ [ALL,'The Bear Line sign-in link is for the school tablets. Never text, email or post that link to families.'],
+ [ALL,'Families get their own '+B('Parent Portal')+' link and password for the menu, newsletter, closures and sign-ups. That is the link to share.'],
+ [D,'If a parent asks for the sign-in link, tell them kindly that sign-in is done at the school tablet when they arrive, and offer the Parent Portal instead.'],
+ [T,'If a parent says they signed in from the car or at home, tell your director.']
+ ],
+ tip:'The Parent Portal password changes every two months. The new one comes out in the weekly family email.',
+ stop:'Do not share the Bear Line link or any staff PIN with parents.',
+ quiz:[
+  {q:'A parent asks for the sign-in link so they can sign in from the car. What do you say?',a:['Sign-in is done at the school tablet; here is the Parent Portal','Sure, here it is','Text it to them'],c:0,w:'Sign-in is only at the tablet. Share the Parent Portal instead.'}]},
+{id:'G4',sec:'G. Bear Line and Families',title:'Staff time clock on the Bear Line',min:4,intro:'Staff clock in and out on the same tablet, with a private staff PIN. Times from the ProCare time clock for November 2 to 10 were copied in so there is one record.',
+ steps:[
+ [T,'Tap your name, enter your private PIN, and choose '+B('In')+', '+B('Lunch out')+', '+B('Lunch in')+' or '+B('Out')+'. Do it every time, even if the tablet is busy.'],
+ [D,'Open '+B('Staff Sign In/Out')+' from the Director Portal, tap '+B('Director')+', and enter your PIN. You can see staff hours, find missed punches, and fix a time.'],
+ [D,'A shift with no clock-out is flagged so it gets fixed. Fix it the same day if you can, and note why.'],
+ [D,'ProCare is still read-only for comparison. If a time is different, the earlier in and later out stands.']
+ ],
+ tip:'Clock out when you leave, not later from home.',
+ stop:'Never clock in or out for another person. Never share your PIN.',
+ quiz:[
+  {q:'You see a shift with no clock-out. What do you do?',a:['Fix it the same day and note why','Ignore it','Delete the day'],c:0,w:'Open punches are flagged so you fix them with a note.'}]},
+{id:'G5',sec:'G. Bear Line and Families',title:'Parent messages and the weekly family emails',min:5,intro:'Families get two emails a week from the school office, and they can reply to the office. The Director Portal has a Parent Messages card where those replies are handled. Starting soon: until your director is told the emails are live, ProCare messages continue as usual.',
+ steps:[
+ [D,'Monday email: tuition due Friday and late fee reminder, Teddy Bear Talk, things to do this weekend, this week at school, and any event sign-ups.'],
+ [D,'Friday morning email: tuition has been posted so families can pay, a highlight of the week, next week, and a Have a great weekend.'],
+ [D,'Replies come to the school office email. Open the '+B('Parent Messages')+' card to see them and answer. Absence replies are posted to your to-do list.'],
+ [D,'A family with a balance gets a separate private message. It is never in the shared email.']
+ ],
+ tip:'Answer parent replies the same day. A short, kind reply builds trust.',
+ stop:'Never put a child\'s name, a balance or private information in an email that goes to every family.',
+ quiz:[
+  {q:'Where does a parent\'s reply to the weekly email go?',a:['The school office email','Mrs. Bear\'s phone only','Nowhere'],c:0,w:'Replies come to the school office.'}]}
 ];
 
 
