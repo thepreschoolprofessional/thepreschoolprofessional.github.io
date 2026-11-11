@@ -590,8 +590,8 @@ $CLA = ['2026-11-11'=>'Veterans Day','2026-11-26'=>'Thanksgiving','2026-11-27'=>
 $CLP = ['2026-11-23'=>'Thanksgiving Break','2026-11-24'=>'Thanksgiving Break','2026-11-25'=>'Thanksgiving Break','2026-12-21'=>'Winter Break','2026-12-22'=>'Winter Break','2026-12-28'=>'Winter Break','2026-12-29'=>'Winter Break','2026-12-30'=>'Winter Break','2026-12-31'=>"New Year's Eve (we close early at 5 PM)",'2027-01-04'=>'District holiday','2027-01-05'=>'District holiday','2027-02-15'=>"Presidents' Day",'2027-03-15'=>'Spring Break','2027-03-16'=>'Spring Break','2027-03-17'=>'Spring Break','2027-03-18'=>'Spring Break','2027-03-19'=>'Spring Break','2027-03-22'=>'District holiday'];
 $dates = []; $dim = (int)date('t', $mt);
 for ($d = 1; $d <= $dim; $d++){ $ymd = $mk.'-'.sprintf('%02d', $d); $lab = date('D, M j', strtotime($ymd));
-if (isset($CLA[$ymd])) $dates[] = [$lab, 'CLOSED: '.$CLA[$ymd]];
-elseif (isset($CLP[$ymd]) && !($ymd === '2027-01-05' && $school === 'DeLand 2')) $dates[] = [$lab, ($ymd === '2026-12-31' ? $CLP[$ymd] : (strpos($CLP[$ymd], 'Thanksgiving') !== false ? 'Thanksgiving Break: VPK and school-age are closed. Preschool is open.' : 'Partial closure: '.$CLP[$ymd]))]; }
+if (isset($CLA[$ymd])) $dates[] = [$lab, 'CLOSED: '.$CLA[$ymd].(in_array($ymd, ['2026-11-26','2026-11-27'], true) ? ' (preschool closed, VPK closed all week)' : '')];
+elseif (isset($CLP[$ymd]) && !($ymd === '2027-01-05' && $school === 'DeLand 2')) $dates[] = [$lab, ($ymd === '2026-12-31' ? $CLP[$ymd] : (strpos($CLP[$ymd], 'Thanksgiving') !== false ? (in_array($ymd, ['2026-11-23','2026-11-24','2026-11-25'], true) ? 'Preschool is open. VPK is closed all week. Holiday Break Camp is open for VPK and school-age: sign up at the front desk.' : 'Thanksgiving Break') : 'Partial closure: '.$CLP[$ymd]))]; }
 /* birthdays: children (first name + last initial + day only) and staff (director-kept list) */
 $bd = []; $RC = pp_at_all('tblpEsTQ8EKbe63FA');
 foreach ($RC as $f){ if (($f['School'] ?? '') !== $school) continue; $st = strtolower($f['Status'] ?? 'active'); if ($st !== '' && $st !== 'active' && $st !== 'enrolled') continue;
