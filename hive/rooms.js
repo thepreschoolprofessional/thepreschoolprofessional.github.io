@@ -191,7 +191,7 @@ function boardHTML(){
   var h='<div class="pad">'+noteHTML('')+'<div class="act2"><button class="btn sec" data-act="gotodcf">&#128196; All rooms — paper form (DCF)</button>'
    +(S.role==='director'?'<button class="btn sec" data-act="gotoflags">&#10067; Questions to answer'+(S.flagN?' ('+S.flagN+')':'')+'</button><button class="btn sec" data-act="gotowd">Withdrawn children</button>':'<button class="btn sec" data-act="gotowd">Withdrawn (director)</button>')+'</div>';
   if(!S.rooms.length) h+='<div class="card">No rooms are set up for '+esc(S.school)+' yet.</div>';
-  h+='<div class="tiles">';
+  var totKids=0,totPres=0,totStaff=0;S.rooms.forEach(function(r){var l=roomKids(r.name);totKids+=l.length;totPres+=presentIn(r.name).length;totStaff+=staffNow(dayOf(r.name));});h+='<div class="card" style="display:flex;flex-wrap:wrap;gap:10px 28px;align-items:center;margin:10px 0;border:3px solid var(--y)"><b style="font-size:18px">Whole school right now</b><span><b style="font-size:26px">'+totPres+'</b> children in / '+totKids+' enrolled</span><span><b style="font-size:26px">'+totStaff+'</b> staff in rooms</span></div>';h+='<div class="tiles">';
   S.rooms.forEach(function(r){
     var list=roomKids(r.name), pres=presentIn(r.name).length, day=dayOf(r.name), rt=roomRatioNow(r.name), ot=openTrans(day);
     var ar=0, ir=0; list.forEach(function(c){ var a=attOf(c.name); if(a.AR) ar++; if(a.IR) ir++; });
