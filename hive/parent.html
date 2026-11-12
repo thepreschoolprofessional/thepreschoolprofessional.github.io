@@ -41,7 +41,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 </style>
 </head>
 <body>
-<a class="back" href="index.html">← exit</a>
+<a class="back" id="exitLink" href="index.html">← exit</a>
 <header>
 <h1>🏠 Parent Portal</h1>
 <div class="sub">Welcome, Kid City USA family! Everything you need, in one place 💛</div>
@@ -185,7 +185,8 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 <script src="install-prompt.js?v=1"></script>
 <script>
 const PIN = sessionStorage.getItem('hivePin');
-if(!PIN) location.href='index.html';
+var DOOR=sessionStorage.getItem('hiveDoor')||''; var DOORPAGE=DOOR?('parent-'+DOOR+'.html'):'index.html'; try{var el=document.getElementById('exitLink'); if(el) el.href=DOORPAGE;}catch(e){}
+if(!PIN) location.href=DOORPAGE;
 const esc = s => (s??'').toString().replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 async function api(payload){ const r = await fetch('api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:PIN,...payload})}); return r.json(); }
 function show(id, el){ document.querySelectorAll('.panel').forEach(p=>p.classList.remove('show'));

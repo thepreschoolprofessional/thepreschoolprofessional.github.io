@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow"><title>Kid City USA DeLand 2 Parent Portal</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',system-ui,sans-serif}
+body{min-height:100vh;background:linear-gradient(160deg,#fbf6e6,#f3ead0);color:#3a2600;display:flex;align-items:center;justify-content:center;padding:24px}
+.card{max-width:420px;width:100%;background:#fff;border-radius:22px;padding:32px 26px;box-shadow:0 10px 30px rgba(58,38,0,.12);text-align:center;border-top:10px solid #d9a521}
+h1{font-size:1.6rem;margin:8px 0 4px;color:#5b7a3a}.sub{color:#8a7350;margin-bottom:20px}
+input{font-size:1.3rem;letter-spacing:.1em;padding:12px 16px;border:3px solid #d9a521;border-radius:14px;width:100%;text-align:center;outline:none;margin-bottom:12px}
+button{font-size:1.1rem;font-weight:800;color:#3a2600;background:#d9a521;border:none;border-radius:14px;padding:12px 28px;cursor:pointer;width:100%}
+.keep{display:block;margin:6px 0 14px;font-size:.9rem;color:#8a7350}.keep input{width:auto;margin-right:6px;display:inline;padding:0}
+.err{color:#b5483a;font-weight:700;margin-top:12px;min-height:1.2em}
+</style></head><body>
+<form class="card" id="f" autocomplete="on">
+<div style="font-size:3rem">🏠</div>
+<h1>DeLand 2 Parent Portal</h1>
+<p class="sub">Kid City USA DeLand 2 families</p>
+<input type="text" name="username" autocomplete="username" value="DeLand 2 Parent Portal" readonly tabindex="-1" style="display:none">
+<input id="pin" name="password" type="password" autocomplete="current-password" placeholder="YOUR-PIN" required>
+<label class="keep"><input type="checkbox" id="keep" checked> Keep me signed in on this device</label>
+<button type="submit">Open the portal</button>
+<div class="err" id="err"></div>
+</form>
+<script>
+var SCHOOL="DeLand 2", KEEP="hiveKeep_parent_deland";
+async function enter(auto){
+  var pin=document.getElementById('pin').value.trim().toUpperCase(), err=document.getElementById('err'); err.textContent='';
+  if(!pin){err.textContent='Type your PIN first!';return;}
+  try{
+    var r=await fetch('api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pin,action:'whoami'})});
+    var d=await r.json();
+    if(d.role==='parent-'+'deland' || (d.role==='parent' && d.school===SCHOOL)){
+      sessionStorage.setItem('hivePin',pin);sessionStorage.setItem('hiveRole',d.role);sessionStorage.setItem('hiveSchool',d.school||SCHOOL);
+      sessionStorage.setItem('hiveDoor','deland');
+      try{ if(document.getElementById('keep').checked) localStorage.setItem(KEEP,JSON.stringify({pin:pin})); else localStorage.removeItem(KEEP);}catch(e){}
+      location.href='parent.html?v=20261019b';
+    } else if(d.role){
+      err.textContent='That PIN is not for DeLand 2. Please use the PIN for your own school.';
+    } else {
+      try{localStorage.removeItem(KEEP);}catch(e){}
+      document.getElementById('pin').value='';
+      err.textContent=(auto===true?'Your PIN was changed, please type the new one. ':'')+(d.error||'That PIN did not work.');
+    }
+  }catch(e){err.textContent='Connection hiccup, try again.';}
+}
+document.getElementById('f').addEventListener('submit',function(e){e.preventDefault();enter();});
+try{var s=JSON.parse(localStorage.getItem(KEEP)||'null');if(s&&s.pin){document.getElementById('pin').value=s.pin;enter(true);}}catch(e){}
+</script></body></html>
