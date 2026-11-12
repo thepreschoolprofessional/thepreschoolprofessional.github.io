@@ -11,8 +11,9 @@
     (STAFF?'<div class="note" style="margin-top:10px">Staff view: families see the same button. Uploads are reviewed in Parent Uploads on the director dashboard.</div>':'')+
     '<div class="note" style="margin-top:12px;font-size:.9rem">Please do not send anything through the portal that is not for your own child. Documents are private and only the school director can see them.</div></div>';
   function close(){var m=document.getElementById('docModal'); if(m) m.remove();}
-  function open(){
-    close();
+  var REQ=null;
+  function open(rq){
+    REQ=(rq&&rq.id)?rq:null; close();
     var m=document.createElement('div'); m.id='docModal';
     m.style.cssText='position:fixed;inset:0;background:rgba(40,30,20,.6);z-index:9998;display:flex;align-items:center;justify-content:center;padding:14px;overflow:auto';
     var opts=TYPES.map(function(t){return '<option value="'+t[0]+'">'+esc(t[1])+'</option>';}).join('');
@@ -38,6 +39,7 @@
     $('dmDoc').onchange=function(){$('dmOtherWrap').style.display=this.value==='other'?'block':'none';};
     $('dmMore').onclick=function(){$('dmDone').style.display='none';$('dmForm').style.display='block';$('dmFile').value='';$('dmErr').textContent='';};
     $('dmSend').onclick=function(){send();};
+    if(REQ){ $('dmChild').value=REQ.child; $('dmChild').readOnly=true; $('dmDoc').innerHTML='<option value="'+esc(REQ.doc)+'">'+esc(REQ.label)+'</option>'; $('dmDoc').disabled=true; }
   }
   function toB64(file){
     return new Promise(function(res,rej){
@@ -53,18 +55,30 @@
   }
   async function send(){
     var $=function(i){return document.getElementById(i);}, err=$('dmErr'); err.textContent='';
-    var parent=$('dmParent').value.trim(), child=$('dmChild').value.trim(), doc=$('dmDoc').value, other=$('dmOther').value.trim(), f=$('dmFile').files[0];
+    var parent=$('dmParent').value.trim(), child=$('dmChild').value.trim(), doc=$('dmDoc').value, other=($('dmOther')||{value:''}).value.trim(), f=$('dmFile').files[0]; if(REQ){other='x';}
     if(!parent){err.textContent='Please type your name.';return;} if(!child){err.textContent='Please type your child\'s name.';return;}
     if(doc==='other'&&!other){err.textContent='Please type what the document is called.';return;} if(!f){err.textContent='Please choose a file or take a photo.';return;}
     var btn=$('dmSend'); btn.disabled=true; btn.textContent='Sending…';
     try{
       var b64=await toB64(f);
-      var r=await fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pin,action:'pp_doc_send',parent:parent,child:child,doc:doc,other:other,b64:b64,name:f.name})});
+      var r=await fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pin,action:'pp_doc_send',parent:parent,child:child,doc:doc,other:other,req:(REQ?REQ.id:''),b64:b64,name:f.name})});
       var j=await r.json(); if(j.error) throw new Error(j.error);
       try{localStorage.setItem('pl_who',JSON.stringify(Object.assign(JSON.parse(localStorage.getItem('pl_who')||'{}'),{parent:parent,child:child})));}catch(e){}
-      $('dmForm').style.display='none'; $('dmDone').style.display='block';
+      $('dmForm').style.display='none'; $('dmDone').style.display='block'; if(REQ&&window.PP_REQ_REFRESH) setTimeout(window.PP_REQ_REFRESH,300);
     }catch(e){err.textContent=e.message||'Something went wrong. Please try again.';}
     btn.disabled=false; btn.textContent='Send to the school';
   }
-  document.getElementById('docOpen').onclick=open;
+  document.getElementById('docOpen').onclick=function(){open();};
+  async function loadReqs(){
+    if(STAFF) return;
+    try{
+      var r=await fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pin,action:'pp_req_list'})}); var j=await r.json(); if(j.error||!j.requests) return;
+      var old=document.getElementById('reqBanner'); if(old) old.remove(); if(!j.requests.length) return;
+      var d=document.createElement('div'); d.id='reqBanner'; d.style.cssText='max-width:820px;margin:10px auto;padding:14px 16px;background:#fff6e0;border:3px solid #d9a521;border-radius:16px;color:#3a2600';
+      d.innerHTML='<div style="font-weight:800;font-size:1.1rem">📄 The office needs a document from you</div><div style="margin:4px 0 8px;font-size:.95rem">Please upload it here. Tap the one for your child.</div>'+j.requests.map(function(q,i){return '<button type="button" data-i="'+i+'" style="display:block;width:100%;text-align:left;margin:6px 0;padding:12px 14px;border:0;border-radius:12px;background:#d9a521;color:#3a2600;font-weight:800;font-size:1rem;cursor:pointer">'+esc(q.child)+': '+esc(q.label)+(q.note?'<span style="display:block;font-weight:400;font-size:.85rem">'+esc(q.note)+'</span>':'')+' &rarr; Upload</button>';}).join('');
+      var host=document.querySelector('.sub'); (host&&host.parentNode?host.parentNode:document.body).insertBefore(d,host?host.nextSibling:document.body.firstChild);
+      d.querySelectorAll('button').forEach(function(b){b.onclick=function(){open(j.requests[+b.getAttribute('data-i')]);};});
+    }catch(e){}
+  }
+  setTimeout(loadReqs,600); window.PP_REQ_REFRESH=loadReqs;
 })();

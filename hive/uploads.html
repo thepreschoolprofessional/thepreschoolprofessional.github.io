@@ -18,6 +18,7 @@ select,input,textarea{padding:10px;border-radius:10px;border:1px solid #ccc;font
 <h1>📥 Parent Uploads <span class="badge" id="sch">…</span></h1>
 <div class="sub">Documents families send from the Parent Portal. Check each one, then file it in the child's Student File.</div>
 <div class="msg" id="msg"></div>
+<div class="sec" id="reqBox"></div>
 <div class="tabs"><button id="tNew" onclick="tab('new')">To check</button><button id="tPend" onclick="tab('pending')">Pending enrollment</button><button id="tDone" onclick="tab('done')">Filed and sent back</button></div>
 <div id="view"></div>
 <script>
@@ -30,7 +31,25 @@ let ITEMS=[],KIDS=null,DOCS=[],CUR='new',URL_=null;
 function when(a){return (a||'').slice(0,10);}
 function norm(s){return String(s||'').toLowerCase().replace(/[^a-z ]/g,' ').trim().split(/\s+/);}
 function guess(typed){const t=norm(typed);if(!t[0])return '';const f=t[0],l=(t[t.length-1]||'')[0];let hit='';(KIDS||[]).forEach(k=>{const n=norm(k.name);if(n[0]===f&&((n[n.length-1]||'')[0]===l||t.length===1))hit=hit||k.id;});return hit;}
-async function load(){say('');try{const w=await api('whoami');$('sch').textContent=w.school;const j=await api('up_list');ITEMS=j.items;draw();}catch(e){say(e.message,1);}}
+let REQS=[];
+async function load(){say('');try{const w=await api('whoami');$('sch').textContent=w.school;const j=await api('up_list');ITEMS=j.items;const r=await api('up_req_list');REQS=r.requests;drawReq();draw();}catch(e){say(e.message,1);}}
+function drawReq(){
+ let h='<h2>📣 Documents you asked families for</h2><button class="act" onclick="reqForm()">+ Request a document from a parent</button><div id="reqForm"></div>';
+ if(!REQS.length)h+='<div class="sub" style="margin-top:8px">No open requests.</div>';
+ REQS.forEach(x=>{h+='<div class="row" style="cursor:default"><b>'+esc(x.childName)+' — '+esc(x.label)+'</b><span class="sub">'+when(x.at)+(x.note?' · '+esc(x.note):'')+'</span><span class="pill '+(x.status==='received'?'filed':'pending')+'">'+(x.status==='received'?'Sent — check it below':'Waiting for the family')+'</span>'+(x.status==='open'?'<button class="act sec2" style="margin:0" onclick="reqCancel(\''+x.id+'\')">Cancel</button>':'')+'</div>';});
+ $('reqBox').innerHTML=h;
+}
+async function reqForm(){
+ try{if(!KIDS){const c=await api('up_children');KIDS=c.kids;DOCS=c.docs;}}catch(e){say(e.message,1);return;}
+ const T=[['imm','Immunization record (DH 680 / 681)'],['phys','Physical exam (DH 3040)'],['pid','Parent ID copy'],['allg','Allergy / special needs care plan'],['dmed','Medical statement / dietary request'],['medauth','Medication authorization'],['elcpay','ELC / School Readiness payment certificate'],['elc','Other ELC / 4C paperwork'],['fr','Free & reduced meal application'],['cust','Custody / court papers'],['other','Something else']];
+ $('reqForm').innerHTML='<label>Which child?</label><select id="rqKid"><option value="">Pick the child…</option>'+KIDS.map(k=>'<option value="'+k.id+'">'+esc(k.name)+(k.sub?' ('+esc(k.sub)+')':'')+'</option>').join('')+'</select>'
+ +'<label>Which document?</label><select id="rqDoc" onchange="$(\'rqOW\').style.display=this.value===\'other\'?\'block\':\'none\'">'+T.map(t=>'<option value="'+t[0]+'">'+esc(t[1])+'</option>').join('')+'</select>'
+ +'<div id="rqOW" style="display:none"><label>What is it called?</label><input id="rqOther"></div>'
+ +'<label>Note for the family (optional)</label><input id="rqNote" placeholder="Example: needed by Friday">'
+ +'<button class="act gr" onclick="reqSend()">Send the request</button><button class="act sec2" onclick="$(\'reqForm\').innerHTML=\'\'">Cancel</button>';
+}
+async function reqSend(){try{await api('up_req_create',{childId:$('rqKid').value,doc:$('rqDoc').value,other:$('rqOther')?$('rqOther').value:'',note:$('rqNote').value});say('Request sent. The family will see it when they sign in to the Parent Portal.');await load();}catch(e){say(e.message,1);}}
+async function reqCancel(id){if(!confirm('Cancel this request?'))return;try{await api('up_req_cancel',{id});await load();}catch(e){say(e.message,1);}}
 function tab(t){CUR=t;draw();}
 function draw(){
  const nNew=ITEMS.filter(x=>x.status==='new').length,nP=ITEMS.filter(x=>x.status==='pending').length;

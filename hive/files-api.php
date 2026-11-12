@@ -406,7 +406,7 @@ $TEACHER_SCHOOL = ['teacher-sanford' => 'Sanford', 'teacher-deland' => 'DeLand 2
 $isDir = isset($ROLE_SCHOOL[$role]);
 $isTeacher = (strpos($role, 'teacher') === 0);
 $isParent = (strpos($role, 'parent') === 0);
-if ($isParent && !in_array(($input['action'] ?? ''), ['bios_public', 'pp_list', 'pp_get', 'pp_orient_sign', 'pp_orient_start', 'pp_auto', 'pp_ev_list', 'pp_ev_claim', 'pp_doc_send'], true)) fail('Files are only available with a director PIN.', 403);
+if ($isParent && !in_array(($input['action'] ?? ''), ['bios_public', 'pp_list', 'pp_get', 'pp_orient_sign', 'pp_orient_start', 'pp_auto', 'pp_ev_list', 'pp_ev_claim', 'pp_doc_send', 'pp_req_list'], true)) fail('Files are only available with a director PIN.', 403);
 if (!$isDir && !$isTeacher && !$isParent) fail('Files are only available with a director PIN.', 403);
 $PARENT_SCHOOL = ['parent-sanford' => 'Sanford', 'parent-deland' => 'DeLand 2'];
 $school = $isDir ? $ROLE_SCHOOL[$role] : (isset($TEACHER_SCHOOL[$role]) ? $TEACHER_SCHOOL[$role] : (isset($PARENT_SCHOOL[$role]) ? $PARENT_SCHOOL[$role] : trim($input['school'] ?? '')));
@@ -421,9 +421,20 @@ function up_all($school){ $d = up_dir($school); $o = []; if (!$d) return $o; for
 function up_find($school, $id){ $id = preg_replace('/[^a-z0-9]/', '', strtolower((string)$id)); if ($id === '') return [null, null]; $d = up_dir($school); if (!$d) return [null, null]; $f = $d.'/'.$id.'.json'; if (!is_file($f)) return [null, null]; $x = json_decode(file_get_contents($f), true); return is_array($x) ? [$x, $f] : [null, null]; }
 function up_path($school, $x){ $d = up_dir($school); if (!empty($x['pend'])) return $d.'/pending/'.preg_replace('/[^a-z0-9-]/', '', (string)$x['pend']).'/'.basename((string)$x['file']); return $d.'/'.basename((string)$x['file']); }
 function up_sniff($raw){ if (substr($raw, 0, 4) === "%PDF") return 'pdf'; if (substr($raw, 0, 3) === "\xFF\xD8\xFF") return 'jpg'; if (substr($raw, 0, 8) === "\x89PNG\r\n\x1a\n") return 'png'; return ''; }
+/* ---- Document requests (11/11/26): a director asks for a document for one child; the family sees it when they sign in, uploads it, the director files it and the notice goes away. ---- */
+function rq_all($school){ $d = up_dir($school); $o = []; if (!$d) return $o; foreach (glob($d.'/rq*.json') ?: [] as $f){ $x = json_decode(file_get_contents($f), true); if (is_array($x) && !empty($x['id'])) $o[] = $x; } usort($o, function($a, $b){ return strcmp((string)$b['at'], (string)$a['at']); }); return $o; }
+function rq_find($school, $id){ $id = preg_replace('/[^a-z0-9]/', '', strtolower((string)$id)); if ($id === '' || strpos($id, 'rq') !== 0) return [null, null]; $d = up_dir($school); if (!$d) return [null, null]; $f = $d.'/'.$id.'.json'; if (!is_file($f)) return [null, null]; $x = json_decode(file_get_contents($f), true); return is_array($x) ? [$x, $f] : [null, null]; }
+function rq_close($school, $x, $to){ if (empty($x['reqId'])) return; list($q, $qf) = rq_find($school, $x['reqId']); if ($q && in_array($q['status'], ['open', 'received'], true)){ $q['status'] = $to; $q['on'] = gmdate('c'); jwrite($qf, $q); } }
+function rq_label($x, $T){ return ($x['doc'] === 'other') ? (($x['other'] ?? '') ?: 'Something else') : ($T[$x['doc']] ?? $x['doc']); }
+if ($action === 'pp_req_list'){
+if (!$isParent) fail('Families only.', 403);
+$o = []; foreach (rq_all($school) as $x){ if (($x['status'] ?? '') !== 'open') continue; $o[] = ['id'=>$x['id'], 'child'=>short_child($x['childName']), 'doc'=>$x['doc'], 'label'=>rq_label($x, $UP_TYPES), 'note'=>$x['note'] ?? '']; }
+echo json_encode(['requests'=>$o]); exit;
+}
 if ($action === 'pp_doc_send'){
 if (!$isParent) fail('Only families can send documents here.', 403);
 $parent = pp_txt($input['parent'] ?? '', 80); $child = pp_txt($input['child'] ?? '', 80); $key = (string)($input['doc'] ?? ''); $other = pp_txt($input['other'] ?? '', 80);
+$rq = null; $rqf = null; if (!empty($input['req'])){ list($rq, $rqf) = rq_find($school, $input['req']); if (!$rq || ($rq['status'] ?? '') !== 'open') fail('That request was already answered. Thank you!'); $child = $rq['childName']; $key = $rq['doc']; $other = (string)($rq['other'] ?? ''); }
 if ($parent === '') fail('Please type your name.'); if ($child === '') fail("Please type your child's name."); if (!isset($UP_TYPES[$key])) fail('Pick which document you are sending.');
 if ($key === 'other' && $other === '') fail('Please type what the document is.');
 $raw = base64_decode($input['b64'] ?? '', true); if ($raw === false || strlen($raw) < 100) fail('Please choose a file or take a photo first.');
@@ -435,7 +446,9 @@ if ($recent >= 15) fail('That is a lot of files at once. Please wait a little wh
 $id = 'up'.substr(md5(uniqid('', true)), 0, 10);
 if (file_put_contents($d.'/'.$id.'.'.$ext, $raw) === false) fail('Could not save the file', 500);
 $rec = ['id'=>$id, 'at'=>gmdate('c'), 'parent'=>$parent, 'child'=>$child, 'doc'=>$key, 'other'=>($key === 'other' ? $other : ''), 'file'=>$id.'.'.$ext, 'ext'=>$ext, 'size'=>strlen($raw), 'orig'=>clean_name($input['name'] ?? ''), 'status'=>'new', 'ip'=>$ip];
+if ($rq){ $rec['reqId'] = $rq['id']; $rec['childId'] = $rq['childId']; }
 jwrite($d.'/'.$id.'.json', $rec);
+if ($rq){ $rq['status'] = 'received'; $rq['upId'] = $id; $rq['rcvd'] = gmdate('c'); jwrite($rqf, $rq); }
 hive_notify($school, 'Parent document waiting: '.short_child($child), ['A parent sent a document through the Parent Portal: '.$UP_TYPES[$key].($key === 'other' ? ' ('.$other.')' : '').' for '.short_child($child).'.', 'Open Parent Uploads in the director portal to check it and file it.']);
 echo json_encode(['ok'=>true]); exit;
 }
@@ -444,6 +457,24 @@ if (!$isDir) fail('Only a director can review uploads.', 403);
 if ($action === 'up_list'){
 $o = []; foreach (up_all($school) as $x){ $o[] = ['id'=>$x['id'], 'at'=>$x['at'], 'parent'=>$x['parent'], 'child'=>$x['child'], 'doc'=>$x['doc'], 'label'=>($x['doc'] === 'other' ? ($x['other'] ?: 'Something else') : ($UP_TYPES[$x['doc']] ?? $x['doc'])), 'ext'=>$x['ext'], 'status'=>$x['status'], 'note'=>$x['note'] ?? '', 'filedTo'=>$x['filedTo'] ?? '', 'filedDoc'=>$x['filedDoc'] ?? '', 'pendName'=>$x['pendName'] ?? '', 'by'=>$x['by'] ?? '', 'on'=>$x['on'] ?? '']; }
 echo json_encode(['school'=>$school, 'items'=>$o]); exit;
+}
+if ($action === 'up_req_list'){
+$o = []; foreach (rq_all($school) as $x){ if (!in_array($x['status'], ['open', 'received'], true)) continue; $o[] = ['id'=>$x['id'], 'at'=>$x['at'], 'childName'=>$x['childName'], 'label'=>rq_label($x, $UP_TYPES), 'note'=>$x['note'] ?? '', 'status'=>$x['status']]; }
+echo json_encode(['requests'=>$o]); exit;
+}
+if ($action === 'up_req_create'){
+$cid = (string)($input['childId'] ?? ''); $dk = (string)($input['doc'] ?? ''); $other = pp_txt($input['other'] ?? '', 80); $note = pp_txt($input['note'] ?? '', 200);
+if (!isset($UP_TYPES[$dk])) fail('Pick which document you need.'); if ($dk === 'other' && $other === '') fail('Type what the document is called.');
+$p = find_person($school, 'student', $cid); if (!$p) fail('Pick the child from the list.');
+foreach (rq_all($school) as $q){ if ($q['status'] === 'open' && (string)$q['childId'] === $cid && $q['doc'] === $dk && ($q['other'] ?? '') === ($dk === 'other' ? $other : '')) fail('That request is already waiting for the family.'); }
+$d = up_dir($school); if (!$d) fail('Could not save.', 500);
+$id = 'rq'.substr(md5(uniqid('', true)), 0, 10);
+jwrite($d.'/'.$id.'.json', ['id'=>$id, 'at'=>gmdate('c'), 'childId'=>$cid, 'childName'=>$p['name'], 'doc'=>$dk, 'other'=>($dk === 'other' ? $other : ''), 'note'=>$note, 'status'=>'open']);
+echo json_encode(['ok'=>true, 'id'=>$id]); exit;
+}
+if ($action === 'up_req_cancel'){
+list($q, $qf) = rq_find($school, $input['id'] ?? ''); if (!$q) fail('That request was not found.', 404);
+$q['status'] = 'cancelled'; $q['on'] = gmdate('c'); jwrite($qf, $q); echo json_encode(['ok'=>true]); exit;
 }
 if ($action === 'up_children'){
 $r = roster($school, 'student'); if ($r === null) fail('Could not read the roster right now. Try again in a minute.', 502);
@@ -464,7 +495,7 @@ $slug = trim(preg_replace('/[^a-z0-9]+/', '-', strtolower($nm)), '-'); if ($slug
 $dest = up_dir($school).'/pending/'.$slug; if (!is_dir($dest) && !@mkdir($dest, 0750, true)) fail('Could not create the folder', 500);
 if ($x['status'] === 'new'){ if (!@rename($src, $dest.'/'.basename($x['file']))) fail('Could not move the file', 500); }
 elseif (($x['pend'] ?? '') !== $slug){ if (!@rename($src, $dest.'/'.basename($x['file']))) fail('Could not move the file', 500); }
-$x['status'] = 'pending'; $x['pend'] = $slug; $x['pendName'] = $nm; $x['by'] = 'Director'; $x['on'] = gmdate('c'); jwrite($xf, $x);
+$x['status'] = 'pending'; $x['pend'] = $slug; $x['pendName'] = $nm; $x['by'] = 'Director'; $x['on'] = gmdate('c'); jwrite($xf, $x); rq_close($school, $x, 'done');
 echo json_encode(['ok'=>true]); exit;
 }
 $cid = (string)($input['childId'] ?? ''); $dk = (string)($input['docKey'] ?? '');
@@ -481,7 +512,7 @@ if (!is_array($meta['docs'])) $meta['docs'] = [];
 if ($exp !== '') $meta['docs'][$dk] = array_merge((array)($meta['docs'][$dk] ?? []), ['exp'=>$exp]);
 jwrite($mf, $meta); drive_cache_clear($school);
 @unlink($src);
-$x['status'] = 'filed'; $x['filedTo'] = $p['name']; $x['filedDoc'] = $DEFS['student'][$dk][0]; $x['by'] = 'Director'; $x['on'] = gmdate('c'); unset($x['pend']); jwrite($xf, $x);
+$x['status'] = 'filed'; $x['filedTo'] = $p['name']; $x['filedDoc'] = $DEFS['student'][$dk][0]; $x['by'] = 'Director'; $x['on'] = gmdate('c'); unset($x['pend']); jwrite($xf, $x); rq_close($school, $x, 'done');
 echo json_encode(['ok'=>true, 'filedTo'=>$p['name']]); exit;
 }
 if ($action === 'up_reject'){
@@ -489,6 +520,7 @@ if (!in_array($x['status'], ['new', 'pending'], true)) fail('That upload was alr
 $src = up_path($school, $x); $rd = up_dir($school).'/_removed'; if (!is_dir($rd)) @mkdir($rd, 0750, true);
 if (is_file($src)) @rename($src, $rd.'/'.basename($x['file']));
 $x['status'] = 'rejected'; $x['note'] = pp_txt($input['note'] ?? '', 300); $x['by'] = 'Director'; $x['on'] = gmdate('c'); unset($x['pend']); jwrite($xf, $x);
+if (!empty($x['reqId'])){ list($q, $qf) = rq_find($school, $x['reqId']); if ($q && $q['status'] === 'received'){ $q['status'] = 'open'; $q['note'] = trim(($q['note'] ?? '').' (The last one could not be used. Please send it again.)'); jwrite($qf, $q); } }
 echo json_encode(['ok'=>true]); exit;
 }
 fail('Unknown action.');
