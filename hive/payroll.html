@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Bi-weekly Staff Pay</title>
+<style>
+:root{--bg:#fff8ec;--ink:#2b2118;--card:#fff;--line:#e8d9bd;--acc:#37474f;--mut:#7a6a55;--ok:#1b7f3b;--bad:#b3261e}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+header{padding:14px 16px;background:#fff;border-bottom:2px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+h1{font-size:20px;margin:0;flex:1}button,.btn{background:var(--acc);color:#fff;border:0;border-radius:10px;padding:9px 14px;font-size:15px;cursor:pointer;text-decoration:none}
+button.ghost{background:#fff;color:var(--acc);border:1px solid var(--acc)}
+main{max-width:1000px;margin:0 auto;padding:14px}
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}.bar b{font-size:17px}
+.sum{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:14px;color:var(--mut)}
+table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;font-size:15px}th{background:#f3ece0;font-size:13px}
+td.n{text-align:right;font-variant-numeric:tabular-nums}.ok{color:var(--ok);font-weight:700}.bad{color:var(--bad);font-weight:700}.mut{color:var(--mut);font-size:13px}
+tr.tot td{font-weight:800;background:#faf5ea}
+.msg{padding:30px;text-align:center;color:var(--mut)}
+details{margin-top:14px;font-size:14px}input[type=date]{font:inherit;padding:6px;border:1px solid var(--line);border-radius:8px}
+@media print{header button,header .btn,.bar button,details,.noprint{display:none!important}body{background:#fff}}
+</style></head><body>
+<header><h1 id="ttl">Bi-weekly Staff Pay</h1><a class="btn ghost" href="reporting.html">Back to Reporting</a><button class="ghost" onclick="window.print()">Print</button><button class="ghost" id="csv">Download CSV for ADP</button></header>
+<main><div id="app" class="msg">Loading…</div></main>
+<script>
+var API='timesheet-api.php',PIN=null,D=null,PI=0;
+try{PIN=sessionStorage.getItem('hivePin')}catch(e){}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function call(b){b.pin=PIN;return fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).then(function(r){return r.json()})}
+function ymd(d){return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)}
+function addDays(s,n){var d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return ymd(d)}
+function fmt(s){return new Date(s+'T12:00:00').toLocaleDateString([], {month:'short',day:'numeric'})}
+function first(n){return String(n||'').toLowerCase().replace(/\([^)]*\)/g,'').replace(/\b(ms|mrs|mr|miss|dr)\b\.?/g,' ').match(/[a-z']+/)}
+function fk(n){var m=first(n);return m?m[0].replace(/'/g,''):''}
+function load(){
+ if(!PIN){document.getElementById('app').textContent='Please open this from your Hive director portal.';return}
+ call({action:'pay_list'}).then(function(d){if(d.error){document.getElementById('app').textContent=d.error;return}D=d;document.getElementById('ttl').textContent='Bi-weekly Staff Pay — '+d.school;
+  var today=ymd(new Date()),n=0;while(addDays(d.anchor,14*(n+1))<=today)n++;
+  PI=(addDays(d.anchor,14*n+11)<today)?n:Math.max(0,n-1);
+  draw()}).catch(function(){document.getElementById('app').textContent='Could not load. Please try again.'})
+}
+function period(){var s=addDays(D.anchor,14*PI);return {w1:s,w2:addDays(s,7),end:addDays(s,11)}}
+function rows(){
+ var p=period(),W1=D.weeks[p.w1]||{},W2=D.weeks[p.w2]||{},out=[],seen={};
+ function add(sid,name,a,b){var days=[].concat((a&&a.days)||[],(b&&b.days)||[]),offs={};days.forEach(function(x){if(x.off)offs[x.off]=(offs[x.off]||0)+1});
+  out.push({sid:sid,name:name,h1:a?a.total:null,h2:b?b.total:null,tot:(a?a.total:0)+(b?b.total:0),offs:offs,waived:(a&&a.waived)||(b&&b.waived)})}
+ Object.keys(W1).forEach(function(sid){seen[sid]=1;add(sid,W1[sid].name,W1[sid],W2[sid])});
+ Object.keys(W2).forEach(function(sid){if(!seen[sid]){seen[sid]=1;add(sid,W2[sid].name,null,W2[sid])}});
+ var have={};out.forEach(function(r){have[fk(r.name)]=1});
+ var miss=[];(D.roster||[]).forEach(function(r){if(!have[fk(r.name)])miss.push(r)});
+ out.forEach(function(r){var m=(D.roster||[]).filter(function(x){return fk(x.name)===fk(r.name)})[0];r.sched=m&&m.hrs!=null?m.hrs*2:null});
+ out.sort(function(a,b){return a.name.localeCompare(b.name)});
+ return {rows:out,miss:miss,p:p}
+}
+function offTxt(o){var k=Object.keys(o);return k.length?k.map(function(x){return o[x]+' '+x}).join(', '):''}
+function draw(){
+ var R=rows(),p=R.p,h='';
+ h+='<div class="bar"><button class="ghost" onclick="PI--;draw()">← Earlier</button><b>Pay period: '+fmt(p.w1)+' – '+fmt(p.end)+'</b><button class="ghost" onclick="PI++;draw()">Later →</button></div>';
+ h+='<div class="sum">Only weeks that every staff member has signed and the director has signed off appear here. Week 1 = '+fmt(p.w1)+', week 2 = '+fmt(p.w2)+'. Hours come straight from the Bear Line time clock after director fixes. Vacation, PTO, holiday, sick and day-off days are listed but are not added to the hours.</div>';
+ h+='<table><thead><tr><th>Staff</th><th class="n" style="text-align:right">Week 1</th><th class="n" style="text-align:right">Week 2</th><th style="text-align:right">Total hours</th><th>Scheduled (2 wks)</th><th>Days off</th></tr></thead><tbody>';
+ var t1=0,t2=0;
+ R.rows.forEach(function(r){t1+=r.h1||0;t2+=r.h2||0;
+  h+='<tr><td>'+esc(r.name)+(r.waived?' <span class="mut">(not signed by staff)</span>':'')+'</td><td class="n">'+(r.h1==null?'<span class="bad">not filed</span>':r.h1.toFixed(2))+'</td><td class="n">'+(r.h2==null?'<span class="bad">not filed</span>':r.h2.toFixed(2))+'</td><td class="n"><b>'+r.tot.toFixed(2)+'</b></td><td class="n">'+(r.sched==null?'':r.sched.toFixed(1))+'</td><td>'+esc(offTxt(r.offs))+'</td></tr>'});
+ h+='<tr class="tot"><td>All staff</td><td class="n">'+t1.toFixed(2)+'</td><td class="n">'+t2.toFixed(2)+'</td><td class="n">'+(t1+t2).toFixed(2)+'</td><td></td><td></td></tr></tbody></table>';
+ if(R.miss.length)h+='<div class="sum" style="margin-top:12px"><b class="bad">No signed time sheet filed yet for this period:</b> '+R.miss.map(function(r){return esc(r.name)}).join(', ')+'. They may have had no hours, or a week is still waiting for a staff or director signature on the Bear Line.</div>';
+ h+='<details><summary>Pay period settings</summary><p>Pay periods are two weeks. Pick the Monday that starts any pay period:</p><input type="date" id="anc" value="'+esc(D.anchor)+'"> <button class="ghost" onclick="setAnc()">Save</button></details>';
+ document.getElementById('app').className='';document.getElementById('app').innerHTML=h;
+}
+function setAnc(){var v=document.getElementById('anc').value;call({action:'pay_anchor',anchor:v}).then(function(r){if(r.error){alert(r.error);return}load()})}
+document.getElementById('csv').onclick=function(){if(!D)return;var R=rows(),p=R.p,q=function(s){return '"'+String(s).replace(/"/g,'""')+'"'},L=[['Staff','Period start','Period end','Week 1 hours','Week 2 hours','Total hours','Days off / PTO / vacation'].map(q).join(',')];
+ R.rows.forEach(function(r){L.push([q(r.name),q(p.w1),q(p.end),q(r.h1==null?'':r.h1.toFixed(2)),q(r.h2==null?'':r.h2.toFixed(2)),q(r.tot.toFixed(2)),q(offTxt(r.offs))].join(','))});
+ var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([L.join('\n')],{type:'text/csv'}));a.download='staff-hours-'+p.w1+'.csv';document.body.appendChild(a);a.click();a.remove()};
+load();
+</script></body></html>

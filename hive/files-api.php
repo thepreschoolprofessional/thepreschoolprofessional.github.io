@@ -60,6 +60,7 @@ $DEFS = [
  'dphys' => ['Driver physical exam', true, false, 'Drivers only, yearly'],
  'cah'   => ['Central Abuse Hotline records search', false, false, 'Directors and owners'],
  'can'   => ['Child abuse / neglect reporting', true, true, 'Renew every year'],
+ 'pay'   => ['Signed weekly time sheets', false, false, 'Filed automatically each week from the Bear Line'],
  'conf'  => ['Confidentiality agreement', false, true, ''],
  'coc'   => ['Employee code of conduct', false, true, ''],
  'hns'   => ['Health / nutrition / safety policy', false, true, ''],
