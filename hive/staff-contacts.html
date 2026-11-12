@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Staff Contacts</title>
+<style>
+:root{--bg:#fff8ec;--ink:#2b2118;--card:#fff;--line:#e8d9bd;--acc:#b45f06;--mut:#7a6a55}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+header{padding:14px 16px;background:#fff;border-bottom:2px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+h1{font-size:20px;margin:0;flex:1}button,.btn{background:var(--acc);color:#fff;border:0;border-radius:10px;padding:9px 14px;font-size:15px;cursor:pointer}
+button.ghost{background:#fff;color:var(--acc);border:1px solid var(--acc)}
+main{max-width:900px;margin:0 auto;padding:14px}
+input,textarea{font:inherit;padding:9px;border:1px solid var(--line);border-radius:8px;width:100%}
+#q{margin-bottom:10px}.sum{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:14px;color:var(--mut)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}.nm{font-weight:700;font-size:17px}.rl{color:var(--mut);font-size:14px}
+.row{margin-top:6px;font-size:16px}.row a{color:var(--acc);font-weight:600;text-decoration:none}.miss{color:#b3261e;font-size:14px}
+.edit{display:none;margin-top:8px;gap:8px;flex-direction:column}.card.ed .edit{display:flex}.card.ed .view{display:none}
+.msg{padding:30px;text-align:center;color:var(--mut)}
+@media print{header button,.edit,#q,.sum,.ebtn{display:none!important}body{background:#fff}.card{break-inside:avoid}}
+</style></head><body>
+<header><h1 id="ttl">Staff Contacts</h1><button class="ghost" onclick="window.print()">Print</button><button class="ghost" id="imp" style="display:none" onclick="document.getElementById('fi').click()">Add from file</button><input type="file" id="fi" accept=".csv,.json" style="display:none"></header>
+<main><div id="app" class="msg">Loading…</div></main>
+<script>
+var API='staff-contacts-api.php',PIN=null,DATA=null;
+try{PIN=sessionStorage.getItem('hivePin')}catch(e){}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function call(b){b.pin=PIN;return fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).then(function(r){return r.json()})}
+function load(){
+ if(!PIN){document.getElementById('app').textContent='Please open this from your Hive director portal.';return}
+ call({action:'sc_get'}).then(function(d){if(d.error){document.getElementById('app').textContent=d.error;return}DATA=d;document.getElementById('ttl').textContent='Staff Contacts — '+d.school;document.getElementById('imp').style.display='';draw()}).catch(function(){document.getElementById('app').textContent='Could not load. Please try again.'})
+}
+function tel(p){return String(p).replace(/[^0-9+]/g,'')}
+function draw(){
+ var q=(document.getElementById('q')||{value:''}).value.toLowerCase(),s=DATA.staff,np=0,ne=0;
+ s.forEach(function(p){if(!p.phone)np++;if(!p.email)ne++});
+ var h='<input id="q" placeholder="Search name, role, phone or email" value="'+esc(q)+'" oninput="draw();var e=document.getElementById(\'q\');e.focus();e.setSelectionRange(e.value.length,e.value.length)">';
+ h+='<div class="sum">'+s.length+' staff · '+np+' missing a phone · '+ne+' missing an email'+(DATA.updated?' · saved '+esc(DATA.updated):'')+'</div>';
+ s.forEach(function(p,i){
+  if(q&&(p.name+' '+p.role+' '+p.phone+' '+p.email).toLowerCase().indexOf(q)<0)return;
+  h+='<div class="card" id="c'+i+'"><div class="view"><div class="top"><span class="nm">'+esc(p.name)+'</span><span class="rl">'+esc(p.role)+'</span></div>'
+  +'<div class="row">'+(p.phone?'📞 <a href="tel:'+tel(p.phone)+'">'+esc(p.phone)+'</a>':'<span class="miss">No phone yet</span>')+'</div>'
+  +'<div class="row">'+(p.email?'✉️ <a href="mailto:'+esc(p.email)+'">'+esc(p.email)+'</a>':'<span class="miss">No email yet</span>')+'</div>'
+  +(p.notes?'<div class="row rl">'+esc(p.notes)+'</div>':'')
+  +'<div class="row ebtn"><button class="ghost" onclick="ed('+i+')">Edit</button></div></div>'
+  +'<div class="edit"><input placeholder="Phone" id="p'+i+'" value="'+esc(p.phone)+'" inputmode="tel"><input placeholder="Email" id="e'+i+'" value="'+esc(p.email)+'" inputmode="email"><textarea rows="2" placeholder="Notes (optional)" id="n'+i+'">'+esc(p.notes)+'</textarea><div><button onclick="sv('+i+')">Save</button> <button class="ghost" onclick="draw()">Cancel</button></div></div></div>';
+ });
+ document.getElementById('app').className='';document.getElementById('app').innerHTML=h;
+}
+function ed(i){document.getElementById('c'+i).className='card ed'}
+function sv(i){var p=DATA.staff[i];call({action:'sc_save',name:p.name,role:p.role,phone:document.getElementById('p'+i).value,email:document.getElementById('e'+i).value,notes:document.getElementById('n'+i).value}).then(function(r){if(r.error){alert(r.error);return}load()})}
+document.getElementById('fi').onchange=function(ev){var f=ev.target.files[0];if(!f)return;var rd=new FileReader();rd.onload=function(){
+ var t=rd.result,list=[];try{if(/\.json$/i.test(f.name)){var j=JSON.parse(t);list=Array.isArray(j)?j:(j.people||[])}else{
+  var rows=t.split(/\r?\n/).filter(Boolean).map(function(l){return l.split(',').map(function(c){return c.replace(/^"|"$/g,'').trim()})});
+  var hd=rows.shift().map(function(c){return c.toLowerCase()});
+  list=rows.map(function(r){var o={};hd.forEach(function(k,x){o[k]=r[x]});return o})}}catch(e){alert('That file could not be read.');return}
+ call({action:'sc_import',people:list}).then(function(r){if(r.error){alert(r.error);return}load()})};rd.readAsText(f)};
+load();
+</script></body></html>
