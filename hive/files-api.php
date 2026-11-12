@@ -242,6 +242,28 @@ if (AIRTABLE_TOKEN === 'PASTE_YOUR_AIRTABLE_TOKEN_HERE') fail('The Airtable toke
 $input = json_decode(file_get_contents('php://input'), true);
 if (!$input) fail('Bad request');
 /* ---- Notifications: plain emails to the school's own office inbox (first name + last initial only, no private details). Failure is silent; the red Needs Attention banner is the main alert. ---- */
+/* Hive -> Bear Line bridge: add a family (after enrollment approval) or a staff clock PIN (after a new hire is added). Authorised by the private ELC sync code; never throws. */
+function bl_post($school, $payload){
+  foreach ([dirname(__DIR__, 2), dirname(__DIR__), __DIR__] as $d0){ if (file_exists($d0.'/elc-sync-code.php')) include_once $d0.'/elc-sync-code.php'; }
+  if (!defined('ELC_SYNC_CODE')) return ['ok'=>false, 'error'=>'not_connected', 'message'=>'Bear Line is not connected from here yet.'];
+  $bl = ($school === 'Sanford') ? 'https://bearphonicsacademy.com/elc-94f077be04/bearline-api.php' : (($school === 'DeLand 2') ? 'https://bearphonicsacademy.com/elc-1ce53ee46c/bearline-api.php' : '');
+  if ($bl === '') return ['ok'=>false, 'error'=>'bad_school', 'message'=>'Unknown school.'];
+  $payload['code'] = ELC_SYNC_CODE;
+  $ctx = stream_context_create(['http'=>['method'=>'POST', 'header'=>"Content-Type: application/json\r\n", 'content'=>json_encode($payload), 'timeout'=>20, 'ignore_errors'=>true]]);
+  $r = @file_get_contents($bl, false, $ctx); $j = json_decode($r ?: '', true);
+  if (!is_array($j)) return ['ok'=>false, 'error'=>'unreachable', 'message'=>'Could not reach Bear Line right now.'];
+  return $j;
+}
+function bl_family_from_packet($pk, $room){
+  $D = $pk['data'] ?? []; $ps = [];
+  foreach ([1, 2] as $k){ $nm = trim((string)($D['p'.$k.'name'] ?? '')); if ($nm === '') continue; $ps[] = ['name'=>$nm, 'rel'=>(string)($D['p'.$k.'rel'] ?? ''), 'phone'=>(string)($D['p'.$k.'cell'] ?? ''), 'email'=>(string)($D['p'.$k.'email'] ?? '')]; }
+  if (!$ps && !empty($pk['parents'][0]['name'])) $ps[] = ['name'=>$pk['parents'][0]['name'], 'rel'=>'', 'phone'=>$pk['parents'][0]['phone'] ?? '', 'email'=>$pk['parents'][0]['email'] ?? ''];
+  return ['action'=>'hive_add_family', 'first'=>$pk['child']['first'] ?? '', 'last'=>$pk['child']['last'] ?? '', 'dob'=>$pk['child']['dob'] ?? '', 'room'=>$room, 'elc'=>(($pk['assist']['elc'] ?? '') === 'yes'), 'parents'=>$ps];
+}
+function bl_summary($j){
+  if (!empty($j['ok'])) return ['ok'=>true, 'at'=>gmdate('c'), 'childId'=>$j['childId'] ?? '', 'pins'=>$j['pins'] ?? [], 'existed'=>!empty($j['existed'])];
+  return ['ok'=>false, 'at'=>gmdate('c'), 'error'=>($j['message'] ?? ($j['error'] ?? 'failed'))];
+}
 function hive_notify($school, $subject, $lines){
 $to = ($school === 'Sanford') ? 'sanfordoffice.1320@gmail.com' : 'delandoffice.238@gmail.com';
 $body = implode("\n", (array)$lines)."\n\nOpen the director portal to review: https://thepreschoolprofessional.net/hive/\n(This is an automatic note from the Hive. Names are shortened on purpose.)";
@@ -588,19 +610,33 @@ file_put_contents($nd.'/'.$id.'-final.pdf', $pdf); $h['final'] = ['at'=>gmdate('
 if ($action === 'nh_pdf'){ $f = $nd.'/'.$id.'-packet.pdf'; if (!empty($input['final']) && is_file($nd.'/'.$id.'-final.pdf')) $f = $nd.'/'.$id.'-final.pdf'; if (!is_file($f)) fail('No packet PDF yet.', 404); echo json_encode(['b64'=>base64_encode(file_get_contents($f))]); exit; }
 if ($action === 'nh_archive'){ $h['status'] = !empty($input['undo']) ? 'new' : 'archived'; jwrite($hf, $h); echo json_encode(['ok'=>true]); exit; }
 if ($action === 'nh_reviewed'){ $h['status'] = 'reviewed'; jwrite($hf, $h); echo json_encode(['ok'=>true]); exit; }
+if ($action === 'nh_bl'){
+if (empty($h['staffRec'])) fail('Add them to Staff Files first.');
+if (!empty($h['bearline']['ok'])) { echo json_encode(['ok'=>true, 'bearline'=>$h['bearline']]); exit; }
+$shortNm = trim(preg_replace('/[^A-Za-z\' -]/', '', (string)($input['short'] ?? ''))); if ($shortNm !== '') $h['blName'] = $shortNm;
+$bj = bl_post($school, ['action'=>'hive_add_staff', 'name'=>($h['blName'] ?? $h['name']), 'role'=>(($h['role'] ?? '') === 'Director' ? 'Director' : 'Staff')]);
+$h['bearline'] = !empty($bj['ok']) ? ['ok'=>true, 'at'=>gmdate('c'), 'name'=>$bj['name'] ?? '', 'pin'=>$bj['pin'] ?? ''] : ['ok'=>false, 'at'=>gmdate('c'), 'error'=>($bj['message'] ?? ($bj['error'] ?? 'failed'))];
+jwrite($hf, $h); echo json_encode(['ok'=>!empty($h['bearline']['ok']), 'bearline'=>$h['bearline']]); exit;
+}
 if ($action === 'nh_add'){
 if (!empty($h['staffRec'])) fail('Already added to Staff Files.');
 $rl = $input['role'] ?? 'Teacher'; if (!in_array($rl, ['Teacher', 'Director', 'Support'], true)) fail('Pick a role');
 $name = trim(preg_replace('/\s+/', ' ', preg_replace('/[^A-Za-z0-9 .\'-]/', '', $h['name'])));
 if (strlen($name) < 3 || strpos($name, ' ') === false) fail('The name needs a first and last name.');
 foreach (roster($school, 'staff') ?: [] as $p){ if (strcasecmp($p['name'], $name) === 0) fail($name.' is already on the staff list.'); }
-$res = at_request('POST', ['Staff Roster'], null, ['fields'=>['Name'=>$name, 'School'=>$school, 'Role'=>$rl, 'Active'=>true]]);
+$hrs = (float)($input['hours'] ?? 0); if ($hrs < 0 || $hrs > 80) $hrs = 0;
+$rf0 = ['Name'=>$name, 'School'=>$school, 'Role'=>$rl, 'Active'=>true]; if ($hrs > 0) $rf0['Weekly Scheduled Hours'] = $hrs;
+$res = at_request('POST', ['Staff Roster'], null, ['fields'=>$rf0]);
 if (!isset($res['id'])) fail('Could not add them: '.($res['error']['message'] ?? 'the roster did not accept it').'.', 502);
 roster_cache_clear($school); $pd = pdir($school, 'staff', $res['id']); $pf2 = $nd.'/'.$id.'-packet.pdf'; if (is_file($nd.'/'.$id.'-final.pdf')) $pf2 = $nd.'/'.$id.'-final.pdf'; $filed = false;
 if (is_file($pf2) && $pd){ $fn2 = date('Ymd-His').'_new-hire-packet_'.$id.'.pdf'; if (@copy($pf2, $pd.'/'.$fn2)){ $mf = $pd.'/meta.json'; $meta = jread($mf, ['docs'=>[], 'files'=>[]]); if (!is_array($meta['files'])) $meta['files'] = [];
 $keys = ['app', 'priv', 'can', 'coc', 'emg', 'hns']; if (($h['role'] ?? '') === 'New hire') $keys[] = 'ref';
 foreach ($keys as $dk){ $meta['files'][] = ['doc'=>$dk, 'name'=>$fn2, 'at'=>gmdate('c'), 'size'=>filesize($pf2)]; } jwrite($mf, $meta); $filed = true; } }
-$h['status'] = 'added'; $h['staffRec'] = $res['id']; $h['addedAt'] = gmdate('c'); jwrite($hf, $h); echo json_encode(['ok'=>true, 'name'=>$name, 'filed'=>$filed]); exit;
+$h['status'] = 'added'; $h['staffRec'] = $res['id']; $h['addedAt'] = gmdate('c'); $h['hours'] = $hrs;
+$shortNm = trim(preg_replace('/[^A-Za-z\' -]/', '', (string)($input['short'] ?? ''))); $h['blName'] = ($shortNm !== '') ? $shortNm : $name;
+$bj = bl_post($school, ['action'=>'hive_add_staff', 'name'=>$h['blName'], 'role'=>($rl === 'Director' ? 'Director' : 'Staff')]);
+$h['bearline'] = !empty($bj['ok']) ? ['ok'=>true, 'at'=>gmdate('c'), 'name'=>$bj['name'] ?? '', 'pin'=>$bj['pin'] ?? ''] : ['ok'=>false, 'at'=>gmdate('c'), 'error'=>($bj['message'] ?? ($bj['error'] ?? 'failed'))];
+jwrite($hf, $h); echo json_encode(['ok'=>true, 'name'=>$name, 'filed'=>$filed, 'bearline'=>$h['bearline']]); exit;
 }
 fail('Unknown request.');
 }
@@ -639,8 +675,10 @@ if (is_file($pf2)){ $fn2 = date('Ymd-His').'_registration-packet_'.$id.'.pdf'; i
 foreach (['reg', 'med', 'em', 'special', 'nut', 'photo', 'foodp', 'fin', 'hb'] as $dk){ if ($dk === 'photo' && empty($pk['photoRelease']) && ($pk['data']['photo'] ?? '') !== 'no') continue; $meta['files'][] = ['doc'=>$dk, 'name'=>$fn2, 'at'=>gmdate('c'), 'size'=>filesize($pf2)]; }
 jwrite($mf, $meta); $pk['filed'] = true; } }
 $pk['status'] = 'approved'; $pk['approvedAt'] = gmdate('c'); $pk['approvedRoom'] = $room; $pk['childRec'] = $res['id']; $pk['childName'] = $name;
-jwrite($pf, $pk); ori_refile($school); echo json_encode(['ok'=>true, 'name'=>$name, 'recId'=>$res['id'], 'sr'=>$sr]); exit;
+$pk['bearline'] = bl_summary(bl_post($school, bl_family_from_packet($pk, $room)));
+jwrite($pf, $pk); ori_refile($school); echo json_encode(['ok'=>true, 'name'=>$name, 'recId'=>$res['id'], 'sr'=>$sr, 'bearline'=>$pk['bearline']]); exit;
 }
+if ($action === 'en_bl'){ if (($pk['status'] ?? '') !== 'approved') fail('Approve the packet first.'); $pk['bearline'] = bl_summary(bl_post($school, bl_family_from_packet($pk, $pk['approvedRoom'] ?? ''))); jwrite($pf, $pk); echo json_encode(['ok'=>!empty($pk['bearline']['ok']), 'bearline'=>$pk['bearline']]); exit; }
 if ($action === 'en_decline'){ $pk['status'] = 'declined'; $pk['note'] = mb_substr(trim(strip_tags((string)($input['note'] ?? ''))), 0, 300); jwrite($pf, $pk); echo json_encode(['ok'=>true]); exit; }
 if ($action === 'en_done'){ $k = preg_replace('/[^a-z]/', '', (string)($input['step'] ?? '')); if (!in_array($k, ['food', 'procare', 'welcome', 'cert', 'notary', 'id'], true)) fail('Unknown step'); $pk['steps'][$k] = !empty($input['on']); jwrite($pf, $pk); echo json_encode(['ok'=>true]); exit; }
 fail('Unknown request.');
@@ -1069,6 +1107,8 @@ if (is_array($pa) && !isset($pa['error'])){ foreach (($pa['records'] ?? []) as $
 if ((int)date('N') >= 4){ $tw = fte_target_week(); if (!fte_have_week($school, $tw)) $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'fte', 'href'=>'fte.html', 'label'=>'Weekly FTE report for the week of '.date('n/j', strtotime($tw)).' not filed yet', 'status'=>'missing', 'red'=>((int)date('N') >= 5)]; }
 foreach (nh_list_all($school) as $nh0){ if (($nh0['status'] ?? 'new') !== 'new') continue; $nn = $nh0['name'] ?? ''; $lab = ''; if (!empty($nh0['packet']) && empty($nh0['final'])) $lab = 'New hire '.$nn.' signed their employee packet — review and sign your lines'; elseif (nh_train_done($nh0) >= count($NH_TRAIN)) $lab = 'New hire '.$nn.' finished all onboarding steps — check their certificates'; if ($lab !== '') $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'newhire', 'href'=>'newhires.html', 'label'=>$lab, 'status'=>'missing', 'red'=>false]; }
 foreach (ori_refile($school) as $uo){ $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'orient', 'href'=>'parent-manage.html', 'label'=>'Parent orientation signed by '.($uo['parent'] ?? '').' for '.short_child($uo['child'] ?? '').' is not in a child\'s file yet (child not on the roster, or the name did not match)', 'status'=>'missing', 'red'=>false]; }
+foreach (en_list_all($school) as $enb){ if (($enb['status'] ?? '') === 'approved' && isset($enb['bearline']) && empty($enb['bearline']['ok']) && strtotime($enb['approvedAt'] ?? 'now') > time() - 60 * 86400) $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'enroll', 'href'=>'enroll.html', 'label'=>short_child(($enb['child']['first'] ?? '').' '.($enb['child']['last'] ?? '')).' is on the roster but NOT set up on the Bear Line sign-in yet. Open the packet and press Add to Bear Line', 'status'=>'missing', 'red'=>true]; }
+foreach (nh_list_all($school) as $nhb){ if (($nhb['status'] ?? '') === 'added' && isset($nhb['bearline']) && empty($nhb['bearline']['ok'])) $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'newhire', 'href'=>'newhires.html', 'label'=>($nhb['name'] ?? 'A new hire').' has no Bear Line clock PIN yet. Open New Hires and press Get Bear Line PIN', 'status'=>'missing', 'red'=>true]; }
 foreach (en_list_all($school) as $en0){ if (($en0['status'] ?? '') === 'new') $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'enroll', 'href'=>'enroll.html', 'label'=>'New enrollment packet: '.($en0['child']['first'] ?? '').' '.mb_substr($en0['child']['last'] ?? '', 0, 1).'. — review and approve', 'status'=>'missing', 'red'=>false]; }
 $upn = 0; foreach (up_all($school) as $uq){ if (($uq['status'] ?? '') === 'new') $upn++; }
 if ($upn) $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'upload', 'href'=>'uploads.html', 'label'=>$upn.' document'.($upn === 1 ? '' : 's').' sent by parents to check and file', 'status'=>'missing', 'red'=>false];
