@@ -40,10 +40,10 @@ function load(){
 function period(){var s=addDays(D.anchor,14*PI);return {w1:s,w2:addDays(s,7),end:addDays(s,11)}}
 function rows(){
  var p=period(),W1=D.weeks[p.w1]||{},W2=D.weeks[p.w2]||{},out=[],seen={};
- function add(sid,name,a,b){var days=[].concat((a&&a.days)||[],(b&&b.days)||[]),offs={};days.forEach(function(x){if(x.off)offs[x.off]=(offs[x.off]||0)+1});
-  out.push({sid:sid,name:name,h1:a?a.total:null,h2:b?b.total:null,tot:(a?a.total:0)+(b?b.total:0),offs:offs,waived:(a&&a.waived)||(b&&b.waived)})}
- Object.keys(W1).forEach(function(sid){seen[sid]=1;add(sid,W1[sid].name,W1[sid],W2[sid])});
- Object.keys(W2).forEach(function(sid){if(!seen[sid]){seen[sid]=1;add(sid,W2[sid].name,null,W2[sid])}});
+ function add(sid,name,a,b){var days=[].concat((a&&a.days)||[],(b&&b.days)||[]),offs={},pto=0;days.forEach(function(x){if(x.off){offs[x.off]=(offs[x.off]||0)+1;if(x.off!=='Day off')pto+=(x.oh||0)}});
+  out.push({sid:sid,name:name,pto:pto,h1:a?a.total:null,h2:b?b.total:null,tot:(a?a.total:0)+(b?b.total:0),offs:offs,waived:(a&&a.waived)||(b&&b.waived)})}
+ Object.keys(W1).forEach(function(sid){seen[sid]=1;add(sid,W1[sid].full||W1[sid].name,W1[sid],W2[sid])});
+ Object.keys(W2).forEach(function(sid){if(!seen[sid]){seen[sid]=1;add(sid,W2[sid].full||W2[sid].name,null,W2[sid])}});
  var have={};out.forEach(function(r){have[fk(r.name)]=1});
  var miss=[];(D.roster||[]).forEach(function(r){if(!have[fk(r.name)])miss.push(r)});
  out.forEach(function(r){var m=(D.roster||[]).filter(function(x){return fk(x.name)===fk(r.name)})[0];r.sched=m&&m.hrs!=null?m.hrs*2:null});
@@ -54,19 +54,19 @@ function offTxt(o){var k=Object.keys(o);return k.length?k.map(function(x){return
 function draw(){
  var R=rows(),p=R.p,h='';
  h+='<div class="bar"><button class="ghost" onclick="PI--;draw()">← Earlier</button><b>Pay period: '+fmt(p.w1)+' – '+fmt(p.end)+'</b><button class="ghost" onclick="PI++;draw()">Later →</button></div>';
- h+='<div class="sum">Only weeks that every staff member has signed and the director has signed off appear here. Week 1 = '+fmt(p.w1)+', week 2 = '+fmt(p.w2)+'. Hours come straight from the Bear Line time clock after director fixes. Vacation, PTO, holiday, sick and day-off days are listed but are not added to the hours.</div>';
- h+='<table><thead><tr><th>Staff</th><th class="n" style="text-align:right">Week 1</th><th class="n" style="text-align:right">Week 2</th><th style="text-align:right">Total hours</th><th>Scheduled (2 wks)</th><th>Days off</th></tr></thead><tbody>';
+ h+='<div class="sum">Only weeks that every staff member has signed and the director has signed off appear here. Week 1 = '+fmt(p.w1)+', week 2 = '+fmt(p.w2)+'. Hours come straight from the Bear Line time clock after director fixes. Vacation and PTO hours the director entered are INCLUDED in the totals (shown in their own column). A plain day off is listed but adds no hours.</div>';
+ h+='<table><thead><tr><th>Staff</th><th class="n" style="text-align:right">Week 1</th><th class="n" style="text-align:right">Week 2</th><th style="text-align:right">Total hours</th><th style="text-align:right">Incl. vacation / PTO hrs</th><th>Scheduled (2 wks)</th><th>Days off</th></tr></thead><tbody>';
  var t1=0,t2=0;
  R.rows.forEach(function(r){t1+=r.h1||0;t2+=r.h2||0;
-  h+='<tr><td>'+esc(r.name)+(r.waived?' <span class="mut">(not signed by staff)</span>':'')+'</td><td class="n">'+(r.h1==null?'<span class="bad">not filed</span>':r.h1.toFixed(2))+'</td><td class="n">'+(r.h2==null?'<span class="bad">not filed</span>':r.h2.toFixed(2))+'</td><td class="n"><b>'+r.tot.toFixed(2)+'</b></td><td class="n">'+(r.sched==null?'':r.sched.toFixed(1))+'</td><td>'+esc(offTxt(r.offs))+'</td></tr>'});
- h+='<tr class="tot"><td>All staff</td><td class="n">'+t1.toFixed(2)+'</td><td class="n">'+t2.toFixed(2)+'</td><td class="n">'+(t1+t2).toFixed(2)+'</td><td></td><td></td></tr></tbody></table>';
+  h+='<tr><td>'+esc(r.name)+(r.waived?' <span class="mut">(not signed by staff)</span>':'')+'</td><td class="n">'+(r.h1==null?'<span class="bad">not filed</span>':r.h1.toFixed(2))+'</td><td class="n">'+(r.h2==null?'<span class="bad">not filed</span>':r.h2.toFixed(2))+'</td><td class="n"><b>'+r.tot.toFixed(2)+'</b></td><td class="n">'+(r.pto?r.pto.toFixed(2):'')+'</td><td class="n">'+(r.sched==null?'':r.sched.toFixed(1))+'</td><td>'+esc(offTxt(r.offs))+'</td></tr>'});
+ h+='<tr class="tot"><td>All staff</td><td class="n">'+t1.toFixed(2)+'</td><td class="n">'+t2.toFixed(2)+'</td><td class="n">'+(t1+t2).toFixed(2)+'</td><td></td><td></td><td></td></tr></tbody></table>';
  if(R.miss.length)h+='<div class="sum" style="margin-top:12px"><b class="bad">No signed time sheet filed yet for this period:</b> '+R.miss.map(function(r){return esc(r.name)}).join(', ')+'. They may have had no hours, or a week is still waiting for a staff or director signature on the Bear Line.</div>';
  h+='<details><summary>Pay period settings</summary><p>Pay periods are two weeks. Pick the Monday that starts any pay period:</p><input type="date" id="anc" value="'+esc(D.anchor)+'"> <button class="ghost" onclick="setAnc()">Save</button></details>';
  document.getElementById('app').className='';document.getElementById('app').innerHTML=h;
 }
 function setAnc(){var v=document.getElementById('anc').value;call({action:'pay_anchor',anchor:v}).then(function(r){if(r.error){alert(r.error);return}load()})}
-document.getElementById('csv').onclick=function(){if(!D)return;var R=rows(),p=R.p,q=function(s){return '"'+String(s).replace(/"/g,'""')+'"'},L=[['Staff','Period start','Period end','Week 1 hours','Week 2 hours','Total hours','Days off / PTO / vacation'].map(q).join(',')];
- R.rows.forEach(function(r){L.push([q(r.name),q(p.w1),q(p.end),q(r.h1==null?'':r.h1.toFixed(2)),q(r.h2==null?'':r.h2.toFixed(2)),q(r.tot.toFixed(2)),q(offTxt(r.offs))].join(','))});
+document.getElementById('csv').onclick=function(){if(!D)return;var R=rows(),p=R.p,q=function(s){return '"'+String(s).replace(/"/g,'""')+'"'},L=[['Staff','Period start','Period end','Week 1 hours','Week 2 hours','Total hours','Included vacation/PTO hours','Days off / PTO / vacation'].map(q).join(',')];
+ R.rows.forEach(function(r){L.push([q(r.name),q(p.w1),q(p.end),q(r.h1==null?'':r.h1.toFixed(2)),q(r.h2==null?'':r.h2.toFixed(2)),q(r.tot.toFixed(2)),q(r.pto?r.pto.toFixed(2):''),q(offTxt(r.offs))].join(','))});
  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([L.join('\n')],{type:'text/csv'}));a.download='staff-hours-'+p.w1+'.csv';document.body.appendChild(a);a.click();a.remove()};
 load();
 </script></body></html>

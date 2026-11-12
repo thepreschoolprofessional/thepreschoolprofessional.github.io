@@ -87,7 +87,7 @@ if ($action === 'ts_file'){
   foreach (array_slice($r['days'], 0, 7) as $x){
     if (!is_array($x) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($x['k'] ?? ''))) continue;
     $t = function($v){ $v = (string)$v; return preg_match('/^\d{2}:\d{2}$/', $v) ? $v : ''; };
-    $days[] = ['k'=>$x['k'], 'in'=>$t($x['in'] ?? ''), 'lo'=>$t($x['lo'] ?? ''), 'li'=>$t($x['li'] ?? ''), 'out'=>$t($x['out'] ?? ''), 'off'=>mb_substr(trim(strip_tags((string)($x['off'] ?? ''))), 0, 20), 'h'=>isset($x['h']) && $x['h'] !== null ? round((float)$x['h'], 2) : null];
+    $days[] = ['k'=>$x['k'], 'in'=>$t($x['in'] ?? ''), 'lo'=>$t($x['lo'] ?? ''), 'li'=>$t($x['li'] ?? ''), 'out'=>$t($x['out'] ?? ''), 'off'=>mb_substr(trim(strip_tags((string)($x['off'] ?? ''))), 0, 20), 'oh'=>round(max(0, min(24, (float)($x['oh'] ?? 0))), 2), 'h'=>isset($x['h']) && $x['h'] !== null ? round((float)$x['h'], 2) : null];
   }
   $row = ['name'=>$name, 'days'=>$days, 'total'=>round((float)($r['total'] ?? 0), 2), 'staffAt'=>mb_substr((string)($r['staffAt'] ?? ''), 0, 40), 'waived'=>!empty($r['waived']),
           'dirName'=>mb_substr(trim(strip_tags((string)($r['dirName'] ?? ''))), 0, 60), 'dirAt'=>mb_substr((string)($r['dirAt'] ?? ''), 0, 40), 'filedAt'=>gmdate('c')];
@@ -127,5 +127,7 @@ if ($action !== 'pay_list') fail('Unknown action');
 $weeks = [];
 foreach (glob($pd.'/20??-??-??.json') ?: [] as $f){ $x = json_decode(file_get_contents($f), true); if (is_array($x) && !empty($x['week'])) $weeks[$x['week']] = $x['staff']; }
 krsort($weeks); $weeks = array_slice($weeks, 0, 30, true);
-$ros = []; foreach (roster_staff($school) as $p) $ros[] = ['name'=>$p['name'], 'role'=>$p['role'], 'hrs'=>$p['hrs']];
+$rs = roster_staff($school); $ros = []; $byFirst = [];
+foreach ($rs as $p){ $ros[] = ['name'=>$p['name'], 'role'=>$p['role'], 'hrs'=>$p['hrs']]; $f = name_first($p['name']); $byFirst[$f] = isset($byFirst[$f]) ? false : $p['name']; }
+foreach ($weeks as $wk => $rows){ foreach ($rows as $sid => $row){ $f = name_first($row['name'] ?? ''); $weeks[$wk][$sid]['full'] = (!empty($byFirst[$f])) ? $byFirst[$f] : ($row['name'] ?? ''); } }
 echo json_encode(['school'=>$school, 'anchor'=>$set['anchor'], 'weeks'=>(object)$weeks, 'roster'=>$ros]);
