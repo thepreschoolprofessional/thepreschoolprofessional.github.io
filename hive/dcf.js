@@ -734,6 +734,9 @@ function monthWeeks(m){
   return out;
 }
 function sendCfg(){ var c=pkData('SENDCHK')||{}; c.c=c.c||{}; return c; }
+function skipMap(){ var c=pkData('SENDCHK')||{}; return c.skip||{}; }
+function skipOn(k){ return !!skipMap()[k]; }
+function skipList(){ var sk=skipMap(), nm={SITEINFO:'Site Information',CHECKLIST:'Monthly Provider Check List',ENTRANCES:'Monthly Entrances',TERMS:'Monthly Terminations',PAR:'Personnel Activity Reports',PARENTSIGN:'Parent-signed forms',WEEKSIGN:'Weekly Attendance & Meal Count reports',RECEIPTS:'Receipts',EXPEND:'Program Expenditures Worksheet',LABOR:'Labor Summary Worksheet',q_kids:"Children's forms",q_pars:'PAR question',q_rcpt:'Receipts question',q_cover:'Cover page'}; return Object.keys(sk).filter(function(k){return sk[k];}).map(function(k){return {key:k,label:nm[k]||k};}); }
 function pfLinks(){
   var items=(pkData('PARENTFORMS')||{items:[]}).items||[], h='';
   items.forEach(function(it,i){ if(it.done) return; h+='<div class="line bad" style="margin:6px 0"><b>'+esc(it.child)+'</b> &middot; '+esc(it.type==='INFANT'?'Infant Feeding Form':'Free & Reduced Meal Application')+(it.why?'<div class="hint">'+esc(it.why)+'</div>':'')+'<div style="margin-top:6px"><a class="btn sm" target="_blank" href="'+esc(it.file)+'">Open &amp; print</a> <label style="margin-left:10px"><input type="checkbox" class="pfdone" data-i="'+i+'"> Returned signed</label></div>'+signedBlock(it,i)+'</div>'; });
@@ -1272,9 +1275,6 @@ var _ed=ensureData; ensureData=function(){ var p=_ed(); wkEnsure(S.date.slice(0,
 var _lp=loadPacket; loadPacket=function(){ var p=_lp(); wkEnsure(S.pk.month); return p; };
 var _ps=pkStatus; pkStatus=function(){ var s=_ps(), w=wkMonth(S.pk.month); s.WEEKSIGN=w.ready?{ok:!w.open.length,why:w.open.length+' weekly attendance & meal count report(s) not signed & dated',first:w.open[0]}:{ok:false,why:'Still checking the weekly report sign-offs'}; return s; };
 var _ps2=pkStatus; pkStatus=function(){ var s=_ps2(), sk=skipMap(); Object.keys(sk).forEach(function(k){ if(sk[k]&&s[k]) s[k]={ok:true,skipped:true}; }); return s; };
-function skipMap(){ var c=pkData('SENDCHK')||{}; return c.skip||{}; }
-function skipOn(k){ return !!skipMap()[k]; }
-function skipList(){ var sk=skipMap(), nm={SITEINFO:'Site Information',CHECKLIST:'Monthly Provider Check List',ENTRANCES:'Monthly Entrances',TERMS:'Monthly Terminations',PAR:'Personnel Activity Reports',PARENTSIGN:'Parent-signed forms',WEEKSIGN:'Weekly Attendance & Meal Count reports',RECEIPTS:'Receipts',EXPEND:'Program Expenditures Worksheet',LABOR:'Labor Summary Worksheet',q_kids:"Children's forms",q_pars:'PAR question',q_rcpt:'Receipts question',q_cover:'Cover page'}; return Object.keys(sk).filter(function(k){return sk[k];}).map(function(k){return {key:k,label:nm[k]||k};}); }
 var _ml=missingList; missingList=function(from,to){ var out=_ml(from,to); try{ wkOpenInRange(from,to).forEach(function(x){ out.push({kind:'wk',mon:x.mon,room:x.room}); }); }catch(e){} return out; };
 
 /* ---------- Monthly Terminations (packet tab) ---------- */
