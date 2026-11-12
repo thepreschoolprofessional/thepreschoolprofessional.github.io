@@ -145,6 +145,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
   <div class="tab" style="background:#e91e63" onclick="location.href='parent.html'">🏡 Parent Portal</div>
   <div class="tab" style="background:#e07b00" onclick="window.open(SCHOOL==='Sanford'?'https://bearphonicsacademy.com/elc-94f077be04/bearline.html':'https://bearphonicsacademy.com/elc-1ce53ee46c/bearline.html','_blank','noopener')">⏱ Staff Sign In/Out</div>
   <div class="tab" style="background:#c2185b" onclick="window.open(SCHOOL==='Sanford'?'https://bearphonicsacademy.com/elc-94f077be04/bearline.html':'https://bearphonicsacademy.com/elc-1ce53ee46c/bearline.html','_blank','noopener')">💬 Parent Messages</div>
+  <div class="tab" style="background:#00838f" onclick="location.href='uploads.html'">📥 Parent Uploads</div>
   <div class="tab" style="background:#ad1457" onclick="location.href='inbox.html'">📬 Parent Replies (email)</div>
   <div class="tab" style="background:#00695c" onclick="location.href='fte.html'">📊 FTE Report</div>
   <div class="tab" style="background:#2e8b57" onclick="location.href='enroll.html'">🧸 New Enrollments</div>
@@ -864,6 +865,7 @@ function openElcTablet(){
 }
 window.HIVE_CARDS={prompt:'What do you want to work on?',order:[
  {k:'Bear Phonics Academy',s:'Free reading lessons for the classroom',c:'#9b6bff'},
+ {k:'Parent Uploads',l:['Families send documents from the Parent Portal (Send Us a Document)','Check each one, pick the child, and file it in their Student File','New child not enrolled yet? Keep it under Pending Enrollment until they are','Nothing goes into a file until you approve it'],s:'Check documents families sent',c:'#00838f'},
  {k:'Parent Replies (email)',l:['Parents reply to the Monday and Friday emails and those replies land here too','Tap Reply: Gmail opens from your office address, already addressed to the parent','Mark answered when done; answered ones move to their own list','Absences show in red','Also shows Parent Portal contact-form messages'],s:'See and answer parent replies',c:'#ad1457'},
  {k:'Parent Messages',l:['Messages parents send from the Bear Line sign-in screen','Reply to a family, or start a message to any family','Each family only sees its own conversation','Also: post to the front-screen Board (tuition posting days, holidays, reminders)','Opens Bear Line: tap Director, enter your PIN, then Messages or Board'],s:'Parent messages and the front-screen board',c:'#c2185b'},
  {k:'Staff Sign In/Out',l:['Hours each staff member has worked so far','Missed sign-ins, sign-outs and lunch punches','Change a time (director or owner PIN, every change is logged)','Opens Bear Line: tap Director, then enter your PIN'],s:'Staff hours, missed punches, fixes',c:'#e07b00'},
@@ -915,7 +917,7 @@ window.HIVE_CARDS={prompt:'What do you want to work on?',order:[
   var pin=sessionStorage.getItem('hivePin');if(!pin)return;
   fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pin,action:'attention'})}).then(function(r){return r.json()}).then(function(j){
    window.alertDone=function(id){fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pin,action:'alert_close',alertId:id})}).then(function(){run();});};
-   if(!j||!j.items)return;try{var pn=j.items.filter(function(i){return i.doc==='pp'}).length;if(pn&&window.HiveCards)HiveCards.badge('Parent Portal',pn+' to update');var en=j.items.filter(function(i){return i.doc==='enroll'}).length;if(en&&window.HiveCards)HiveCards.badge('New Enrollments',en+' new');}catch(e){}try{var nh=j.items.filter(function(i){return i.doc==='newhire'}).length;if(nh&&window.HiveCards)HiveCards.badge('New Staff Onboarding',nh+' to review');}catch(e){}var red=j.items.filter(function(i){return i.red}),amb=j.items.length-red.length;
+   if(!j||!j.items)return;try{var pn=j.items.filter(function(i){return i.doc==='pp'}).length;if(pn&&window.HiveCards)HiveCards.badge('Parent Portal',pn+' to update');var en=j.items.filter(function(i){return i.doc==='enroll'}).length;if(en&&window.HiveCards)HiveCards.badge('New Enrollments',en+' new');}catch(e){}try{var up=j.items.filter(function(i){return i.doc==='upload'}).length;if(up&&window.HiveCards)HiveCards.badge('Parent Uploads',up+' to check');}catch(e){}try{var nh=j.items.filter(function(i){return i.doc==='newhire'}).length;if(nh&&window.HiveCards)HiveCards.badge('New Staff Onboarding',nh+' to review');}catch(e){}var red=j.items.filter(function(i){return i.red}),amb=j.items.length-red.length;
    var old=document.getElementById('needs');if(old)old.remove();
    if(!j.items.length)return;
    var nav=document.querySelector('nav');if(!nav)return;

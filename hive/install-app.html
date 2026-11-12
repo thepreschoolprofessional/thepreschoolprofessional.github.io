@@ -1,0 +1,55 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Put the Parent Portal on Your Phone</title>
+<link rel="manifest" href="parent.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="theme-color" content="#5b7a3a">
+<style>
+:root{--green:#5b7a3a;--gold:#d9a521;--cream:#f7f0dd;--ink:#4a3a30;--brown:#3a2600;}
+*{box-sizing:border-box}body{margin:0;background:var(--cream);font-family:Arial,Helvetica,sans-serif;color:var(--ink);line-height:1.5}
+header{background:var(--gold);color:var(--brown);text-align:center;padding:26px 16px 22px;border-top:6px solid var(--green)}
+header h1{margin:0 0 6px;font-size:26px}header p{margin:0;font-size:16px}
+main{max-width:640px;margin:0 auto;padding:16px}
+.note{background:#fff;border:2px solid var(--gold);border-radius:14px;padding:14px 16px;margin-bottom:14px;font-size:15px}
+.tabs{display:flex;gap:8px;margin-bottom:14px}.tabs button{flex:1;padding:14px 8px;border:3px solid var(--green);background:#fff;color:var(--green);font-weight:bold;font-size:16px;border-radius:14px;cursor:pointer}
+.tabs button.on{background:var(--green);color:#fff}
+.panel{display:none}.panel.on{display:block}
+.step{display:flex;gap:14px;background:#fff;border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 3px 10px rgba(74,58,48,.12);align-items:flex-start}
+.num{flex:0 0 40px;height:40px;border-radius:50%;background:var(--gold);color:var(--brown);font-weight:bold;font-size:20px;display:flex;align-items:center;justify-content:center}
+.step b{color:var(--green)}.ic{display:inline-block;border:2px solid var(--green);border-radius:6px;padding:0 7px;font-weight:bold;color:var(--green);background:#fff}
+.tip{background:#eef3e8;border-left:6px solid var(--green);border-radius:10px;padding:12px 14px;margin:14px 0;font-size:15px}
+a.btn{display:block;text-align:center;background:var(--green);color:#fff;text-decoration:none;font-weight:bold;font-size:17px;padding:15px;border-radius:14px;margin:18px 0}
+h2{color:var(--green);font-size:20px;margin:18px 0 8px}
+footer{text-align:center;font-size:13px;color:#8a7766;padding:10px 16px 28px}
+</style></head><body>
+<header><h1>Put the Parent Portal on Your Phone</h1><p>Open it with one tap, like an app</p></header>
+<main>
+<div class="note"><b>This is optional.</b> It is not a download from an app store and it takes almost no space on your device. It simply puts a Kid City icon on your home screen that opens the Parent Portal. You can also skip this and use the link in our emails.</div>
+<div class="tabs"><button id="tApple" onclick="pick('apple')">iPhone or iPad</button><button id="tAnd" onclick="pick('and')">Android</button></div>
+
+<div id="apple" class="panel">
+<div class="tip"><b>Use Safari.</b> On an iPhone or iPad this only works in Safari. If you opened the link from an email or text and it opened inside another app, tap the Safari (compass) icon or "Open in Safari" first.</div>
+<div class="step"><div class="num">1</div><div>Open the Parent Portal link in <b>Safari</b> and log in.</div></div>
+<div class="step"><div class="num">2</div><div>Tap the <b>Share</b> button <span class="ic">&#11014;</span> (a square with an arrow pointing up). On an iPhone it is at the bottom of the screen. On an iPad it is at the top.</div></div>
+<div class="step"><div class="num">3</div><div>Scroll down the list and tap <b>Add to Home Screen</b>. If you do not see it, tap <b>View More</b> first.</div></div>
+<div class="step"><div class="num">4</div><div>You can keep the name or change it to <b>Kid City</b>. Then tap <b>Add</b> in the top corner.</div></div>
+<div class="step"><div class="num">5</div><div>Done! Look for the green and gold <b>Kid City</b> icon on your home screen. Tap it any time to open the Parent Portal.</div></div>
+</div>
+
+<div id="and" class="panel">
+<div class="tip"><b>Use Chrome.</b> If you opened the link inside another app, tap the three dots and choose "Open in Chrome" first.</div>
+<div class="step"><div class="num">1</div><div>Open the Parent Portal link in <b>Chrome</b> and log in.</div></div>
+<div class="step"><div class="num">2</div><div>Tap the <b>three dots</b> <span class="ic">&#8942;</span> in the top right corner.</div></div>
+<div class="step"><div class="num">3</div><div>Tap <b>Add to Home screen</b>. Some phones say <b>Install app</b> instead. Either one is right.</div></div>
+<div class="step"><div class="num">4</div><div>Tap <b>Install</b> or <b>Add</b>. If it asks where to put the icon, choose <b>Add automatically</b> or drop it on your home screen.</div></div>
+<div class="step"><div class="num">5</div><div>Done! Look for the green and gold <b>Kid City</b> icon. Tap it any time to open the Parent Portal.</div></div>
+<h2>Samsung phone or tablet using the Samsung Internet browser</h2>
+<div class="step"><div class="num">1</div><div>Tap the <b>menu</b> <span class="ic">&#9776;</span> at the bottom right.</div></div>
+<div class="step"><div class="num">2</div><div>Tap <b>Add page to</b>, then <b>Home screen</b>, then <b>Add</b>.</div></div>
+</div>
+
+<div class="tip"><b>Good to know:</b> For your child's safety the portal asks for the family password each time you open it. The password is in our weekly emails.</div>
+<a class="btn" href="parent.html">Back to the Parent Portal</a>
+</main>
+<footer>Kid City USA</footer>
+<script>
+var ua=navigator.userAgent||'';var apple=/iPhone|iPad|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+function pick(w){['apple','and'].forEach(function(k){document.getElementById(k).classList.toggle('on',k===w);});document.getElementById('tApple').classList.toggle('on',w==='apple');document.getElementById('tAnd').classList.toggle('on',w==='and');}
+pick(apple?'apple':(/Android/.test(ua)?'and':'apple'));
+</script></body></html>

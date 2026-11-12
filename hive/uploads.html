@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Parent Uploads - The Hive</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#fbf6ea;color:#222;padding:12px 16px 60px}
+a.back{display:inline-block;margin:4px 0 8px;color:#555;text-decoration:none;font-weight:700}h1{margin:6px 0 2px;font-size:1.5rem}.sub{color:#666;font-size:.9rem;margin-bottom:10px}
+.badge{display:inline-block;background:#222;color:#fff;border-radius:20px;padding:3px 12px;font-size:.85rem;font-weight:700;margin-left:8px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.tabs button{border:0;border-radius:20px;padding:10px 16px;font-weight:800;cursor:pointer;background:#e6dcc3;color:#222}.tabs button.on{background:#00838f;color:#fff}
+.sec{background:#fff;border:2px solid #e6dcc3;border-radius:16px;margin:12px 0;padding:12px 14px}.sec h2{margin:0 0 8px;font-size:1.1rem}
+.row{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid #eee;cursor:pointer;flex-wrap:wrap}.row:first-child{border-top:0}.row b{flex:1;min-width:150px}
+.pill{border-radius:20px;padding:3px 10px;font-size:.78rem;font-weight:800;color:#fff}.new{background:#e0457b}.pending{background:#e07b00}.filed{background:#2e7d32}.rejected{background:#888}
+button.act{border:0;border-radius:10px;padding:11px 16px;font-weight:800;cursor:pointer;background:#222;color:#fff;font-size:.95rem;margin:8px 6px 0 0}button.gr{background:#2e7d32}button.or{background:#e07b00}button.r{background:#c62828}button.sec2{background:#eee;color:#222}
+select,input,textarea{padding:10px;border-radius:10px;border:1px solid #ccc;font-size:1rem;font-family:inherit;width:100%;max-width:460px}label{display:block;font-weight:800;margin:12px 0 4px}
+.msg{padding:10px;border-radius:10px;background:#e3f4e8;margin:8px 0;display:none;font-weight:700}.msg.err{background:#fde0e0}
+.prev{width:100%;height:60vh;border:1px solid #ccc;border-radius:12px;background:#fafafa}.prev.img{height:auto;max-height:70vh;object-fit:contain}
+.kv{display:grid;grid-template-columns:140px 1fr;gap:4px 10px;font-size:.95rem;margin:6px 0}.kv span:nth-child(odd){color:#777;font-weight:700}
+</style></head><body>
+<a class="back" href="director.html">← Director Dashboard</a>
+<h1>📥 Parent Uploads <span class="badge" id="sch">…</span></h1>
+<div class="sub">Documents families send from the Parent Portal. Check each one, then file it in the child's Student File.</div>
+<div class="msg" id="msg"></div>
+<div class="tabs"><button id="tNew" onclick="tab('new')">To check</button><button id="tPend" onclick="tab('pending')">Pending enrollment</button><button id="tDone" onclick="tab('done')">Filed and sent back</button></div>
+<div id="view"></div>
+<script>
+const PIN=sessionStorage.getItem('hivePin');if(!PIN||sessionStorage.getItem('hiveRole')!=='director')location.href='index.html';
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const $=i=>document.getElementById(i);
+async function api(action,extra){const r=await fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({pin:PIN,action},extra||{}))});const j=await r.json();if(j.error)throw new Error(j.error);return j;}
+function say(t,err){const m=$('msg');m.textContent=t;m.className='msg'+(err?' err':'');m.style.display=t?'block':'none';}
+let ITEMS=[],KIDS=null,DOCS=[],CUR='new',URL_=null;
+function when(a){return (a||'').slice(0,10);}
+function norm(s){return String(s||'').toLowerCase().replace(/[^a-z ]/g,' ').trim().split(/\s+/);}
+function guess(typed){const t=norm(typed);if(!t[0])return '';const f=t[0],l=(t[t.length-1]||'')[0];let hit='';(KIDS||[]).forEach(k=>{const n=norm(k.name);if(n[0]===f&&((n[n.length-1]||'')[0]===l||t.length===1))hit=hit||k.id;});return hit;}
+async function load(){say('');try{const w=await api('whoami');$('sch').textContent=w.school;const j=await api('up_list');ITEMS=j.items;draw();}catch(e){say(e.message,1);}}
+function tab(t){CUR=t;draw();}
+function draw(){
+ const nNew=ITEMS.filter(x=>x.status==='new').length,nP=ITEMS.filter(x=>x.status==='pending').length;
+ $('tNew').textContent='To check'+(nNew?' ('+nNew+')':'');$('tPend').textContent='Pending enrollment'+(nP?' ('+nP+')':'');
+ ['new','pending','done'].forEach(k=>$({new:'tNew',pending:'tPend',done:'tDone'}[k]).className=CUR===k?'on':'');
+ let list=ITEMS.filter(x=>CUR==='new'?x.status==='new':CUR==='pending'?x.status==='pending':(x.status==='filed'||x.status==='rejected'));
+ let h='<div class="sec"><h2>'+({new:'Waiting for you',pending:'Waiting for a child to be enrolled',done:'Handled'}[CUR])+'</h2>';
+ if(!list.length)h+='<div class="sub">Nothing here right now.</div>';
+ list.forEach(x=>{h+='<div class="row" onclick="open_(\''+x.id+'\')"><b>'+esc(x.label)+'</b><span class="sub">Child: '+esc(x.child)+' · Parent: '+esc(x.parent)+' · '+when(x.at)+'</span>'
+  +(x.status==='filed'?'<span class="pill filed">Filed: '+esc(x.filedTo)+'</span>':x.status==='rejected'?'<span class="pill rejected">Sent back</span>':x.status==='pending'?'<span class="pill pending">'+esc(x.pendName)+'</span>':'<span class="pill new">New</span>')+'</div>';});
+ $('view').innerHTML=h+'</div>';
+}
+async function open_(id){
+ const x=ITEMS.find(i=>i.id===id);if(!x)return;say('');
+ try{if(!KIDS){const c=await api('up_children');KIDS=c.kids;DOCS=c.docs;}
+ const f=await api('up_file',{id});if(URL_)URL.revokeObjectURL(URL_);
+ const bin=atob(f.b64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+ URL_=URL.createObjectURL(new Blob([u],{type:f.ext==='pdf'?'application/pdf':(f.ext==='png'?'image/png':'image/jpeg')}));
+ const open=(x.status==='new'||x.status==='pending');const g=guess(x.pendName||x.child);const dk=(x.doc!=='other'&&DOCS.some(d=>d.key===x.doc))?x.doc:'';
+ let h='<div class="sec"><button class="act sec2" onclick="draw()">← Back to the list</button>'
+ +'<h2>'+esc(x.label)+'</h2><div class="kv"><span>Parent</span><span>'+esc(x.parent)+'</span><span>Child (as typed)</span><span>'+esc(x.child)+'</span><span>Sent</span><span>'+esc(when(x.at))+'</span>'
+ +(x.status==='filed'?'<span>Filed in</span><span>'+esc(x.filedTo)+' · '+esc(x.filedDoc)+'</span>':'')+(x.status==='rejected'?'<span>Note</span><span>'+esc(x.note||'—')+'</span>':'')+'</div>'
+ +(f.ext==='pdf'?'<iframe class="prev" src="'+URL_+'"></iframe>':'<img class="prev img" src="'+URL_+'">')
+ +'<div class="sub"><a href="'+URL_+'" target="_blank" rel="noopener">Open full size in a new tab</a></div></div>';
+ if(open){
+  h+='<div class="sec"><h2>File it</h2>'
+  +'<label>Which child?</label><select id="kid" onchange="kidChg()"><option value="">Pick the child…</option>'+KIDS.map(k=>'<option value="'+k.id+'"'+(k.id===g?' selected':'')+'>'+esc(k.name)+(k.sub?' ('+esc(k.sub)+')':'')+'</option>').join('')+'<option value="__new">Not enrolled yet — keep in Pending Enrollment</option></select>'
+  +'<div id="pendWrap" style="display:none"><label>Child\'s name for the Pending Enrollment folder</label><input id="pname" value="'+esc(x.pendName||x.child)+'"></div>'
+  +'<div id="docWrap"><label>Which document is it in the file?</label><select id="dkey" onchange="docChg()"><option value="">Pick one…</option>'+DOCS.map(d=>'<option value="'+d.key+'"'+(d.key===dk?' selected':'')+'>'+esc(d.label)+'</option>').join('')+'</select>'
+  +'<div id="expWrap" style="display:none"><label>Expiration or next due date</label><input type="date" id="exp"><div class="sub">Enter the date shown on the form so the red alert comes at the right time.</div></div></div>'
+  +'<button class="act gr" id="fileBtn" onclick="doFile(\''+id+'\')">File it</button>'
+  +'<h2 style="margin-top:18px">Or send it back</h2><label>Short note (optional, for your records)</label><input id="note" placeholder="Example: photo was blurry">'
+  +'<button class="act r" onclick="doReject(\''+id+'\')">Not usable — remove it</button></div>';
+ }
+ $('view').innerHTML=h;window.scrollTo(0,0);kidChg();docChg();}catch(e){say(e.message,1);}
+}
+function kidChg(){const k=$('kid');if(!k)return;const nw=k.value==='__new';$('pendWrap').style.display=nw?'block':'none';$('docWrap').style.display=nw?'none':'block';$('fileBtn').textContent=nw?'Keep in Pending Enrollment':'File it';$('fileBtn').className='act '+(nw?'or':'gr');}
+function docChg(){const s=$('dkey');if(!s)return;const d=DOCS.find(x=>x.key===s.value);$('expWrap').style.display=(d&&d.exp)?'block':'none';}
+async function doFile(id){
+ const kid=$('kid').value;if(!kid){say('Pick the child first.',1);return;}
+ try{
+  if(kid==='__new'){await api('up_approve',{id,mode:'pending',name:$('pname').value});say('Saved under Pending Enrollment.');}
+  else{const dk=$('dkey').value;if(!dk){say('Pick which document this is.',1);return;}
+   const j=await api('up_approve',{id,mode:'child',childId:kid,docKey:dk,exp:$('exp').value});say('Filed in '+j.filedTo+"'s Student File.");}
+  await load();
+ }catch(e){say(e.message,1);}
+}
+async function doReject(id){if(!confirm('Remove this upload? It will be set aside and not filed.'))return;try{await api('up_reject',{id,note:$('note').value});say('Removed.');await load();}catch(e){say(e.message,1);}}
+load();
+</script></body></html>

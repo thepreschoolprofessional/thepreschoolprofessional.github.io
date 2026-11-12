@@ -406,13 +406,93 @@ $TEACHER_SCHOOL = ['teacher-sanford' => 'Sanford', 'teacher-deland' => 'DeLand 2
 $isDir = isset($ROLE_SCHOOL[$role]);
 $isTeacher = (strpos($role, 'teacher') === 0);
 $isParent = (strpos($role, 'parent') === 0);
-if ($isParent && !in_array(($input['action'] ?? ''), ['bios_public', 'pp_list', 'pp_get', 'pp_orient_sign', 'pp_orient_start', 'pp_auto', 'pp_ev_list', 'pp_ev_claim'], true)) fail('Files are only available with a director PIN.', 403);
+if ($isParent && !in_array(($input['action'] ?? ''), ['bios_public', 'pp_list', 'pp_get', 'pp_orient_sign', 'pp_orient_start', 'pp_auto', 'pp_ev_list', 'pp_ev_claim', 'pp_doc_send'], true)) fail('Files are only available with a director PIN.', 403);
 if (!$isDir && !$isTeacher && !$isParent) fail('Files are only available with a director PIN.', 403);
 $PARENT_SCHOOL = ['parent-sanford' => 'Sanford', 'parent-deland' => 'DeLand 2'];
 $school = $isDir ? $ROLE_SCHOOL[$role] : (isset($TEACHER_SCHOOL[$role]) ? $TEACHER_SCHOOL[$role] : (isset($PARENT_SCHOOL[$role]) ? $PARENT_SCHOOL[$role] : trim($input['school'] ?? '')));
 if (!in_array($school, $SCHOOLS, true)) fail('Pick your school first.');
 
 if ($action === 'whoami'){ echo json_encode(['role'=>$isDir ? 'director' : 'teacher', 'school'=>$school]); exit; }
+/* ---- Parent document uploads (built 11/11/26). Parents send a document from the Parent Portal; it waits in a private holding area
+   (hive-vault/<school>/uploads/) until a director checks it and files it in the child's Student File (or keeps it under Pending Enrollment). Never public. ---- */
+$UP_TYPES = ['imm'=>'Immunization record (DH 680 / 681)', 'phys'=>'Physical exam (DH 3040)', 'pid'=>'Parent ID copy', 'allg'=>'Allergy / special needs care plan', 'dmed'=>'Medical statement / dietary request', 'medauth'=>'Medication authorization', 'elcpay'=>'ELC / School Readiness payment certificate', 'elc'=>'Other ELC / 4C paperwork', 'fr'=>'Free & reduced meal application', 'cust'=>'Custody / court papers', 'other'=>'Something else'];
+function up_dir($school){ $d = school_dir($school); if (!$d) return null; $p = $d.'/uploads'; if (!is_dir($p)) @mkdir($p, 0750, true); return is_dir($p) ? $p : null; }
+function up_all($school){ $d = up_dir($school); $o = []; if (!$d) return $o; foreach (glob($d.'/up*.json') ?: [] as $f){ $x = json_decode(file_get_contents($f), true); if (is_array($x) && !empty($x['id'])) $o[] = $x; } usort($o, function($a, $b){ return strcmp((string)$b['at'], (string)$a['at']); }); return $o; }
+function up_find($school, $id){ $id = preg_replace('/[^a-z0-9]/', '', strtolower((string)$id)); if ($id === '') return [null, null]; $d = up_dir($school); if (!$d) return [null, null]; $f = $d.'/'.$id.'.json'; if (!is_file($f)) return [null, null]; $x = json_decode(file_get_contents($f), true); return is_array($x) ? [$x, $f] : [null, null]; }
+function up_path($school, $x){ $d = up_dir($school); if (!empty($x['pend'])) return $d.'/pending/'.preg_replace('/[^a-z0-9-]/', '', (string)$x['pend']).'/'.basename((string)$x['file']); return $d.'/'.basename((string)$x['file']); }
+function up_sniff($raw){ if (substr($raw, 0, 4) === "%PDF") return 'pdf'; if (substr($raw, 0, 3) === "\xFF\xD8\xFF") return 'jpg'; if (substr($raw, 0, 8) === "\x89PNG\r\n\x1a\n") return 'png'; return ''; }
+if ($action === 'pp_doc_send'){
+if (!$isParent) fail('Only families can send documents here.', 403);
+$parent = pp_txt($input['parent'] ?? '', 80); $child = pp_txt($input['child'] ?? '', 80); $key = (string)($input['doc'] ?? ''); $other = pp_txt($input['other'] ?? '', 80);
+if ($parent === '') fail('Please type your name.'); if ($child === '') fail("Please type your child's name."); if (!isset($UP_TYPES[$key])) fail('Pick which document you are sending.');
+if ($key === 'other' && $other === '') fail('Please type what the document is.');
+$raw = base64_decode($input['b64'] ?? '', true); if ($raw === false || strlen($raw) < 100) fail('Please choose a file or take a photo first.');
+if (strlen($raw) > 10 * 1024 * 1024) fail('That file is too large (10 MB max). Take the picture again or send a smaller PDF.');
+$ext = up_sniff($raw); if ($ext === '') fail('Please send a photo (JPG or PNG) or a PDF.');
+$d = up_dir($school); if (!$d) fail('The server could not save this. Please tell the office.', 500);
+$ip = md5(($_SERVER['REMOTE_ADDR'] ?? '').'hive'); $recent = 0; foreach (up_all($school) as $q){ if (($q['ip'] ?? '') === $ip && ($q['status'] ?? '') === 'new' && strtotime((string)$q['at']) > time() - 3600) $recent++; }
+if ($recent >= 15) fail('That is a lot of files at once. Please wait a little while and try again, or bring them to the office.', 429);
+$id = 'up'.substr(md5(uniqid('', true)), 0, 10);
+if (file_put_contents($d.'/'.$id.'.'.$ext, $raw) === false) fail('Could not save the file', 500);
+$rec = ['id'=>$id, 'at'=>gmdate('c'), 'parent'=>$parent, 'child'=>$child, 'doc'=>$key, 'other'=>($key === 'other' ? $other : ''), 'file'=>$id.'.'.$ext, 'ext'=>$ext, 'size'=>strlen($raw), 'orig'=>clean_name($input['name'] ?? ''), 'status'=>'new', 'ip'=>$ip];
+jwrite($d.'/'.$id.'.json', $rec);
+hive_notify($school, 'Parent document waiting: '.short_child($child), ['A parent sent a document through the Parent Portal: '.$UP_TYPES[$key].($key === 'other' ? ' ('.$other.')' : '').' for '.short_child($child).'.', 'Open Parent Uploads in the director portal to check it and file it.']);
+echo json_encode(['ok'=>true]); exit;
+}
+if (strpos($action, 'up_') === 0){
+if (!$isDir) fail('Only a director can review uploads.', 403);
+if ($action === 'up_list'){
+$o = []; foreach (up_all($school) as $x){ $o[] = ['id'=>$x['id'], 'at'=>$x['at'], 'parent'=>$x['parent'], 'child'=>$x['child'], 'doc'=>$x['doc'], 'label'=>($x['doc'] === 'other' ? ($x['other'] ?: 'Something else') : ($UP_TYPES[$x['doc']] ?? $x['doc'])), 'ext'=>$x['ext'], 'status'=>$x['status'], 'note'=>$x['note'] ?? '', 'filedTo'=>$x['filedTo'] ?? '', 'filedDoc'=>$x['filedDoc'] ?? '', 'pendName'=>$x['pendName'] ?? '', 'by'=>$x['by'] ?? '', 'on'=>$x['on'] ?? '']; }
+echo json_encode(['school'=>$school, 'items'=>$o]); exit;
+}
+if ($action === 'up_children'){
+$r = roster($school, 'student'); if ($r === null) fail('Could not read the roster right now. Try again in a minute.', 502);
+$kids = []; foreach ($r as $p){ $kids[] = ['id'=>$p['id'], 'name'=>$p['name'], 'sub'=>$p['sub']]; }
+$docs = []; foreach ($DEFS['student'] as $k => $df){ $docs[] = ['key'=>$k, 'label'=>$df[0], 'exp'=>$df[1]]; }
+echo json_encode(['kids'=>$kids, 'docs'=>$docs]); exit;
+}
+list($x, $xf) = up_find($school, $input['id'] ?? '');
+if (!$x) fail('That upload was not found.', 404);
+if ($action === 'up_file'){ $f = up_path($school, $x); if (!is_file($f)) fail('The file is missing.', 404); echo json_encode(['b64'=>base64_encode(file_get_contents($f)), 'ext'=>$x['ext']]); exit; }
+if ($action === 'up_approve'){
+if (!in_array($x['status'], ['new', 'pending'], true)) fail('That upload was already handled.');
+$src = up_path($school, $x); if (!is_file($src)) fail('The file is missing.', 404);
+$mode = (string)($input['mode'] ?? 'child');
+if ($mode === 'pending'){
+$nm = pp_txt($input['name'] ?? '', 80); if ($nm === '') fail("Type the child's name for the Pending Enrollment folder.");
+$slug = trim(preg_replace('/[^a-z0-9]+/', '-', strtolower($nm)), '-'); if ($slug === '') fail('That name does not work as a folder name.');
+$dest = up_dir($school).'/pending/'.$slug; if (!is_dir($dest) && !@mkdir($dest, 0750, true)) fail('Could not create the folder', 500);
+if ($x['status'] === 'new'){ if (!@rename($src, $dest.'/'.basename($x['file']))) fail('Could not move the file', 500); }
+elseif (($x['pend'] ?? '') !== $slug){ if (!@rename($src, $dest.'/'.basename($x['file']))) fail('Could not move the file', 500); }
+$x['status'] = 'pending'; $x['pend'] = $slug; $x['pendName'] = $nm; $x['by'] = 'Director'; $x['on'] = gmdate('c'); jwrite($xf, $x);
+echo json_encode(['ok'=>true]); exit;
+}
+$cid = (string)($input['childId'] ?? ''); $dk = (string)($input['docKey'] ?? '');
+if (!isset($DEFS['student'][$dk])) fail('Pick which document this is.');
+$p = find_person($school, 'student', $cid); if (!$p) fail('Pick the child from the list.');
+$exp = (string)($input['exp'] ?? ''); if ($exp !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $exp)) fail('That expiration date is not a real date');
+$raw = file_get_contents($src); $ext = up_sniff($raw); if ($ext === '') fail('This file type cannot be filed.');
+$pd = pdir($school, 'student', $cid); $mf = $pd.'/meta.json'; $meta = jread($mf, ['docs'=>[], 'files'=>[]]);
+$pg = 1; foreach ($meta['files'] as $f0){ if (($f0['doc'] ?? '') === $dk) $pg++; }
+$fname = date('Ymd-His').'_'.$dk.'_p'.$pg.'_parent-upload.'.$ext;
+if (file_put_contents($pd.'/'.$fname, $raw) === false) fail('Could not save the file', 500);
+$meta['files'][] = ['doc'=>$dk, 'name'=>$fname, 'at'=>gmdate('c'), 'size'=>strlen($raw)];
+if (!is_array($meta['docs'])) $meta['docs'] = [];
+if ($exp !== '') $meta['docs'][$dk] = array_merge((array)($meta['docs'][$dk] ?? []), ['exp'=>$exp]);
+jwrite($mf, $meta); drive_cache_clear($school);
+@unlink($src);
+$x['status'] = 'filed'; $x['filedTo'] = $p['name']; $x['filedDoc'] = $DEFS['student'][$dk][0]; $x['by'] = 'Director'; $x['on'] = gmdate('c'); unset($x['pend']); jwrite($xf, $x);
+echo json_encode(['ok'=>true, 'filedTo'=>$p['name']]); exit;
+}
+if ($action === 'up_reject'){
+if (!in_array($x['status'], ['new', 'pending'], true)) fail('That upload was already handled.');
+$src = up_path($school, $x); $rd = up_dir($school).'/_removed'; if (!is_dir($rd)) @mkdir($rd, 0750, true);
+if (is_file($src)) @rename($src, $rd.'/'.basename($x['file']));
+$x['status'] = 'rejected'; $x['note'] = pp_txt($input['note'] ?? '', 300); $x['by'] = 'Director'; $x['on'] = gmdate('c'); unset($x['pend']); jwrite($xf, $x);
+echo json_encode(['ok'=>true]); exit;
+}
+fail('Unknown action.');
+}
 /* ---- Parent portal content: menu, newsletter, lesson plans, flyers, message board.
    Parents, teachers and directors can READ. Only directors (and the owner through a director door) can change anything. ---- */
 function pp_dir($school){ $d = school_dir($school); if (!$d) return null; $p = $d.'/parent'; if (!is_dir($p)) @mkdir($p, 0750, true); return is_dir($p) ? $p : null; }
@@ -957,6 +1037,8 @@ if ((int)date('N') >= 4){ $tw = fte_target_week(); if (!fte_have_week($school, $
 foreach (nh_list_all($school) as $nh0){ if (($nh0['status'] ?? 'new') !== 'new') continue; $nn = $nh0['name'] ?? ''; $lab = ''; if (!empty($nh0['packet']) && empty($nh0['final'])) $lab = 'New hire '.$nn.' signed their employee packet — review and sign your lines'; elseif (nh_train_done($nh0) >= count($NH_TRAIN)) $lab = 'New hire '.$nn.' finished all onboarding steps — check their certificates'; if ($lab !== '') $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'newhire', 'href'=>'newhires.html', 'label'=>$lab, 'status'=>'missing', 'red'=>false]; }
 foreach (ori_refile($school) as $uo){ $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'orient', 'href'=>'parent-manage.html', 'label'=>'Parent orientation signed by '.($uo['parent'] ?? '').' for '.short_child($uo['child'] ?? '').' is not in a child\'s file yet (child not on the roster, or the name did not match)', 'status'=>'missing', 'red'=>false]; }
 foreach (en_list_all($school) as $en0){ if (($en0['status'] ?? '') === 'new') $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'enroll', 'href'=>'enroll.html', 'label'=>'New enrollment packet: '.($en0['child']['first'] ?? '').' '.mb_substr($en0['child']['last'] ?? '', 0, 1).'. — review and approve', 'status'=>'missing', 'red'=>false]; }
+$upn = 0; foreach (up_all($school) as $uq){ if (($uq['status'] ?? '') === 'new') $upn++; }
+if ($upn) $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'upload', 'href'=>'uploads.html', 'label'=>$upn.' document'.($upn === 1 ? '' : 's').' sent by parents to check and file', 'status'=>'missing', 'red'=>false];
 foreach (pp_status_list($school) as $ps){ if ($ps['ok']) continue; $isNext = ($ps['month'] !== date('Y-m')); $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'pp', 'href'=>'parent-manage.html', 'label'=>'Parent portal: '.$ps['monthName'].' '.$ps['label'].' not posted yet'.($isNext ? ' (month ends soon)' : ''), 'status'=>'missing', 'red'=>(!$isNext && (int)date('j') >= 5)]; }
 echo json_encode(['school'=>$school, 'items'=>$items]); exit;
 }
