@@ -264,6 +264,24 @@ function bl_summary($j){
   if (!empty($j['ok'])) return ['ok'=>true, 'at'=>gmdate('c'), 'childId'=>$j['childId'] ?? '', 'pins'=>$j['pins'] ?? [], 'existed'=>!empty($j['existed'])];
   return ['ok'=>false, 'at'=>gmdate('c'), 'error'=>($j['message'] ?? ($j['error'] ?? 'failed'))];
 }
+function bl_left_payload($kind, $name, $dt){
+  $w = preg_split('/\s+/', trim((string)$name));
+  if ($kind === 'staff') return ['action'=>'hive_remove_staff', 'name'=>$name, 'date'=>$dt];
+  return ['action'=>'hive_remove_family', 'first'=>$w[0] ?? '', 'last'=>count($w) > 1 ? end($w) : '', 'date'=>$dt];
+}
+function bl_left_do($school, $kind, $name, $dt){
+  $j = bl_post($school, bl_left_payload($kind, $name, $dt));
+  $d = school_dir($school); $pf = $d ? $d.'/bl-left-pending.json' : '';
+  $pend = $pf ? jread($pf, []) : [];
+  $pend = array_values(array_filter($pend, function($x) use ($kind, $name){ return !(($x['kind'] ?? '') === $kind && ($x['name'] ?? '') === $name); }));
+  if (empty($j['ok'])) $pend[] = ['kind'=>$kind, 'name'=>$name, 'date'=>$dt, 'at'=>gmdate('c'), 'error'=>($j['message'] ?? ($j['error'] ?? 'failed'))];
+  if ($pf) jwrite($pf, $pend);
+  return !empty($j['ok']) ? ['ok'=>true, 'at'=>gmdate('c'), 'found'=>!empty($j['found'])] : ['ok'=>false, 'at'=>gmdate('c'), 'error'=>($j['message'] ?? ($j['error'] ?? 'failed'))];
+}
+function bl_left_retry($school){
+  $d = school_dir($school); if (!$d) return; $pf = $d.'/bl-left-pending.json'; $pend = jread($pf, []); $n = 0;
+  foreach ($pend as $x){ if ($n++ >= 3) break; bl_left_do($school, $x['kind'], $x['name'], $x['date']); }
+}
 function hive_notify($school, $subject, $lines){
 $to = ($school === 'Sanford') ? 'sanfordoffice.1320@gmail.com' : 'delandoffice.238@gmail.com';
 $body = implode("\n", (array)$lines)."\n\nOpen the director portal to review: https://thepreschoolprofessional.net/hive/\n(This is an automatic note from the Hive. Names are shortened on purpose.)";
@@ -1107,6 +1125,8 @@ if (is_array($pa) && !isset($pa['error'])){ foreach (($pa['records'] ?? []) as $
 if ((int)date('N') >= 4){ $tw = fte_target_week(); if (!fte_have_week($school, $tw)) $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'fte', 'href'=>'fte.html', 'label'=>'Weekly FTE report for the week of '.date('n/j', strtotime($tw)).' not filed yet', 'status'=>'missing', 'red'=>((int)date('N') >= 5)]; }
 foreach (nh_list_all($school) as $nh0){ if (($nh0['status'] ?? 'new') !== 'new') continue; $nn = $nh0['name'] ?? ''; $lab = ''; if (!empty($nh0['packet']) && empty($nh0['final'])) $lab = 'New hire '.$nn.' signed their employee packet — review and sign your lines'; elseif (nh_train_done($nh0) >= count($NH_TRAIN)) $lab = 'New hire '.$nn.' finished all onboarding steps — check their certificates'; if ($lab !== '') $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'newhire', 'href'=>'newhires.html', 'label'=>$lab, 'status'=>'missing', 'red'=>false]; }
 foreach (ori_refile($school) as $uo){ $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'orient', 'href'=>'parent-manage.html', 'label'=>'Parent orientation signed by '.($uo['parent'] ?? '').' for '.short_child($uo['child'] ?? '').' is not in a child\'s file yet (child not on the roster, or the name did not match)', 'status'=>'missing', 'red'=>false]; }
+bl_left_retry($school);
+{ $d0 = school_dir($school); foreach (($d0 ? jread($d0.'/bl-left-pending.json', []) : []) as $lp) $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'blleft', 'href'=>'files.html', 'label'=>($lp['kind'] === 'staff' ? short_child($lp['name']) : short_child($lp['name'])).' was removed in the Hive but is still on the Bear Line. The Hive keeps trying; tell Mrs. Bear if this stays here', 'status'=>'missing', 'red'=>true]; }
 foreach (en_list_all($school) as $enb){ if (($enb['status'] ?? '') === 'approved' && isset($enb['bearline']) && empty($enb['bearline']['ok']) && strtotime($enb['approvedAt'] ?? 'now') > time() - 60 * 86400) $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'enroll', 'href'=>'enroll.html', 'label'=>short_child(($enb['child']['first'] ?? '').' '.($enb['child']['last'] ?? '')).' is on the roster but NOT set up on the Bear Line sign-in yet. Open the packet and press Add to Bear Line', 'status'=>'missing', 'red'=>true]; }
 foreach (nh_list_all($school) as $nhb){ if (($nhb['status'] ?? '') === 'added' && isset($nhb['bearline']) && empty($nhb['bearline']['ok'])) $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'newhire', 'href'=>'newhires.html', 'label'=>($nhb['name'] ?? 'A new hire').' has no Bear Line clock PIN yet. Open New Hires and press Get Bear Line PIN', 'status'=>'missing', 'red'=>true]; }
 foreach (en_list_all($school) as $en0){ if (($en0['status'] ?? '') === 'new') $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'enroll', 'href'=>'enroll.html', 'label'=>'New enrollment packet: '.($en0['child']['first'] ?? '').' '.mb_substr($en0['child']['last'] ?? '', 0, 1).'. — review and approve', 'status'=>'missing', 'red'=>false]; }
@@ -1328,8 +1348,10 @@ unset($meta['left']);
 }
 $res = at_request('PATCH', [$kind === 'staff' ? 'Staff Roster' : 'Room Children', $id], null, ['fields'=>$f]);
 if (!isset($res['id'])) fail('Could not update the roster: '.($res['error']['message'] ?? 'not accepted').'.', 502);
+$blres = null;
+if ($action === 'remove_person'){ $blres = bl_left_do($school, $kind, $p['name'], $dt); $meta['blLeft'] = $blres; }
 jwrite($mf, $meta); roster_cache_clear($school);
-echo json_encode(['ok'=>true]); exit;
+echo json_encode(['ok'=>true, 'bearline'=>$blres]); exit;
 }
 if ($action === 'cert_sign'){
 if ($kind !== 'staff') fail('Bad request');
