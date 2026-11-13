@@ -76,8 +76,8 @@ $action = $input['action'] ?? '';
 if ($action === 'whoami'){ echo json_encode(['role'=>'owner']); exit; }
 if ($action === 'door'){
 $want = $input['door'] ?? '';
-if (!in_array($want, ['director-sanford','director-deland','teacher-sanford','teacher-deland','teacher'], true)) fail('Unknown door', 400);
-foreach ($pins as $p => $r){ if ($r === $want){ echo json_encode(['pin'=>(string)$p, 'role'=>(strpos($want,'director')===0?'director':'teacher'), 'school'=>(substr($want,-8)==='sanford'?'Sanford':(substr($want,-6)==='deland'?'DeLand 2':null))]); exit; } }
+if (!in_array($want, ['director-sanford','director-deland','teacher-sanford','teacher-deland','teacher','parent-sanford','parent-deland'], true)) fail('Unknown door', 400);
+foreach ($pins as $p => $r){ if ($r === $want){ echo json_encode(['pin'=>(string)$p, 'role'=>(strpos($want,'director')===0?'director':(strpos($want,'parent')===0?$want:'teacher')), 'school'=>(substr($want,-8)==='sanford'?'Sanford':(substr($want,-6)==='deland'?'DeLand 2':null))]); exit; } }
 fail('That portal has no PIN set up yet.', 404);
 }
 fail('Unknown action');

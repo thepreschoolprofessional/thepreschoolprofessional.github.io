@@ -6,6 +6,7 @@
  if(!p||!p.pin){location.replace('owner.html');return;}
  sessionStorage.setItem('hiveOwner','1');
  if(p.kind==='director'||p.kind==='teacher'){sessionStorage.setItem('hivePin',p.pin);sessionStorage.setItem('hiveRole',p.role);}
+ else if(p.kind==='parent'){sessionStorage.setItem('hivePin',p.pin);sessionStorage.setItem('hiveRole',p.role);sessionStorage.setItem('hiveSchool',p.school);sessionStorage.setItem('hiveDoor',p.school==='DeLand 2'?'deland':'sanford');}
  else{sessionStorage.setItem('hiveRoomsPin',p.pin);sessionStorage.setItem('hiveRoomsSchool',p.school);}
  location.replace(to);}catch(e){location.replace('owner.html');}})();
 </script></body></html>
