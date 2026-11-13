@@ -55,7 +55,7 @@ function newsletterHtml(it){
   var f=it.form||{},h='<div style="border-radius:18px;overflow:hidden;box-shadow:0 4px 16px rgba(74,58,48,.12);background:#fffaf0">';
   h+='<div style="background:linear-gradient(135deg,#ffb13d,#ffd36e);padding:20px 18px;text-align:center"><div style="font-size:2rem">🐻🍯</div><div style="font-size:1.35rem;font-weight:800;color:#4a3a30">'+esc(it.title)+'</div><div style="color:#6b4f2a;font-weight:700;margin-top:2px">'+esc(monthName(it.month))+'</div></div><div style="padding:6px 14px 14px">';
   if(f.welcome)h+='<p style="line-height:1.55;margin:14px 2px">'+esc(f.welcome).replace(/\n/g,'<br>')+'</p>';
-  (f.weekly||[]).forEach(function(w){h+=nlSec(nlKindIcon(w.kind),esc(w.title||w.kind),'<div style="line-height:1.55">'+esc(w.body).replace(/\n/g,'<br>')+'</div>','#fff6e0');});
+  (f.weekly||[]).filter(function(w){return w.kind!=='Monday Overview'&&w.kind!=='Friday Briefing';}).forEach(function(w){h+=nlSec(nlKindIcon(w.kind),esc(w.title||w.kind),'<div style="line-height:1.55">'+esc(w.body).replace(/\n/g,'<br>')+'</div>','#fff6e0');});
   if((f.dates||[]).length){h+=nlSec('📅','Important dates','<div>'+f.dates.map(function(d){return '<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px dashed #efe2c9"><div style="font-size:1.2rem">'+nlIcon(d[1])+'</div><div><b>'+esc(d[0])+'</b><br><span style="color:var(--ink)">'+esc(d[1])+'</span></div></div>';}).join('')+'</div>');}
   if(f.lessonsMonth)h+=nlSec('📚','Lesson plans','<div style="line-height:1.5">This month\'s lesson plans for every classroom are in the Parent Portal under <b>Lesson Plans</b>. Ask your child about their letter, color and story of the week!</div>','#eef7ff');
   if(f.birthdays)h+=nlSec('🎂','Birthdays this month','<div style="line-height:1.7">'+esc(f.birthdays).replace(/\n/g,'<br>')+'</div>','#fff0f5');
@@ -259,7 +259,23 @@ function check(id){
   if(ok){lsset('pl_'+id,'1');report();out.style.color='#2e8b57';out.textContent='All correct! 🎉';setTimeout(function(){renderLearn();},900);}
   else{out.style.color='#c62828';out.textContent='Not quite yet. Read the lesson again and try once more.';}
 }
+async function showEmail(kind,boxId){
+  var box=document.getElementById(boxId);if(!box)return;
+  if(!school()){needSchool(box);return;}
+  box.innerHTML='<div class="empty">Loading… 🐝</div>';
+  try{
+    var a=await auto(),W=(a.weekly||[]).filter(function(w){return w.kind===kind;});
+    if(!W.length){box.innerHTML='<div class="empty">This week\'s '+esc(kind)+' will show up here as soon as it is sent'+(kind==='Monday Overview'?' on Monday morning':' on Friday')+'. 🐝</div>';return;}
+    var w=W[W.length-1];
+    box.innerHTML='<div style="font-weight:800;font-size:1.1rem;color:var(--ink);margin:4px 2px 10px">'+(kind==='Monday Overview'?'📬 ':'🎉 ')+esc(w.title||kind)+'</div><iframe id="'+boxId+'_if" title="'+esc(kind)+'" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" style="width:100%;border:0;border-radius:14px;min-height:600px;background:#eef1f6;display:block"></iframe>';
+    var f=document.getElementById(boxId+'_if');
+    f.onload=function(){try{var d=f.contentDocument;d.querySelectorAll('a').forEach(function(x){x.target='_blank';x.rel='noopener';});f.style.height=(d.documentElement.scrollHeight+24)+'px';}catch(e){}};
+    f.srcdoc=String(w.body||'');
+  }catch(e){box.innerHTML='<div class="empty">Could not load right now. Please try again in a moment.</div>';}
+}
 window.PPA={show:function(w){
+  if(w==='mon'){showEmail('Monday Overview','monBox');return;}
+  if(w==='fri'){showEmail('Friday Briefing','friBox');return;}
   if(w==='menu')showDoc('menu','menuBox','menu',/^Menu/i);
   else if(w==='news')showDoc('newsletter','newsBox','newsletter',/^Newsletter/i);
   else if(w==='lessons')showLessons();
