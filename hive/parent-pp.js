@@ -264,13 +264,18 @@ async function showEmail(kind,boxId){
   if(!school()){needSchool(box);return;}
   box.innerHTML='<div class="empty">Loading… 🐝</div>';
   try{
-    var a=await auto(),W=(a.weekly||[]).filter(function(w){return w.kind===kind;});
-    if(!W.length){box.innerHTML='<div class="empty">This week\'s '+esc(kind)+' will show up here as soon as it is sent'+(kind==='Monday Overview'?' on Monday morning':' on Friday')+'. 🐝</div>';return;}
-    var w=W[W.length-1];
-    box.innerHTML='<div style="font-weight:800;font-size:1.1rem;color:var(--ink);margin:4px 2px 10px">'+(kind==='Monday Overview'?'📬 ':'🎉 ')+esc(w.title||kind)+'</div><iframe id="'+boxId+'_if" title="'+esc(kind)+'" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" style="width:100%;border:0;border-radius:14px;min-height:600px;background:#eef1f6;display:block"></iframe>';
+    var a=await auto(),dt=function(w){var m=String(w.title||'').split('—').pop();var t=Date.parse(m);return isNaN(t)?0:t;};
+    var W=(a.weekly||[]).filter(function(w){return w.kind===kind;}).sort(function(x,y){return dt(y)-dt(x);}).slice(0,4);
+    var srch='<div style="text-align:center;color:var(--soft);font-weight:700;font-size:.9rem;margin:12px 4px">We keep the last 4 here. Looking for an older one? Search your email for <b>&ldquo;Bear Line: '+esc(kind)+'&rdquo;</b>.</div>';
+    if(!W.length){box.innerHTML='<div class="empty">This week\'s '+esc(kind)+' will show up here as soon as it is sent'+(kind==='Monday Overview'?' on Monday morning':' on Friday')+'. 🐝</div>'+srch;return;}
+    var ic=kind==='Monday Overview'?'📬 ':'🎉 ';
+    var chips=W.length>1?'<div style="display:flex;flex-wrap:wrap;gap:8px;margin:4px 2px 10px">'+W.map(function(w,i){var lb=String(w.title||'').split('—').pop().trim().replace(/,\s*\d{4}$/,'');return '<button type="button" data-i="'+i+'" style="border:2px solid #5b7a3a;background:'+(i?'#fff':'#5b7a3a')+';color:'+(i?'#5b7a3a':'#fff')+';font-weight:800;border-radius:999px;padding:7px 14px;cursor:pointer">'+esc(lb)+(i?'':' · newest')+'</button>';}).join('')+'</div>':'';
+    box.innerHTML=chips+'<div id="'+boxId+'_t" style="font-weight:800;font-size:1.1rem;color:var(--ink);margin:4px 2px 10px"></div><iframe id="'+boxId+'_if" title="'+esc(kind)+'" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" style="width:100%;border:0;border-radius:14px;min-height:600px;background:#eef1f6;display:block"></iframe>'+srch;
     var f=document.getElementById(boxId+'_if');
     f.onload=function(){try{var d=f.contentDocument;d.querySelectorAll('a').forEach(function(x){x.target='_blank';x.rel='noopener';});f.style.height=(d.documentElement.scrollHeight+24)+'px';}catch(e){}};
-    f.srcdoc=String(w.body||'');
+    var open=function(i){document.getElementById(boxId+'_t').textContent=ic+(W[i].title||kind);f.srcdoc=String(W[i].body||'');box.querySelectorAll('button[data-i]').forEach(function(b){var on=+b.getAttribute('data-i')===i;b.style.background=on?'#5b7a3a':'#fff';b.style.color=on?'#fff':'#5b7a3a';});};
+    box.querySelectorAll('button[data-i]').forEach(function(b){b.onclick=function(){open(+b.getAttribute('data-i'));};});
+    open(0);
   }catch(e){box.innerHTML='<div class="empty">Could not load right now. Please try again in a moment.</div>';}
 }
 window.PPA={show:function(w){
