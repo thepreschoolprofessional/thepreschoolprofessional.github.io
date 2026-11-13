@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow"><title>🧹 Cleaning Charts — The Hive</title>
+<style>
+:root{--ink:#4a3a30;--soft:#9b8576;--teal:#2fc4b2;--green:#12946c;--coral:#ff6b6b}
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',system-ui,sans-serif}
+body{background:linear-gradient(160deg,#fff7ef,#ffe7d4);color:var(--ink);min-height:100vh;padding:14px 14px 70px}
+main{max-width:640px;margin:0 auto}
+h1{font-size:1.5rem;text-align:center;margin:6px 0}.sub{text-align:center;color:var(--soft);font-size:.92rem;margin-bottom:12px}
+.step{font-weight:900;margin:16px 0 8px;font-size:1.05rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.pick{background:#fff;border:3px solid transparent;border-radius:16px;padding:16px 8px;text-align:center;font-weight:800;cursor:pointer;box-shadow:0 4px 12px rgba(74,58,48,.1);font-size:1rem}
+.pick.sel{border-color:var(--teal);background:#e8fbf8}
+input.t{width:100%;border:2px solid #e5d9c8;border-radius:12px;padding:12px;font-size:16px;background:#fff}
+.row{background:#fff;border-radius:12px;padding:10px 12px;margin:8px 0;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.row b{display:block;font-size:15px;margin-bottom:6px}
+.tg{display:flex;gap:6px;margin-bottom:6px}.tg button{flex:1;border:2px solid #ddd;background:#fafafa;border-radius:10px;padding:9px;font-weight:700;font-size:14px;color:#888;cursor:pointer}
+.tg .ok.on{background:#d5f0e2;border-color:var(--green);color:#0a6b4f}.tg .bad.on{background:#ffd9d4;border-color:#e74c3c;color:#c0392b}
+.note{width:100%;border:1px solid #e5d9c8;border-radius:8px;padding:7px 9px;font-size:14px}
+.go{display:block;width:100%;border:none;border-radius:14px;padding:15px;background:var(--green);color:#fff;font-weight:900;font-size:17px;margin-top:14px;cursor:pointer}
+.msg{padding:14px;border-radius:12px;margin:12px 0;font-weight:700}.ok{background:#d5f0e2}.warn{background:#fff6d9}.err{background:#ffe0dc}
+.hist{background:#fff;border-radius:10px;padding:9px 12px;margin:6px 0;font-size:14px}.hist small{color:var(--soft)}
+</style></head><body><main>
+<h1>🧹 Cleaning Charts</h1><div class="sub" id="who">Opening…</div>
+<div id="app"></div>
+<script>
+(function(){
+var esc=function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
+var pass=(location.hash.match(/p=([^&]+)/)||[])[1]||'';
+try{if(pass){sessionStorage.setItem('cleanPass',pass);history.replaceState(null,'',location.pathname);}else pass=sessionStorage.getItem('cleanPass')||'';}catch(e){}
+var S={name:'',room:'',form:'',rooms:[],forms:[]},app=document.getElementById('app');
+function api(a,x){x=x||{};x.pass=pass;x.action=a;return fetch('clean-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(x)}).then(function(r){return r.json()});}
+function dead(m){document.getElementById('who').textContent='';app.innerHTML='<div class="msg err">'+esc(m||'This link is not valid. Go back to the Bear Line clock screen and tap the cleaning chart button again.')+'</div>';}
+function pickScreen(){
+ var h='<div class="step">1. Your name</div><input class="t" id="nm" value="'+esc(S.name)+'">';
+ h+='<div class="step">2. Which room or area?</div><div class="grid">'+S.rooms.map(function(r){return'<div class="pick'+(S.room===r?' sel':'')+'" data-room="'+esc(r)+'">'+esc(r)+'</div>';}).join('')+'</div>';
+ h+='<div class="step">3. Which chart?</div><div class="grid">'+S.forms.map(function(f){return'<div class="pick'+(S.form===f?' sel':'')+'" data-form="'+esc(f)+'">'+esc(f)+'</div>';}).join('')+'</div>';
+ h+='<button class="go" id="start">Start the chart →</button><div id="hist"></div>';
+ app.innerHTML=h;
+ app.querySelectorAll('[data-room]').forEach(function(e){e.onclick=function(){S.name=document.getElementById('nm').value;S.room=e.getAttribute('data-room');pickScreen();};});
+ app.querySelectorAll('[data-form]').forEach(function(e){e.onclick=function(){S.name=document.getElementById('nm').value;S.form=e.getAttribute('data-form');pickScreen();};});
+ document.getElementById('start').onclick=function(){S.name=document.getElementById('nm').value.trim();if(!S.name||!S.room||!S.form){alert('Please add your name, pick a room or area, and pick a chart.');return;}chart();};
+ hist();
+}
+function hist(){api('today').then(function(j){var b=document.getElementById('hist');if(!b||!j.ok)return;var h='<div class="step">📋 Done so far today</div>';if(!j.list.length)h+='<div class="hist"><small>Nothing yet today.</small></div>';j.list.forEach(function(r){var t=r.at?new Date(r.at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'';h+='<div class="hist"><b>'+esc(r.form)+'</b> · '+esc(r.room)+'<br><small>'+esc(r.by)+' · '+t+' · '+esc(r.status)+'</small></div>';});b.innerHTML=h;});}
+function chart(){
+ app.innerHTML='<div class="msg warn">Loading… 🧹</div>';
+ api('items',{form:S.form}).then(function(j){
+  if(j.error)return dead(j.error);
+  if(!j.items.length){app.innerHTML='<div class="msg warn">No items on this chart yet.</div><button class="go" onclick="location.reload()">Back</button>';return;}
+  var h='<div class="step">'+esc(S.form)+' · '+esc(S.room)+'</div>';
+  j.items.forEach(function(it){h+='<div class="row" data-ok="1" data-item="'+esc(it.item)+'"><b>'+esc(it.item)+'</b><div class="tg"><button type="button" class="ok on">✅ OK</button><button type="button" class="bad">⚠️ Needs attention</button></div><input class="note" placeholder="Note (optional)…"></div>';});
+  h+='<button class="go" id="send">Submit ✅</button><button class="go" id="back" style="background:#9b8576">← Back</button>';
+  app.innerHTML=h;
+  app.querySelectorAll('.row').forEach(function(r){var o=r.querySelector('.ok'),b=r.querySelector('.bad');o.onclick=function(){r.setAttribute('data-ok','1');o.classList.add('on');b.classList.remove('on');};b.onclick=function(){r.setAttribute('data-ok','0');b.classList.add('on');o.classList.remove('on');};});
+  document.getElementById('back').onclick=pickScreen;
+  document.getElementById('send').onclick=function(){
+   var btn=this;btn.disabled=true;btn.textContent='Saving…';
+   var rows=[].map.call(app.querySelectorAll('.row'),function(r){return{item:r.getAttribute('data-item'),ok:r.getAttribute('data-ok')!=='0',note:r.querySelector('.note').value};});
+   api('submit',{form:S.form,room:S.room,name:S.name,rows:rows}).then(function(x){
+    if(x.ok){app.innerHTML='<div class="msg ok">✅ Submitted! Your director will get it. 💛</div><button class="go" id="more">Do another chart</button><button class="go" id="done" style="background:#9b8576">I\'m done — back to Bear Line</button><div id="hist"></div>';S.form='';
+     document.getElementById('more').onclick=pickScreen;document.getElementById('done').onclick=function(){try{window.close();}catch(e){}history.length>1?history.back():(location.href='https://bearphonicsacademy.com/');};hist();}
+    else{btn.disabled=false;btn.textContent='Submit ✅';alert(x.error||'Did not save — try again.');}
+   }).catch(function(){btn.disabled=false;btn.textContent='Submit ✅';alert('No connection — try again.');});
+  };
+ });
+}
+if(!pass)return dead();
+api('whoami').then(function(j){
+ if(j.error||!j.ok)return dead(j.error);
+ S.name=j.name||'';S.rooms=j.rooms;S.forms=j.forms;
+ document.getElementById('who').textContent=j.school+' · cleaning charts only';
+ pickScreen();
+}).catch(function(){dead('No connection — try again.');});
+})();
+</script></main></body></html>
