@@ -51,6 +51,9 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 <div class="tab" style="background:#2e8b57" onclick="show('menu',this);PPA.show('menu')">🥦 Menu</div>
 <div class="tab" style="background:#1d7fd1" onclick="show('news',this);PPA.show('news')">📰 Newsletter</div>
 <div class="tab" style="background:#2e8b57" onclick="show('todo',this);PPA.show('todo')">🌳 Things to Do This Weekend</div>
+<div class="tab" style="background:#d9a521" onclick="show('mon',this);PPA.show('mon')">📬 Monday Overview</div>
+<div class="tab" style="background:#5b7a3a" onclick="show('fri',this);PPA.show('fri')">🎉 Friday Briefing</div>
+<div class="tab" style="background:#1d7fd1" onclick="location.href='install-app.html'">📲 Add to Your Phone</div>
 <div class="tab" style="background:#7b3fe4" onclick="show('events',this);PPA.show('events')">🎉 Events &amp; Sign-Ups</div>
 <div class="tab" style="background:#e0457b" onclick="show('tbt',this);PPA.show('tbt')">🧸 Teddy Bear Talk</div>
 <div class="tab" style="background:#3a9d5d" onclick="show('lessons',this);PPA.show('lessons')">🍎 Lesson Plans</div>
@@ -82,6 +85,8 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 <div class="panel" id="p-menu"><div id="menuBox" class="empty">Loading…</div></div>
 <div class="panel" id="p-news"><div id="newsBox" class="empty">Loading…</div></div>
 <div class="panel" id="p-todo"><div id="todoBox" class="empty">Loading…</div></div>
+<div class="panel" id="p-mon"><div id="monBox" class="empty">Loading…</div></div>
+<div class="panel" id="p-fri"><div id="friBox" class="empty">Loading…</div></div>
 <div class="panel" id="p-events"><div id="evBox" class="empty">Loading…</div></div>
 <div class="panel" id="p-tbt"><div id="tbtBox" class="empty">Loading…</div></div>
 <div class="panel" id="p-lessons"><div id="lessonBox" class="empty">Loading…</div></div>
@@ -330,6 +335,10 @@ window.HIVE_CARDS={prompt:'What do you want to see?',order:[
  {k:'Menu',s:'This month\'s menu',c:'#2e8b57'},
  {k:'Newsletter',s:'News from your school',c:'#1d7fd1'},
  {k:'Lesson Plans',s:'Updated automatically each month',c:'#3a9d5d'},
+ {k:'Monday Overview',s:'This week\'s Monday email',c:'#d9a521'},
+ {k:'Friday Briefing',s:'This week\'s Friday email',c:'#5b7a3a'},
+ {k:'Things to Do',s:'Weekend ideas, new every Friday',c:'#2e8b57'},
+ {k:'Add to Your Phone',s:'Use the portal like an app',c:'#1d7fd1'},
  {k:'Message Board & Reminders',s:'Announcements and reminders',c:'#e0457b'},
  {k:'Closures',s:'The whole-year calendar',c:'#b22234'},
  {k:'What to Bring',s:'Wipes, tissues, clothes and more',c:'#ef6c00'},
