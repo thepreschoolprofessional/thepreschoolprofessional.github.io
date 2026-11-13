@@ -145,7 +145,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 </main>
 <script>
 const PIN = sessionStorage.getItem('hivePin');
-if(!PIN) location.href='index.html';
+if(!PIN){ try{ if(location.hash==='#facil') localStorage.setItem('hiveNextFacil','1'); }catch(e){} location.href='index.html'; }
 const esc = s => (s??'').toString().replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 async function api(payload){ const r = await fetch('api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:PIN,...payload})}); return r.json(); }
 function show(id, el){ document.querySelectorAll('.panel').forEach(p=>p.classList.remove('show'));
@@ -280,5 +280,6 @@ window.HIVE_CARDS={prompt:'What do you want to open?',order:[
 ]};
 </script>
 <script src="hive-cards.js?v=7"></script>
+<script>(function(){try{var f=location.hash==='#facil'||localStorage.getItem('hiveNextFacil');if(f&&sessionStorage.getItem('hivePin')){localStorage.removeItem('hiveNextFacil');var t=document.querySelector('.t-facil');if(t&&typeof show==='function')show('facil',t);}}catch(e){}})();</script>
 </body>
 </html>
