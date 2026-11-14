@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Staff Meeting Agenda - The Hive</title>
+<style>
+:root{--bg:#fff8ec;--ink:#2b2118;--card:#fff;--line:#e8d9bd;--acc:#5d4037;--mut:#7a6a55}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+header{padding:14px 16px;background:#fff;border-bottom:2px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+h1{font-size:20px;margin:0;flex:1}
+a.btn,button{background:var(--acc);color:#fff;border:0;border-radius:10px;padding:9px 14px;font-size:15px;font-weight:700;cursor:pointer;text-decoration:none;font-family:inherit}
+a.ghost,button.ghost{background:#fff;color:var(--acc);border:1.5px solid var(--acc)}
+main{max-width:760px;margin:0 auto;padding:16px}
+.big{background:var(--card);border:2px solid var(--acc);border-radius:16px;padding:16px;margin-bottom:16px}
+.big h2{margin:0 0 4px;font-size:18px;color:var(--acc)}
+.sub{color:var(--mut);font-size:14px}
+.sec{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.row:first-of-type{border-top:0}
+.nm{flex:1;min-width:0;overflow-wrap:anywhere;font-size:15px}
+.msg{padding:30px;text-align:center;color:var(--mut)}
+</style><script src="bl-brand.js?v=20261113b" defer></script>
+</head><body>
+<header><h1>📋 Monthly Staff Meeting Agenda</h1><a class="btn ghost" id="back" href="teacher.html">Back</a></header>
+<main id="app"><div class="msg">Loading…</div></main>
+<script>
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+var PIN=null,ROLE='',SCHOOL='';try{PIN=sessionStorage.getItem('hivePin');ROLE=sessionStorage.getItem('hiveRole')||'';SCHOOL=sessionStorage.getItem('hiveSchool')||''}catch(e){}
+try{var b=document.getElementById('back');if(ROLE.indexOf('director')===0)b.href='director.html';if(sessionStorage.getItem('hiveOwner')==='1'&&!ROLE)b.href='owner.html'}catch(e){}
+var app=document.getElementById('app');
+function post(o){o.pin=PIN;o.school=SCHOOL;return fetch('staff-agenda-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(o)})}
+function when(iso){return new Date(iso).toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'})}
+function nice(n){return n.replace(/^\[C\]\s*/,'').replace(/\.pdf$/i,'')}
+function openF(n){
+ var w=window.open('','_blank');if(w)w.document.write('<p style="font-family:sans-serif;padding:20px">Opening the agenda…</p>');
+ post({action:'get',name:n}).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){var u=URL.createObjectURL(b);if(w)w.location.href=u;else location.href=u}).catch(function(){if(w)w.close();alert('Could not open it. Please try again.')});
+}
+if(!PIN){app.innerHTML='<div class="msg">Please open this from your Teacher or Director Portal.</div>'}else{
+ post({action:'list'}).then(function(r){return r.json()}).then(function(d){
+  if(d.error){app.innerHTML='<div class="msg">'+esc(d.error)+'</div>';return}
+  var f=d.files||[];
+  if(!f.length){app.innerHTML='<div class="big"><h2>'+esc(d.school)+'</h2><div class="sub">The agenda for our next monthly staff meeting will be posted here the evening before the meeting.</div></div>';return}
+  var h='<div class="big"><h2>Newest agenda, '+esc(d.school)+'</h2><div style="margin:6px 0 12px;font-size:16px;font-weight:700">'+esc(nice(f[0].name))+'</div><button data-n="'+encodeURIComponent(f[0].name)+'" id="openNew">Open the agenda</button><div class="sub" style="margin-top:10px">Posted '+when(f[0].at)+'. Please read it before the meeting.</div></div>';
+  if(f.length>1){h+='<div class="sec"><div class="sub" style="margin-bottom:4px">Past agendas</div>'+f.slice(1).map(function(x){return'<div class="row"><div class="nm">'+esc(nice(x.name))+'<div class="sub">'+when(x.at)+'</div></div><button class="ghost" data-n="'+encodeURIComponent(x.name)+'">Open</button></div>'}).join('')+'</div>'}
+  app.innerHTML=h;
+  app.querySelectorAll('button[data-n]').forEach(function(bt){bt.onclick=function(){openF(decodeURIComponent(bt.getAttribute('data-n')))}});
+ }).catch(function(){app.innerHTML='<div class="msg">Could not load. Please try again.</div>'});
+}
+</script></body></html>
