@@ -24,6 +24,7 @@ details{margin-top:14px;font-size:14px}input[type=date]{font:inherit;padding:6px
 <script>
 var API='timesheet-api.php',PIN=null,D=null,PI=0;
 try{PIN=sessionStorage.getItem('hivePin')}catch(e){}
+try{if(sessionStorage.getItem('hiveOwner')==='1'){var bk=document.querySelector('header a.btn');if(bk){bk.href='owner.html';bk.textContent='Back to Owner Portal'}}}catch(e){}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 function call(b){b.pin=PIN;return fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).then(function(r){return r.json()})}
 function ymd(d){return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)}
