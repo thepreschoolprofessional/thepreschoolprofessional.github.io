@@ -48,7 +48,7 @@ function name_first($s){
   $s = strtolower(preg_replace('/\([^)]*\)/', '', (string)$s));
   $s = preg_replace('/\b(ms|mrs|mr|miss|dr)\b\.?/', ' ', $s);
   if (!preg_match_all("/[a-z']+/", $s, $m)) return '';
-  return str_replace("'", '', $m[0][0] ?? '');
+  $k = str_replace("'", '', $m[0][0] ?? ''); $al = ['honey'=>'madhumita']; return $al[$k] ?? $k;
 }
 function roster_staff($school){
   $sc = str_replace("'", '', $school); $out = []; $off = null; $g = 0;
