@@ -130,7 +130,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
   <div class="tab" style="background:#00897b" onclick="location.href='staff-files.html'">🗂️ Staff Files</div>
   <div class="tab" style="background:#8e24aa" onclick="location.href='student-files.html'">🧒 Student Files</div>
   <div class="tab" style="background:#e8573f" onclick="show('daily',this)">📅 Daily Plans</div>
-  <div class="tab" style="background:#d81b60" onclick="window.open('https://bearphonicsacademy.com/bookfair/','_blank')">📚 Book Fair</div>
+  <div class="tab" style="background:#d81b60" onclick="window.open('https://bearphonicsacademy.com/bookfair/','_blank')">📚 Year-Round Book Fair</div>
   <div class="tab" style="background:#1565c0" onclick="location.href='rooms.html'">🏫 Classroom Attendance</div>
  <div class="tab" style="background:#c62828" onclick="location.href='contacts.html'">📞 Emergency Contacts</div>
  <div class="tab" style="background:#6a1b9a" onclick="location.href='staff-contacts.html'">👥 Staff Contacts</div>
@@ -147,7 +147,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
   <div class="tab" style="background:#2fc4b2" onclick="show('forms',this)">📄 Forms Wizard</div>
   <div class="tab" style="background:#4a154b" onclick="window.open('https://slack.com/signin','_blank','noopener')">💬 Slack</div>
   <div class="tab" style="background:#1565c0" onclick="window.open('https://childcaretraining.myflfamilies.com/studentsite/admin/signin','_blank','noopener')">🎓 DCF Login</div>
-  <div class="tab" data-icon="bp-logo.png" style="background:#9b6bff" onclick="window.open('https://bearphonicsacademy.com/online/demo.html?teach=bpa-classroom-26','_blank','noopener')">🐻 Bear Phonics Academy</div>
+  <div class="tab" data-icon="bp-logo.png" style="background:#9b6bff" onclick="window.open('https://bearphonicsacademy.com/online/demo.html?teach=bpa-classroom-26','_blank','noopener')">🎓 Bear Phonics Academy Online</div>
   <div class="tab" style="background:#e91e63" onclick="location.href='parent.html'">🏡 Parent Portal</div>
   <div class="tab" style="background:#e07b00" onclick="openBL('bearline.html','staff')">⏱ Staff Sign In/Out</div>
   <div class="tab" style="background:#c2185b" onclick="openBL('bearline.html','staff')">💬 Parent Messages</div>
@@ -872,7 +872,7 @@ function openBL(page,mode){ if(typeof SCHOOL==='undefined'||!SCHOOL){alert('Stil
   openBL('bearline.html','staff');
 }
 window.HIVE_CARDS={prompt:'What do you want to work on?',order:[
- {k:'Bear Phonics Academy',s:'Free reading lessons for the classroom',c:'#9b6bff'},
+ {k:'Bear Phonics Academy Online',l:['Opens every lesson with no PIN or payment','Use it on the classroom screen or let children work through it','In beta: some voices may sound robotic. Send feedback to Mrs. Bear'],s:'Reading lessons for the classroom (beta)',c:'#9b6bff'},
  {k:'Parent Uploads',l:['Families send documents from the Parent Portal (Send Us a Document)','Check each one, pick the child, and file it in their Student File','New child not enrolled yet? Keep it under Pending Enrollment until they are','Nothing goes into a file until you approve it'],s:'Check documents families sent',c:'#00838f'},
  {k:'Parent Replies (email)',l:['Parents reply to the Monday and Friday emails and those replies land here too','Tap Reply: Gmail opens from your office address, already addressed to the parent','Mark answered when done; answered ones move to their own list','Absences show in red','Also shows Parent Portal contact-form messages'],s:'See and answer parent replies',c:'#ad1457'},
  {k:'Parent Messages',l:['Messages parents send from the Bear Line sign-in screen','Reply to a family, or start a message to any family','Each family only sees its own conversation','Also: post to the front-screen Board (tuition posting days, holidays, reminders)','Opens Bear Line: tap Director, enter your PIN, then Messages or Board'],s:'Parent messages and the front-screen board',c:'#c2185b'},
@@ -914,7 +914,7 @@ window.HIVE_CARDS={prompt:'What do you want to work on?',order:[
  {k:'Staff Files',t:[['Staff training status','training-status.html']],l:["Personnel checklist for each person", "Photo or PDF pages, expiration dates", "Training certificates to sign", "Bio card and photo"],s:'Certificates, IDs, CPR, signatures',c:'#00897b'},
  {k:'Student Files',l:["Child folder checklist (registration, shots, physical, releases)", "Photo or PDF pages, expiration dates", "Parent signing on screen", "Cubby and bin photos and labels"],s:'Registration packets, shot records',c:'#8e24aa'},
  {k:'Daily Plans',l:["Pick your room", "Month, week and today's plan"],s:'What to teach today, by room',c:'#e8573f'},
- {k:'Book Fair',l:["Opens the Bear Phonics book fair page"],s:'Open the book fair',c:'#d81b60'},
+ {k:'Year-Round Book Fair',l:['Opens the book fair in a new tab','Share the link with families any time of year','Host a fair for a school or church with the form on that page'],s:'Open the book fair',c:'#d81b60'},
  {k:'Slack',s:'Messages from Mrs. Bear and Charles',c:'#4a154b'},
  {k:'DCF Login',s:'Florida DCF training portal',c:'#1565c0'},
  {k:'School Links',t:[['Family Welcome page link','enroll.html'],['New-staff page link','newhires.html']],l:["Enrollment and tour links", "ProCare, ELC and KidKare logins"],s:'Your school\'s links',c:'#5a4cc9'},
