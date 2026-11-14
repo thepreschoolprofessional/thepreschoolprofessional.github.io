@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Owner Reports - The Hive</title>
+<style>
+:root{--bg:#f7f4ee;--ink:#2b2118;--card:#fff;--line:#e5dccd;--acc:#5a4cc9;--mut:#76695c;--ok:#2e7d32;--bad:#b71c1c}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+header{padding:14px 16px;background:#fff;border-bottom:2px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+h1{font-size:20px;margin:0;flex:1}
+main{max-width:860px;margin:0 auto;padding:14px 16px 40px}
+.sec{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:14px}
+h2{font-size:17px;margin:0 0 6px;color:var(--acc);display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+h2 small{color:var(--mut);font-weight:600;font-size:13px}
+.row{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line)}
+.row:first-of-type{border-top:0}
+.nm{flex:1;min-width:0;font-size:15px;overflow-wrap:anywhere;cursor:pointer;color:var(--ink)}
+.nm:hover{text-decoration:underline}
+.sub{color:var(--mut);font-size:12.5px}
+button{background:var(--acc);color:#fff;border:0;border-radius:10px;padding:8px 13px;font-size:14px;font-weight:700;cursor:pointer}
+button.ghost{background:#fff;color:var(--acc);border:1.5px solid var(--acc)}
+button.del{background:#fff;color:var(--bad);border:1.5px solid #e3b4b4;padding:6px 10px;font-size:13px}
+button.del.arm{background:var(--bad);color:#fff}
+select,input[type=file]{font-size:15px;padding:7px;border:1.5px solid var(--line);border-radius:10px;background:#fff;max-width:100%}
+.up{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.msg{padding:30px;text-align:center;color:var(--mut)}
+#say{min-height:20px;margin:8px 0 0;font-weight:700}
+.none{color:var(--mut);font-size:14px;padding:6px 0}
+</style><script src="bl-brand.js?v=20261113b" defer></script>
+</head><body>
+<header><h1>📑 Owner Reports <span class="sub">(owner only)</span></h1><button class="ghost" onclick="load()">Refresh</button></header>
+<main id="app"><div class="msg">Loading…</div></main>
+<script>
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+var PIN=null,DATA=null,OPEN={},LOCK=null,API='owner-reports-api.php';
+try{var now=Date.now();for(var i=localStorage.length-1;i>=0;i--){var k=localStorage.key(i);if(k&&k.indexOf('hiveOwnerPinHandoff_')===0){var ts=+k.split('_')[1];if(now-ts<60000&&!PIN)PIN=localStorage.getItem(k);localStorage.removeItem(k)}}}catch(e){}
+var app=document.getElementById('app');
+function lock(){PIN=null;app.innerHTML='<div class="msg">Locked after 30 minutes. Open it again from the Owner Portal.</div>'}
+function touch(){clearTimeout(LOCK);LOCK=setTimeout(lock,30*60000)}
+function post(o){o.pin=PIN;return fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(o)})}
+function say(t,bad){var s=document.getElementById('say');if(s){s.textContent=t||'';s.style.color=bad?'var(--bad)':'var(--ok)'}}
+function sz(n){return n>1048576?(n/1048576).toFixed(1)+' MB':Math.max(1,Math.round(n/1024))+' KB'}
+function when(iso){var d=new Date(iso);return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})+' '+d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}
+function load(){
+ if(!PIN){app.innerHTML='<div class="msg">Please open this from the Owner Portal.</div>';return}
+ touch();
+ post({action:'list'}).then(function(r){return r.json()}).then(function(d){
+  if(d.error){app.innerHTML='<div class="msg">'+esc(d.error)+'</div>';return}
+  DATA=d.kinds;render();
+ }).catch(function(){app.innerHTML='<div class="msg">Could not load. Please try again.</div>'});
+}
+function render(){
+ var opts=DATA.map(function(k){return'<option value="'+k.kind+'">'+esc(k.label)+'</option>'}).join('');
+ var h='<div class="sec"><h2>Add a report</h2><div class="up"><select id="kind">'+opts+'</select><input type="file" id="files" multiple accept=".pdf,.docx,.xlsx,.png,.jpg"><button id="upBtn" onclick="upload()">Upload</button></div><div id="say"></div><div class="sub" style="margin-top:6px">The scheduled tasks put the nightly, weekly and monthly owner reports here automatically. Directors and staff cannot see this page.</div></div>';
+ DATA.forEach(function(k){
+  var all=!!OPEN[k.kind],list=all?k.files:k.files.slice(0,8);
+  h+='<div class="sec"><h2>'+esc(k.label)+' <small>'+k.files.length+' file'+(k.files.length===1?'':'s')+'</small></h2>';
+  h+=list.length?list.map(function(f){return'<div class="row"><div class="nm" data-k="'+k.kind+'" data-n="'+encodeURIComponent(f.name)+'" onclick="openF(this)">'+esc(f.name)+'<div class="sub">'+when(f.at)+' · '+sz(f.size)+'</div></div><button class="del" data-k="'+k.kind+'" data-n="'+encodeURIComponent(f.name)+'" onclick="del(this)">Delete</button></div>'}).join(''):'<div class="none">Nothing here yet.</div>';
+  if(k.files.length>8)h+='<div style="margin-top:8px"><button class="ghost" onclick="OPEN[\''+k.kind+'\']=!OPEN[\''+k.kind+'\'];render()">'+(all?'Show fewer':'Show all '+k.files.length)+'</button></div>';
+  h+='</div>';
+ });
+ app.innerHTML=h;
+}
+function openF(el){
+ touch();var k=el.getAttribute('data-k'),n=decodeURIComponent(el.getAttribute('data-n'));
+ var w=window.open('','_blank');if(w)w.document.write('<p style="font-family:sans-serif;padding:20px">Opening '+esc(n)+'…</p>');
+ post({action:'get',kind:k,name:n}).then(function(r){if(!r.ok)throw new Error('x');return r.blob()}).then(function(b){
+  var u=URL.createObjectURL(b);
+  if(/\.(pdf|png|jpg)$/i.test(n)&&w){w.location.href=u}else{if(w)w.close();var a=document.createElement('a');a.href=u;a.download=n;a.click()}
+ }).catch(function(){if(w)w.close();alertless('Could not open '+n+'.')});
+}
+function alertless(t){say(t,true)}
+function del(b){
+ touch();
+ if(!b.classList.contains('arm')){b.classList.add('arm');b.textContent='Tap again to delete';setTimeout(function(){b.classList.remove('arm');b.textContent='Delete'},4000);return}
+ post({action:'delete',kind:b.getAttribute('data-k'),name:decodeURIComponent(b.getAttribute('data-n'))}).then(function(r){return r.json()}).then(function(d){if(d.error){say(d.error,true);return}load()});
+}
+function upload(){
+ touch();var inp=document.getElementById('files');if(!inp.files.length){say('Choose a file first.',true);return}
+ var fd=new FormData();fd.append('pin',PIN);fd.append('action','upload');fd.append('kind',document.getElementById('kind').value);
+ for(var i=0;i<inp.files.length;i++)fd.append('files[]',inp.files[i]);
+ say('Uploading…');
+ fetch(API,{method:'POST',body:fd}).then(function(r){return r.json()}).then(function(d){
+  if(d.error){say(d.error,true);return}
+  var keep=document.getElementById('kind').value;load();setTimeout(function(){var k=document.getElementById('kind');if(k)k.value=keep;say('Saved: '+d.saved.join(', '))},900);
+ }).catch(function(){say('Upload failed. Please try again.',true)});
+}
+load();
+</script></body></html>
