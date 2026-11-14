@@ -31,7 +31,7 @@ function ymd(d){return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+
 function addDays(s,n){var d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return ymd(d)}
 function fmt(s){return new Date(s+'T12:00:00').toLocaleDateString([], {month:'short',day:'numeric'})}
 function first(n){return String(n||'').toLowerCase().replace(/\([^)]*\)/g,'').replace(/\b(ms|mrs|mr|miss|dr)\b\.?/g,' ').match(/[a-z']+/)}
-function fk(n){var m=first(n);return m?m[0].replace(/'/g,''):''}
+var ALIAS={honey:'madhumita'};function fk(n){var m=first(n);var k=m?m[0].replace(/'/g,''):'';return ALIAS[k]||k}
 var LIVE=null,LIVEP=null;
 function load(){
  if(!PIN){document.getElementById('app').textContent='Please open this from your Hive director portal.';return}
