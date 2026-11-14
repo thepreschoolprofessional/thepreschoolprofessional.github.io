@@ -13,7 +13,7 @@ function fail($m, $c = 400){ http_response_code($c); header('Content-Type: appli
 function ok($v){ header('Content-Type: application/json; charset=utf-8'); echo json_encode($v); exit; }
 if ($__t === 'PASTE_YOUR_AIRTABLE_TOKEN_HERE') fail('The Airtable token has not been added yet.', 503);
 
-$KINDS = ['daily'=>'Daily Operations Reports', 'weekly'=>'Owner Weekly Operations Reports', 'friday'=>'Friday Director Meeting Sheets', 'monthly'=>'Monthly Staff Reports', 'other'=>'Other Owner Files'];
+$KINDS = ['daily'=>'Daily Operations Reports', 'weekly'=>'Owner Weekly Operations Reports', 'friday'=>'Friday Director Meeting Sheets', 'monthly'=>'Monthly Staff Reports', 'agenda-sanford'=>'Staff Meeting Agendas - Sanford (staff can see)', 'agenda-deland'=>'Staff Meeting Agendas - DeLand 2 (staff can see)', 'other'=>'Other Owner Files'];
 
 /* Input: JSON body (list / get / delete) or multipart form (upload). */
 $in = $_POST ?: (json_decode(file_get_contents('php://input'), true) ?: []);
