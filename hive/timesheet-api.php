@@ -123,6 +123,52 @@ if ($action === 'pay_anchor'){
   $a = (string)($input['anchor'] ?? ''); if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $a) || date('N', strtotime($a)) != 1) fail('Pick a Monday.');
   $set['anchor'] = $a; jwrite($setf, $set); echo json_encode(['ok'=>true]); exit;
 }
+if ($action === 'pay_live'){
+  $wk = []; foreach ((array)($input['weeks'] ?? []) as $w){ if (is_string($w) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $w) && date('N', strtotime($w)) == 1) $wk[] = $w; }
+  $wk = array_slice(array_values(array_unique($wk)), 0, 4);
+  foreach ([dirname(__DIR__, 2), dirname(__DIR__), __DIR__] as $d0){ if (file_exists($d0.'/elc-sync-code.php')) include_once $d0.'/elc-sync-code.php'; }
+  if (!defined('ELC_SYNC_CODE')) fail('Bear Line is not connected from here yet.', 503);
+  $bl = ($school === 'Sanford') ? 'https://bearphonicsacademy.com/elc-94f077be04/bearline-api.php' : 'https://bearphonicsacademy.com/elc-1ce53ee46c/bearline-api.php';
+  $ctx = stream_context_create(['http'=>['method'=>'POST', 'header'=>"Content-Type: application/json\r\n", 'content'=>json_encode(['action'=>'hive_pay_weeks', 'code'=>ELC_SYNC_CODE, 'weeks'=>$wk]), 'timeout'=>25, 'ignore_errors'=>true]]);
+  $j = json_decode((string)@file_get_contents($bl, false, $ctx), true);
+  if (!is_array($j) || empty($j['ok'])) fail('Could not read the Bear Line time clock right now.', 502);
+  $today = date('Y-m-d');
+  $hm = function($s){ return preg_match('/^(\d{1,2}):(\d{2})$/', (string)$s, $m) ? ((int)$m[1] * 60 + (int)$m[2]) : null; };
+  $names = []; foreach ((array)($j['staff'] ?? []) as $s){ if (is_array($s) && ($s[0] ?? '') !== '') $names[] = (string)$s[0]; }
+  $out = [];
+  foreach ((array)($j['weeks'] ?? []) as $w => $W){
+    $days = (array)($W['days'] ?? []); $log = (array)($W['log'] ?? []); $ts = (array)($W['ts'] ?? []);
+    $sids = array_unique(array_merge(array_keys($log), array_keys($ts))); $staff = [];
+    foreach ($sids as $sid){
+      $snap = []; $total = 0; $pto = 0; $offs = []; $probs = []; $has = false;
+      foreach ($days as $k){
+        $d = $log[$sid][$k] ?? null; $m = [];
+        foreach ((array)($d['punches'] ?? []) as $p){ $m[$p['type'] ?? ''] = $p['at'] ?? ''; }
+        $in = $m['in'] ?? ''; $lo = $m['lunchOut'] ?? ''; $li = $m['lunchIn'] ?? ''; $ot = $m['out'] ?? '';
+        $offT = (string)($d['off']['type'] ?? ''); $oh = ($offT !== '' && $offT !== 'Day off' && (float)($d['off']['hrs'] ?? 0) > 0) ? (float)$d['off']['hrs'] : 0;
+        $dh = null; if ($in !== '' && $ot !== '' && $hm($in) !== null && $hm($ot) !== null){ $t = $hm($ot) - $hm($in); if ($lo !== '' && $li !== '' && $hm($lo) !== null && $hm($li) !== null) $t -= ($hm($li) - $hm($lo)); $dh = $t / 60; }
+        $h = ($dh === null && !$oh) ? null : (($dh ?? 0) + $oh);
+        if ($h !== null) $total += $h; $pto += $oh;
+        if ($offT !== ''){ $offs[$offT] = ($offs[$offT] ?? 0) + 1; $has = true; }
+        $np = count((array)($d['punches'] ?? []));
+        if ($np){ $has = true; $dl = date('D n/j', strtotime($k));
+          if ($in === '') $probs[] = $dl.': no clock-in';
+          if ($lo !== '' && $li === '') $probs[] = $dl.": didn't clock back in from lunch";
+          if ($li !== '' && $lo === '') $probs[] = $dl.': no lunch clock-out';
+          if ($ot === '') $probs[] = $dl.($k < $today ? ': no clock-out' : ': still clocked in'); }
+        $snap[] = implode('~', [$k, $in, $lo, $li, $ot, $offT, (string)(0 + $oh)]);
+      }
+      $r = $ts[$sid] ?? null;
+      if (!$has && !$r) continue;
+      $status = 'none'; if ($r){ $status = ($r['fp'] ?? '') === implode('^', $snap) ? (!empty($r['waived']) ? 'waived' : 'signed') : 'changed'; }
+      $nm = ''; foreach ($names as $n){ if (name_first($n) === name_first($sid)){ $nm = $n; break; } }
+      if ($nm === '') $nm = ($r && ($r['name'] ?? '') !== '') ? $r['name'] : ucfirst($sid);
+      $staff[$sid] = ['name'=>$nm, 'total'=>round($total, 2), 'pto'=>round($pto, 2), 'offs'=>$offs, 'status'=>$status, 'signedAt'=>$r['at'] ?? '', 'probs'=>$probs];
+    }
+    $out[$w] = ['signoff'=>$W['signoff'] ?? null, 'staff'=>(object)$staff];
+  }
+  echo json_encode(['school'=>$school, 'today'=>$today, 'weeks'=>(object)$out]); exit;
+}
 if ($action !== 'pay_list') fail('Unknown action');
 $weeks = [];
 foreach (glob($pd.'/20??-??-??.json') ?: [] as $f){ $x = json_decode(file_get_contents($f), true); if (is_array($x) && !empty($x['week'])) $weeks[$x['week']] = $x['staff']; }
