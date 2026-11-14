@@ -32,43 +32,72 @@ function addDays(s,n){var d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);ret
 function fmt(s){return new Date(s+'T12:00:00').toLocaleDateString([], {month:'short',day:'numeric'})}
 function first(n){return String(n||'').toLowerCase().replace(/\([^)]*\)/g,'').replace(/\b(ms|mrs|mr|miss|dr)\b\.?/g,' ').match(/[a-z']+/)}
 function fk(n){var m=first(n);return m?m[0].replace(/'/g,''):''}
+var LIVE=null,LIVEP=null;
 function load(){
  if(!PIN){document.getElementById('app').textContent='Please open this from your Hive director portal.';return}
  call({action:'pay_list'}).then(function(d){if(d.error){document.getElementById('app').textContent=d.error;return}D=d;document.getElementById('ttl').textContent='Bi-weekly Staff Pay — '+d.school;
   var today=ymd(new Date()),n=0;while(addDays(d.anchor,14*(n+1))<=today)n++;
-  PI=(addDays(d.anchor,14*n+11)<today)?n:Math.max(0,n-1);
+  PI=n;
   draw()}).catch(function(){document.getElementById('app').textContent='Could not load. Please try again.'})
 }
 function period(){var s=addDays(D.anchor,14*PI);return {w1:s,w2:addDays(s,7),end:addDays(s,11)}}
+function draw(){var p=period();if(LIVEP!==p.w1){LIVEP=p.w1;LIVE=null;render();var want=p.w1;
+  call({action:'pay_live',weeks:[p.w1,p.w2]}).then(function(d){if(LIVEP!==want)return;LIVE=d;render()}).catch(function(){if(LIVEP!==want)return;LIVE={error:'Could not reach the Bear Line right now.'};render()});return}
+ render()}
+function filedCell(f){var pto=0,offs={};(f.days||[]).forEach(function(x){if(x.off){offs[x.off]=(offs[x.off]||0)+1;if(x.off!=='Day off')pto+=(x.oh||0)}});return {src:'filed',hrs:f.total||0,pto:pto,offs:offs,status:f.waived?'waived':'signed',dir:true,probs:[]}}
 function rows(){
- var p=period(),W1=D.weeks[p.w1]||{},W2=D.weeks[p.w2]||{},out=[],seen={};
- function add(sid,name,a,b){var days=[].concat((a&&a.days)||[],(b&&b.days)||[]),offs={},pto=0;days.forEach(function(x){if(x.off){offs[x.off]=(offs[x.off]||0)+1;if(x.off!=='Day off')pto+=(x.oh||0)}});
-  out.push({sid:sid,name:name,pto:pto,h1:a?a.total:null,h2:b?b.total:null,tot:(a?a.total:0)+(b?b.total:0),offs:offs,waived:(a&&a.waived)||(b&&b.waived)})}
- Object.keys(W1).forEach(function(sid){seen[sid]=1;add(sid,W1[sid].full||W1[sid].name,W1[sid],W2[sid])});
- Object.keys(W2).forEach(function(sid){if(!seen[sid]){seen[sid]=1;add(sid,W2[sid].full||W2[sid].name,null,W2[sid])}});
- var have={};out.forEach(function(r){have[fk(r.name)]=1});
- var miss=[];(D.roster||[]).forEach(function(r){if(!have[fk(r.name)])miss.push(r)});
- out.forEach(function(r){var m=(D.roster||[]).filter(function(x){return fk(x.name)===fk(r.name)})[0];r.sched=m&&m.hrs!=null?m.hrs*2:null});
- out.sort(function(a,b){return a.name.localeCompare(b.name)});
- return {rows:out,miss:miss,p:p}
+ var p=period(),by={},list=[];
+ function get(n){var k=fk(n)||String(n).toLowerCase();if(!by[k]){by[k]={name:n,w:[null,null]};list.push(by[k])}return by[k]}
+ var dir=[false,false];
+ [p.w1,p.w2].forEach(function(w,i){
+  var F=D.weeks[w]||{},L=(LIVE&&LIVE.weeks&&LIVE.weeks[w])||null;
+  if(Object.keys(F).length||(L&&L.signoff))dir[i]=true;
+  Object.keys(F).forEach(function(sid){var f=F[sid];get(f.full||f.name).w[i]=filedCell(f)});
+  if(L)Object.keys(L.staff||{}).forEach(function(sid){var x=L.staff[sid],r=get(x.name);if(r.w[i]&&r.w[i].src==='filed')return;
+   r.w[i]={src:'live',hrs:x.total||0,pto:x.pto||0,offs:x.offs||{},status:x.status,at:x.signedAt,dir:!!L.signoff,probs:x.probs||[]}});
+ });
+ list.forEach(function(r){r.tot=0;r.pto=0;r.offs={};r.need=[];r.probs=[];
+  r.w.forEach(function(c,i){if(!c)return;r.tot+=c.hrs;r.pto+=c.pto;Object.keys(c.offs).forEach(function(o){r.offs[o]=(r.offs[o]||0)+c.offs[o]});
+   if(c.status==='none'||c.status==='changed')r.need.push({i:i,c:c});(c.probs||[]).forEach(function(x){r.probs.push(x)})});
+  var m=(D.roster||[]).filter(function(x){return fk(x.name)===fk(r.name)})[0];r.sched=m&&m.hrs!=null?m.hrs*2:null;if(m)r.name=m.name});
+ var have={};list.forEach(function(r){have[fk(r.name)]=1});
+ var miss=(D.roster||[]).filter(function(r){return !have[fk(r.name)]});
+ list.sort(function(a,b){return a.name.localeCompare(b.name)});
+ return {rows:list,miss:miss,p:p,dir:dir}
 }
 function offTxt(o){var k=Object.keys(o);return k.length?k.map(function(x){return o[x]+' '+x}).join(', '):''}
-function draw(){
- var R=rows(),p=R.p,h='';
+function chip(c){if(!c)return '<div class="mut">no hours</div>';
+ if(c.status==='signed')return '<div class="ok" style="font-size:12px">✓ Signed</div>';
+ if(c.status==='waived')return '<div class="mut">Director approved (not signed by staff)</div>';
+ if(c.status==='changed')return '<div style="font-size:12px;font-weight:800;color:#b45309">Changed since signed: sign again</div>';
+ return '<div class="bad" style="font-size:12px">NOT SIGNED</div>'}
+function render(){
+ var R=rows(),p=R.p,h='',wk=[p.w1,p.w2];
  h+='<div class="bar"><button class="ghost" onclick="PI--;draw()">← Earlier</button><b>Pay period: '+fmt(p.w1)+' – '+fmt(p.end)+'</b><button class="ghost" onclick="PI++;draw()">Later →</button></div>';
- h+='<div class="sum">Only weeks that every staff member has signed and the director has signed off appear here. Week 1 = '+fmt(p.w1)+', week 2 = '+fmt(p.w2)+'. Hours come straight from the Bear Line time clock after director fixes. Vacation and PTO hours the director entered are INCLUDED in the totals (shown in their own column). A plain day off is listed but adds no hours.</div>';
- h+='<table><thead><tr><th>Staff</th><th class="n" style="text-align:right">Week 1</th><th class="n" style="text-align:right">Week 2</th><th style="text-align:right">Total hours</th><th style="text-align:right">Incl. vacation / PTO hrs</th><th>Scheduled (2 wks)</th><th>Days off</th></tr></thead><tbody>';
+ if(!LIVE)h+='<div class="sum">Checking the Bear Line time clock for this pay period…</div>';
+ else if(LIVE.error)h+='<div class="sum bad">'+esc(LIVE.error)+' Only weeks the director already signed off are shown below.</div>';
+ var needs=[],probs=[];
+ R.rows.forEach(function(r){r.need.forEach(function(n){needs.push('<b>'+esc(r.name)+'</b>: week of '+fmt(wk[n.i])+', '+n.c.hrs.toFixed(2)+' hrs'+(n.c.status==='changed'?' (hours changed after signing)':''))});if(r.probs.length)probs.push('<b>'+esc(r.name)+'</b>: '+r.probs.map(esc).join('; '))});
+ var todo='';
+ if(needs.length)todo+='<div style="margin-bottom:8px"><b class="bad">Needs the staff member to sign ('+needs.length+'):</b><br>'+needs.join('<br>')+'<div class="mut" style="margin-top:4px">Walk up with the tablet, show them their hours, and have them sign: Bear Line, Staff, their name, then "Confirm my week". They also see this when they clock in.</div></div>';
+ if(probs.length)todo+='<div style="margin-bottom:8px"><b style="color:#b45309">Clock problems to fix first:</b><br>'+probs.join('<br>')+'<div class="mut" style="margin-top:4px">Fix the time on the Bear Line (Director, Staff Sign In/Out) before they sign.</div></div>';
+ wk.forEach(function(w,i){if(LIVE&&!LIVE.error&&!R.dir[i]&&addDays(w,4)<ymd(new Date()))todo+='<div style="margin-bottom:6px"><b class="bad">Director sign-off still needed</b> for the week of '+fmt(w)+' (Bear Line, Director, Time sheets).</div>'});
+ if(R.miss.length)todo+='<div><b>No hours on the clock this pay period:</b> '+R.miss.map(function(r){return esc(r.name)}).join(', ')+'.</div>';
+ if(todo)h+='<div class="sum" style="background:#fff7f5;border-color:#f3c7bf;color:var(--ink)"><b style="font-size:16px">Before running payroll</b><div style="margin-top:6px">'+todo+'</div></div>';
+ else if(LIVE&&!LIVE.error)h+='<div class="sum ok">Everyone with hours this pay period has signed. Ready for payroll.</div>';
+ h+='<div class="sum">Every staff member with hours shows here as soon as they clock in, signed or not. Rows in red still need a signature. Hours come from the Bear Line time clock (it also brings in ProCare punches) after director fixes. Vacation and PTO hours the director entered are included in the totals. A plain day off adds no hours.</div>';
+ h+='<table><thead><tr><th>Staff</th><th class="n" style="text-align:right">Week 1<div class="mut" style="font-weight:400">'+fmt(p.w1)+(R.dir[0]?' · director ✓':'')+'</div></th><th class="n" style="text-align:right">Week 2<div class="mut" style="font-weight:400">'+fmt(p.w2)+(R.dir[1]?' · director ✓':'')+'</div></th><th style="text-align:right">Total hours</th><th style="text-align:right">Incl. vacation / PTO hrs</th><th>Scheduled (2 wks)</th><th>Days off</th></tr></thead><tbody>';
  var t1=0,t2=0;
- R.rows.forEach(function(r){t1+=r.h1||0;t2+=r.h2||0;
-  h+='<tr><td>'+esc(r.name)+(r.waived?' <span class="mut">(not signed by staff)</span>':'')+'</td><td class="n">'+(r.h1==null?'<span class="bad">not filed</span>':r.h1.toFixed(2))+'</td><td class="n">'+(r.h2==null?'<span class="bad">not filed</span>':r.h2.toFixed(2))+'</td><td class="n"><b>'+r.tot.toFixed(2)+'</b></td><td class="n">'+(r.pto?r.pto.toFixed(2):'')+'</td><td class="n">'+(r.sched==null?'':r.sched.toFixed(1))+'</td><td>'+esc(offTxt(r.offs))+'</td></tr>'});
+ R.rows.forEach(function(r){var a=r.w[0],b=r.w[1];t1+=a?a.hrs:0;t2+=b?b.hrs:0;
+  h+='<tr'+(r.need.length?' style="background:#fdecea"':'')+'><td>'+esc(r.name)+(r.probs.length?' <span style="color:#b45309;font-size:12px">⚠ clock problem</span>':'')+'</td><td class="n">'+(a?a.hrs.toFixed(2):'')+chip(a)+'</td><td class="n">'+(b?b.hrs.toFixed(2):'')+chip(b)+'</td><td class="n"><b>'+r.tot.toFixed(2)+'</b></td><td class="n">'+(r.pto?r.pto.toFixed(2):'')+'</td><td class="n">'+(r.sched==null?'':r.sched.toFixed(1))+'</td><td>'+esc(offTxt(r.offs))+'</td></tr>'});
  h+='<tr class="tot"><td>All staff</td><td class="n">'+t1.toFixed(2)+'</td><td class="n">'+t2.toFixed(2)+'</td><td class="n">'+(t1+t2).toFixed(2)+'</td><td></td><td></td><td></td></tr></tbody></table>';
- if(R.miss.length)h+='<div class="sum" style="margin-top:12px"><b class="bad">No signed time sheet filed yet for this period:</b> '+R.miss.map(function(r){return esc(r.name)}).join(', ')+'. They may have had no hours, or a week is still waiting for a staff or director signature on the Bear Line.</div>';
  h+='<details><summary>Pay period settings</summary><p>Pay periods are two weeks. Pick the Monday that starts any pay period:</p><input type="date" id="anc" value="'+esc(D.anchor)+'"> <button class="ghost" onclick="setAnc()">Save</button></details>';
  document.getElementById('app').className='';document.getElementById('app').innerHTML=h;
 }
-function setAnc(){var v=document.getElementById('anc').value;call({action:'pay_anchor',anchor:v}).then(function(r){if(r.error){alert(r.error);return}load()})}
-document.getElementById('csv').onclick=function(){if(!D)return;var R=rows(),p=R.p,q=function(s){return '"'+String(s).replace(/"/g,'""')+'"'},L=[['Staff','Period start','Period end','Week 1 hours','Week 2 hours','Total hours','Included vacation/PTO hours','Days off / PTO / vacation'].map(q).join(',')];
- R.rows.forEach(function(r){L.push([q(r.name),q(p.w1),q(p.end),q(r.h1==null?'':r.h1.toFixed(2)),q(r.h2==null?'':r.h2.toFixed(2)),q(r.tot.toFixed(2)),q(r.pto?r.pto.toFixed(2):''),q(offTxt(r.offs))].join(','))});
+function setAnc(){var v=document.getElementById('anc').value;call({action:'pay_anchor',anchor:v}).then(function(r){if(r.error){alert(r.error);return}LIVEP=null;load()})}
+function stTxt(c){return !c?'':(c.status==='signed'?'Signed':c.status==='waived'?'Director approved':c.status==='changed'?'Changed, needs signature':'NOT SIGNED')}
+document.getElementById('csv').onclick=function(){if(!D)return;var R=rows(),p=R.p,q=function(s){return '"'+String(s).replace(/"/g,'""')+'"'},L=[['Staff','Period start','Period end','Week 1 hours','Week 1 status','Week 2 hours','Week 2 status','Total hours','Included vacation/PTO hours','Days off / PTO / vacation'].map(q).join(',')];
+ R.rows.forEach(function(r){var a=r.w[0],b=r.w[1];L.push([q(r.name),q(p.w1),q(p.end),q(a?a.hrs.toFixed(2):''),q(stTxt(a)),q(b?b.hrs.toFixed(2):''),q(stTxt(b)),q(r.tot.toFixed(2)),q(r.pto?r.pto.toFixed(2):''),q(offTxt(r.offs))].join(','))});
  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([L.join('\n')],{type:'text/csv'}));a.download='staff-hours-'+p.w1+'.csv';document.body.appendChild(a);a.click();a.remove()};
 load();
 </script></body></html>
