@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Staff Items</title>
+<style>
+:root{--ink:#4a3a30;--soft:#9b8576;--line:#eadfce;--grn:#2e8b57;--blu:#1565c0;--red:#d32f2f;--pur:#6a3fb5}
+*{box-sizing:border-box;font-family:'Segoe UI',system-ui,sans-serif}
+body{margin:0;background:linear-gradient(160deg,#fff7ef,#ffe7d4);color:var(--ink);min-height:100vh;line-height:1.4}
+#app{max-width:900px;margin:0 auto;padding:12px 14px 60px}
+h1{font-size:1.4rem;margin:6px 0}.sub{color:var(--soft);font-weight:700;font-size:.9rem}
+.btn{border:0;border-radius:12px;padding:10px 16px;font-weight:800;font-size:.95rem;cursor:pointer;background:var(--pur);color:#fff;text-decoration:none;display:inline-block}
+.btn.sec{background:#fff;color:var(--ink);border:1px solid var(--line)}.btn.sm{padding:6px 11px;font-size:.82rem;border-radius:10px}.btn.red{background:var(--red)}
+.fi{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:16px;margin:4px 0;background:#fff}
+label{display:block;font-weight:800;font-size:.82rem;margin-top:8px}
+.card{background:#fff;border:2px solid var(--line);border-left:6px solid var(--pur);border-radius:14px;padding:12px 14px;margin:12px 0}
+.it{border-top:1px solid var(--line);padding:8px 0;display:flex;gap:8px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap}
+.it:first-of-type{border-top:0}
+.chip{display:inline-block;border-radius:99px;padding:1px 9px;font-size:.72rem;font-weight:800;background:#efe7fb;color:var(--pur);margin-right:4px}
+.chip.ok{background:#dff3e6;color:#1c7c3f}.chip.warn{background:#ffe9e6;color:#b32a31}
+.note{background:#fff8e1;border:1px solid #f0d9a6;border-radius:12px;padding:9px 12px;font-size:.86rem;margin:8px 0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:600px){.two{grid-template-columns:1fr}}
+</style><script src="bl-brand.js?v=20261113b" defer></script>
+</head>
+<body><div id="app"><div class="sub">Loading…</div></div>
+<script>
+const PIN=sessionStorage.getItem('hivePin');
+if(!PIN) location.href='index.html';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const sidOf=n=>String(n||'').trim().split(/\s+/)[0].toLowerCase().replace(/[^a-z]/g,'');
+let STAFF=[],ITEMS=[],MSGS=[],LANGS={},CUR='',BUSY=false,SCHOOL='';
+const KINDS=['Upload a document','Training','Cleaning chart','Sign something','Read / check','Time off','Announcement','Other'];
+const KIND_ES={'Upload a document':'Subir un documento','Training':'Capacitación','Cleaning chart':'Lista de limpieza','Sign something':'Firmar algo','Read / check':'Leer / revisar','Time off':'Tiempo libre','Announcement':'Aviso','Other':'Otro'};
+/* ready-made messages with a Spanish version already written */
+const TPL=[
+ ['Upload a document','Please upload your updated document to your staff file.','Por favor suba su documento actualizado a su expediente de personal.'],
+ ['Training','Please finish your assigned training this week.','Por favor termine su capacitación asignada esta semana.'],
+ ['Sign something','Please sign your time card for the week.','Por favor firme su tarjeta de horas de la semana.'],
+ ['Cleaning chart','Please complete your cleaning chart today.','Por favor complete su lista de limpieza hoy.'],
+ ['Read / check','Please read the new notice posted at the front desk.','Por favor lea el nuevo aviso en la recepción.'],
+ ['Time off','Your time-off request needs a change. Please see me.','Su solicitud de tiempo libre necesita un cambio. Por favor hable conmigo.'],
+ ['Announcement','Staff meeting Friday after we close.','Reunión del personal el viernes después de cerrar.'],
+ ['Announcement','Please arrive on time and sign in when you get here.','Por favor llegue a tiempo y registre su entrada al llegar.']
+];
+async function api(action,x){
+ const r=await fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({pin:PIN,action},x||{}))});
+ const j=await r.json().catch(()=>({error:'Server error. Try again in a minute.'}));
+ if(j.error)throw new Error(j.error);if(j.ok===false)throw new Error(j.message||j.error||'Could not do that.');return j;}
+function dl(d){const m=String(d||'').match(/^(\d{4})-(\d\d)-(\d\d)$/);return m?(+m[2])+'/'+(+m[3]):''}
+async function load(){
+ try{
+  const w=await api('whoami');SCHOOL=w.school;
+  STAFF=((await api('staff_names')).staff||[]).filter(p=>!/practice/i.test(p.name)).map(p=>({name:p.name,sid:sidOf(p.name)}));
+  const t=await api('staff_task_list');ITEMS=t.items||[];MSGS=t.msgs||[];LANGS=t.langs||{};
+  if(!CUR&&STAFF.length)CUR=STAFF[0].sid;
+  draw();
+ }catch(e){$('app').innerHTML='<div class="note">'+esc(e.message)+'</div><a class="btn sec" href="director.html">&lsaquo; Back to portal</a>';}
+}
+function draw(){
+ const cs=STAFF.find(s=>s.sid===CUR)||{name:'',sid:''};
+ const mine=ITEMS.filter(i=>i.sid===CUR),open=mine.filter(i=>!i.done),done=mine.filter(i=>i.done).slice(-6);
+ const msgs=MSGS.filter(m=>!m.handled);
+ const spanish=LANGS[CUR]==='es';
+ const row=i=>'<div class="it"><div style="flex:1;min-width:200px"><span class="chip">'+esc(i.kind||'To do')+'</span>'+(i.due?'<span class="chip warn">due '+esc(dl(i.due))+'</span>':'')+(i.done?'<span class="chip ok">done &#10003; '+esc(i.doneBy||'')+'</span>':'')+'<div>'+esc(i.text)+'</div>'+(i.es?'<div class="sub">ES: '+esc(i.es)+'</div>':'')+(i.link?'<div class="sub">Link: '+esc(i.link)+'</div>':'')+'</div><button class="btn red sm" onclick="rm(\''+esc(i.id)+'\')">Remove</button></div>';
+ $('app').innerHTML=
+ '<div class="row" style="justify-content:space-between"><div><h1>&#128203; Staff Items</h1><div class="sub">'+esc(SCHOOL)+' &middot; things you want a staff member to see on their Bear Line &ldquo;My items&rdquo; screen</div></div><a class="btn sec" href="'+(sessionStorage.getItem('hiveOwner')?'owner.html':'director.html')+'">&lsaquo; Back to portal</a></div>'
+ +(msgs.length?'<div class="card" style="border-left-color:var(--red)"><b>Notes from staff ('+msgs.length+')</b>'+msgs.map(m=>{const n=(STAFF.find(s=>s.sid===m.sid)||{}).name||m.sid;return '<div class="it"><div style="flex:1;min-width:200px"><span class="chip">'+esc(m.kind||'Note')+'</span><b>'+esc(n)+'</b> <span class="sub">'+esc(String(m.at||'').slice(0,10))+'</span><div>'+esc(m.text)+'</div></div><button class="btn sm" onclick="handled(\''+esc(m.sid)+'\',\''+esc(m.id)+'\')">Handled &#10003;</button></div>'}).join('')+'</div>':'')
+ +'<div class="card"><label>Staff member</label><select id="who" class="fi" onchange="CUR=this.value;draw()">'+STAFF.map(s=>'<option value="'+esc(s.sid)+'"'+(s.sid===CUR?' selected':'')+'>'+esc(s.name)+(LANGS[s.sid]==='es'?'  (Español)':'')+'</option>').join('')+'</select>'
+ +'<div class="row" style="margin-top:6px"><label style="margin:0"><input type="checkbox" id="lang" '+(spanish?'checked':'')+' onchange="setLang(this.checked)"> Show '+esc(cs.name.split(' ')[0])+'&rsquo;s Bear Line screens in <b>Español</b> (she can also switch it herself)</label></div></div>'
+ +'<div class="card"><b>Send something to '+esc(cs.name||'…')+'</b>'
+ +'<label>Quick message (English + Spanish ready)</label><select id="tpl" class="fi" onchange="useTpl(this.value)"><option value="">Pick one, or write your own below…</option>'+TPL.map((t,i)=>'<option value="'+i+'">'+esc(t[0])+': '+esc(t[1])+'</option>').join('')+'</select>'
+ +'<div class="two"><div><label>What is it?</label><select id="kind" class="fi">'+KINDS.map(k=>'<option>'+k+'</option>').join('')+'</select></div><div><label>Due date (optional)</label><input id="due" type="date" class="fi"></div></div>'
+ +'<label>Message (English)</label><textarea id="txt" class="fi" rows="2" maxlength="300" placeholder="What does she need to do?"></textarea>'
+ +'<label>Spanish version (optional &mdash; shown when the screen is in Español)</label><textarea id="es" class="fi" rows="2" maxlength="300" placeholder="Versión en español"></textarea>'
+ +'<div class="row"><a class="btn sec sm" href="#" onclick="gtr();return false">Translate the English with Google</a><span class="sub">opens in a new tab &mdash; paste the Spanish back here</span></div>'
+ +'<label>Link (optional, https only &mdash; opens an &ldquo;Open&rdquo; button)</label><input id="link" class="fi" placeholder="https://…">'
+ +'<div class="row" style="margin-top:10px"><button class="btn" onclick="send(false)">Send to '+esc((cs.name||'').split(' ')[0]||'her')+'</button><button class="btn sec" onclick="send(true)">Send to ALL staff</button></div><div id="msg" class="sub" style="margin-top:6px"></div></div>'
+ +'<div class="card" style="border-left-color:var(--grn)"><b>Waiting for '+esc(cs.name||'')+' ('+open.length+')</b>'+(open.length?open.map(row).join(''):'<div class="sub">Nothing waiting.</div>')+(done.length?'<div style="margin-top:10px"><b>Done recently</b>'+done.map(row).join('')+'</div>':'')+'</div>'
+ +'<div class="note">Staff also see automatically: files that are missing or expiring (from Staff Files), their training hours this year, time-off request answers, their time card and cleaning charts. You do not need to send those.</div>';
+}
+function useTpl(i){if(i==='')return;const t=TPL[+i];$('kind').value=t[0];$('txt').value=t[1];$('es').value=t[2];}
+function gtr(){const t=$('txt').value.trim();window.open('https://translate.google.com/?sl=en&tl=es&op=translate&text='+encodeURIComponent(t),'_blank','noopener');}
+async function send(all){
+ if(BUSY)return;const text=$('txt').value.trim();if(!text){$('msg').textContent='Type the message first.';return;}
+ const body={kind:$('kind').value,text,es:$('es').value.trim(),link:$('link').value.trim(),due:$('due').value};
+ if(body.link&&!/^https:\/\//.test(body.link)){$('msg').textContent='The link has to start with https://';return;}
+ if(all&&!confirm('Send this to every staff member at '+SCHOOL+'?'))return;
+ BUSY=true;$('msg').textContent='Sending…';
+ try{const list=all?STAFF:[STAFF.find(s=>s.sid===CUR)];let n=0;for(const s of list){if(!s)continue;try{await api('staff_task_add',Object.assign({sid:s.sid},body));n++}catch(e){}}
+  BUSY=false;await refresh();$('msg').textContent='Sent to '+n+' staff member'+(n===1?'':'s')+'.';}
+ catch(e){BUSY=false;$('msg').textContent=e.message;}
+}
+async function refresh(){const t=await api('staff_task_list');ITEMS=t.items||[];MSGS=t.msgs||[];LANGS=t.langs||{};draw();}
+async function rm(id){if(!confirm('Remove this item?'))return;try{await api('staff_task_remove',{sid:CUR,id});await refresh();}catch(e){alert(e.message)}}
+async function handled(sid,id){try{await api('staff_msg_done',{sid,id});await refresh();}catch(e){alert(e.message)}}
+async function setLang(on){try{await api('staff_task_lang',{sid:CUR,lang:on?'es':''});LANGS[CUR]=on?'es':'';draw();}catch(e){alert(e.message)}}
+load();
+</script></body></html>

@@ -409,6 +409,24 @@ echo json_encode(['ok'=>true, 'id'=>$id]); exit;
 }
 fail('Unknown request.');
 }
+/* ---- Server-to-server only (from the Bear Line, authorised by the private ELC sync code): what each staff member still needs to do, so "My items" on the Bear Line can show it. Labels and dates only. ---- */
+if (($input['action'] ?? '') === 'bl_staff_items'){
+foreach ([dirname(__DIR__, 2), dirname(__DIR__), __DIR__] as $d0){ if (file_exists($d0.'/elc-sync-code.php')) include_once $d0.'/elc-sync-code.php'; }
+if (!defined('ELC_SYNC_CODE') || !hash_equals(ELC_SYNC_CODE, (string)($input['code'] ?? ''))) fail('Not allowed.', 403);
+$cs = (($input['school'] ?? '') === 'Sanford') ? 'Sanford' : ((($input['school'] ?? '') === 'DeLand 2') ? 'DeLand 2' : ''); if ($cs === '') fail('Bad school.');
+$sr = roster($cs, 'staff'); if ($sr === null) fail('Could not read the staff list.', 502);
+$tof = to_file($cs); $tos = ($tof && is_file($tof)) ? jread($tof, []) : []; $cut = date('Y-m-d', strtotime('-14 days')); $yr = date('Y'); $res = [];
+$sidf = function($n){ $w = preg_split('/\s+/', trim((string)$n)); return strtolower(preg_replace('/[^a-z]/i', '', $w[0] ?? '')); };
+foreach ($sr as $p0){
+if (strpos($p0['id'], 'recTEST') === 0) continue; $sid = $sidf($p0['name']); if ($sid === '') continue;
+$v = person_view($cs, 'staff', $p0['id'], $p0); $fl = [];
+foreach ($v['docs'] as $dd){ if (in_array($dd['status'], ['missing', 'expired', 'soon', 'needdate'], true)) $fl[] = ['key'=>$dd['key'], 'label'=>$dd['label'], 'status'=>$dd['status'], 'exp'=>$dd['exp']]; }
+$to = []; foreach ($tos as $q){ if ($sidf($q['name'] ?? '') === $sid && ($q['to'] ?? '') >= $cut) $to[] = ['type'=>$q['type'], 'from'=>$q['from'], 'to'=>$q['to'], 'status'=>$q['status'] ?? 'pending', 'note'=>mb_substr((string)($q['note'] ?? ''), 0, 200)]; }
+$row = ['files'=>$fl, 'hrs'=>(float)($v['hours'][$yr] ?? 0), 'goal'=>$CE_GOAL, 'timeoff'=>$to];
+if (isset($res[$sid])){ $res[$sid]['files'] = array_merge($res[$sid]['files'], $fl); $res[$sid]['timeoff'] = array_merge($res[$sid]['timeoff'], $to); } else $res[$sid] = $row;
+}
+echo json_encode(['ok'=>true, 'staff'=>$res]); exit;
+}
 /* ---- Server-to-server only (from elc-sync.php, authorised by the private ELC sync code): what a child added on the ELC tablet still needs ---- */
 if (($input['action'] ?? '') === 'elc_catchup'){
 foreach ([dirname(__DIR__, 2), dirname(__DIR__), __DIR__] as $d0){ if (file_exists($d0.'/elc-sync-code.php')) include_once $d0.'/elc-sync-code.php'; }
@@ -851,6 +869,15 @@ $id = (string)($input['id'] ?? ''); $out = []; $nm = ''; $yr = date('Y');
 if (strpos($id, 'pend_') === 0){ $f = pend_f($school); $pd = $f ? jread($f, []) : []; foreach ($pd as $q){ if (($q['pid'] ?? '') === $id){ $nm = $q['name']; foreach ($q['certs'] as $c){ if (($c['year'] ?? '') === $yr) $out[] = ['lesson'=>$c['lesson'],'title'=>$c['title'],'hrs'=>$c['hrs'],'date'=>$c['date'],'signed'=>!empty($c['signedAt'])]; } } } }
 else { $p = find_person($school, 'staff', $id); if (!$p) fail('That name is not on this school\'s staff list.'); $nm = $p['name']; foreach (jread(pdir($school, 'staff', $id).'/certs.json', []) as $c){ if (($c['year'] ?? '') === $yr) $out[] = ['lesson'=>$c['lesson'],'title'=>$c['title'] ?? '','hrs'=>$c['hrs'] ?? 0,'date'=>$c['date'] ?? '','signed'=>!empty($c['signedAt'])]; } }
 echo json_encode(['name'=>$nm,'school'=>$school,'certs'=>$out]); exit;
+}
+/* ---- Staff Items card (director.html): things a director sends to ONE staff member, shown on that person's "My items" screen on the Bear Line. Stored on the Bear Line itself. ---- */
+if (in_array($action, ['staff_task_list', 'staff_task_add', 'staff_task_remove', 'staff_task_lang', 'staff_msg_done'], true)){
+if (!$isDir) fail('Directors only.', 403);
+$bm = ['staff_task_list'=>'hive_task_list', 'staff_task_add'=>'hive_task_add', 'staff_task_remove'=>'hive_task_remove', 'staff_task_lang'=>'hive_task_lang', 'staff_msg_done'=>'hive_msg_done'];
+$pl = ['action'=>$bm[$action], 'by'=>'Your director'];
+foreach (['sid', 'text', 'es', 'kind', 'link', 'due', 'id', 'lang'] as $k0){ if (isset($input[$k0])) $pl[$k0] = (string)$input[$k0]; }
+$j = bl_post($school, $pl); if (!is_array($j)) $j = ['ok'=>false, 'error'=>'failed'];
+echo json_encode($j); exit;
 }
 if ($action === 'staff_names'){
 $r = roster($school, 'staff'); if ($r === null) fail('Could not read the staff list right now.', 502);

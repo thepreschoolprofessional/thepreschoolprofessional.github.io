@@ -10,7 +10,7 @@ var path=(location.pathname.split('/').pop()||'index.html').toLowerCase();
 var ss=function(k){try{return sessionStorage.getItem(k)||''}catch(e){return ''}};
 var sch=(ss('hiveSchool')+' '+ss('hiveRole')+' '+path).toLowerCase();
 var school=/deland/.test(sch)?'deland':(/sanford/.test(sch)?'sanford':'');
-var DIRP=/^(director-pins|dcf|reporting|rooms|fte|payroll|contacts|staff-contacts|staff-files|student-files|uploads|inbox|closures|sop|training-status|handbook-training|newhires|onboard|parent-manage|system|files)\.html$/,TEACHP=/^(teacher-training|my-bio|lessons)\.html$/,OWNP=/^(owner|owner-pins)\.html$/;
+var DIRP=/^(director-pins|dcf|reporting|rooms|fte|payroll|contacts|staff-contacts|staff-items|staff-files|student-files|uploads|inbox|closures|sop|training-status|handbook-training|newhires|onboard|parent-manage|system|files)\.html$/,TEACHP=/^(teacher-training|my-bio|lessons)\.html$/,OWNP=/^(owner|owner-pins)\.html$/;
 var barTitle=DIRP.test(path)?'Director Portal':TEACHP.test(path)?'Teacher Portal':'';
 var kind=/^parent/.test(path)?'parent':path==='director.html'?'director':path==='teacher.html'?'teacher':path==='index.html'||path===''?'front':'';
 var col=barTitle==='Director Portal'?DIRECTOR:barTitle==='Teacher Portal'?TEACHER:barTitle==='Owner Hub'?'#f26a0f':kind==='director'?DIRECTOR:kind==='teacher'?TEACHER:(school?SCHOOL_COLORS[school]:'#c98a0b');
