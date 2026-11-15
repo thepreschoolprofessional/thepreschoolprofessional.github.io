@@ -59,7 +59,7 @@ function rows(){
  list.forEach(function(r){r.tot=0;r.pto=0;r.offs={};r.need=[];r.probs=[];
   r.w.forEach(function(c,i){if(!c)return;r.tot+=c.hrs;r.pto+=c.pto;Object.keys(c.offs).forEach(function(o){r.offs[o]=(r.offs[o]||0)+c.offs[o]});
    if(c.status==='none'||c.status==='changed')r.need.push({i:i,c:c});(c.probs||[]).forEach(function(x){r.probs.push(x)})});
-  var m=(D.roster||[]).filter(function(x){return fk(x.name)===fk(r.name)})[0];r.sched=m&&m.hrs!=null?m.hrs*2:null;if(m)r.name=m.name;if(SALARIED[fk(r.name)]){r.salary=true;r.need=[];r.w.forEach(function(c){if(c&&c.status!=='signed')c.status='salary'})}});
+  var m=(D.roster||[]).filter(function(x){return fk(x.name)===fk(r.name)})[0];r.sched=m&&m.hrs!=null?m.hrs*2:null;if(m)r.name=m.name;if(SALARIED[fk(r.name)])r.salary=true});
  var have={};list.forEach(function(r){have[fk(r.name)]=1});
  var miss=(D.roster||[]).filter(function(r){return !have[fk(r.name)]});
  list.sort(function(a,b){return a.name.localeCompare(b.name)});
@@ -90,7 +90,7 @@ function render(){
  h+='<table><thead><tr><th>Staff</th><th class="n" style="text-align:right">Week 1<div class="mut" style="font-weight:400">'+fmt(p.w1)+(R.dir[0]?' · director ✓':'')+'</div></th><th class="n" style="text-align:right">Week 2<div class="mut" style="font-weight:400">'+fmt(p.w2)+(R.dir[1]?' · director ✓':'')+'</div></th><th style="text-align:right">Total hours</th><th style="text-align:right">Incl. vacation / PTO hrs</th><th>Scheduled (2 wks)</th><th>Days off</th></tr></thead><tbody>';
  var t1=0,t2=0;
  R.rows.forEach(function(r){var a=r.w[0],b=r.w[1];t1+=a?a.hrs:0;t2+=b?b.hrs:0;
-  h+='<tr'+(r.need.length?' style="background:#fdecea"':'')+'><td>'+esc(r.name)+(r.probs.length?' <span style="color:#b45309;font-size:12px">⚠ clock problem</span>':'')+'</td><td class="n">'+(a?a.hrs.toFixed(2):'')+chip(a)+'</td><td class="n">'+(b?b.hrs.toFixed(2):'')+chip(b)+'</td><td class="n"><b>'+r.tot.toFixed(2)+'</b></td><td class="n">'+(r.pto?r.pto.toFixed(2):'')+'</td><td class="n">'+(r.sched==null?'':r.sched.toFixed(1))+'</td><td>'+esc(offTxt(r.offs))+'</td></tr>'});
+  h+='<tr'+(r.need.length?' style="background:#fdecea"':'')+'><td>'+esc(r.name)+(r.salary?' <span class="mut">(salaried: hours still recorded and signed)</span>':'')+(r.probs.length?' <span style="color:#b45309;font-size:12px">⚠ clock problem</span>':'')+'</td><td class="n">'+(a?a.hrs.toFixed(2):'')+chip(a)+'</td><td class="n">'+(b?b.hrs.toFixed(2):'')+chip(b)+'</td><td class="n"><b>'+r.tot.toFixed(2)+'</b></td><td class="n">'+(r.pto?r.pto.toFixed(2):'')+'</td><td class="n">'+(r.sched==null?'':r.sched.toFixed(1))+'</td><td>'+esc(offTxt(r.offs))+'</td></tr>'});
  h+='<tr class="tot"><td>All staff</td><td class="n">'+t1.toFixed(2)+'</td><td class="n">'+t2.toFixed(2)+'</td><td class="n">'+(t1+t2).toFixed(2)+'</td><td></td><td></td><td></td></tr></tbody></table>';
  h+='<details><summary>Pay period settings</summary><p>Pay periods are two weeks. Pick the Monday that starts any pay period:</p><input type="date" id="anc" value="'+esc(D.anchor)+'"> <button class="ghost" onclick="setAnc()">Save</button></details>';
  document.getElementById('app').className='';document.getElementById('app').innerHTML=h;
