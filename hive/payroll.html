@@ -31,7 +31,7 @@ function ymd(d){return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+
 function addDays(s,n){var d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return ymd(d)}
 function fmt(s){return new Date(s+'T12:00:00').toLocaleDateString([], {month:'short',day:'numeric'})}
 function first(n){return String(n||'').toLowerCase().replace(/\([^)]*\)/g,'').replace(/\b(ms|mrs|mr|miss|dr)\b\.?/g,' ').match(/[a-z']+/)}
-var ALIAS={honey:'madhumita'};function fk(n){var m=first(n);var k=m?m[0].replace(/'/g,''):'';return ALIAS[k]||k}
+var ALIAS={honey:'madhumita'};var SALARIED={sanchita:1};function fk(n){var m=first(n);var k=m?m[0].replace(/'/g,''):'';return ALIAS[k]||k}
 var LIVE=null,LIVEP=null;
 function load(){
  if(!PIN){document.getElementById('app').textContent='Please open this from your Hive director portal.';return}
@@ -59,14 +59,14 @@ function rows(){
  list.forEach(function(r){r.tot=0;r.pto=0;r.offs={};r.need=[];r.probs=[];
   r.w.forEach(function(c,i){if(!c)return;r.tot+=c.hrs;r.pto+=c.pto;Object.keys(c.offs).forEach(function(o){r.offs[o]=(r.offs[o]||0)+c.offs[o]});
    if(c.status==='none'||c.status==='changed')r.need.push({i:i,c:c});(c.probs||[]).forEach(function(x){r.probs.push(x)})});
-  var m=(D.roster||[]).filter(function(x){return fk(x.name)===fk(r.name)})[0];r.sched=m&&m.hrs!=null?m.hrs*2:null;if(m)r.name=m.name});
+  var m=(D.roster||[]).filter(function(x){return fk(x.name)===fk(r.name)})[0];r.sched=m&&m.hrs!=null?m.hrs*2:null;if(m)r.name=m.name;if(SALARIED[fk(r.name)]){r.salary=true;r.need=[];r.w.forEach(function(c){if(c&&c.status!=='signed')c.status='salary'})}});
  var have={};list.forEach(function(r){have[fk(r.name)]=1});
  var miss=(D.roster||[]).filter(function(r){return !have[fk(r.name)]});
  list.sort(function(a,b){return a.name.localeCompare(b.name)});
  return {rows:list,miss:miss,p:p,dir:dir}
 }
 function offTxt(o){var k=Object.keys(o);return k.length?k.map(function(x){return o[x]+' '+x}).join(', '):''}
-function chip(c){if(!c)return '<div class="mut">no hours</div>';
+function chip(c){if(!c)return '<div class="mut">no hours</div>';if(c.status==='salary')return '<div class="mut">Salary, no signature needed</div>';
  if(c.status==='signed')return '<div class="ok" style="font-size:12px">✓ Signed</div>';
  if(c.status==='waived')return '<div class="mut">Director approved (not signed by staff)</div>';
  if(c.status==='changed')return '<div style="font-size:12px;font-weight:800;color:#b45309">Changed since signed: sign again</div>';
@@ -74,6 +74,7 @@ function chip(c){if(!c)return '<div class="mut">no hours</div>';
 function render(){
  var R=rows(),p=R.p,h='',wk=[p.w1,p.w2];
  h+='<div class="bar"><button class="ghost" onclick="PI--;draw()">← Earlier</button><b>Pay period: '+fmt(p.w1)+' – '+fmt(p.end)+'</b><button class="ghost" onclick="PI++;draw()">Later →</button></div>';
+ h+='<div class="sum" style="color:var(--ink);font-size:15px"><b>Hours due Tuesday '+fmt(addDays(p.end,4))+'</b> · Payday Friday '+fmt(addDays(p.end,7))+'. Every staff signature and the director sign-off are due by the Tuesday before payday.</div>';
  if(!LIVE)h+='<div class="sum">Checking the Bear Line time clock for this pay period…</div>';
  else if(LIVE.error)h+='<div class="sum bad">'+esc(LIVE.error)+' Only weeks the director already signed off are shown below.</div>';
  var needs=[],probs=[];
@@ -95,7 +96,7 @@ function render(){
  document.getElementById('app').className='';document.getElementById('app').innerHTML=h;
 }
 function setAnc(){var v=document.getElementById('anc').value;call({action:'pay_anchor',anchor:v}).then(function(r){if(r.error){alert(r.error);return}LIVEP=null;load()})}
-function stTxt(c){return !c?'':(c.status==='signed'?'Signed':c.status==='waived'?'Director approved':c.status==='changed'?'Changed, needs signature':'NOT SIGNED')}
+function stTxt(c){return !c?'':(c.status==='signed'?'Signed':c.status==='waived'?'Director approved':c.status==='salary'?'Salary':c.status==='changed'?'Changed, needs signature':'NOT SIGNED')}
 document.getElementById('csv').onclick=function(){if(!D)return;var R=rows(),p=R.p,q=function(s){return '"'+String(s).replace(/"/g,'""')+'"'},L=[['Staff','Period start','Period end','Week 1 hours','Week 1 status','Week 2 hours','Week 2 status','Total hours','Included vacation/PTO hours','Days off / PTO / vacation'].map(q).join(',')];
  R.rows.forEach(function(r){var a=r.w[0],b=r.w[1];L.push([q(r.name),q(p.w1),q(p.end),q(a?a.hrs.toFixed(2):''),q(stTxt(a)),q(b?b.hrs.toFixed(2):''),q(stTxt(b)),q(r.tot.toFixed(2)),q(r.pto?r.pto.toFixed(2):''),q(offTxt(r.offs))].join(','))});
  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([L.join('\n')],{type:'text/csv'}));a.download='staff-hours-'+p.w1+'.csv';document.body.appendChild(a);a.click();a.remove()};
