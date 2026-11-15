@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Needs Attention - The Hive</title>
+<style>
+:root{--bg:#fff8ec;--ink:#2b2118;--card:#fff;--line:#e8d9bd;--acc:#c62828;--mut:#7a6a55;--ok:#1b7f3b;--warn:#b45309}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+header{padding:14px 16px;background:#fff;border-bottom:2px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+h1{font-size:20px;margin:0;flex:1}
+a.btn,button{background:var(--acc);color:#fff;border:0;border-radius:10px;padding:8px 13px;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;font-family:inherit}
+.ghost{background:#fff!important;color:var(--ink)!important;border:1.5px solid var(--line)!important}
+.ghost.on{border-color:var(--ink)!important}
+main{max-width:900px;margin:0 auto;padding:16px;display:flex;flex-direction:column;gap:14px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.tile b{display:block;font-size:30px;font-variant-numeric:tabular-nums}
+.tile span{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+.tile.red b{color:var(--acc)}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.sec{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:4px 14px}
+.sec h2{font-size:16px;margin:12px 0 4px}
+.item{display:flex;gap:10px;align-items:flex-start;padding:11px 0;border-top:1px solid var(--line)}
+.item:first-of-type{border-top:0}
+.item.red{box-shadow:inset 4px 0 0 var(--acc);padding-left:10px}
+.txt{flex:1;min-width:0;overflow-wrap:anywhere;line-height:1.45}
+.meta{font-size:12px;color:var(--mut);margin-top:2px}
+.chip{font-size:11px;font-weight:700;border-radius:999px;padding:1px 8px;border:1px solid var(--line);white-space:nowrap}
+.chip.red{color:var(--acc);border-color:var(--acc)}
+.chip.ok{color:var(--ok);border-color:var(--ok)}
+.msg{padding:30px;text-align:center;color:var(--mut)}
+.note{font-size:13px;color:var(--mut);line-height:1.5}
+details summary{cursor:pointer;font-weight:700;padding:10px 0}
+</style><script src="bl-brand.js?v=20261113b" defer></script>
+</head><body>
+<header><h1>🚨 Needs Attention: both schools</h1><a class="btn ghost" href="owner.html">Back to Owner Portal</a></header>
+<main id="app"><div class="msg">Loading…</div></main>
+<script>
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+var PIN=null,DATA=null,F='',LOCK=null,API='attention-api.php';
+try{var now=Date.now();for(var i=localStorage.length-1;i>=0;i--){var k=localStorage.key(i);if(k&&k.indexOf('hiveOwnerPinHandoff_')===0){var ts=+k.split('_')[1];if(now-ts<60000&&!PIN)PIN=localStorage.getItem(k);localStorage.removeItem(k)}}}catch(e){}
+var app=document.getElementById('app');
+function lock(){PIN=null;app.innerHTML='<div class="msg">Locked after 30 minutes. Open it again from the Owner Portal.</div>'}
+function touch(){clearTimeout(LOCK);LOCK=setTimeout(lock,30*60000)}
+function post(o){o.pin=PIN;return fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(o)}).then(function(r){return r.json()})}
+function day(s){if(!s)return'';var d=new Date(s+'T12:00:00');return d.toLocaleDateString(undefined,{month:'short',day:'numeric'})}
+function area(a){var t=String(a.alert||'').toLowerCase();if(a.source==='elc-absence-watch')return'ELC absences';if(t.indexOf('payroll')===0)return'Payroll';if(t.indexOf('parent message')>-1)return'Parent messages';if(t.indexOf('staff roster')>-1||t.indexOf('inactive')>-1||t.indexOf('staff list')>-1)return'Staff list';if(t.indexOf('kidkare')>-1||t.indexOf('withdrawn')>-1)return'Children';if(t.indexOf('automation email')>-1)return'Email requests';if(t.indexOf('did not run')>-1||t.indexOf('failed')>-1)return'Scheduled tasks';if(t.indexOf('live portal')>-1)return'Website';return'Other'}
+function itemHtml(a,done){return '<div class="item'+(a.red&&!done?' red':'')+'"><div class="txt">'+esc(a.alert)+'<div class="meta">'+esc(a.school)+' · '+esc(area(a))+' · since '+day(a.created)+'</div></div>'+(done?'<span class="chip ok">Fixed</span>':(a.red?'<span class="chip red">Urgent</span>':'')+' <button class="ghost" data-id="'+esc(a.id)+'">Mark done</button>')+'</div>'}
+function render(){
+ var al=DATA.alerts||[],open=al.filter(function(a){return a.status==='Open'}),res=al.filter(function(a){return a.status==='Resolved'});
+ var cnt=function(s){return open.filter(function(a){return a.school===s}).length};
+ var shown=open.filter(function(a){return !F||a.school===F}).sort(function(x,y){return (y.red-x.red)||String(y.created).localeCompare(String(x.created))});
+ var h='<div class="tiles"><div class="tile"><span>Open</span><b>'+open.length+'</b></div><div class="tile red"><span>Urgent</span><b>'+open.filter(function(a){return a.red}).length+'</b></div><div class="tile"><span>Sanford</span><b>'+cnt('Sanford')+'</b></div><div class="tile"><span>DeLand 2</span><b>'+cnt('DeLand 2')+'</b></div></div>';
+ h+='<div class="bar">'+[['','Both schools'],['Sanford','Sanford'],['DeLand 2','DeLand 2']].map(function(b){return '<button class="ghost'+(F===b[0]?' on':'')+'" data-f="'+b[0]+'">'+b[1]+'</button>'}).join('')+'</div>';
+ h+='<div class="sec"><h2>What needs doing ('+shown.length+')</h2>'+(shown.length?shown.map(function(a){return itemHtml(a,false)}).join(''):'<div class="msg">Nothing open. Every check passed.</div>')+'</div>';
+ var rs=res.filter(function(a){return !F||a.school===F});
+ if(rs.length)h+='<div class="sec"><details><summary>Fixed in the last 2 weeks ('+rs.length+')</summary>'+rs.map(function(a){return itemHtml(a,true)}).join('')+'</details></div>';
+ h+='<p class="note">These are the same red items each director sees for their own school in the Director Portal, Daily Briefing card. The QC watch adds them every weekday at 6:17 AM and marks them fixed on its own once the problem is gone. "Mark done" closes an item for both you and the director.</p>';
+ app.innerHTML=h;
+ app.querySelectorAll('[data-f]').forEach(function(b){b.onclick=function(){F=b.getAttribute('data-f');touch();render()}});
+ app.querySelectorAll('[data-id]').forEach(function(b){b.onclick=function(){b.disabled=true;b.textContent='Saving…';touch();post({action:'close',id:b.getAttribute('data-id')}).then(function(j){if(j.error)throw 0;load()}).catch(function(){b.disabled=false;b.textContent='Mark done';alert('Could not save. Please try again.')})}});
+}
+function load(){post({action:'list'}).then(function(j){if(j.error){app.innerHTML='<div class="msg">'+esc(j.error)+'</div>';return}DATA=j;render()}).catch(function(){app.innerHTML='<div class="msg">Could not load. Please try again.</div>'})}
+if(!PIN){app.innerHTML='<div class="msg">Please open this from the Owner Portal (Owner Only, 🚨 Needs Attention).</div>'}else{touch();load()}
+</script></body></html>
