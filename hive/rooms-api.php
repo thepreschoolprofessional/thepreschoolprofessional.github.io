@@ -117,6 +117,20 @@ $pages++;
 echo json_encode($out); exit;
 }
 
+if ($action === 'trips'){
+// Transportation Trips for one day (read-only, any signed-in role): used to catch up school-age School Out / School In
+if (empty($input['date']) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $input['date'])) fail('Bad date');
+$f = "AND(IS_SAME({Date},'" . $input['date'] . "','day'),OR({School}='" . $school . "',{School}='Both'))";
+$q = ['maxRecords' => 50, 'filterByFormula' => $f, 'returnFieldsByFieldId' => 'true'];
+$out = at_request('GET', ['tblNCgyJtAaVsiVbh'], $q);
+$trips = [];
+foreach (($out['records'] ?? []) as $r){
+$x = $r['fields'] ?? [];
+$trips[] = ['ampm' => $x['fldgee92mjCoSq6TY'] ?? '', 'dest' => $x['fldxgN0jzaDgWJlx5'] ?? '', 'depart' => $x['fldPPEIC9yIQZeCYH'] ?? '', 'arrive' => $x['fldEhsl2efqacjk6n'] ?? '', 'status' => $x['fldSBgVZSA640zw81'] ?? '', 'kids' => $x['fldXr94O8Ryvreve7'] ?? ($x['fldFuffxxsjfatrNw'] ?? '')];
+}
+echo json_encode(['trips' => $trips]); exit;
+}
+
 if ($action === 'listFlags'){
 if (!$isDirector) fail('Only a director can see these.', 403);
 $q = ['maxRecords' => 200, 'filterByFormula' => "AND({School}='" . $school . "',{Director Flag}!='',{Director Answer}='')"];

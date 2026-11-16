@@ -59,7 +59,15 @@ function loadDay(){
 }
 function refresh(quiet){
   var p = S.loaded ? Promise.resolve() : loadStatic();
-  return p.then(loadDay).then(function(){ S.loaded=true; render(); }).catch(function(e){ if(!quiet) toast(e.message,true); });
+  return p.then(loadDay).then(function(){ S.loaded=true; render(); autoCatch(); }).catch(function(e){ if(!quiet) toast(e.message,true); });
+}
+/* automatic transportation catch-up for school-age rooms: fills BLANK times from the trip log only (never overwrites) */
+var AUTOC={};
+function autoCatch(){
+  if(!S.room || !isSA(S.room) || S.pending>0) return;
+  if(S.role==='teacher' && !isToday()) return;
+  var key=S.school+'|'+S.date+'|'+S.room; if(AUTOC[key] && Date.now()-AUTOC[key]<5*60*1000) return; AUTOC[key]=Date.now();
+  transCatch(false).then(function(r){ if(Object.keys(r.patches).length){ patchAtt(r.patches); toast('Filled in '+(r.nOut+r.nIn)+' school time(s) from the transportation log.'); } }).catch(function(){});
 }
 function reloadAll(){ S.loaded=false; return refresh(); }
 
@@ -236,7 +244,7 @@ function sheetTab(r){
   var list=roomKids(r.name), h='';
   var nSel=Object.keys(S.sel).filter(function(k){return S.sel[k];}).length;
   var pres=presentIn(r.name).length;
-  h+='<div class="meal"><span class="lbl2">Whole room:</span><button class="btn sm" data-act="allin">Check all IN</button><button class="btn sm" data-act="meal" data-m="B">B all</button><button class="btn sm" data-act="meal" data-m="L">Lunch all</button><button class="btn sm" data-act="meal" data-m="P">PM Snack all</button><button class="btn sm" data-act="wcall">Wellness all</button>'+(isSA(r.name)?'<button class="btn sm" data-act="soall">All to school</button><button class="btn sm" data-act="siall">All back from school</button>':'')+'</div>';
+  h+='<div class="meal"><span class="lbl2">Whole room:</span><button class="btn sm" data-act="allin">Check all IN</button><button class="btn sm" data-act="meal" data-m="B">B all</button><button class="btn sm" data-act="meal" data-m="L">Lunch all</button><button class="btn sm" data-act="meal" data-m="P">PM Snack all</button><button class="btn sm" data-act="wcall">Wellness all</button>'+(isSA(r.name)?'<button class="btn sm" data-act="soall">All to school</button><button class="btn sm" data-act="siall">All back from school</button><button class="btn sm" data-act="catchup">Catch up from transportation</button>':'')+'</div>';
   h+='<div class="cnt">'+pres+' in room now &middot; '+list.length+' on this sheet</div>';
   h+='<div class="klist">';
   list.forEach(function(c){
@@ -249,6 +257,7 @@ function sheetTab(r){
      +'<div class="chips">'
      +chip('B',a.B,c.name,'B')+chip('L',a.L,c.name,'L')+chip('P',a.P,c.name,'P')
      +(isSA(r.name)?'<button class="chip2'+(a['School Out']?' on':'')+'" data-act="so" data-k="'+k+'">To school</button><button class="chip2'+(a['School In']?' on':'')+'" data-act="si" data-k="'+k+'">Back</button>':'')
+     +'<button class="chip2" data-act="times" data-k="'+k+'">Times</button>'
      +'<button class="chip2'+(a.WC?' on':'')+'" data-act="wc" data-k="'+k+'">WC</button>'
      +'<button class="chip2 flag'+(a.IR?' on':'')+'" data-act="note" data-t="IR" data-k="'+k+'">IR</button>'
      +'<button class="chip2 flag'+(a.AR?' on':'')+'" data-act="note" data-t="AR" data-k="'+k+'">AR</button></div></div>';
@@ -274,7 +283,7 @@ function leaveTab(r){
   h+='</div>';
   h+='<div class="card"><b>Headcount</b><div class="sub2">Count every 10 minutes. Last: '+(lastCountMin(r.name)?fmt(lastCountMin(r.name)):'none yet')+'</div><button class="btn" data-act="count">Record a headcount</button></div>';
   var t=day.transitions;
-  h+='<div class="card"><b>Today\'s transitions</b>'+(t.length?'':'<div class="sub2">None yet.</div>')+t.map(function(x,i){ return '<div class="tli">#'+(i+1)+' <b>'+esc(x.dest)+'</b> &middot; out '+fmt(x.out)+(x.in?' &middot; in '+fmt(x.in):' &middot; <span class="rd">still out</span>')+' &middot; counts '+esc(x.outCount)+(x.in?' / '+esc(x.inCount):'')+'</div>'; }).join('')+'</div>';
+  h+='<div class="card"><b>'+(isToday()?'Today\'s':'This day\'s')+' transitions</b>'+(t.length?'':'<div class="sub2">None yet.</div>')+t.map(function(x,i){ return '<div class="tli">#'+(i+1)+' <b>'+esc(x.dest)+'</b> &middot; out '+fmt(x.out)+(x.in?' &middot; in '+fmt(x.in):' &middot; <span class="rd">still out</span>')+' &middot; counts '+esc(x.outCount)+(x.in?' / '+esc(x.inCount):'')+' <button class="btn sec sm" data-act="tredit" data-i="'+i+'">Edit</button> <button class="btn sec sm" data-act="trdel" data-i="'+i+'">Delete</button></div>'; }).join('')+'<div class="row2" style="margin-top:8px"><button class="btn sec" data-act="tradd">Add one from my paper form</button></div><div class="sub2">Use this to enter a transition that is on your paper form for today or an earlier day (use the date arrows at the top).</div></div>';
   return h;
 }
 function staffTab(r){
@@ -462,6 +471,52 @@ function toggleMeal(names, m, mode){
   var p={}; names.forEach(function(n){ var a=attOf(n); p[n]={}; p[n][m]= mode==='set'? true : (mode==='clear'? false : !a[m]); }); patchAtt(p);
 }
 
+/* ---------- school-age helpers: day gate, transition form, transportation catch-up ---------- */
+function gateDay(cb){ if(S.role==='teacher' && !isToday()) needDirector(function(){ cb(); }); else cb(); }
+function trForm(i){
+  var r=roomObj(S.room), day=ensureDay(S.room), x=(i>=0&&day.transitions[i])||{}, pres=presentIn(S.room).length;
+  var dests=['Outside','Playroom'].concat(S.rooms.filter(function(z){return z.name!==S.room;}).map(function(z){return z.name;})).concat(['Office','Other (type it in)']);
+  var known=dests.indexOf(x.dest)>=0;
+  openModal('<h3>'+(i>=0?'Edit transition':'Add a transition from the paper form')+'</h3><p class="sub2">'+esc(niceDate(S.date))+'. Copy what is on the paper form.</p>'
+   +'<label class="lbl">Where did they go?</label><select class="inp" id="tdest" onchange="document.getElementById(\'tdestO\').style.display=this.value===\'Other (type it in)\'?\'block\':\'none\'">'+dests.map(function(d){ return '<option'+((known?d===x.dest:(x.dest&&d==='Other (type it in)'))?' selected':'')+'>'+esc(d)+'</option>'; }).join('')+'</select>'
+   +'<input class="inp" id="tdestO" placeholder="Type where they went" value="'+esc(!known&&x.dest?x.dest:'')+'" style="margin-top:6px;display:'+(!known&&x.dest?'block':'none')+'">'
+   +'<div class="trow"><label class="lbl" style="min-width:120px">Time out</label><input class="inp" type="time" id="tout" value="'+esc(x.out||'')+'"></div>'
+   +'<div class="trow"><label class="lbl" style="min-width:120px">Count going out</label><input class="inp" type="number" inputmode="numeric" id="tocnt" value="'+esc(x.outCount!==undefined&&x.outCount!==''?x.outCount:(i<0?pres:''))+'"></div>'
+   +'<label class="lbl">Counted by (out)</label>'+whoSelect(S.room,'toby')
+   +'<div class="trow"><label class="lbl" style="min-width:120px">Time back in</label><input class="inp" type="time" id="tin" value="'+esc(x['in']||'')+'"></div>'
+   +'<div class="trow"><label class="lbl" style="min-width:120px">Count coming back</label><input class="inp" type="number" inputmode="numeric" id="ticnt" value="'+esc(x.inCount!==undefined?x.inCount:'')+'"></div>'
+   +'<label class="lbl">Counted by (back)</label>'+whoSelect(S.room,'tiby')
+   +'<div id="merr" class="err"></div><div class="mrow"><button class="btn sec" data-act="mclose2">Cancel</button><button class="btn grn" data-act="trsave" data-i="'+i+'">Save</button></div>');
+  if(x.outBy){ var e=document.getElementById('toby'); if(e){ if(![].some.call(e.options,function(o){return o.value===x.outBy||o.text===x.outBy;})) e.insertAdjacentHTML('afterbegin','<option>'+esc(x.outBy)+'</option>'); e.value=x.outBy; } }
+  if(x.inBy){ var e2=document.getElementById('tiby'); if(e2){ if(![].some.call(e2.options,function(o){return o.value===x.inBy||o.text===x.inBy;})) e2.insertAdjacentHTML('afterbegin','<option>'+esc(x.inBy)+'</option>'); e2.value=x.inBy; } }
+}
+function nameKey(n){ var p=String(n||'').replace(/[^A-Za-z'’\s.-]/g,'').trim().split(/\s+/); if(p.length<2) return (p[0]||'').toLowerCase(); return (p[0]+' '+p[p.length-1].charAt(0)).toLowerCase(); }
+function t24(s){ var m=/^\s*(\d{1,2}):(\d{2})\s*([AP]M)?/i.exec(s||''); if(!m) return ''; var h=+m[1]; if(m[3]){ var pm=/p/i.test(m[3]); if(pm&&h<12) h+=12; if(!pm&&h===12) h=0; } return pad(h)+':'+m[2]; }
+function transCatch(useFallback){
+  return api('trips','',{date:S.date}).then(function(res){
+    var trips=(res.trips||[]).filter(function(t){ return /complete|arrived|awaiting|started/i.test(t.status||'') || t.depart || t.arrive; });
+    var am={}, pm={}, amDest={};
+    trips.forEach(function(t){ (String(t.kids||'').split(/\n+/)).forEach(function(nm){ var k=nameKey(nm); if(!k) return;
+      if(t.ampm==='AM'){ if(t24(t.depart)) am[k]=t24(t.depart); amDest[k]=t.dest; } else if(t.ampm==='PM'){ if(t24(t.arrive)) pm[k]=t24(t.arrive); if(!amDest[k]) amDest[k]=t.dest; } }); });
+    var dow=new Date(S.date+'T12:00:00').getDay(), early=(dow===3), now=nowHM(), today=isToday();
+    var p={}, nOut=0, nIn=0, fb=0, skipped=[];
+    roomKids(S.room).forEach(function(c){ var a=attOf(c.name), k=nameKey(c.name), o=a['School Out']||'', i=a['School In']||''; if(!a.Arrival){ return; }
+      var np={};
+      if(!o){ var to=am[k]; if(!to && useFallback && a.Arrival<'08:00') { to='08:00'; fb++; } if(to && (!today||to<=now) && !(a.Departure && a.Departure<to)){ np['School Out']=to; o=to; nOut++; } }
+      if(!i && o && !a.Departure){ var ti=pm[k]; if(!ti && useFallback){ var d=amDest[k]||''; var base=/hamilton/i.test(d)?'15:30':/midway/i.test(d)?'15:15':''; if(base){ ti=early?pad(+base.slice(0,2)-1)+base.slice(2):base; fb++; } else skipped.push(c.name); }
+        if(ti && (!today||ti<=now) && ti>=o){ np['School In']=ti; nIn++; } }
+      if(Object.keys(np).length) p[c.name]=np; });
+    return {patches:p, nOut:nOut, nIn:nIn, fb:fb, skipped:skipped, trips:trips.length};
+  });
+}
+function showCatch(r){
+  var names=Object.keys(r.patches);
+  openModal('<h3>Catch up from transportation</h3><p class="sub2">'+(r.trips?r.trips+' transportation trip(s) found for '+esc(niceDate(S.date))+'.':'No transportation trips were logged for '+esc(niceDate(S.date))+'.')+' Only blank times are filled. Anything you already entered stays as it is.</p>'
+   +'<p>'+(names.length?'Ready to fill <b>'+r.nOut+'</b> left-for-school and <b>'+r.nIn+'</b> back-from-school time(s) for: '+names.map(esc).join(', ')+'.':'Nothing to fill in from the trip log.')+'</p>'
+   +'<div class="mrow" style="flex-direction:column;gap:8px">'+(names.length?'<button class="btn grn" data-act="catchupgo" data-fb="0">Fill from the trip log</button>':'')
+   +'<button class="btn sec" data-act="catchupgo" data-fb="1">Also use the usual times where no trip was logged</button><button class="btn sec" data-act="mclose2">Cancel</button></div>'
+   +'<p class="sub2">Usual times: out 8:00 &middot; Midway back 3:15, Hamilton back 3:30 &middot; Wednesday early release one hour earlier.</p>');
+}
 var ACT = {
  login: function(){
   var pin=val('pin').trim(), sch=val('sch'); if(!pin){ document.getElementById('lerr').textContent='Enter your PIN.'; return; }
@@ -477,7 +532,7 @@ var ACT = {
  help: function(){ openModal('<h3>Put this on your phone</h3><p><b>iPhone / iPad:</b> open this page in Safari &rarr; tap the Share button &rarr; <b>Add to Home Screen</b>.</p><p><b>Android:</b> open in Chrome &rarr; tap the &#8942; menu &rarr; <b>Add to Home screen</b> (or Install app).</p><p>It opens full-screen like an app. You will need your PIN the first time.</p><div class="mrow"><button class="btn" data-act="mclose2">Got it</button></div>'); },
  mclose: function(){ closeModal(); }, mclose2: function(){ closeModal(); },
  dprev: function(){ var go=function(){ shiftDate(-1); S.sel={}; refresh(); }; if(S.role==='teacher') needDirector(go); else go(); }, dnext: function(){ var d=new Date(S.date+'T12:00:00'); d.setDate(d.getDate()+1); var nd=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); if(S.role==='teacher' && nd>todayISO()) return; var go=function(){ shiftDate(1); S.sel={}; refresh(); }; if(S.role==='teacher' && nd!==todayISO()) needDirector(go); else go(); }, dtoday: function(){ S.date=todayISO(); S.sel={}; refresh(); },
- openroom: function(el){ S.room=decodeURIComponent(el.getAttribute('data-r')); S.view='room'; S.tab='sheet'; S.sel={}; render(); window.scrollTo(0,0); },
+ openroom: function(el){ S.room=decodeURIComponent(el.getAttribute('data-r')); S.view='room'; S.tab='sheet'; S.sel={}; render(); window.scrollTo(0,0); autoCatch(); },
  back: function(){ S.view='board'; S.sel={}; render(); },
  prevroom: function(){ ACT.gotoroom(-1); }, nextroom: function(){ ACT.gotoroom(1); },
  gotoroom: function(d){ var i=0; for(var k=0;k<S.rooms.length;k++) if(S.rooms[k].name===S.room) i=k; var n=S.rooms.length; S.room=S.rooms[(i+d+n)%n].name; S.sel={}; render(); window.scrollTo(0,0); },
@@ -512,8 +567,43 @@ var ACT = {
    toggleMeal(pres, m, all?'clear':'set'); toast((all?'Cleared ':'Marked ')+(m==='B'?'breakfast':m==='L'?'lunch':'PM snack')+' for '+pres.length+' children'); },
  so: function(el){ var n=keyOf(el), a=attOf(n); var p={}; p[n]={'School Out': a['School Out']? '' : nowHM()}; patchAtt(p); },
  si: function(el){ var n=keyOf(el), a=attOf(n); var p={}; p[n]={'School In': a['School In']? '' : nowHM()}; patchAtt(p); },
- soall: function(){ var p={}; roomKids(S.room).forEach(function(c){ var a=attOf(c.name); if(a.Arrival && !a.Departure && !a['School Out']) p[c.name]={'School Out':nowHM()}; }); if(!Object.keys(p).length){ toast('Nobody left to send to school.'); return; } patchAtt(p); toast('Marked '+Object.keys(p).length+' child(ren) to school.'); },
- siall: function(){ var p={}; roomKids(S.room).forEach(function(c){ var a=attOf(c.name); if(a['School Out'] && !a['School In'] && !a.Departure) p[c.name]={'School In':nowHM()}; }); if(!Object.keys(p).length){ toast('Nobody to bring back.'); return; } patchAtt(p); toast('Marked '+Object.keys(p).length+' child(ren) back from school.'); },
+ soall: function(){ var n=roomKids(S.room).filter(function(c){ var a=attOf(c.name); return a.Arrival && !a.Departure && !a['School Out']; }).length; if(!n){ toast('Nobody left to send to school.'); return; }
+   gateDay(function(){ openModal('<h3>All to school</h3><p class="sub2">'+n+' child(ren) who are in and not yet marked. Set the time they left (change it if you wrote it down).</p>'+timeInput('sat','Left for school')+'<div class="mrow"><button class="btn sec" data-act="mclose2">Cancel</button><button class="btn grn" data-act="soallgo">Save</button></div>'); }); },
+ soallgo: function(){ var t=timeOrNow('sat'), p={}; roomKids(S.room).forEach(function(c){ var a=attOf(c.name); if(a.Arrival && !a.Departure && !a['School Out']) p[c.name]={'School Out':t}; }); closeModal(); patchAtt(p); toast('Marked '+Object.keys(p).length+' child(ren) to school at '+fmt(t)); },
+ siall: function(){ var n=roomKids(S.room).filter(function(c){ var a=attOf(c.name); return a['School Out'] && !a['School In'] && !a.Departure; }).length; if(!n){ toast('Nobody to bring back.'); return; }
+   gateDay(function(){ openModal('<h3>All back from school</h3><p class="sub2">'+n+' child(ren) are out at school. Set the time they came back.</p>'+timeInput('sbt','Back from school')+'<div class="mrow"><button class="btn sec" data-act="mclose2">Cancel</button><button class="btn grn" data-act="siallgo">Save</button></div>'); }); },
+ siallgo: function(){ var t=timeOrNow('sbt'), p={}; roomKids(S.room).forEach(function(c){ var a=attOf(c.name); if(a['School Out'] && !a['School In'] && !a.Departure) p[c.name]={'School In':t}; }); closeModal(); patchAtt(p); toast('Marked '+Object.keys(p).length+' child(ren) back at '+fmt(t)); },
+ /* per-child time editor (director on any day, teacher today) */
+ times: function(el){ var n=keyOf(el), a=attOf(n), sa=isSA(S.room);
+   gateDay(function(){ var h='<h3>Times &mdash; '+esc(n)+'</h3><p class="sub2">'+esc(niceDate(S.date))+'. Change any time, or clear it to remove it.</p>';
+     [['Arrival','Came in','tmA'],sa?['School Out','Left for school','tmO']:null,sa?['School In','Back from school','tmI']:null,['Departure','Went home','tmD']].filter(Boolean).forEach(function(f){
+       h+='<div class="trow"><label class="lbl" style="min-width:130px">'+f[1]+'</label><input class="inp" type="time" id="'+f[2]+'" value="'+esc(a[f[0]]||'')+'"></div>'; });
+     h+='<div id="merr" class="err"></div><div class="mrow"><button class="btn sec" data-act="mclose2">Cancel</button><button class="btn" data-act="timesave" data-k="'+encodeURIComponent(n)+'">Save times</button></div>';
+     openModal(h); }); },
+ timesave: function(el){ var n=keyOf(el), sa=isSA(S.room), a=attOf(n), err=document.getElementById('merr'), p={}; p[n]={};
+   var A=val('tmA'), D=val('tmD'), O=sa?val('tmO'):(a['School Out']||''), I=sa?val('tmI'):(a['School In']||'');
+   if(A && D && D<A){ err.textContent='Went-home time is before the came-in time.'; return; }
+   if(O && I && I<O){ err.textContent='Back-from-school is before left-for-school.'; return; }
+   p[n].Arrival=A; p[n].Departure=D; if(sa){ p[n]['School Out']=O; p[n]['School In']=I; }
+   closeModal(); patchAtt(p); toast('Times saved for '+n); },
+ /* transportation catch-up: fill BLANK School Out / School In from the Transportation Trips log */
+ catchup: function(){ gateDay(function(){ toast('Checking the transportation log…'); transCatch(false).then(function(r){ showCatch(r); }).catch(function(e){ toast(e.message,true); }); }); },
+ catchupgo: function(el){ var useFB=el.getAttribute('data-fb')==='1'; closeModal(); transCatch(useFB).then(function(r){ if(!Object.keys(r.patches).length){ toast('Nothing to fill in.'); return; } patchAtt(r.patches); toast('Filled '+r.nOut+' left-for-school and '+r.nIn+' back-from-school time(s). Nothing already entered was changed.'); }).catch(function(e){ toast(e.message,true); }); },
+ /* transitions: add from the paper form, edit, delete (any day) */
+ tradd: function(){ gateDay(function(){ trForm(-1); }); },
+ tredit: function(el){ var i=+el.getAttribute('data-i'); gateDay(function(){ trForm(i); }); },
+ trsave: function(el){ var i=+el.getAttribute('data-i'), err=document.getElementById('merr');
+   var dest=val('tdest'); if(dest==='Other (type it in)') dest=(val('tdestO')||'').trim();
+   var out=val('tout'), tin=val('tin'), oc=parseInt(val('tocnt'),10), ic=parseInt(val('ticnt'),10);
+   if(!dest){ err.textContent='Pick where they went.'; return; } if(!out){ err.textContent='Enter the time they left the room.'; return; }
+   if(tin && tin<out){ err.textContent='Back-in time is before the out time.'; return; }
+   var day=ensureDay(S.room), by=val('toby'), iby=val('tiby');
+   var rec=(i>=0 && day.transitions[i]) ? day.transitions[i] : {kids:[]};
+   rec.dest=dest; rec.out=out; rec.outCount=isNaN(oc)?'':oc; rec.outBy=by; rec['in']=tin||''; rec.inCount=tin?(isNaN(ic)?'':ic):''; rec.inBy=tin?iby:'';
+   if(i<0){ day.transitions.push(rec); day.counts.push({t:out,count:rec.outCount,by:by,kind:'sweep'}); if(tin) day.counts.push({t:tin,count:rec.inCount,by:iby,kind:'sweep'}); }
+   day.transitions.sort(function(a,b){ return (a.out||'')<(b.out||'')?-1:1; }); day.transitions.forEach(function(x,k){ x.n=k+1; });
+   saveDay(S.room); closeModal(); render(); toast('Transition saved.'); },
+ trdel: function(el){ var i=+el.getAttribute('data-i'); gateDay(function(){ var day=ensureDay(S.room); var x=day.transitions[i]; if(!x) return; if(!confirm('Delete the transition to '+x.dest+' at '+fmt(x.out)+'?')) return; day.transitions.splice(i,1); day.transitions.forEach(function(y,k){ y.n=k+1; }); saveDay(S.room); render(); toast('Transition deleted.'); }); },
  wc: function(el){ var n=keyOf(el), a=attOf(n); var p={}; p[n]={WC: a.WC? '' : 'X'}; patchAtt(p); },
  wcall: function(){ var pres=roomKids(S.room).filter(function(c){ return attOf(c.name).Arrival && !attOf(c.name).WC; }).map(function(c){return c.name;}); if(!pres.length){ toast('Wellness checks already done for everyone in.'); return; } var p={}; pres.forEach(function(n){ p[n]={WC:'X'}; }); patchAtt(p); toast('Wellness check marked for '+pres.length); },
  note: function(el){ var n=keyOf(el), t=el.getAttribute('data-t'), a=attOf(n);
