@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Classroom Posted Items - Kid City USA</title>
+<style>
+:root{--a:#0a6b4f;--b:#12946c;--gold:#f2b632;--bg:#f4faf7;--ink:#26231c;--line:#d6e8df;--mut:#667}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:linear-gradient(135deg,var(--a),var(--b));color:#fff;padding:18px 16px 16px;text-align:center;border-bottom:6px solid var(--gold)}
+header .sc{font-size:14px;letter-spacing:1px;text-transform:uppercase;opacity:.9}header h1{margin:4px 0 2px;font-size:26px}header .dt{font-size:14px;opacity:.9}
+main{max-width:760px;margin:0 auto;padding:14px}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.tile{background:#fff;border:2px solid var(--line);border-radius:14px;padding:12px 8px;text-align:center;font-weight:700;font-size:15px;cursor:pointer}
+.tile .e{font-size:28px;display:block}.tile small{display:block;font-weight:400;color:var(--mut);font-size:12px;margin-top:2px}
+.tile.on{background:var(--a);color:#fff;border-color:var(--a)}.tile.on small{color:#dff}
+.sec{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
+h2{margin:0 0 4px;font-size:19px;color:var(--a)}.sub{color:var(--mut);font-size:13px;margin-bottom:10px}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0 12px}
+.chip{border-radius:8px;padding:6px 8px;font-size:12px;line-height:1.1;text-align:center;cursor:pointer;border:2px solid transparent;min-width:44px}
+.chip.ok{background:#d8f2e4;color:#0a6b4f}.chip.flag{background:#fde3df;color:#b3261e}.chip.none{background:#eee;color:#999;cursor:default}.chip.sel{border-color:var(--ink)}
+.chart{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px}
+.chart .top{display:flex;justify-content:space-between;gap:8px;font-weight:700;margin-bottom:6px}.badge{font-size:12px;border-radius:20px;padding:2px 10px}.badge.ok{background:#d8f2e4;color:#0a6b4f}.badge.flag{background:#fde3df;color:#b3261e}
+.it{padding:5px 0;border-top:1px solid #eef3f0;font-size:15px}.it.bad{color:#b3261e;font-weight:600}
+.bio{display:flex;gap:12px;border-top:1px solid var(--line);padding:12px 0}.bio:first-child{border-top:0}.bio img{width:84px;height:84px;border-radius:50%;object-fit:cover;border:3px solid var(--gold);flex:none}.bio .ph{width:84px;height:84px;border-radius:50%;background:#e6efe9;flex:none}
+.bio b{font-size:17px}.bio .r{color:var(--mut);font-size:13px;margin-bottom:4px}.bio p{margin:0;font-size:15px;line-height:1.4}
+.msg{padding:26px;text-align:center;color:var(--mut)}
+.foot{text-align:center;color:var(--mut);font-size:12px;padding:6px 0 24px}
+@media print{.tiles,.chips{display:none}}
+</style></head><body>
+<header><div class="sc" id="sc">Kid City USA</div><h1 id="rn">Posted items</h1><div class="dt" id="dt"></div></header>
+<main><div id="app" class="msg">Loading...</div></main>
+<div class="foot">Kid City USA - these records update live as staff complete them. Showing the last 2 months.</div>
+<script>
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+var q=new URLSearchParams(location.search),S=q.get('s')||'',R=q.get('r')||'',D=null,cur='classroom',selDate={};
+var SEC={classroom:['🧹','Classroom Cleaning Chart','Every day, last 2 months'],bathroom:['🚽','Bathroom Cleaning Chart','Every day, last 2 months'],indoor:['🏠','Daily Indoor Inspection','Every day, last 2 months'],bios:['👩‍🏫','Meet Our Teachers','Staff bios and photos']};
+function fd(s){var p=s.split('-');return (+p[1])+'/'+(+p[2])}
+function dow(s){return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(s+'T12:00:00').getDay()]}
+function days(){var o=[],t=new Date(D.today+'T12:00:00');for(var i=0;i<62;i++){var d=new Date(t-i*864e5);if(d.getDay()===0||d.getDay()===6)continue;o.push(d.toISOString().slice(0,10))}return o}
+function draw(){
+ var h='<div class="tiles">'+Object.keys(SEC).map(function(k){return'<div class="tile'+(k===cur?' on':'')+'" onclick="cur=\''+k+'\';draw()"><span class="e">'+SEC[k][0]+'</span>'+SEC[k][1]+'<small>'+SEC[k][2]+'</small></div>'}).join('')+'</div>';
+ if(cur==='bios'){
+  h+='<div class="sec"><h2>👩‍🏫 Meet Our Teachers</h2><div class="sub">Teachers at '+esc(D.school)+'</div>'+(D.bios.length?D.bios.map(function(b){return'<div class="bio">'+(b.photo?'<img src="data:image/jpeg;base64,'+b.photo+'">':'<div class="ph"></div>')+'<div><b>'+esc(b.name)+'</b><div class="r">'+esc(b.role)+'</div><p>'+esc(b.bio)+'</p></div></div>'}).join(''):'<div class="msg">Teacher bios are being added. Check back soon.</div>')+'</div>';
+ }else{
+  var L=D.charts[cur]||[],by={};L.forEach(function(c){(by[c.date]=by[c.date]||[]).push(c)});
+  var ds=days(),have=ds.filter(function(d){return by[d]}),sel=selDate[cur]||have[0]||null;
+  h+='<div class="sec"><h2>'+SEC[cur][0]+' '+SEC[cur][1]+'</h2><div class="sub">'+esc(D.room)+'. Tap a day to see that day\'s chart. Green = completed, red = something needed attention, gray = no chart recorded.</div><div class="chips">'+ds.map(function(d){var b=by[d],c=!b?'none':(b.some(function(x){return x.status==='flag'})?'flag':'ok');return'<div class="chip '+c+(d===sel?' sel':'')+'"'+(b?' onclick="selDate[cur]=\''+d+'\';draw()"':'')+'>'+dow(d)+'<br><b>'+fd(d)+'</b></div>'}).join('')+'</div>';
+  if(!sel)h+='<div class="msg">No charts recorded in the last 2 months.</div>';
+  else h+='<div class="sub"><b>'+dow(sel)+' '+fd(sel)+'</b></div>'+by[sel].map(function(c){return'<div class="chart"><div class="top"><span>Completed by '+esc(c.by||'staff')+(c.at?' at '+new Date(c.at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit',timeZone:'America/New_York'}):'')+'</span><span class="badge '+c.status+'">'+(c.status==='ok'?'All OK':'Needs attention')+'</span></div>'+c.items.map(function(i){return'<div class="it'+(i.ok?'':' bad')+'">'+(i.ok?'✅ ':'⚠️ ')+esc(i.t)+'</div>'}).join('')+'</div>'}).join('');
+  h+='</div>';
+ }
+ document.getElementById('app').className='';document.getElementById('app').innerHTML=h;
+}
+if(!S||!R){document.getElementById('app').textContent='This page needs a room QR code.'}else{
+ fetch('room-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({s:S,r:R})}).then(function(r){return r.json()}).then(function(d){
+  if(d.error){document.getElementById('app').textContent=d.error;return}
+  D=d;document.getElementById('sc').textContent='Kid City USA '+d.school;document.getElementById('rn').textContent=d.room;
+  document.getElementById('dt').textContent=new Date(d.today+'T12:00:00').toLocaleDateString([], {weekday:'long',month:'long',day:'numeric',year:'numeric'});document.title=d.room+' - Posted Items';draw();
+ }).catch(function(){document.getElementById('app').textContent='Could not load. Please try again.'})}
+</script></body></html>
