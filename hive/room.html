@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex,nofollow"><title>Classroom Posted Items - Kid City USA</title>
+<meta name="robots" content="noindex,nofollow"><title>Bear Classroom Pack - Kid City USA</title>
+<link rel="manifest" href="room-manifest.json"><meta name="theme-color" content="#0a6b4f"><link rel="apple-touch-icon" href="room-192.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
 <style>
 :root{--a:#0a6b4f;--b:#12946c;--gold:#f2b632;--bg:#f4faf7;--ink:#26231c;--line:#d6e8df;--mut:#667}
 *{box-sizing:border-box}body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
@@ -27,7 +28,7 @@ h2{margin:0 0 4px;font-size:19px;color:var(--a)}.sub{color:var(--mut);font-size:
 </style></head><body>
 <header><div class="sc" id="sc">Kid City USA</div><h1 id="rn">Posted items</h1><div class="dt" id="dt"></div></header>
 <main><div id="app" class="msg">Loading...</div></main>
-<div class="foot">Kid City USA - these records update live as staff complete them. Showing the last 2 months.</div>
+<div class="foot"><a href="room.html?pick=1" style="color:#667">Change classroom</a><br>Kid City USA - these records update live as staff complete them. Showing the last 2 months.</div>
 <script>
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 var q=new URLSearchParams(location.search),S=q.get('s')||'',R=q.get('r')||'',D=null,cur=(q.get('t')&&['classroom','bathroom','indoor','bios'].indexOf(q.get('t'))>=0)?q.get('t'):'classroom',selDate={};
@@ -52,7 +53,10 @@ function draw(){
  }
  document.getElementById('app').className='';document.getElementById('app').innerHTML=h;
 }
-if(!S||!R){document.getElementById('app').textContent='This page needs a room QR code.'}else{
+var PICK=[['deland','honeybees','Honey Bees (Toddlers, Front)'],['deland','honeycombs','Honey Combs'],['deland','infant','Infant / Toddler Room']];
+if(!S||!R){try{var sv=JSON.parse(localStorage.getItem('bearRoomPick')||'null');if(sv&&sv.s&&sv.r&&!q.get('pick')){S=sv.s;R=sv.r}}catch(e){}}
+if(!S||!R){document.getElementById('rn').textContent='Bear Classroom Pack';document.getElementById('sc').textContent='Kid City USA DeLand 2';document.getElementById('app').className='';document.getElementById('app').innerHTML='<div class="sec"><h2>Pick this tablet\'s classroom</h2><div class="sub">The tablet will remember it and open straight to this room each time.</div>'+PICK.map(function(p){return'<div class="tile" style="margin-bottom:10px" onclick="try{localStorage.setItem(\'bearRoomPick\',JSON.stringify({s:\''+p[0]+'\',r:\''+p[1]+'\'}))}catch(e){}location.href=\'room.html?s='+p[0]+'&r='+p[1]+'\'">'+esc(p[2])+'</div>'}).join('')+'</div>'}else{
+try{if(q.get('app'))localStorage.setItem('bearRoomPick',JSON.stringify({s:S,r:R}))}catch(e){}
  fetch('room-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({s:S,r:R})}).then(function(r){return r.json()}).then(function(d){
   if(d.error){document.getElementById('app').textContent=d.error;return}
   D=d;document.getElementById('sc').textContent='Kid City USA '+d.school;document.getElementById('rn').textContent=d.room;
