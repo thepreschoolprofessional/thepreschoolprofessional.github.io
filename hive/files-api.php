@@ -465,7 +465,7 @@ $TEACHER_SCHOOL = ['teacher-sanford' => 'Sanford', 'teacher-deland' => 'DeLand 2
 $isDir = isset($ROLE_SCHOOL[$role]);
 $isTeacher = (strpos($role, 'teacher') === 0);
 $isParent = (strpos($role, 'parent') === 0);
-if ($isParent && !in_array(($input['action'] ?? ''), ['bios_public', 'pp_list', 'pp_get', 'pp_orient_sign', 'pp_orient_start', 'pp_auto', 'pp_ev_list', 'pp_ev_claim', 'pp_doc_send', 'pp_req_list'], true)) fail('Files are only available with a director PIN.', 403);
+if ($isParent && !in_array(($input['action'] ?? ''), ['bios_public', 'sop_public', 'pp_list', 'pp_get', 'pp_orient_sign', 'pp_orient_start', 'pp_auto', 'pp_ev_list', 'pp_ev_claim', 'pp_doc_send', 'pp_req_list'], true)) fail('Files are only available with a director PIN.', 403);
 if (!$isDir && !$isTeacher && !$isParent) fail('Files are only available with a director PIN.', 403);
 $PARENT_SCHOOL = ['parent-sanford' => 'Sanford', 'parent-deland' => 'DeLand 2'];
 $school = $isDir ? $ROLE_SCHOOL[$role] : (isset($TEACHER_SCHOOL[$role]) ? $TEACHER_SCHOOL[$role] : (isset($PARENT_SCHOOL[$role]) ? $PARENT_SCHOOL[$role] : trim($input['school'] ?? '')));
@@ -991,6 +991,10 @@ if ($isDir) return true;
 $dp = strtoupper(trim((string)$dp)); if ($dp === '') return false;
 $dr = $pins[$dp] ?? ''; $want = ($school === 'Sanford') ? 'director-sanford' : 'director-deland';
 return ($dr === $want || $dr === 'owner');
+}
+if ($action === 'sop_public'){
+$f = sop_file($school); $d = ($f && is_file($f)) ? jread($f, []) : [];
+echo json_encode(['school'=>$school, 'rooms'=>(isset($d['rooms']) && is_array($d['rooms']) && $d['rooms']) ? $d['rooms'] : new stdClass]); exit;
 }
 if ($action === 'sop_get'){
 $f = sop_file($school); $d = ($f && is_file($f)) ? jread($f, []) : [];

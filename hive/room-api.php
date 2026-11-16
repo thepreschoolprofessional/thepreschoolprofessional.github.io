@@ -55,5 +55,12 @@ if ($pp !== ''){
   $b = json_decode(@file_get_contents('https://thepreschoolprofessional.net/hive/files-api.php', false, $ctx) ?: '', true);
   foreach (($b['staff'] ?? []) as $p) $bios[] = ['name'=>$p['name'], 'role'=>$p['role'], 'bio'=>$p['bio'], 'photo'=>$p['photo']];
 }
+/* classroom daily schedules (SOP): saved edits only; the page merges them over the built-in defaults */
+$sop = new stdClass;
+if ($pp !== ''){
+  $ctx2 = stream_context_create(['http'=>['method'=>'POST','header'=>"Content-Type: application/json\r\n",'content'=>json_encode(['pin'=>$pp,'action'=>'sop_public']),'timeout'=>25,'ignore_errors'=>true]]);
+  $sj = json_decode(@file_get_contents('https://thepreschoolprofessional.net/hive/files-api.php', false, $ctx2) ?: '', true);
+  if (is_array($sj) && !empty($sj['rooms'])) $sop = $sj['rooms'];
+}
 $signin = ($sk === 'deland') ? 'https://bearphonicsacademy.com/elc-1ce53ee46c/bearline.html' : 'https://bearphonicsacademy.com/elc-94f077be04/bearline.html';
-echo json_encode(['signin'=>$signin, 'school'=>$school, 'room'=>$label, 'today'=>date('Y-m-d'), 'charts'=>$charts, 'bios'=>$bios]);
+echo json_encode(['signin'=>$signin, 'school'=>$school, 'room'=>$label, 'today'=>date('Y-m-d'), 'charts'=>$charts, 'bios'=>$bios, 'sop'=>$sop]);
