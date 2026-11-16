@@ -1,34 +1,41 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>Bear Classroom Pack - Kid City USA</title>
-<link rel="manifest" href="room-manifest.json"><meta name="theme-color" content="#0a6b4f"><link rel="apple-touch-icon" href="room-192.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&display=swap"><link rel="manifest" href="room-manifest.json"><meta name="theme-color" content="#fbf8f1"><link rel="apple-touch-icon" href="room-192.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
 <style>
-:root{--a:#0a6b4f;--b:#12946c;--gold:#f2b632;--bg:#f4faf7;--ink:#26231c;--line:#d6e8df;--mut:#667}
-*{box-sizing:border-box}body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
-header{background:linear-gradient(135deg,var(--a),var(--b));color:#fff;padding:18px 16px 16px;text-align:center;border-bottom:6px solid var(--gold)}
-header .sc{font-size:14px;letter-spacing:1px;text-transform:uppercase;opacity:.9}header h1{margin:4px 0 2px;font-size:26px}header .dt{font-size:14px;opacity:.9}
-main{max-width:760px;margin:0 auto;padding:14px}
-.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
-.tile{background:#fff;border:2px solid var(--line);border-radius:14px;padding:12px 8px;text-align:center;font-weight:700;font-size:15px;cursor:pointer}
-.tile .e{font-size:28px;display:block}.tile small{display:block;font-weight:400;color:var(--mut);font-size:12px;margin-top:2px}
-.tile.on{background:var(--a);color:#fff;border-color:var(--a)}.tile.on small{color:#dff}
-.sec{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
-h2{margin:0 0 4px;font-size:19px;color:var(--a)}.sub{color:var(--mut);font-size:13px;margin-bottom:10px}
-.chips{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0 12px}
-.chip{border-radius:8px;padding:6px 8px;font-size:12px;line-height:1.1;text-align:center;cursor:pointer;border:2px solid transparent;min-width:44px}
-.chip.ok{background:#d8f2e4;color:#0a6b4f}.chip.flag{background:#fde3df;color:#b3261e}.chip.none{background:#eee;color:#999;cursor:default}.chip.sel{border-color:var(--ink)}
-.chart{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px}
-.chart .top{display:flex;justify-content:space-between;gap:8px;font-weight:700;margin-bottom:6px}.badge{font-size:12px;border-radius:20px;padding:2px 10px}.badge.ok{background:#d8f2e4;color:#0a6b4f}.badge.flag{background:#fde3df;color:#b3261e}
-.it{padding:5px 0;border-top:1px solid #eef3f0;font-size:15px}.it.bad{color:#b3261e;font-weight:600}
-.bio{display:flex;gap:12px;border-top:1px solid var(--line);padding:12px 0}.bio:first-child{border-top:0}.bio img{width:84px;height:84px;border-radius:50%;object-fit:cover;border:3px solid var(--gold);flex:none}.bio .ph{width:84px;height:84px;border-radius:50%;background:#e6efe9;flex:none}
-.bio b{font-size:17px}.bio .r{color:var(--mut);font-size:13px;margin-bottom:4px}.bio p{margin:0;font-size:15px;line-height:1.4}
-.alert{background:#fde3df;border:2px solid #b3261e;color:#8c1d16;border-radius:12px;padding:12px 14px;margin-bottom:12px;font-weight:700}.alert a{display:inline-block;margin-top:8px;background:#b3261e;color:#fff;text-decoration:none;border-radius:10px;padding:10px 14px;font-size:15px}.tile .miss{color:#b3261e;font-weight:800;font-size:12px}.tile.on .miss{color:#ffd2cd}.msg{padding:26px;text-align:center;color:var(--mut)}
-.foot{text-align:center;color:var(--mut);font-size:12px;padding:6px 0 24px}
+:root{--bg:#fbf8f1;--surface:#fff;--sunk:#f3ecdc;--ink:#2b2117;--muted:#7a6a55;--line:#e6dcc6;--honey:#e8a317;--honey-soft:#fdf0cf;--ok:#2f8a4f;--ok-soft:#e2f3e8;--warn:#b86e00;--warn-soft:#fff1d6;--bad:#c2372f;--bad-soft:#fde6e3;--info:#2d6aa3;--info-soft:#e3eef9;--peach:#fde7d3;--orange:#e8730c;--sch:#c98a0b;--f-display:"Fredoka","Trebuchet MS",system-ui,sans-serif;--f-body:"Nunito Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--r:18px}
+body.deland{--sch:#e0457b}
+*{box-sizing:border-box}body{margin:0;font-family:var(--f-body);background:var(--bg);color:var(--ink);padding-top:env(safe-area-inset-top,0px)}
+header{max-width:820px;margin:0 auto;padding:14px 16px 8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto}.brand img{height:46px;width:auto}.brand b{font-family:var(--f-display);font-size:25px;font-weight:700;display:block;line-height:1.05}.brand small{color:var(--muted);font-size:13px}
+.pill{border:1.5px solid var(--line);background:#fff;border-radius:99px;padding:7px 14px;font-size:14px;font-weight:600;color:var(--ink);text-decoration:none}.pill.sch{background:var(--sch);border-color:var(--sch);color:#fff}
+header .dt{width:100%;color:var(--muted);font-size:13px;margin-top:-2px}
+.stripe{max-width:820px;margin:0 auto;height:5px;border-radius:5px;background:linear-gradient(90deg,var(--honey),var(--sch))}
+main{max-width:820px;margin:0 auto;padding:14px 16px 8px}
+.ttl{font-family:var(--f-display);font-size:28px;font-weight:700;margin:2px 0 12px}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}@media(min-width:620px){.tiles{grid-template-columns:repeat(5,1fr)}}
+.tile{position:relative;border:2px solid transparent;border-radius:var(--r);padding:12px 8px;text-align:center;font-family:var(--f-display);font-weight:600;font-size:15px;line-height:1.15;cursor:pointer;color:var(--ink)}
+.tile:nth-child(1){background:var(--info-soft)}.tile:nth-child(2){background:var(--peach)}.tile:nth-child(3){background:var(--ok-soft)}.tile:nth-child(4){background:var(--honey-soft)}.tile:nth-child(5){background:#f1e6fa}
+.tile .e{font-size:28px;display:block;margin-bottom:2px}.tile small{display:block;font-family:var(--f-body);font-weight:400;color:var(--muted);font-size:12px;margin-top:3px}
+.tile.on{border-color:var(--ink);box-shadow:0 3px 0 var(--ink)}
+.sec{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:14px}
+h2{margin:0 0 4px;font-family:var(--f-display);font-size:21px;font-weight:600;color:var(--ink)}.sub{color:var(--muted);font-size:14px;margin-bottom:10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px}
+.chip{border-radius:12px;padding:7px 8px;font-size:12px;line-height:1.1;text-align:center;cursor:pointer;border:2px solid transparent;min-width:46px}
+.chip.ok{background:var(--ok-soft);color:var(--ok)}.chip.flag{background:var(--bad-soft);color:var(--bad)}.chip.none{background:var(--sunk);color:#a99978;cursor:default}.chip.sel{border-color:var(--ink)}
+.chart{border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin-bottom:10px;background:#fffdf8}
+.chart .top{display:flex;justify-content:space-between;gap:8px;font-weight:700;margin-bottom:6px}.badge{font-size:12px;border-radius:20px;padding:2px 10px}.badge.ok{background:var(--ok-soft);color:var(--ok)}.badge.flag{background:var(--bad-soft);color:var(--bad)}
+.it{padding:6px 0;border-top:1px solid var(--sunk);font-size:15px}.it.bad{color:var(--bad);font-weight:600}
+.bio{display:flex;gap:12px;border-top:1px solid var(--line);padding:12px 0}.bio:first-child{border-top:0}.bio img{width:84px;height:84px;border-radius:50%;object-fit:cover;border:3px solid var(--honey);flex:none}.bio .ph{width:84px;height:84px;border-radius:50%;background:var(--sunk);flex:none}
+.bio b{font-family:var(--f-display);font-size:18px;font-weight:600}.bio .r{color:var(--muted);font-size:13px;margin-bottom:4px}.bio p{margin:0;font-size:15px;line-height:1.4}
+.alert{background:var(--bad-soft);border:2px solid var(--bad);color:#8c1d16;border-radius:var(--r);padding:12px 14px;margin-bottom:12px;font-weight:700}.alert a{display:inline-block;margin-top:8px;background:var(--orange);color:#fff;text-decoration:none;border-radius:99px;padding:10px 18px;font-size:15px;font-family:var(--f-display)}
+.tile .miss{color:var(--bad);font-weight:800;font-size:12px;display:block;margin-top:3px}.msg{padding:26px;text-align:center;color:var(--muted)}
+.foot{text-align:center;color:var(--muted);font-size:12px;padding:6px 16px 26px}.foot a{color:var(--muted)}
 @media print{.tiles,.chips{display:none}}
 </style></head><body>
-<header><div class="sc" id="sc">Kid City USA</div><h1 id="rn">Posted items</h1><div class="dt" id="dt"></div></header>
-<main><div id="app" class="msg">Loading...</div></main>
-<div class="foot"><a href="room.html?pick=1" style="color:#667">Change classroom</a><br>Kid City USA - these records update live as staff complete them. Showing the last 2 months.</div>
+<header><div class="brand"><img src="bp-logo.png" alt="Bear Phonics Academy" onerror="this.style.display='none'"><div><b>Bear Line</b><small>Classroom Pack</small></div></div><span class="pill sch" id="sc">Kid City USA</span><div class="dt" id="dt"></div></header><div class="stripe"></div>
+<main><h1 class="ttl" id="rn">Posted items</h1><div id="app" class="msg">Loading...</div></main>
+<div class="foot"><a href="room.html?pick=1" style="color:#667">Change classroom</a><br>Bear Line Classroom Pack &middot; Kid City USA &middot; these records update live as staff complete them. Showing the last 2 months.</div>
 <script src="sop-data.js?v=9"></script>
 <script>
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
@@ -39,7 +46,7 @@ function dow(s){return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(s+'T
 function days(){var o=[],t=new Date(D.today+'T12:00:00');for(var i=0;i<62;i++){var d=new Date(t-i*864e5);if(d.getDay()===0||d.getDay()===6)continue;o.push(d.toISOString().slice(0,10))}return o}
 function wk(s){var g=new Date(s+'T12:00:00').getDay();return g>0&&g<6}
 function missing(k){if(k==='bios'||k==='schedule'||!D||!wk(D.today))return false;return !(D.charts[k]||[]).some(function(c){return c.date===D.today})}
-var SOPR={deland:{honeybees:['Honey Bees - Tod. Front'],honeycombs:["Three's - Honey Combs","Four's - Honey Combs"],infant:['Infant/Toddler']}},wedView=null;
+var SOPR={sanford:{honeybees:['Honeybees - Tod./Inf.'],vpk:['VPK/Pre-School (Pollen-Jocks)'],schoolagers:['Schoolagers (Worker Bees)']},deland:{honeybees:['Honey Bees - Tod. Front'],honeycombs:["Three's - Honey Combs","Four's - Honey Combs"],infant:['Infant/Toddler']}},wedView=null;
 function t12(x){try{return SOP.fmt(x)}catch(e){return x}}
 function nowMin(){var p=new Date().toLocaleTimeString('en-GB',{timeZone:'America/New_York',hour:'2-digit',minute:'2-digit'}).split(':');return +p[0]*60+ +p[1]}
 function mm(x){var p=String(x).split(':');return +p[0]*60+ +p[1]}
@@ -53,7 +60,7 @@ function schedHtml(){
  var n0=nowMin(),live=wk(D.today)&&(useWed===isWed);
  names.forEach(function(n){var r=M.rooms[n];if(!r)return;var L=(useWed&&r.wed)?r.wed:(r.blocks||[]);
   h+='<div class="chart"><div class="top"><span><b>'+esc(n.replace(/ - /g,' - '))+'</b></span>'+((useWed&&r.wed)?'<span class="badge ok">Early release</span>':'')+'</div>';
-  L.forEach(function(b){var on=live&&mm(b.s)<=n0&&n0<mm(b.e);h+='<div class="it" style="display:flex;gap:10px;'+(on?'background:#fff3cf;border-left:4px solid #f2b632;font-weight:800':'')+'"><span style="min-width:132px;color:#0a6b4f;font-weight:700">'+esc(t12(b.s)+' - '+t12(b.e))+'</span><span>'+esc(b.t)+(b.f?' <span style="font-weight:400;color:#667;font-size:12px">(fixed time)</span>':'')+(on?'  ◀ NOW':'')+'</span></div>'});
+  L.forEach(function(b){var on=live&&mm(b.s)<=n0&&n0<mm(b.e);h+='<div class="it" style="display:flex;gap:10px;'+(on?'background:#fff3cf;border-left:4px solid #f2b632;font-weight:800':'')+'"><span style="min-width:132px;color:#8a5a00;font-weight:700">'+esc(t12(b.s)+' - '+t12(b.e))+'</span><span>'+esc(b.t)+(b.f?' <span style="font-weight:400;color:#667;font-size:12px">(fixed time)</span>':'')+(on?'  ◀ NOW':'')+'</span></div>'});
   h+='</div>'});
  return h+'</div>'}
 function draw(){
@@ -71,13 +78,13 @@ function draw(){
  }
  document.getElementById('app').className='';document.getElementById('app').innerHTML=h;
 }
-var PICK=[['deland','honeybees','Honey Bees (Toddlers, Front)'],['deland','honeycombs','Honey Combs'],['deland','infant','Infant / Toddler Room']];
+var PICK=[['sanford','honeybees','Sanford: Honeybees (Toddler/Infant)'],['sanford','vpk','Sanford: VPK / Pre-School (Pollen-Jocks)'],['sanford','schoolagers','Sanford: Schoolagers (Worker Bees)'],['deland','honeybees','DeLand 2: Honey Bees (Toddlers, Front)'],['deland','honeycombs','DeLand 2: Honey Combs'],['deland','infant','DeLand 2: Infant / Toddler Room']];
 if(!S||!R){try{var sv=JSON.parse(localStorage.getItem('bearRoomPick')||'null');if(sv&&sv.s&&sv.r&&!q.get('pick')){S=sv.s;R=sv.r}}catch(e){}}
-if(!S||!R){document.getElementById('rn').textContent='Bear Classroom Pack';document.getElementById('sc').textContent='Kid City USA DeLand 2';document.getElementById('app').className='';document.getElementById('app').innerHTML='<div class="sec"><h2>Pick this tablet\'s classroom</h2><div class="sub">The tablet will remember it and open straight to this room each time.</div>'+PICK.map(function(p){return'<div class="tile" style="margin-bottom:10px" onclick="try{localStorage.setItem(\'bearRoomPick\',JSON.stringify({s:\''+p[0]+'\',r:\''+p[1]+'\'}))}catch(e){}location.href=\'room.html?s='+p[0]+'&r='+p[1]+'\'">'+esc(p[2])+'</div>'}).join('')+'</div>'}else{
+if(!S||!R){document.getElementById('rn').textContent='Bear Classroom Pack';document.getElementById('sc').textContent='Kid City USA';document.getElementById('app').className='';document.getElementById('app').innerHTML='<div class="sec"><h2>Pick this tablet\'s classroom</h2><div class="sub">The tablet will remember it and open straight to this room each time.</div>'+PICK.filter(function(p){return !S||p[0]===S}).map(function(p){return'<div class="tile" style="margin-bottom:10px" onclick="try{localStorage.setItem(\'bearRoomPick\',JSON.stringify({s:\''+p[0]+'\',r:\''+p[1]+'\'}))}catch(e){}location.href=\'room.html?s='+p[0]+'&r='+p[1]+'\'">'+esc(p[2])+'</div>'}).join('')+'</div>'}else{
 try{if(q.get('app'))localStorage.setItem('bearRoomPick',JSON.stringify({s:S,r:R}))}catch(e){}
  fetch('room-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({s:S,r:R})}).then(function(r){return r.json()}).then(function(d){
   if(d.error){document.getElementById('app').textContent=d.error;return}
-  D=d;document.getElementById('sc').textContent='Kid City USA '+d.school;document.getElementById('rn').textContent=d.room;
+  D=d;document.getElementById('sc').textContent='Kid City USA '+d.school;document.body.className=(S==='deland')?'deland':'sanford';document.getElementById('rn').textContent=d.room;
   document.getElementById('dt').textContent=new Date(d.today+'T12:00:00').toLocaleDateString([], {weekday:'long',month:'long',day:'numeric',year:'numeric'});document.title=d.room+' - Posted Items';draw();
  }).catch(function(){document.getElementById('app').textContent='Could not load. Please try again.'})}
 </script></body></html>

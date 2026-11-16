@@ -16,7 +16,11 @@ $ROOMS = [
   'honeycombs'=>['Honey Combs', ['Threes','Fours / VPK','School Age',"Four's - Honey Combs",'Honey Combs']],
   'infant'=>['Infant / Toddler Room', ['Infant Room','Infant/Toddler']],
  ],
- 'sanford'=>[]
+ 'sanford'=>[
+  'honeybees'=>['Honeybees (Toddler / Infant)', ['Honeybees - Tod./Inf.','Ones']],
+  'vpk'=>['VPK / Pre-School (Pollen-Jocks)', ['VPK/Pre-School (Pollen-Jocks)','Fours / VPK']],
+  'schoolagers'=>['Schoolagers (Worker Bees)', ['Schoolagers (Worker Bees)','School Age']],
+ ]
 ];
 $in = json_decode(file_get_contents('php://input'), true); if (!is_array($in)) fail('Bad request');
 $sk = (string)($in['s'] ?? ''); $rk = (string)($in['r'] ?? '');
