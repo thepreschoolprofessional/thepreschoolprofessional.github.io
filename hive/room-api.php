@@ -55,4 +55,5 @@ if ($pp !== ''){
   $b = json_decode(@file_get_contents('https://thepreschoolprofessional.net/hive/files-api.php', false, $ctx) ?: '', true);
   foreach (($b['staff'] ?? []) as $p) $bios[] = ['name'=>$p['name'], 'role'=>$p['role'], 'bio'=>$p['bio'], 'photo'=>$p['photo']];
 }
-echo json_encode(['school'=>$school, 'room'=>$label, 'today'=>date('Y-m-d'), 'charts'=>$charts, 'bios'=>$bios]);
+$signin = ($sk === 'deland') ? 'https://bearphonicsacademy.com/elc-1ce53ee46c/bearline.html' : 'https://bearphonicsacademy.com/elc-94f077be04/bearline.html';
+echo json_encode(['signin'=>$signin, 'school'=>$school, 'room'=>$label, 'today'=>date('Y-m-d'), 'charts'=>$charts, 'bios'=>$bios]);

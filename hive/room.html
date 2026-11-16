@@ -21,7 +21,7 @@ h2{margin:0 0 4px;font-size:19px;color:var(--a)}.sub{color:var(--mut);font-size:
 .it{padding:5px 0;border-top:1px solid #eef3f0;font-size:15px}.it.bad{color:#b3261e;font-weight:600}
 .bio{display:flex;gap:12px;border-top:1px solid var(--line);padding:12px 0}.bio:first-child{border-top:0}.bio img{width:84px;height:84px;border-radius:50%;object-fit:cover;border:3px solid var(--gold);flex:none}.bio .ph{width:84px;height:84px;border-radius:50%;background:#e6efe9;flex:none}
 .bio b{font-size:17px}.bio .r{color:var(--mut);font-size:13px;margin-bottom:4px}.bio p{margin:0;font-size:15px;line-height:1.4}
-.msg{padding:26px;text-align:center;color:var(--mut)}
+.alert{background:#fde3df;border:2px solid #b3261e;color:#8c1d16;border-radius:12px;padding:12px 14px;margin-bottom:12px;font-weight:700}.alert a{display:inline-block;margin-top:8px;background:#b3261e;color:#fff;text-decoration:none;border-radius:10px;padding:10px 14px;font-size:15px}.tile .miss{color:#b3261e;font-weight:800;font-size:12px}.tile.on .miss{color:#ffd2cd}.msg{padding:26px;text-align:center;color:var(--mut)}
 .foot{text-align:center;color:var(--mut);font-size:12px;padding:6px 0 24px}
 @media print{.tiles,.chips{display:none}}
 </style></head><body>
@@ -35,13 +35,16 @@ var SEC={classroom:['🧹','Classroom Cleaning Chart','Every day, last 2 months'
 function fd(s){var p=s.split('-');return (+p[1])+'/'+(+p[2])}
 function dow(s){return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(s+'T12:00:00').getDay()]}
 function days(){var o=[],t=new Date(D.today+'T12:00:00');for(var i=0;i<62;i++){var d=new Date(t-i*864e5);if(d.getDay()===0||d.getDay()===6)continue;o.push(d.toISOString().slice(0,10))}return o}
+function wk(s){var g=new Date(s+'T12:00:00').getDay();return g>0&&g<6}
+function missing(k){if(k==='bios'||!D||!wk(D.today))return false;return !(D.charts[k]||[]).some(function(c){return c.date===D.today})}
 function draw(){
- var h='<div class="tiles">'+Object.keys(SEC).map(function(k){return'<div class="tile'+(k===cur?' on':'')+'" onclick="cur=\''+k+'\';draw()"><span class="e">'+SEC[k][0]+'</span>'+SEC[k][1]+'<small>'+SEC[k][2]+'</small></div>'}).join('')+'</div>';
+ var h='<div class="tiles">'+Object.keys(SEC).map(function(k){return'<div class="tile'+(k===cur?' on':'')+'" onclick="cur=\''+k+'\';draw()"><span class="e">'+SEC[k][0]+'</span>'+SEC[k][1]+'<small>'+SEC[k][2]+'</small>'+(missing(k)?'<span class="miss">NOT DONE TODAY</span>':'')+'</div>'}).join('')+'</div>';
  if(cur==='bios'){
   h+='<div class="sec"><h2>👩‍🏫 Meet Our Teachers</h2><div class="sub">Teachers at '+esc(D.school)+'</div>'+(D.bios.length?D.bios.map(function(b){return'<div class="bio">'+(b.photo?'<img src="data:image/jpeg;base64,'+b.photo+'">':'<div class="ph"></div>')+'<div><b>'+esc(b.name)+'</b><div class="r">'+esc(b.role)+'</div><p>'+esc(b.bio)+'</p></div></div>'}).join(''):'<div class="msg">Teacher bios are being added. Check back soon.</div>')+'</div>';
  }else{
   var L=D.charts[cur]||[],by={};L.forEach(function(c){(by[c.date]=by[c.date]||[]).push(c)});
   var ds=days(),have=ds.filter(function(d){return by[d]}),sel=selDate[cur]||have[0]||null;
+  if(missing(cur))h+='<div class="alert">⚠️ Today\'s '+SEC[cur][1]+' has NOT been completed yet. Teachers: please sign in and do it right now so it shows up here.<br><a href="'+esc(D.signin)+'" target="_blank">Sign in and complete it now</a><div style="font-weight:400;font-size:13px;margin-top:6px">Sign in with your PIN, then tap "Do my cleaning chart and daily checklists".</div></div>';
   h+='<div class="sec"><h2>'+SEC[cur][0]+' '+SEC[cur][1]+'</h2><div class="sub">'+esc(D.room)+'. Tap a day to see that day\'s chart. Green = completed, red = something needed attention, gray = no chart recorded.</div><div class="chips">'+ds.map(function(d){var b=by[d],c=!b?'none':(b.some(function(x){return x.status==='flag'})?'flag':'ok');return'<div class="chip '+c+(d===sel?' sel':'')+'"'+(b?' onclick="selDate[cur]=\''+d+'\';draw()"':'')+'>'+dow(d)+'<br><b>'+fd(d)+'</b></div>'}).join('')+'</div>';
   if(!sel)h+='<div class="msg">No charts recorded in the last 2 months.</div>';
   else h+='<div class="sub"><b>'+dow(sel)+' '+fd(sel)+'</b></div>'+by[sel].map(function(c){return'<div class="chart"><div class="top"><span>Completed by '+esc(c.by||'staff')+(c.at?' at '+new Date(c.at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit',timeZone:'America/New_York'}):'')+'</span><span class="badge '+c.status+'">'+(c.status==='ok'?'All OK':'Needs attention')+'</span></div>'+c.items.map(function(i){return'<div class="it'+(i.ok?'':' bad')+'">'+(i.ok?'✅ ':'⚠️ ')+esc(i.t)+'</div>'}).join('')+'</div>'}).join('');
