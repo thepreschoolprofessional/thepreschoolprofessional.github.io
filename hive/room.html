@@ -30,7 +30,7 @@ h2{margin:0 0 4px;font-size:19px;color:var(--a)}.sub{color:var(--mut);font-size:
 <div class="foot">Kid City USA - these records update live as staff complete them. Showing the last 2 months.</div>
 <script>
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
-var q=new URLSearchParams(location.search),S=q.get('s')||'',R=q.get('r')||'',D=null,cur='classroom',selDate={};
+var q=new URLSearchParams(location.search),S=q.get('s')||'',R=q.get('r')||'',D=null,cur=(q.get('t')&&['classroom','bathroom','indoor','bios'].indexOf(q.get('t'))>=0)?q.get('t'):'classroom',selDate={};
 var SEC={classroom:['🧹','Classroom Cleaning Chart','Every day, last 2 months'],bathroom:['🚽','Bathroom Cleaning Chart','Every day, last 2 months'],indoor:['🏠','Daily Indoor Inspection','Every day, last 2 months'],bios:['👩‍🏫','Meet Our Teachers','Staff bios and photos']};
 function fd(s){var p=s.split('-');return (+p[1])+'/'+(+p[2])}
 function dow(s){return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(s+'T12:00:00').getDay()]}
