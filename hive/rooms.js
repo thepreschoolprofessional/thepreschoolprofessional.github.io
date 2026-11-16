@@ -77,6 +77,7 @@ function roomKids(roomName){
 }
 function movedOut(roomName){ return activeKids().filter(function(k){ return k.room===roomName && effRoom(k)!==roomName; }); }
 function attMapFor(list){ var m={}; list.forEach(function(c){ var a=attOf(c.name); m[c.name]={Arrival:a.Arrival||'',Departure:a.Departure||'',B:!!a.B,L:!!a.L,P:!!a.P,WC:a.WC||'',IR:a.IR||'',AR:a.AR||'',SO:a['School Out']||'',SI:a['School In']||''}; }); return m; }
+function saFix(m,sa){ if(!sa) return m; Object.keys(m).forEach(function(k){ var a=m[k]; if(a && !a.SO && !a.SI && a.Departure && a.Departure<'09:30'){ m[k]=Object.assign({},a,{SO:a.Departure,Departure:''}); } }); return m; }
 function isSA(roomName){ return /school.?age|worker/i.test(roomName||''); }
 function dayOf(roomName){ return S.days[roomName] || {id:null, staff:{}, transitions:[], counts:[], mgmt:{}, notes:''}; }
 function isPresent(a){ return !!(a.Arrival && !a.Departure); }
@@ -299,7 +300,7 @@ function staffTab(r){
 }
 function paperTab(r){
   var list=roomKids(r.name), day=dayOf(r.name);
-  var html=P.render({schoolAge:isSA(r.name), school:S.school, room:r.name, date:S.date, teachers:teachersFor(r.name), children:list, att:attMapFor(list), day:day, asOf: isToday()? nowHM(): null});
+  var html=P.render({schoolAge:isSA(r.name), school:S.school, room:r.name, date:S.date, teachers:teachersFor(r.name), children:list, att:saFix(attMapFor(list),isSA(r.name)), day:day, asOf: isToday()? nowHM(): null});
   var food=weekReady()? foodPages(r) : '<div class="card noprint">Loading the food count form&hellip;</div>';
   return '<div class="noprint"><button class="btn" data-act="print">Print both forms</button> <button class="btn sec" data-act="printfood">Print food form only</button> <span class="sub2">Attendance roster first, then the Weekly Attendance &amp; Meal Count (food) form just below it. Same layouts as the DCF binder.</span></div><div class="pfwrap">'+html+'</div><div class="noprint" style="margin:14px 0 4px;font-weight:700">Food count form (this week)</div>'+food;
 }
@@ -382,7 +383,7 @@ function dcfHTML(){
   h+='<div class="pfwrap">';
   S.rooms.forEach(function(r){
     var list=roomKids(r.name);
-    h+=P.render({schoolAge:isSA(r.name), school:S.school, room:r.name, date:S.date, teachers:teachersFor(r.name), children:list, att:attMapFor(list), day:dayOf(r.name), asOf: isToday()? nowHM(): null});
+    h+=P.render({schoolAge:isSA(r.name), school:S.school, room:r.name, date:S.date, teachers:teachersFor(r.name), children:list, att:saFix(attMapFor(list),isSA(r.name)), day:dayOf(r.name), asOf: isToday()? nowHM(): null});
   });
   h+='</div>';
   h+='<div class="noprint" style="margin:14px 0 4px;font-weight:700">Food count forms (this week)</div>';
