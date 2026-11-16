@@ -202,8 +202,13 @@ function staffPick(sc){ curSchool=sc; if(window.PPA) PPA.reset(); var bar=docume
 // If it's a school-specific parent login, lock everything to that school
 // so this family only ever sees their own school's menu & resources.
 async function init(){
-  try{ const who = await api({action:'whoami'}); mySchool = (who && who.school) ? who.school : null; }
-  catch(e){ mySchool = null; }
+  var ss=''; try{ ss=sessionStorage.getItem('hiveSchool')||''; }catch(e){}
+  if(ss!=='Sanford' && ss!=='DeLand 2') ss='';
+  /* Families never pick a school: hide the picker right away and lock to the door they signed in at. */
+  if(!STAFF){ var row0=document.getElementById('schoolRow'); if(row0) row0.style.display='none'; if(ss){ mySchool=ss; curSchool=ss; } }
+  try{ const who = await api({action:'whoami'}); if(who && who.school){ mySchool = who.school; try{ sessionStorage.setItem('hiveSchool',who.school); }catch(e){} } else if(STAFF || !ss){ mySchool = null; } }
+  catch(e){ if(STAFF || !ss) mySchool = null; }
+  if(!STAFF && !mySchool){ location.href='index.html'; return; }
   if(mySchool){
     curSchool = mySchool;
     const row = document.getElementById('schoolRow'); if(row) row.style.display='none';

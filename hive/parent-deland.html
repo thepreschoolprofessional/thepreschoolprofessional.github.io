@@ -33,7 +33,7 @@ async function enter(auto){
       sessionStorage.setItem('hivePin',pin);sessionStorage.setItem('hiveRole',d.role);sessionStorage.setItem('hiveSchool',d.school||SCHOOL);
       sessionStorage.setItem('hiveDoor','deland');
       try{ if(document.getElementById('keep').checked) localStorage.setItem(KEEP,JSON.stringify({pin:pin})); else localStorage.removeItem(KEEP);}catch(e){}
-      location.href='parent.html?v=20261019b';
+      location.href='parent.html?v=20261116a';
     } else if(d.role){
       err.textContent='That PIN is not for DeLand 2. Please use the PIN for your own school.';
     } else {
