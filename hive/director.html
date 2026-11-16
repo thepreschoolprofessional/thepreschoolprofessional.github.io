@@ -293,8 +293,10 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
       <div class="sect">🌟 Start an enrollment or onboarding</div>
       <div style="font-size:.9rem;color:var(--soft);margin-bottom:10px">Send the link. They fill out and sign the real packet on their own screen, and it lands in the list below to wait for your approval.</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+        <button class="mini" style="background:var(--teal)" onclick="onbMail('enroll')">✉️ Email family the link (opens Gmail)</button>
         <button class="mini" style="background:var(--teal)" onclick="onbCopy('enroll')">📋 Copy family Welcome link</button>
         <a class="mini" style="text-decoration:none;background:var(--teal)" href="enroll.html">👨‍👩‍👧 Open New Enrollments</a>
+        <button class="mini" style="background:var(--green)" onclick="onbMail('staff')">✉️ Email new staff the link (opens Gmail)</button>
         <button class="mini" style="background:var(--green)" onclick="onbCopy('staff')">📋 Copy new-staff link</button>
         <a class="mini" style="text-decoration:none;background:var(--green)" href="newhires.html">🍎 Open New Hires</a>
       </div>
@@ -673,6 +675,11 @@ async function loadTime(){ const d = await api({action:'list', table:'Staff Time
 var ONB_SCH='';
 async function onbFA(action){ var r=await fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:sessionStorage.getItem('hivePin'),action:action})}); var j=await r.json(); if(j.error) throw new Error(j.error); return j; }
 function onbLink(kind){ var k=(ONB_SCH==='Sanford')?'sanford':'deland'; return 'https://thepreschoolprofessional.net/hive/'+(kind==='enroll'?'welcome.html':'onboard.html')+'?school='+k; }
+function onbMail(kind){ var u=onbLink(kind), sch=(ONB_SCH==='Sanford')?'Kid City USA Sanford':'Kid City USA DeLand 2', fam=(kind==='enroll');
+  var su=fam?('Welcome to '+sch+' - your enrollment packet'):('Welcome to the '+sch+' team - your new-hire packet');
+  var body=fam?('Hello!\n\nThank you for choosing '+sch+'. Please use this link to fill out and sign your enrollment packet right on your phone or computer:\n\n'+u+'\n\nIf you have any questions, just reply to this email or call us.\n\nThank you!\n'+sch)
+              :('Hello!\n\nWe are so happy you are joining '+sch+'. Please use this link to sign up, follow your training checklist, and fill out and sign your Employee Packet:\n\n'+u+'\n\nIf you have any questions, just reply to this email or call us.\n\nThank you!\n'+sch);
+  window.open('https://mail.google.com/mail/?view=cm&fs=1&su='+encodeURIComponent(su)+'&body='+encodeURIComponent(body),'_blank'); }
 async function onbCopy(kind){ var u=onbLink(kind); try{ await navigator.clipboard.writeText(u); toast('Link copied 📋'); }catch(e){ prompt('Copy this link:',u); } }
 async function loadOnb(){ var box=document.getElementById('onbList'); box.classList.remove('empty');
   try{ var w=await onbFA('whoami'); ONB_SCH=w.school||''; var en=(await onbFA('en_list')).items||[]; var nh=(await onbFA('nh_list')).items||[];
