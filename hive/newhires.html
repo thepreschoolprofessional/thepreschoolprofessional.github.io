@@ -21,7 +21,7 @@ select,input{padding:10px;border-radius:10px;border:1px solid #ccc;font-size:1re
 <h1>🧑‍🏫 New Hires <span class="badge" id="sch">…</span></h1>
 <div class="sub">New teachers, interns and volunteers who signed up on the new-staff page. You see what they have finished, review their signed packet, sign your lines on screen, then add them to Staff Files.</div>
 <div class="msg" id="msg"></div><div id="view"></div>
-<script src="pdf-lib.min.js?v=117"></script><script src="onboard-data.js?v=1"></script><script src="emp-stamp.js?v=2"></script>
+<script src="pdf-lib.min.js?v=117"></script><script src="onboard-data.js?v=1"></script><script src="emp-stamp.js?v=3"></script>
 <script>
 const PIN=sessionStorage.getItem('hivePin');if(!PIN||sessionStorage.getItem('hiveRole')!=='director')location.href='index.html';
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -52,6 +52,7 @@ async function open_(id){
   +'<button onclick="openPdf(false)">Open their signed packet (PDF)</button>'+(h.final?'<button onclick="openPdf(true)">Open the fully signed packet (PDF)</button>':'');
   v+='<div style="border-top:1px solid #eee;margin-top:14px;padding-top:10px"><h2>Your lines (director)</h2><div class="sub">Social Security number, ID and bank details are not collected online; add them yourself. Fill in the office-use box on the application, then sign once with your finger or mouse. Your signature goes on every director line: printed name, signature and date on each policy page, the application office-use box and the child abuse reporting page.</div>'
   +'<div class="g4"><div><label>Start date</label><input id="o_start" value="'+esc(D.o_start||h.start||'')+'"></div><div><label>First pay date</label><input id="o_first" value="'+esc(D.o_first||'')+'"></div><div><label>Pay rate</label><input id="o_rate" value="'+esc(D.o_rate||'')+'"></div><div><label>Position</label><input id="o_pos" value="'+esc(D.o_pos||D.position||'')+'"></div></div>'
+  +(h.role==='Existing staff'?'<div style="background:#fff8e1;border:2px solid #ffd54f;border-radius:12px;padding:10px;margin-top:10px"><label style="display:flex;gap:8px;align-items:center;font-weight:800"><input type="checkbox" id="paperOk" style="width:22px;height:22px"> I confirm this person has a signed paper packet on file</label><div class="sub" style="margin-top:6px">Date to print on the forms (staff and director dates):</div><select id="dmode" onchange="$(\'dcustom\').style.display=this.value===\'custom\'?\'inline-block\':\'none\'"><option value="hire">Their hire / start date (above)</option><option value="today">Today</option><option value="custom">A date I type</option></select> <input id="dcustom" placeholder="m/d/yyyy" style="display:none;width:130px"></div>':'')
   +'<div style="margin-top:8px"><label class="sub">Your printed name</label><br><input id="dirName" style="width:260px" value="'+esc(sessionStorage.getItem('hiveDirName')||'')+'" placeholder="Director name"></div>'
   +'<canvas id="dsg" width="460" height="150" style="border:2px solid #999;border-radius:10px;width:100%;max-width:460px;touch-action:none;background:#fff;margin-top:8px;display:block"></canvas>'
   +'<button class="sec2" onclick="dsClear()">Clear</button><button class="gr" id="dsBtn" onclick="dirSign()">Sign &amp; save the packet</button><button class="sec2" onclick="preview()">Preview a page</button><div id="pvw"></div></div>';
@@ -72,11 +73,13 @@ function setupPad(){const c=$('dsg');if(!c)return;const x=c.getContext('2d');x.l
  c.onpointermove=e=>{if(!SG.on)return;const q=pt(e);x.lineTo(q[0],q[1]);x.stroke();e.preventDefault()};c.onpointerup=c.onpointercancel=()=>{SG.on=false};}
 function dsClear(){const c=$('dsg');c.getContext('2d').clearRect(0,0,c.width,c.height);SG.drawn=false;}
 async function loadSigs(){if(Object.keys(SIGS).length)return;const j=await api('nh_sigs',{id:CUR});SIGS=Object.assign({},j.sigs||{});}
-function dataWith(){const D=Object.assign({},HIRE.packet.data);['o_start','o_first','o_rate','o_pos'].forEach(k=>{D[k]=$(k).value.trim()});D.dirName=$('dirName').value.trim();return D;}
+function isoMDY(s){var m=String(s||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?(+m[2])+'/'+(+m[3])+'/'+m[1]:String(s||'').trim();}
+function applyDate(){ if(!HIRE||HIRE.role!=='Existing staff'||!$('dmode')){EMP.setDate(null);return;} var m=$('dmode').value; if(m==='hire')EMP.setDate(isoMDY($('o_start').value)); else if(m==='custom')EMP.setDate(isoMDY($('dcustom').value)); else EMP.setDate(null); }
+function dataWith(){const D=Object.assign({},HIRE.packet.data);['o_start','o_first','o_rate','o_pos'].forEach(k=>{D[k]=$(k).value.trim()});D.dirName=$('dirName').value.trim();if(D.o_start)D.o_start=isoMDY(D.o_start);return D;}
 function dirPng(){const c=$('dsg'),t=document.createElement('canvas');t.width=c.width;t.height=c.height;t.getContext('2d').drawImage(c,0,0);return t.toDataURL('image/png');}
-async function preview(){try{await loadSigs();const D=dataWith(),s=Object.assign({},SIGS);if(SG.drawn)s.__dir=dirPng();const cv=await EMP.renderPage(19,D,s,800);cv.style.cssText='width:100%;max-width:640px;border:1px solid #ccc;border-radius:8px;margin-top:8px';$('pvw').innerHTML='<div class="sub">Preview: Emergency Plan receipt page</div>';$('pvw').appendChild(cv);}catch(e){say(e.message,true)}}
+async function preview(){try{applyDate();await loadSigs();const D=dataWith(),s=Object.assign({},SIGS);if(SG.drawn)s.__dir=dirPng();const cv=await EMP.renderPage(19,D,s,800);cv.style.cssText='width:100%;max-width:640px;border:1px solid #ccc;border-radius:8px;margin-top:8px';$('pvw').innerHTML='<div class="sub">Preview: Emergency Plan receipt page</div>';$('pvw').appendChild(cv);}catch(e){say(e.message,true)}}
 async function dirSign(){
- const D=dataWith();if(D.dirName.length<3){say('Type your printed name first.',true);return;}if(!SG.drawn){say('Sign in the box first.',true);return;}
+ const D=dataWith();if(HIRE.role==='Existing staff'&&!$('paperOk').checked){say('Please tick the box confirming you have their signed paper packet.',true);return;}if(D.dirName.length<3){say('Type your printed name first.',true);return;}applyDate();if(!SG.drawn){say('Sign in the box first.',true);return;}
  $('dsBtn').disabled=true;say('Building the fully signed packet…');
  try{await loadSigs();sessionStorage.setItem('hiveDirName',D.dirName);const s=Object.assign({},SIGS);s.__dir=dirPng();
   const cvs=await EMP.render(D,s,HIRE.role,1000),pdf=await EMP.pdf(cvs);let b='';const CH=0x8000;for(let i=0;i<pdf.length;i+=CH)b+=String.fromCharCode.apply(null,pdf.subarray(i,i+CH));

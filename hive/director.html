@@ -296,6 +296,8 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
         <button class="mini" style="background:var(--teal)" onclick="onbMail('enroll')">✉️ Email family the link (opens Gmail)</button>
         <button class="mini" style="background:var(--teal)" onclick="onbCopy('enroll')">📋 Copy family Welcome link</button>
         <a class="mini" style="text-decoration:none;background:var(--teal)" href="enroll.html">👨‍👩‍👧 Open New Enrollments</a>
+        <button class="mini" style="background:var(--purple)" onclick="onbMail('existing')">✉️ Email current staff the link (they sign once)</button>
+        <button class="mini" style="background:var(--purple)" onclick="onbCopy('existing')">📋 Copy current-staff link</button>
         <button class="mini" style="background:var(--green)" onclick="onbMail('staff')">✉️ Email new staff the link (opens Gmail)</button>
         <button class="mini" style="background:var(--green)" onclick="onbCopy('staff')">📋 Copy new-staff link</button>
         <a class="mini" style="text-decoration:none;background:var(--green)" href="newhires.html">🍎 Open New Hires</a>
@@ -674,8 +676,9 @@ async function loadTime(){ const d = await api({action:'list', table:'Staff Time
 // ---- ONBOARDING ----
 var ONB_SCH='';
 async function onbFA(action){ var r=await fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:sessionStorage.getItem('hivePin'),action:action})}); var j=await r.json(); if(j.error) throw new Error(j.error); return j; }
-function onbLink(kind){ var k=(ONB_SCH==='Sanford')?'sanford':'deland'; return 'https://thepreschoolprofessional.net/hive/'+(kind==='enroll'?'welcome.html':'onboard.html')+'?school='+k; }
+function onbLink(kind){ var k=(ONB_SCH==='Sanford')?'sanford':'deland'; return 'https://thepreschoolprofessional.net/hive/'+(kind==='enroll'?'welcome.html':'onboard.html')+'?school='+k+(kind==='existing'?'&existing=1':''); }
 function onbMail(kind){ var u=onbLink(kind), sch=(ONB_SCH==='Sanford')?'Kid City USA Sanford':'Kid City USA DeLand 2', fam=(kind==='enroll');
+  if(kind==='existing'){ var su0='Please sign your '+sch+' employee packet', b0='Hello!\n\nWe are putting everyone\'s employee packet online so we do not have to copy stacks of paper. Please use this link, check your information, and sign one time. Your signature goes on the whole packet, and then I will confirm your hire date and sign my part.\n\n'+u+'\n\nThank you!\n'+sch; window.open('https://mail.google.com/mail/?view=cm&fs=1&su='+encodeURIComponent(su0)+'&body='+encodeURIComponent(b0),'_blank'); return; }
   var su=fam?('Welcome to '+sch+' - your enrollment packet'):('Welcome to the '+sch+' team - your new-hire packet');
   var body=fam?('Hello!\n\nThank you for choosing '+sch+'. Please use this link to fill out and sign your enrollment packet right on your phone or computer:\n\n'+u+'\n\nIf you have any questions, just reply to this email or call us.\n\nThank you!\n'+sch)
               :('Hello!\n\nWe are so happy you are joining '+sch+'. Please use this link to sign up, follow your training checklist, and fill out and sign your Employee Packet:\n\n'+u+'\n\nIf you have any questions, just reply to this email or call us.\n\nThank you!\n'+sch);

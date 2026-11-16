@@ -48,7 +48,7 @@ label{display:block;font-weight:800;margin:12px 0 4px;font-size:.95rem}
 <div id="mod"><div id="modbox"></div></div>
 <script src="pdf-lib.min.js?v=117"></script>
 <script src="onboard-data.js?v=1"></script>
-<script src="emp-stamp.js?v=2"></script>
+<script src="emp-stamp.js?v=3"></script>
 <script>
 var API='files-api.php';
 var INFO={
@@ -59,6 +59,7 @@ function $(i){return document.getElementById(i)}
 function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 function jget(k,d){try{return JSON.parse(ls(k)||'')||d}catch(e){return d}}
+var existing=/[?&]existing=1/.test(location.search);
 var H=jget('onbHire',null),school=(location.search.match(/school=(sanford|deland)/)||[])[1]||ls('onbSchool')||'sanford';
 var done=jget('onbDone',{}),D=jget('onbDraft',{}),SIGS={},STEP=0,view='home';
 if(H&&H.school)school=H.school;
@@ -70,20 +71,20 @@ function gv(id){var e=$(id);return e?e.value.trim():''}
 function drawSignup(){
  var I=INFO[school];
  $('app').innerHTML='<div class="schoolrow"><button class="spick'+(school==='sanford'?' sel':'')+'" onclick="pickSchool(\'sanford\')">Sanford</button><button class="spick'+(school==='deland'?' sel':'')+'" onclick="pickSchool(\'deland\')">DeLand 2</button></div>'
- +'<div class="card" style="border-top-color:var(--pink)"><h2>We are thrilled you\'re joining us!</h2><p>Whether you start as a teacher, an intern or a volunteer, you are about to be part of a passionate, nurturing team that shapes young minds every day. Sign up below. Your director will see your progress as you go.</p>'
+ +'<div class="card" style="border-top-color:var(--pink)">'+(existing?'<h2>Current team: sign your packet once</h2><p>Put your name and hire date below, check your information, and sign one time. Your director will confirm and sign her part.</p>':'<h2>We are thrilled you\'re joining us!</h2><p>Whether you start as a teacher, an intern or a volunteer, you are about to be part of a passionate, nurturing team that shapes young minds every day. Sign up below. Your director will see your progress as you go.</p>')
  +'<label>Your full name</label><input class="inp" id="su_name" autocomplete="name">'
- +'<label>I am joining as</label><select class="inp" id="su_role"><option>New hire</option><option>Intern</option><option>Volunteer</option></select>'
+ +(existing?'<div class="hi" style="margin-top:10px">Current team member: you already have your paper forms. Sign once here and your whole packet is signed. Your director confirms your hire date and signs her lines.</div>':'<label>I am joining as</label><select class="inp" id="su_role"><option>New hire</option><option>Intern</option><option>Volunteer</option></select>')
  +'<div class="two"><div><label>Cell phone</label><input class="inp" id="su_cell" type="tel"></div><div><label>Email</label><input class="inp" id="su_email" type="email"></div></div>'
- +'<label>First day (if you know it)</label><input class="inp" id="su_start" type="date">'
+ +'<label>'+(existing?'Your hire date (the day you started with us)':'First day (if you know it)')+'</label><input class="inp" id="su_start" type="date">'
  +'<div class="err" id="su_err"></div><button class="go" id="su_go" onclick="signup()">Start my onboarding</button>'
  +'<p class="note" style="margin-top:10px">Use your own phone or computer. This page remembers you on this device.</p></div>';
 }
 function pickSchool(s){school=s;ls('onbSchool',s);if(H)return;drawSignup();}
 async function signup(){
  $('su_go').disabled=true;$('su_err').textContent='';
- try{var j=await api('nh_start',{name:gv('su_name'),role:gv('su_role'),cell:gv('su_cell'),email:gv('su_email'),start:gv('su_start')});
-  if(j.error)throw new Error(j.error);H={id:j.id,token:j.token,school:school,name:gv('su_name'),role:gv('su_role')};ls('onbHire',JSON.stringify(H));
-  var p=H.name.split(/\s+/);D={first:p[0],last:p.slice(1).join(' '),cell:gv('su_cell'),email:gv('su_email'),position:H.role==='New hire'?'':H.role,earliest:gv('su_start')};saveDraft();view='home';draw();
+ try{var RL=existing?'Existing staff':gv('su_role');var j=await api('nh_start',{name:gv('su_name'),role:RL,cell:gv('su_cell'),email:gv('su_email'),start:gv('su_start')});
+  if(j.error)throw new Error(j.error);H={id:j.id,token:j.token,school:school,name:gv('su_name'),role:RL};ls('onbHire',JSON.stringify(H));
+  var p=H.name.split(/\s+/);D={first:p[0],last:p.slice(1).join(' '),cell:gv('su_cell'),email:gv('su_email'),position:(H.role==='New hire'||H.role==='Existing staff')?'':H.role,earliest:gv('su_start')};saveDraft();view='home';draw();
  }catch(e){$('su_go').disabled=false;$('su_err').textContent=e.message||'Could not sign you up. Please try again.';}
 }
 /* ---------- home ---------- */
@@ -96,6 +97,14 @@ async function syncSteps(){var m={};KEYS.forEach(function(k){m[k]=!!done[k]});tr
 function prog(){var n=0;TRAIN.forEach(function(k){if(done[k])n++});var p=Math.round(100*n/TRAIN.length);$('bar').style.width=p+'%';$('pct').textContent=n+' of '+TRAIN.length+' training steps done ('+p+'%)';}
 function drawHome(){
  var I=INFO[school],packetDone=H.sent||ls('onbSent_'+H.id)==='1';
+ if(H.role==='Existing staff'){
+  $('app').innerHTML='<div class="hi">Hi '+esc((H.name||'').split(' ')[0])+'! You are on the team at <b>'+esc(I.n)+'</b>. <a href="#" onclick="signout();return false" class="noprint" style="font-weight:600;font-size:.85rem">Not you?</a></div>'
+   +'<div class="card" style="border-top-color:var(--coral)"><h2>Sign your Employee Packet once</h2><p>You already have your paper forms. Here you check your information, then <b>sign one time</b> and your signature goes on every page of the packet. Your director then confirms your hire date and signs her lines.</p>'
+   +(packetDone?'<div class="hi">Your signed packet was sent to your director. You can send it again if something changed.</div>':'')
+   +'<button class="go" onclick="startPacket()">'+(packetDone?'Redo my packet':(Object.keys(D).length>6?'Continue my packet':'Start my packet'))+'</button></div>'
+   +'<div class="card"><h2>Questions?</h2><p><b>'+esc(I.n)+'</b><br>'+esc(I.a)+'<br><a href="tel:'+I.p.replace(/\D/g,'')+'">'+I.p+'</a> · <a href="mailto:'+I.e+'">'+I.e+'</a></p></div>';
+  return;
+ }
  $('app').innerHTML='<div class="hi">Hi '+esc((H.name||'').split(' ')[0])+'! You signed up as <b>'+esc(H.role)+'</b> at '+esc(I.n)+'. <a href="#" onclick="signout();return false" class="noprint" style="font-weight:600;font-size:.85rem">Not you?</a></div>'
  +'<div class="card" style="border-top-color:var(--pink)"><h2>Your progress</h2><div class="bar"><i id="bar"></i></div><div class="note" id="pct"></div><div class="note" id="saved"></div></div>'
  +'<div class="card" style="border-top-color:var(--orange)"><span class="due">Step 1 · Before you start, or within 7 days of your start date</span><h2>Register and take the free pre-service courses</h2><p>Go to the <a href="https://childcaretraining.myflfamilies.com/studentsite/admin/signin" target="_blank" rel="noopener">Florida Early Childhood Professional Development Registry</a>, create an account or log in, then choose <b>Enroll in Online Courses</b>. Under <b>School Readiness Preservice Training</b> take these FREE courses:</p>'+list(ONB.S1,'a')+'</div>'
@@ -127,17 +136,18 @@ for(var j=0;j<3;j++)['n','r','c','h','w'].forEach(function(f){TXT.push('ec'+j+f)
 var CBS=['avail_0','avail_1','avail_2','avail_3','cred_0','cred_1','cred_2','cred_3','cred_4'];
 function collect(){TXT.forEach(function(k){var e=$('f_'+k);if(e)D[k]=e.value.trim()});CBS.forEach(function(k){var e=$('f_'+k);if(e)D[k]=e.checked?1:''});
  YN.forEach(function(k){var e=document.querySelector('input[name="r_'+k+'"]:checked');if(e)D[k]=e.value});saveDraft();}
-function derive(){var o=Object.assign({},D);for(var i=0;i<3;i++){var h='h'+i+'_',w='w'+i+'_';o[w+'emp']=D[h+'biz']||'';o[w+'phone']=D[h+'phone']||'';o[w+'city']=D[h+'addr']||'';o[w+'sup']=D[h+'sup']||'';o[w+'from']=D[h+'from']||'';o[w+'to']=D[h+'to']||'';o[w+'pos']=D[h+'pos']||'';o[w+'why']=D[h+'why']||'';}
+function isoToMDY(s){var m=String(s||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?(+m[2])+'/'+(+m[3])+'/'+m[1]:String(s||'');}
+function derive(){if(H&&H.role==='Existing staff'&&D.earliest){EMP.setDate(isoToMDY(D.earliest));}else EMP.setDate(null);var o=Object.assign({},D);if(H&&H.role==='Existing staff')o.earliest=isoToMDY(D.earliest);for(var i=0;i<3;i++){var h='h'+i+'_',w='w'+i+'_';o[w+'emp']=D[h+'biz']||'';o[w+'phone']=D[h+'phone']||'';o[w+'city']=D[h+'addr']||'';o[w+'sup']=D[h+'sup']||'';o[w+'from']=D[h+'from']||'';o[w+'to']=D[h+'to']||'';o[w+'pos']=D[h+'pos']||'';o[w+'why']=D[h+'why']||'';}
  o.name=((D.first||'')+' '+(D.last||'')).trim()||H.name;return o;}
 function jobBlock(i){var a='<div class="sect">'+(i===0?'Most recent job':'Job '+(i+1))+'</div><div class="two">'+inp('h'+i+'_biz','Employer')+inp('h'+i+'_phone','Phone')+'</div>'+inp('h'+i+'_addr','Address (city, state)')+'<div class="three">'+inp('h'+i+'_from','From (month/year)')+inp('h'+i+'_to','To')+inp('h'+i+'_pos','Position held')+'</div>'+inp('h'+i+'_sup','Supervisor')+inp('h'+i+'_why','Reason for leaving')+inp('h'+i+'_duty','Job duties');return a;}
 function drawPacket(){
- var nv=H.role==='New hire',t=['About you','Work history & references','Emergency contact','Read & sign'],h='<div class="card"><div class="note">Employee Packet · step '+(STEP+1)+' of '+NST+'</div><h2>'+t[STEP]+'</h2>';
+ var nv=(H.role==='New hire'||H.role==='Existing staff'),t=['About you','Work history & references','Emergency contact','Read & sign'],h='<div class="card"><div class="note">Employee Packet · step '+(STEP+1)+' of '+NST+'</div><h2>'+t[STEP]+'</h2>';
  if(STEP===0){h+='<div class="note">This fills in the official <b>Application for Employment</b>. Leave a box empty if it does not apply to you. <b>We never ask for your Social Security number here.</b> Your director adds it in person.</div>'
   +'<div class="three">'+inp('first','First name')+inp('mid','Middle')+inp('last','Last name')+'</div>'+inp('position','Position applying for','Teacher, assistant, intern…')
   +inp('street','Street address')+'<div class="three">'+inp('city','City')+inp('state','State')+inp('zip','ZIP')+'</div><div class="two">'+inp('cell','Cell phone','','tel')+inp('email','Email','','email')+'</div>'
   +yn('eligible','Legally eligible to work in the U.S.?')+yn('over18','18 or older?')
   +'<label>Available for</label>'+cb('avail_0','Full time')+cb('avail_1','Part time')+cb('avail_2','Substitute')+cb('avail_3','Summer only')
-  +'<div class="two">'+inp('earliest','Earliest start date')+inp('desired','Desired pay')+'</div>'+inp('heard','How did you hear about us?')
+  +'<div class="two">'+(H.role==='Existing staff'?inp('earliest','Hire date (the day you started)','','date'):inp('earliest','Earliest start date'))+inp('desired','Desired pay')+'</div>'+inp('heard','How did you hear about us?')
   +yn('appliedBefore','Applied here before?')+yn('currEmployed','Currently employed?')+yn('mayContact','May we contact your current employer?')
   +yn('canDuties','Can you perform the essential duties of the job (lifting up to 40 lbs., sitting on the floor, outdoor supervision), with or without reasonable accommodation?')
   +'<div class="sect">Child care credentials</div>'+cb('cred_0','DCF 40-hour introductory courses')+cb('cred_1','CDA / FCCPC')+cb('cred_2','Staff Credential')+cb('cred_3','VPK Director / instructor')+cb('cred_4','CPR / First Aid')+inp('otherTrain','Other training, certifications or languages spoken')
@@ -152,7 +162,7 @@ function drawPacket(){
  if(STEP===2){h+='<div class="note">This fills in the <b>Employee Emergency Contact Information</b> page. It is kept confidential in your staff file.</div>'+[0,1,2].map(function(i){return '<div class="sect">Emergency contact '+(i+1)+(i?' (optional)':'')+'</div><div class="two">'+inp('ec'+i+'n','Name')+inp('ec'+i+'r','Relationship')+'</div><div class="three">'+inp('ec'+i+'c','Cell')+inp('ec'+i+'h','Home')+inp('ec'+i+'w','Work')+'</div>'}).join('')
   +'<div class="sect">Health information (optional, shared only with management)</div>'+inp('allergies','Allergies')+inp('medical','Medical conditions staff should know about in an emergency')+inp('physician','Physician & phone');}
  if(STEP===3){var sp=EMP.signPages(H.role),n=sp.filter(function(p){return SIGS[p]}).length;
-  h+='<div class="note">These are the real pages of our Employee Packet, filled in with your answers. Tap each page to <b>read it</b> and sign with your finger or mouse. The date is added for you. Your director signs their own lines.</div>'
+  h+=(H.role==='Existing staff'?'<div class="hi" style="margin-bottom:8px">Tap <b>Read &amp; sign</b> on any one page and sign once. Your signature is placed on every page of your packet.</div>':'')+'<div class="note">These are the real pages of our Employee Packet, filled in with your answers. Tap each page to <b>read it</b> and sign with your finger or mouse. The date is added for you. Your director signs their own lines.</div>'
   +sp.map(function(p){var s=SIGS[p];return '<div class="signrow'+(s?' done':'')+'"><div class="t">'+(s?'✅ ':'')+esc(EMP.names[p])+'<small>Page '+p+' of the packet'+(s?' · signed':'')+'</small></div><button type="button" onclick="signOpen('+p+')">'+(s?'View':'Read &amp; sign')+'</button></div>'}).join('')
   +'<button class="go sec" type="button" onclick="signAll()">Use my signature on all the remaining pages</button><div class="note" style="margin-top:10px">Not on these pages (done in person with your director): notarized Good Moral Character affidavit, fingerprints, ID, I-9, W-4 and direct deposit.</div>'
   +'<button class="go" id="subBtn" onclick="submitPacket()">Send my signed packet to my director ('+n+' of '+sp.length+' signed)</button>';}
@@ -174,7 +184,7 @@ async function signOpen(p){
 }
 function sgClear(){var c=$('sgp');c.getContext('2d').clearRect(0,0,c.width,c.height);SG.drawn=false;}
 function signSave(){var nm=gv('sgn');if(nm.length<3||!SG.drawn){$('sgErr').textContent='Please type your name and sign in the box.';return;}
- var c=$('sgp'),t=document.createElement('canvas');t.width=c.width;t.height=c.height;t.getContext('2d').drawImage(c,0,0);SIGS[SGP]=t.toDataURL('image/png');H.signer=nm;$('mod').style.display='none';draw();}
+ var c=$('sgp'),t=document.createElement('canvas');t.width=c.width;t.height=c.height;t.getContext('2d').drawImage(c,0,0);SIGS[SGP]=t.toDataURL('image/png');H.signer=nm;if(H.role==='Existing staff'){EMP.signPages(H.role).forEach(function(p){SIGS[p]=SIGS[SGP];});}$('mod').style.display='none';draw();}
 function signAll(){var sp=EMP.signPages(H.role),f=SIGS[sp.filter(function(p){return SIGS[p]})[0]];if(!f){$('perr').textContent='Sign one page first, then use this button.';return;}
  if(!confirm('Use your signature on every page? Please make sure you have read them. You can still open any page to read it.'))return;sp.forEach(function(p){if(!SIGS[p])SIGS[p]=f;});draw();}
 async function submitPacket(){

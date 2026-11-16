@@ -329,7 +329,7 @@ $t = function($v, $n = 300){ return mb_substr(trim(strip_tags((string)$v)), 0, $
 if ($na === 'nh_start'){
 $nm = $t($input['name'] ?? '', 60); $rl = (string)($input['role'] ?? ''); $cell = $t($input['cell'] ?? '', 30); $em = $t($input['email'] ?? '', 80); $st = $t($input['start'] ?? '', 12);
 if (strlen($nm) < 4 || strpos($nm, ' ') === false) fail('Please type your first and last name.');
-if (!in_array($rl, ['New hire', 'Intern', 'Volunteer'], true)) fail('Pick New hire, Intern or Volunteer.');
+if (!in_array($rl, ['New hire', 'Intern', 'Volunteer', 'Existing staff'], true)) fail('Pick New hire, Intern, Volunteer or Existing staff.');
 if (strlen(preg_replace('/\D/', '', $cell)) < 7) fail('Please enter your cell phone.');
 if (strpos($em, '@') === false) fail('Please enter your email.');
 $id = 'nh'.date('ymdHis').substr(md5(uniqid('', true)), 0, 5); $tok = bin2hex(random_bytes(12));
@@ -666,7 +666,7 @@ $res = at_request('POST', ['Staff Roster'], null, ['fields'=>$rf0]);
 if (!isset($res['id'])) fail('Could not add them: '.($res['error']['message'] ?? 'the roster did not accept it').'.', 502);
 roster_cache_clear($school); $pd = pdir($school, 'staff', $res['id']); $pf2 = $nd.'/'.$id.'-packet.pdf'; if (is_file($nd.'/'.$id.'-final.pdf')) $pf2 = $nd.'/'.$id.'-final.pdf'; $filed = false;
 if (is_file($pf2) && $pd){ $fn2 = date('Ymd-His').'_new-hire-packet_'.$id.'.pdf'; if (@copy($pf2, $pd.'/'.$fn2)){ $mf = $pd.'/meta.json'; $meta = jread($mf, ['docs'=>[], 'files'=>[]]); if (!is_array($meta['files'])) $meta['files'] = [];
-$keys = ['app', 'priv', 'can', 'coc', 'emg', 'hns']; if (($h['role'] ?? '') === 'New hire') $keys[] = 'ref';
+$keys = ['app', 'priv', 'can', 'coc', 'emg', 'hns']; if (in_array(($h['role'] ?? ''), ['New hire', 'Existing staff'], true)) $keys[] = 'ref';
 foreach ($keys as $dk){ $meta['files'][] = ['doc'=>$dk, 'name'=>$fn2, 'at'=>gmdate('c'), 'size'=>filesize($pf2)]; } jwrite($mf, $meta); $filed = true; } }
 $h['status'] = 'added'; $h['staffRec'] = $res['id']; $h['addedAt'] = gmdate('c'); $h['hours'] = $hrs;
 $shortNm = trim(preg_replace('/[^A-Za-z\' -]/', '', (string)($input['short'] ?? ''))); $h['blName'] = ($shortNm !== '') ? $shortNm : $name;

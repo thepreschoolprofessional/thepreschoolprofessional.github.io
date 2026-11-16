@@ -9,8 +9,9 @@ var ALL=[2,3,4,5,9,14,15,19,20,21,22,23,24,25,26,27,28,29,30,31];
 var SKIP_VOL=[4,5,22,23,24,27,30,31];
 function pagesFor(role){return role==='New hire'?ALL.slice():ALL.filter(function(p){return SKIP_VOL.indexOf(p)<0;});}
 function signPages(role){return pagesFor(role).filter(function(p){return SPEC.some(function(f){return f.p===p&&f.k==='s';});});}
-function today(){var d=new Date();return (d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear();}
-function derived(D){var d=new Date(),M=['January','February','March','April','May','June','July','August','September','October','November','December'];
+var DOV=null;function nowD(){if(DOV){var p=DOV.split('/');if(p.length===3)return new Date(+p[2],+p[0]-1,+p[1]);}return new Date();}
+function today(){var d=nowD();return (d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear();}
+function derived(D){var d=nowD(),M=['January','February','March','April','May','June','July','August','September','October','November','December'];
  var o=Object.assign({},D);o.appDate=today();o.dm=(d.getMonth()+1)+'/'+d.getDate();o.dy=String(d.getFullYear()).slice(2);o.dateLong=M[d.getMonth()]+' '+d.getDate();o.dy4=String(d.getFullYear()).slice(2);
  var fn=(D.first||'').trim(),ln=(D.last||'').trim();o.name=((fn+' '+ln).trim())||D.name||'';o.otherEmp=D.otherEmp||'None';o.addrFull=[D.street,D.city,D.state,D.zip].filter(Boolean).join(', ');return o;}
 function test(D,t){var i=t.indexOf('=');if(i<0)return !!D[t];return String(D[t.slice(0,i)]||'')===t.slice(i+1);}
@@ -30,7 +31,7 @@ async function renderPage(p,D0,sigs,W){
  }
  return c;
 }
-window.EMP={names:NAMES,all:ALL,pagesFor:pagesFor,signPages:signPages,renderPage:renderPage,
+window.EMP={setDate:function(s){DOV=s||null;},names:NAMES,all:ALL,pagesFor:pagesFor,signPages:signPages,renderPage:renderPage,
  render:async function(D,sigs,role,W){var out=[],pg=pagesFor(role);for(var i=0;i<pg.length;i++)out.push(await renderPage(pg[i],D,sigs||{},W||1000));return out;},
  pdf:async function(cvs){var doc=await PDFLib.PDFDocument.create();for(var i=0;i<cvs.length;i++){var j=cvs[i].toDataURL('image/jpeg',.82).split(',')[1],bin=atob(j),u=new Uint8Array(bin.length);for(var k=0;k<bin.length;k++)u[k]=bin.charCodeAt(k);var im=await doc.embedJpg(u),pg=doc.addPage([612,792]);pg.drawImage(im,{x:0,y:0,width:612,height:792});}return await doc.save();}
 };
