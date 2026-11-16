@@ -291,14 +291,16 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
     </div>
     <div class="card" style="border-left-color:var(--teal)">
       <div class="sect">🌟 Start an enrollment or onboarding</div>
-      <form onsubmit="return sendOnb(event)">
-        <div class="frow"><label>Type</label><select id="oType"><option>👨‍👩‍👧 Parent / Child Enrollment</option><option>🍎 Teacher Onboarding</option></select></div>
-        <div class="frow"><label>Name (child or new teacher)</label><input type="text" id="oName" required></div>
-        <div class="frow"><label>Anything Charles should know?</label><textarea id="oNotes" placeholder="Start date, sibling info, etc."></textarea></div>
-        <button class="submit" style="background:linear-gradient(90deg,var(--teal),var(--green))">Kick it off 🚀</button>
-      </form>
+      <div style="font-size:.9rem;color:var(--soft);margin-bottom:10px">Send the link. They fill out and sign the real packet on their own screen, and it lands in the list below to wait for your approval.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+        <button class="mini" style="background:var(--teal)" onclick="onbCopy('enroll')">📋 Copy family Welcome link</button>
+        <a class="mini" style="text-decoration:none;background:var(--teal)" href="enroll.html">👨‍👩‍👧 Open New Enrollments</a>
+        <button class="mini" style="background:var(--green)" onclick="onbCopy('staff')">📋 Copy new-staff link</button>
+        <a class="mini" style="text-decoration:none;background:var(--green)" href="newhires.html">🍎 Open New Hires</a>
+      </div>
+      <div id="onbMsg" style="font-size:.85rem;color:var(--soft)"></div>
     </div>
-    <div class="sect">🌱 In progress</div><div id="onbList" class="empty">Loading…</div>
+    <div class="sect">⏳ Waiting for your approval</div><div id="onbList" class="empty">Loading…</div>
   </div>
 
   <div class="panel" id="p-mc">
@@ -668,15 +670,17 @@ async function loadTime(){ const d = await api({action:'list', table:'Staff Time
   box.innerHTML = (d.records||[]).map(r=>{const f=r.fields; return `<div class="taskchip"><div><b>${esc(f['Staff Member'])}</b> · ${esc(f.Date||'')}<br><span style="color:var(--soft);font-size:.8rem">${esc(f.Reason||'')}</span></div><span class="tstat ${sel(f.Status).includes('✅')?'s-done':'s-pend'}">${esc(sel(f.Status))}</span></div>`;}).join('') || '<div class="empty">No fixes pending 🎉</div>'; }
 
 // ---- ONBOARDING ----
-async function sendOnb(e){ e.preventDefault();
-  await api({action:'create', table:'Onboarding Tracker', fields:{
-    'Name': document.getElementById('oName').value, 'Type': document.getElementById('oType').value,
-    'Status':'🟡 In progress', 'Started': new Date().toISOString().slice(0,10),
-    'Current Step':'Step 1 — requested by director via The Hive', 'Notes': document.getElementById('oNotes').value}});
-  e.target.reset(); toast('Started! Charles + Mrs. Bear are on it 🚀'); loadOnb(); return false; }
-async function loadOnb(){ const d = await api({action:'list', table:'Onboarding Tracker', maxRecords:15});
-  const box = document.getElementById('onbList'); box.classList.remove('empty');
-  box.innerHTML = (d.records||[]).map(r=>{const f=r.fields; return `<div class="taskchip"><div><b>${esc(f.Name)}</b><br><span style="color:var(--soft);font-size:.8rem">${esc(sel(f.Type))} · ${esc(f['Current Step']||'')}</span></div><span class="tstat ${sel(f.Status).includes('✅')?'s-done':'s-pend'}">${esc(sel(f.Status))}</span></div>`;}).join('') || '<div class="empty">Nothing in progress</div>'; }
+var ONB_SCH='';
+async function onbFA(action){ var r=await fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:sessionStorage.getItem('hivePin'),action:action})}); var j=await r.json(); if(j.error) throw new Error(j.error); return j; }
+function onbLink(kind){ var k=(ONB_SCH==='Sanford')?'sanford':'deland'; return 'https://thepreschoolprofessional.net/hive/'+(kind==='enroll'?'welcome.html':'onboard.html')+'?school='+k; }
+async function onbCopy(kind){ var u=onbLink(kind); try{ await navigator.clipboard.writeText(u); toast('Link copied 📋'); }catch(e){ prompt('Copy this link:',u); } }
+async function loadOnb(){ var box=document.getElementById('onbList'); box.classList.remove('empty');
+  try{ var w=await onbFA('whoami'); ONB_SCH=w.school||''; var en=(await onbFA('en_list')).items||[]; var nh=(await onbFA('nh_list')).items||[];
+    en=en.filter(function(x){return x.status==='new';}); nh=nh.filter(function(x){return x.status!=='added'&&x.status!=='archived'&&x.status!=='declined';});
+    var rows=en.map(function(x){return '<a class="taskchip" style="text-decoration:none;color:inherit" href="enroll.html#'+encodeURIComponent(x.id)+'"><div><b>'+esc(x.name)+'</b> 👨‍👩‍👧 Family enrollment<br><span style="color:var(--soft);font-size:.8rem">Parent: '+esc(x.parent||'')+' · sent '+esc((x.at||'').slice(0,10))+'</span></div><span class="tstat s-pend">Waiting for approval</span></a>';})
+      .concat(nh.map(function(x){return '<a class="taskchip" style="text-decoration:none;color:inherit" href="newhires.html#'+encodeURIComponent(x.id)+'"><div><b>'+esc(x.name)+'</b> 🍎 '+esc(x.role||'New hire')+'<br><span style="color:var(--soft);font-size:.8rem">signed up '+esc((x.at||'').slice(0,10))+(x.packet?' · packet sent, needs your signature':' · no packet yet')+'</span></div><span class="tstat s-pend">'+(x.packet?'Waiting for approval':'In progress')+'</span></a>';}));
+    box.innerHTML=rows.length?rows.join(''):'<div class="empty">Nothing is waiting. When a family or new hire sends their packet it shows up here. 🌱</div>';
+  }catch(e){ box.innerHTML='<div class="empty">Could not load the list: '+esc(e.message)+'</div>'; } }
 
 // ---- MISSION CONTROL (Resource Links) ----
 

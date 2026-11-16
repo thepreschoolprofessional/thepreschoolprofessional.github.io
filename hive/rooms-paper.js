@@ -116,7 +116,7 @@ function render(o){
     h+='<tr><td class="c">'+(idx+1)+'</td><td class="nm">'+esc(c.name)+(c.visiting?' <span class="vis">('+esc(c.visiting)+')</span>':'')+'</td><td class="c">'+esc(fmtDob(c.dob))+'</td><td class="c">'+esc(ageStr(c.dob,o.date))+'</td>'
      +'<td class="c">'+esc(fmt12(a.Arrival))+'</td><td class="c">'+esc(fmt12(a.Departure))+'</td>'
      +cell(a.B)+'<td class="lp"><div><span class="tick">'+(a.L?'&#10003;':'&nbsp;')+'</span><span class="tick">'+(a.P?'&#10003;':'&nbsp;')+'</span></div></td>'
-     +'<td class="c sm">'+esc(fmt12(a.WC))+'</td><td class="c sm">'+(a.IR?'IR':'')+'</td><td class="c sm">'+(a.AR?'AR':'')+'</td>';
+     +'<td class="c sm">'+(a.WC?'X':'')+'</td><td class="c sm">'+(a.IR?'IR':'')+'</td><td class="c sm">'+(a.AR?'AR':'')+'</td>';
     tcols.forEach(function(i){
       var t=trans[i]; var wasOut=!!(t && t.kids && t.kids.indexOf(c.name)>-1);
       h+='<td class="c tick">'+(wasOut?'X':'')+'</td><td class="c tick">'+(wasOut&&t.in?'X':'')+'</td>';

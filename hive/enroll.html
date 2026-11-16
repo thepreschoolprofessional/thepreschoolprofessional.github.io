@@ -64,5 +64,5 @@ async function approve(id){const room=$('rm').value;if(!room){say('Pick a room f
 async function blRetry(id){try{const j=await api('en_bl',{id});say(j.bearline&&j.bearline.ok?'Added to the Bear Line tablet.':((j.bearline&&j.bearline.error)||'Could not add them.'),!(j.bearline&&j.bearline.ok));open_(id);}catch(x){say(x.message,1);}}
 async function decline(id){const n=prompt('Short note (optional):','');if(n===null)return;try{await api('en_decline',{id,note:n});list();}catch(e){say(e.message,1);}}
 async function stepDone(id,step,on){try{await api('en_done',{id,step,on});}catch(e){say(e.message,1);}}
-list();
+list().then(function(){var h=decodeURIComponent((location.hash||'').slice(1));if(h)open_(h);});
 </script></body></html>

@@ -210,7 +210,7 @@ function boardHTML(){
 }
 function roomHTML(){
   var r=roomObj(S.room); if(!r){ S.view='board'; return boardHTML(); }
-  var tabs=[['sheet','Sign In / Out'],['leave','Leave Room'],['staff','Staff & Ratio'],['paper','Paper Form'],['food','Food Count']];
+  var tabs=[['sheet','Sign In / Out'],['leave','Leave Room'],['staff','Staff & Ratio'],['paper','Paper Form']];
   var h='<div class="pad"><div class="rtop"><button class="btn sec sm" data-act="back">&lsaquo; Rooms</button><div class="rtt"><b>'+esc(r.name)+'</b><small>'+esc(r.teachers.join(', '))+'</small></div>'
    +(S.role==='director'?'<button class="btn sec sm" data-act="roster">Roster</button>':'<button class="btn sec sm" data-act="roster">Roster</button>')+'</div>';
   if(S.role!=='teacher' && S.rooms.length>1){
@@ -226,7 +226,6 @@ function roomHTML(){
   if(S.tab==='sheet') h+=sheetTab(r);
   else if(S.tab==='leave') h+=leaveTab(r);
   else if(S.tab==='staff') h+=staffTab(r);
-  else if(S.tab==='food') h+=foodTab(r);
   else h+=paperTab(r);
   h+='</div>';
   return h;
@@ -299,7 +298,8 @@ function staffTab(r){
 function paperTab(r){
   var list=roomKids(r.name), day=dayOf(r.name);
   var html=P.render({school:S.school, room:r.name, date:S.date, teachers:teachersFor(r.name), children:list, att:attMapFor(list), day:day, asOf: isToday()? nowHM(): null});
-  return '<div class="noprint"><button class="btn" data-act="print">Print / save as PDF</button> <span class="sub2">This is what DCF sees — same layout as the paper roster.</span></div><div class="pfwrap">'+html+'</div>';
+  var food=weekReady()? foodPages(r) : '<div class="card noprint">Loading the food count form&hellip;</div>';
+  return '<div class="noprint"><button class="btn" data-act="print">Print both forms</button> <button class="btn sec" data-act="printfood">Print food form only</button> <span class="sub2">Attendance roster first, then the Weekly Attendance &amp; Meal Count (food) form just below it. Same layouts as the DCF binder.</span></div><div class="pfwrap">'+html+'</div><div class="noprint" style="margin:14px 0 4px;font-weight:700">Food count form (this week)</div>'+food;
 }
 /* ---------- Food Count tab: the same Weekly Attendance & Meal Count form as the DCF Binder, built from this board's own sign-in and meal data ---------- */
 var FC_REPH={'DeLand 2':{name:'Kid City USA Deland 2 Inc (573)',phone:'(386) 279-7553',sponsor:'Child Care of Southwest Florida (U-2677)',sphone:'(239) 936-0899'},
@@ -327,7 +327,7 @@ function fcLoad(mon){
   var days=[0,1,2,3,4].map(function(i){ return fcAdd(mon,i); });
   Promise.all(days.map(function(d){ return api('list','Room Attendance',{date:d}).then(function(r){ var m={}; (r.records||[]).forEach(function(x){ var n=x.fields.Child; if(!n) return; var k=n.trim().toLowerCase(); if(!m[k] || x.createdTime<m[k].created) m[k]={created:x.createdTime, f:x.fields}; }); S.wk.rows[d]=m; }); }))
   .catch(function(e){ toast('Could not load the week: '+e.message, true); })
-  .then(function(){ if(S.wk) S.wk.loading=false; if(S.view==='room' && S.tab==='food') render(); });
+  .then(function(){ if(S.wk) S.wk.loading=false; if((S.view==='room' && S.tab==='paper') || S.view==='dcf') render(); });
 }
 function fcMark(d,name){
   var k=name.trim().toLowerCase(), f=null;
@@ -335,10 +335,14 @@ function fcMark(d,name){
   else { var m=(S.wk&&S.wk.rows[d])||{}; if(m[k]) f=m[k].f; }
   return f ? {att:!!f.Arrival, b:!!f.B, l:!!f.L, p:!!f.P} : null;
 }
-function foodTab(r){
+function printOnly(cls){ document.body.classList.add(cls); var done=function(){ document.body.classList.remove(cls); window.removeEventListener('afterprint',done); }; window.addEventListener('afterprint',done); setTimeout(function(){ window.print(); },50); }
+function weekReady(){
   var mon=fcMonday(S.date);
-  if(!S.wk || S.wk.mon!==mon || S.wk.school!==S.school){ fcLoad(mon); return '<div class="card">Loading the week&hellip;</div>'; }
-  if(S.wk.loading) return '<div class="card">Loading the week&hellip;</div>';
+  if(!S.wk || S.wk.mon!==mon || S.wk.school!==S.school){ fcLoad(mon); return false; }
+  return !S.wk.loading;
+}
+function foodPages(r,opt){
+  var mon=fcMonday(S.date);
   var days=[0,1,2,3,4].map(function(i){ return fcAdd(mon,i); });
   var kids=roomKids(r.name).map(function(c){ return {n:c.name, dob:c.dob}; }), seen={};
   kids.forEach(function(k){ seen[k.n.trim().toLowerCase()]=1; });
@@ -348,11 +352,8 @@ function foodTab(r){
   /* does today's board match the food count? */
   var today=S.date, noMeal=[], mealNoIn=[];
   kids.forEach(function(k){ var m=fcMark(today,k.n); if(!m) return; if(m.att && !m.b && !m.l && !m.p) noMeal.push(k.n); if(!m.att && (m.b||m.l||m.p)) mealNoIn.push(k.n); });
-  var h='<div class="noprint"><button class="btn" data-act="print">Print / save as PDF</button> <span class="sub2">Same Weekly Attendance &amp; Meal Count form as the DCF Binder, built from this room&rsquo;s sign-ins and meals. Print it landscape. If the food program ever needs backing up, this is the form.</span></div>';
-  h+='<div class="fcm noprint'+((noMeal.length||mealNoIn.length)?'':' ok')+'">'+(
-    (noMeal.length||mealNoIn.length)
-    ? '<b>Check '+esc(niceDate(today))+':</b>'+(noMeal.length?' signed in but no meals marked yet &mdash; '+esc(noMeal.join(', '))+'.':'')+(mealNoIn.length?' meals marked but not signed in &mdash; '+esc(mealNoIn.join(', '))+'.':'')+' Fix them on the Sign In / Out tab and this form updates.'
-    : '<b>'+esc(niceDate(today))+':</b> everyone signed in has their meals marked, and the food count matches the room.')+'</div>';
+  var h='';
+  var chk='<div class="fcm noprint'+((noMeal.length||mealNoIn.length)?'':' ok')+'">'+((noMeal.length||mealNoIn.length)?'<b>Check '+esc(niceDate(today))+':</b>'+(noMeal.length?' signed in but no meals marked yet &mdash; '+esc(noMeal.join(', '))+'.':'')+(mealNoIn.length?' meals marked but not signed in &mdash; '+esc(mealNoIn.join(', '))+'.':'')+' Fix them on the Sign In / Out tab and this form updates.':'<b>'+esc(niceDate(today))+':</b> everyone signed in has their meals marked, and the food count matches the room.')+'</div>';
   var n=Math.max(1,Math.ceil(kids.length/FC_ROWS)), H=FC_REPH[S.school]||FC_REPH['Sanford'], sat=fcAdd(mon,5), sun=fcAdd(mon,6);
   h+='<div class="fcw">';
   for(var p=0;p<n;p++){
@@ -372,16 +373,19 @@ function foodTab(r){
     h+='<tr class="tot"><td colspan="3" class="labr">Daily Totals:</td>'; days.forEach(function(d,i){ var t=tot[i], has=pk.length&&(t.a||t.b||t.l||t.p); [t.a,t.b,'',t.l,t.p,'',''].forEach(function(v,j){ h+='<td'+(j===0?' class="dg"':'')+'>'+(v===''?'':(has?v:''))+'</td>'; }); }); h+='</tr></table>';
     h+='<div class="ft">I certify that the information on this form is true and correct to the best of my knowledge and that I will claim reimbursement only for eligible meals served to eligible participants. The director signs and dates the official weekly copy in the DCF Binder.</div><div class="pg">Page '+(p+1)+' of '+n+'</div></div>';
   }
-  return h+'</div>';
+  return (opt&&opt.nocheck?'':chk)+h+'</div>';
 }
 function dcfHTML(){
-  var h='<div class="pad noprint"><button class="btn sec sm" data-act="back">&lsaquo; Rooms</button> <b>All rooms — '+esc(S.school)+' — '+esc(niceDate(S.date))+'</b> <button class="btn" data-act="print">Print all</button></div>';
+  var h='<div class="pad noprint"><button class="btn sec sm" data-act="back">&lsaquo; Rooms</button> <b>All rooms — '+esc(S.school)+' — '+esc(niceDate(S.date))+'</b> <button class="btn" data-act="printrosters">Print all rosters</button> <button class="btn" data-act="printallfood">Print all food forms</button></div>';
   h+='<div class="pfwrap">';
   S.rooms.forEach(function(r){
     var list=roomKids(r.name);
     h+=P.render({school:S.school, room:r.name, date:S.date, teachers:teachersFor(r.name), children:list, att:attMapFor(list), day:dayOf(r.name), asOf: isToday()? nowHM(): null});
   });
-  return h+'</div>';
+  h+='</div>';
+  h+='<div class="noprint" style="margin:14px 0 4px;font-weight:700">Food count forms (this week)</div>';
+  h+= weekReady()? S.rooms.map(function(r){ return foodPages(r,{nocheck:true}); }).join('') : '<div class="card noprint">Loading the food count forms&hellip;</div>';
+  return h;
 }
 function withdrawnHTML(){
   var wd=S.kids.filter(function(k){ return k.status==='Withdrawn'; }).sort(function(a,b){ return (b.wdDate||'').localeCompare(a.wdDate||''); });
@@ -479,6 +483,9 @@ var ACT = {
  gotodcf: function(){ S.view='dcf'; render(); window.scrollTo(0,0); },
  gotowd: function(){ if(S.role==='director'){ S.view='withdrawn'; render(); } else needDirector(function(){ S.view='withdrawn'; render(); }); },
  print: function(){ window.print(); },
+ printfood: function(){ printOnly('pr-food'); },
+ printrosters: function(){ printOnly('pr-roster'); },
+ printallfood: function(){ printOnly('pr-food'); },
  sel: function(el){ var n=keyOf(el); S.sel[n]=el.checked; render(); },
  selall: function(){ roomKids(S.room).forEach(function(c){ S.sel[c.name]=true; }); render(); },
  selpres: function(){ S.sel={}; presentIn(S.room).forEach(function(c){ S.sel[c.name]=true; }); render(); },
@@ -500,8 +507,8 @@ var ACT = {
    var all=pres.every(function(n){ return attOf(n)[m]; });
    if(m==='L' && !all){ var sa=pres.filter(function(n){ return isSchoolager(n) && !attOf(n).L; }); if(sa.length){ var rest=pres.filter(function(n){ return sa.indexOf(n)<0; }); if(rest.length) toggleMeal(rest, m, 'set'); askLunch(sa); return; } }
    toggleMeal(pres, m, all?'clear':'set'); toast((all?'Cleared ':'Marked ')+(m==='B'?'breakfast':m==='L'?'lunch':'PM snack')+' for '+pres.length+' children'); },
- wc: function(el){ var n=keyOf(el), a=attOf(n); var p={}; p[n]={WC: a.WC? '' : nowHM()}; patchAtt(p); },
- wcall: function(){ var pres=roomKids(S.room).filter(function(c){ return attOf(c.name).Arrival && !attOf(c.name).WC; }).map(function(c){return c.name;}); if(!pres.length){ toast('Wellness checks already done for everyone in.'); return; } var p={}; pres.forEach(function(n){ p[n]={WC:nowHM()}; }); patchAtt(p); toast('Wellness check marked for '+pres.length); },
+ wc: function(el){ var n=keyOf(el), a=attOf(n); var p={}; p[n]={WC: a.WC? '' : 'X'}; patchAtt(p); },
+ wcall: function(){ var pres=roomKids(S.room).filter(function(c){ return attOf(c.name).Arrival && !attOf(c.name).WC; }).map(function(c){return c.name;}); if(!pres.length){ toast('Wellness checks already done for everyone in.'); return; } var p={}; pres.forEach(function(n){ p[n]={WC:'X'}; }); patchAtt(p); toast('Wellness check marked for '+pres.length); },
  note: function(el){ var n=keyOf(el), t=el.getAttribute('data-t'), a=attOf(n);
    openModal('<h3>'+(t==='IR'?'Illness report':'Accident report')+' — '+esc(n)+'</h3><p class="sub2">'+(t==='IR'?'What symptoms did you see? Time noticed, temperature, who was told.':'What happened, where, what was done, and who was told. Tell the director right away and fill out the Accident/Incident report.')+'</p><textarea class="inp" id="nt" rows="5" autofocus>'+esc(a[t]||'')+'</textarea><div class="mrow"><button class="btn sec" data-act="mclose2">Cancel</button>'+(a[t]?'<button class="btn sec" data-act="notesave" data-t="'+t+'" data-k="'+encodeURIComponent(n)+'" data-clear="1">Remove report</button>':'')+'<button class="btn" data-act="notesave" data-t="'+t+'" data-k="'+encodeURIComponent(n)+'">Save</button></div>'); },
  notesave: function(el){ var n=keyOf(el), t=el.getAttribute('data-t'); var v=el.getAttribute('data-clear')?'':val('nt').trim(); var p={}; p[n]={}; p[n][t]=v; patchAtt(p); closeModal(); if(v && t==='AR') toast('Saved. Tell the director now.'); },
@@ -656,7 +663,7 @@ function boot(){
   } else render();
 }
 setInterval(function(){ if(S.view!=='login' && document.visibilityState==='visible' && !modalOpen() && S.pending===0 && isToday()) refresh(true); }, 20000);
-setInterval(function(){ if(S.view!=='login' && !modalOpen() && S.view!=='dcf' && S.tab!=='paper' && S.tab!=='food') render(); }, 60000);
+setInterval(function(){ if(S.view!=='login' && !modalOpen() && S.view!=='dcf' && S.tab!=='paper' && S.view!=='dcf') render(); }, 60000);
 document.addEventListener('visibilitychange', function(){ if(document.visibilityState==='visible' && S.view!=='login' && !modalOpen() && S.pending===0) refresh(true); });
 window.__rooms = {S:S, ACT:ACT, refresh:refresh, st:schoolTeachers, tf:teachersFor}; // for tests
 boot();

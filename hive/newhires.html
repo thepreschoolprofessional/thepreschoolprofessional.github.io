@@ -87,5 +87,5 @@ async function openPdf(fin){try{const j=await api('nh_pdf',{id:CUR,final:fin?1:0
 async function blPin(){try{const j=await api('nh_bl',{id:CUR,short:$('blShort').value});await open_(CUR);say(j.bearline&&j.bearline.ok?'✅ Bear Line PIN: '+j.bearline.pin:((j.bearline&&j.bearline.error)||'Could not make it'),!(j.bearline&&j.bearline.ok));}catch(e){say(e.message,true)}}
 async function addStaff(){if(!confirm('Add '+HIRE.name+' to the staff list and file their packet?'))return;try{const j=await api('nh_add',{id:CUR,role:$('addRole').value,hours:parseFloat($('addHrs').value)||0,short:$('addShort').value});await open_(CUR);say('✅ '+j.name+' was added to Staff Files'+(j.filed?' and their signed packet was filed.':'.')+(j.bearline&&j.bearline.ok?' Bear Line PIN: '+j.bearline.pin:' The Bear Line PIN did not get made: '+((j.bearline&&j.bearline.error)||'see below')));}catch(e){say(e.message,true)}}
 async function arch(undo){try{await api('nh_archive',{id:CUR,undo:undo?1:0});list();}catch(e){say(e.message,true)}}
-list();
+list().then(function(){var h=decodeURIComponent((location.hash||'').slice(1));if(h)open_(h);});
 </script></body></html>
