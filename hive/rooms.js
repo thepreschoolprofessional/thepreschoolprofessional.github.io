@@ -76,7 +76,8 @@ function roomKids(roomName){
   return out.sort(function(a,b){ return a.order-b.order; });
 }
 function movedOut(roomName){ return activeKids().filter(function(k){ return k.room===roomName && effRoom(k)!==roomName; }); }
-function attMapFor(list){ var m={}; list.forEach(function(c){ var a=attOf(c.name); m[c.name]={Arrival:a.Arrival||'',Departure:a.Departure||'',B:!!a.B,L:!!a.L,P:!!a.P,WC:a.WC||'',IR:a.IR||'',AR:a.AR||''}; }); return m; }
+function attMapFor(list){ var m={}; list.forEach(function(c){ var a=attOf(c.name); m[c.name]={Arrival:a.Arrival||'',Departure:a.Departure||'',B:!!a.B,L:!!a.L,P:!!a.P,WC:a.WC||'',IR:a.IR||'',AR:a.AR||'',SO:a['School Out']||'',SI:a['School In']||''}; }); return m; }
+function isSA(roomName){ return /school.?age|worker/i.test(roomName||''); }
 function dayOf(roomName){ return S.days[roomName] || {id:null, staff:{}, transitions:[], counts:[], mgmt:{}, notes:''}; }
 function isPresent(a){ return !!(a.Arrival && !a.Departure); }
 function presentIn(roomName){ return roomKids(roomName).filter(function(c){ return isPresent(attOf(c.name)); }); }
@@ -234,7 +235,7 @@ function sheetTab(r){
   var list=roomKids(r.name), h='';
   var nSel=Object.keys(S.sel).filter(function(k){return S.sel[k];}).length;
   var pres=presentIn(r.name).length;
-  h+='<div class="meal"><span class="lbl2">Whole room:</span><button class="btn sm" data-act="allin">Check all IN</button><button class="btn sm" data-act="meal" data-m="B">B all</button><button class="btn sm" data-act="meal" data-m="L">Lunch all</button><button class="btn sm" data-act="meal" data-m="P">PM Snack all</button><button class="btn sm" data-act="wcall">Wellness all</button></div>';
+  h+='<div class="meal"><span class="lbl2">Whole room:</span><button class="btn sm" data-act="allin">Check all IN</button><button class="btn sm" data-act="meal" data-m="B">B all</button><button class="btn sm" data-act="meal" data-m="L">Lunch all</button><button class="btn sm" data-act="meal" data-m="P">PM Snack all</button><button class="btn sm" data-act="wcall">Wellness all</button>'+(isSA(r.name)?'<button class="btn sm" data-act="soall">All to school</button><button class="btn sm" data-act="siall">All back from school</button>':'')+'</div>';
   h+='<div class="cnt">'+pres+' in room now &middot; '+list.length+' on this sheet</div>';
   h+='<div class="klist">';
   list.forEach(function(c){
@@ -242,10 +243,11 @@ function sheetTab(r){
     var age=P.ageStr(c.dob,S.date);
     h+='<div class="kr '+st+'"><label class="ck"><input type="checkbox" data-act="sel" data-k="'+k+'"'+(S.sel[c.name]?' checked':'')+'></label>'
      +'<div class="kn"><b>'+esc(c.name)+'</b> <small>'+esc(age?age+' yr':'')+(c.visiting?' &middot; '+esc(c.visiting):'')+'</small><div class="kt">'
-     +(a.Arrival?'In '+fmt(a.Arrival):'Not in')+(a.Departure?' &middot; Out '+fmt(a.Departure):'')+'</div></div>'
+     +(a.Arrival?'In '+fmt(a.Arrival):'Not in')+(a['School Out']?' &middot; To school '+fmt(a['School Out']):'')+(a['School In']?' &middot; Back '+fmt(a['School In']):'')+(a.Departure?' &middot; Out '+fmt(a.Departure):'')+'</div></div>'
      +'<button class="qb '+(st==='none'?'in':(st==='in'?'out':'back'))+'" data-act="quick" data-k="'+k+'">'+(st==='none'?'IN':(st==='in'?'OUT':'Back IN'))+'</button>'
      +'<div class="chips">'
      +chip('B',a.B,c.name,'B')+chip('L',a.L,c.name,'L')+chip('P',a.P,c.name,'P')
+     +(isSA(r.name)?'<button class="chip2'+(a['School Out']?' on':'')+'" data-act="so" data-k="'+k+'">To school</button><button class="chip2'+(a['School In']?' on':'')+'" data-act="si" data-k="'+k+'">Back</button>':'')
      +'<button class="chip2'+(a.WC?' on':'')+'" data-act="wc" data-k="'+k+'">WC</button>'
      +'<button class="chip2 flag'+(a.IR?' on':'')+'" data-act="note" data-t="IR" data-k="'+k+'">IR</button>'
      +'<button class="chip2 flag'+(a.AR?' on':'')+'" data-act="note" data-t="AR" data-k="'+k+'">AR</button></div></div>';
@@ -297,7 +299,7 @@ function staffTab(r){
 }
 function paperTab(r){
   var list=roomKids(r.name), day=dayOf(r.name);
-  var html=P.render({school:S.school, room:r.name, date:S.date, teachers:teachersFor(r.name), children:list, att:attMapFor(list), day:day, asOf: isToday()? nowHM(): null});
+  var html=P.render({schoolAge:isSA(r.name), school:S.school, room:r.name, date:S.date, teachers:teachersFor(r.name), children:list, att:attMapFor(list), day:day, asOf: isToday()? nowHM(): null});
   var food=weekReady()? foodPages(r) : '<div class="card noprint">Loading the food count form&hellip;</div>';
   return '<div class="noprint"><button class="btn" data-act="print">Print both forms</button> <button class="btn sec" data-act="printfood">Print food form only</button> <span class="sub2">Attendance roster first, then the Weekly Attendance &amp; Meal Count (food) form just below it. Same layouts as the DCF binder.</span></div><div class="pfwrap">'+html+'</div><div class="noprint" style="margin:14px 0 4px;font-weight:700">Food count form (this week)</div>'+food;
 }
@@ -380,7 +382,7 @@ function dcfHTML(){
   h+='<div class="pfwrap">';
   S.rooms.forEach(function(r){
     var list=roomKids(r.name);
-    h+=P.render({school:S.school, room:r.name, date:S.date, teachers:teachersFor(r.name), children:list, att:attMapFor(list), day:dayOf(r.name), asOf: isToday()? nowHM(): null});
+    h+=P.render({schoolAge:isSA(r.name), school:S.school, room:r.name, date:S.date, teachers:teachersFor(r.name), children:list, att:attMapFor(list), day:dayOf(r.name), asOf: isToday()? nowHM(): null});
   });
   h+='</div>';
   h+='<div class="noprint" style="margin:14px 0 4px;font-weight:700">Food count forms (this week)</div>';
@@ -507,6 +509,10 @@ var ACT = {
    var all=pres.every(function(n){ return attOf(n)[m]; });
    if(m==='L' && !all){ var sa=pres.filter(function(n){ return isSchoolager(n) && !attOf(n).L; }); if(sa.length){ var rest=pres.filter(function(n){ return sa.indexOf(n)<0; }); if(rest.length) toggleMeal(rest, m, 'set'); askLunch(sa); return; } }
    toggleMeal(pres, m, all?'clear':'set'); toast((all?'Cleared ':'Marked ')+(m==='B'?'breakfast':m==='L'?'lunch':'PM snack')+' for '+pres.length+' children'); },
+ so: function(el){ var n=keyOf(el), a=attOf(n); var p={}; p[n]={'School Out': a['School Out']? '' : nowHM()}; patchAtt(p); },
+ si: function(el){ var n=keyOf(el), a=attOf(n); var p={}; p[n]={'School In': a['School In']? '' : nowHM()}; patchAtt(p); },
+ soall: function(){ var p={}; roomKids(S.room).forEach(function(c){ var a=attOf(c.name); if(a.Arrival && !a.Departure && !a['School Out']) p[c.name]={'School Out':nowHM()}; }); if(!Object.keys(p).length){ toast('Nobody left to send to school.'); return; } patchAtt(p); toast('Marked '+Object.keys(p).length+' child(ren) to school.'); },
+ siall: function(){ var p={}; roomKids(S.room).forEach(function(c){ var a=attOf(c.name); if(a['School Out'] && !a['School In'] && !a.Departure) p[c.name]={'School In':nowHM()}; }); if(!Object.keys(p).length){ toast('Nobody to bring back.'); return; } patchAtt(p); toast('Marked '+Object.keys(p).length+' child(ren) back from school.'); },
  wc: function(el){ var n=keyOf(el), a=attOf(n); var p={}; p[n]={WC: a.WC? '' : 'X'}; patchAtt(p); },
  wcall: function(){ var pres=roomKids(S.room).filter(function(c){ return attOf(c.name).Arrival && !attOf(c.name).WC; }).map(function(c){return c.name;}); if(!pres.length){ toast('Wellness checks already done for everyone in.'); return; } var p={}; pres.forEach(function(n){ p[n]={WC:'X'}; }); patchAtt(p); toast('Wellness check marked for '+pres.length); },
  note: function(el){ var n=keyOf(el), t=el.getAttribute('data-t'), a=attOf(n);

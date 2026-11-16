@@ -30,7 +30,7 @@ $READ   = ['Rooms', 'Room Children', 'Room Attendance', 'Room Day'];
 $CREATE_STAFF = ['Room Attendance', 'Room Day'];
 $CREATE_DIR   = ['Room Children'];
 $UPDATE = [
- 'Room Attendance' => ['Current Room','Arrival','Departure','Arrival By','Departure By','B','L','P','WC','IR','AR','Director Flag','Director Answer','Lunch Note'],
+ 'Room Attendance' => ['Current Room','Arrival','Departure','Arrival By','Departure By','B','L','P','WC','IR','AR','School Out','School In','Director Flag','Director Answer','Lunch Note'],
  'Room Day'        => ['Staff','Transitions','Counts','Mgmt','Notes'],
  'Room Children'   => ['Child','Room','DOB','Status','Withdrawn Date','Withdrawn From Room','Withdraw Reason','ProCare Removed','KidKare Action','KidKare Intake']
 ];

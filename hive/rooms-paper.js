@@ -104,7 +104,7 @@ function render(o){
   // children table
   var rows=o.children.length; var pad=Math.max(0,15-rows);
   var tcols=[0,1,2];
-  h+='<table><tr><th rowspan="2" style="width:22px">#</th><th rowspan="2" style="width:15%">Child\'s Name</th><th rowspan="2">DOB</th><th rowspan="2">Age</th><th rowspan="2">Arrival</th><th rowspan="2">Departure</th><th rowspan="2" style="width:24px">B</th><th rowspan="2" style="width:56px">L / P</th><th rowspan="2" style="width:26px">WC</th><th rowspan="2" style="width:22px">IR</th><th rowspan="2" style="width:22px">AR</th>';
+  h+='<table><tr><th rowspan="2" style="width:22px">#</th><th rowspan="2" style="width:15%">Child\'s Name</th><th rowspan="2">DOB</th><th rowspan="2">Age</th>'+(o.schoolAge?'<th rowspan="2">Arrival</th><th rowspan="2">Left for<br>school</th><th rowspan="2">Back from<br>school</th><th rowspan="2">Departure</th>':'<th rowspan="2">Arrival</th><th rowspan="2">Departure</th>')+'<th rowspan="2" style="width:24px">B</th><th rowspan="2" style="width:56px">L / P</th><th rowspan="2" style="width:26px">WC</th><th rowspan="2" style="width:22px">IR</th><th rowspan="2" style="width:22px">AR</th>';
   tcols.forEach(function(i){ var t=trans[i]; h+='<th colspan="2">Transition #'+(i+1)+'<br><span class="vis">'+esc(t?t.dest:'')+'</span></th>'; });
   h+='</tr><tr>';
   tcols.forEach(function(i){ var t=trans[i]; h+='<th>OUT<br><span class="vis">'+esc(t?fmt12(t.out):'')+'</span></th><th>IN<br><span class="vis">'+esc(t&&t.in?fmt12(t.in):'')+'</span></th>'; });
@@ -114,7 +114,7 @@ function render(o){
     var cell=function(v){ return '<td class="c tick">'+(v?'&#10003;':'')+'</td>'; };
     var present=!!a.Arrival;
     h+='<tr><td class="c">'+(idx+1)+'</td><td class="nm">'+esc(c.name)+(c.visiting?' <span class="vis">('+esc(c.visiting)+')</span>':'')+'</td><td class="c">'+esc(fmtDob(c.dob))+'</td><td class="c">'+esc(ageStr(c.dob,o.date))+'</td>'
-     +'<td class="c">'+esc(fmt12(a.Arrival))+'</td><td class="c">'+esc(fmt12(a.Departure))+'</td>'
+     +(o.schoolAge?'<td class="c">'+esc(fmt12(a.Arrival))+'</td><td class="c">'+esc(fmt12(a.SO))+'</td><td class="c">'+esc(fmt12(a.SI))+'</td><td class="c">'+esc(fmt12(a.Departure))+'</td>':'<td class="c">'+esc(fmt12(a.Arrival))+'</td><td class="c">'+esc(fmt12(a.Departure))+'</td>')
      +cell(a.B)+'<td class="lp"><div><span class="tick">'+(a.L?'&#10003;':'&nbsp;')+'</span><span class="tick">'+(a.P?'&#10003;':'&nbsp;')+'</span></div></td>'
      +'<td class="c sm">'+(a.WC?'X':'')+'</td><td class="c sm">'+(a.IR?'IR':'')+'</td><td class="c sm">'+(a.AR?'AR':'')+'</td>';
     tcols.forEach(function(i){
@@ -124,12 +124,12 @@ function render(o){
     h+='</tr>';
   });
   for(var p=0;p<pad;p++){
-    h+='<tr><td class="c">'+(rows+p+1)+'</td><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td class="lp"><div><span>&nbsp;</span><span>&nbsp;</span></div></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+    h+='<tr><td class="c">'+(rows+p+1)+'</td><td>&nbsp;</td><td></td><td></td><td></td><td></td>'+(o.schoolAge?'<td></td><td></td>':'')+'<td></td><td class="lp"><div><span>&nbsp;</span><span>&nbsp;</span></div></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
   }
   // sweep rows
-  h+='<tr><td colspan="11" style="border:none"></td>';
+  h+='<tr><td colspan="'+(o.schoolAge?13:11)+'" style="border:none"></td>';
   tcols.forEach(function(i){ var t=trans[i]; h+='<td colspan="2" class="sm"><b>Sweep Count</b> '+(t?esc((t.outCount!=null?t.outCount:'')+(t.in?' / '+(t.inCount!=null?t.inCount:''):'')):'')+'</td>'; });
-  h+='</tr><tr><td colspan="11" style="border:none"></td>';
+  h+='</tr><tr><td colspan="'+(o.schoolAge?13:11)+'" style="border:none"></td>';
   tcols.forEach(function(i){ var t=trans[i]; h+='<td colspan="2" class="sm"><b>Initial</b> '+(t?esc((t.outBy||'')+(t.in&&t.inBy?' / '+t.inBy:'')):'')+'</td>'; });
   h+='</tr></table><div class="gap"></div>';
   // ratio grid
