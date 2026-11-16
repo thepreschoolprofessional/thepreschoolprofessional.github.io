@@ -213,6 +213,11 @@ function roomHTML(){
   var tabs=[['sheet','Sign In / Out'],['leave','Leave Room'],['staff','Staff & Ratio'],['paper','Paper Form']];
   var h='<div class="pad"><div class="rtop"><button class="btn sec sm" data-act="back">&lsaquo; Rooms</button><div class="rtt"><b>'+esc(r.name)+'</b><small>'+esc(r.teachers.join(', '))+'</small></div>'
    +(S.role==='director'?'<button class="btn sec sm" data-act="roster">Roster</button>':'<button class="btn sec sm" data-act="roster">Roster</button>')+'</div>';
+  if(S.role!=='teacher' && S.rooms.length>1){
+    h+='<div class="rswitch" style="display:flex;gap:8px;align-items:center;margin:8px 0"><button class="btn sm" data-act="prevroom">&lsaquo; Previous room</button>'
+     +'<select class="inp" data-act="pickroom" style="flex:1;min-width:0">'+S.rooms.map(function(x){ return '<option value="'+encodeURIComponent(x.name)+'"'+(x.name===r.name?' selected':'')+'>'+esc(x.name)+'</option>'; }).join('')+'</select>'
+     +'<button class="btn sm" data-act="nextroom">Next room &rsaquo;</button></div>';
+  }
   h+=noteHTML(r.name);
   h+='<div class="tabs">'+tabs.map(function(t){ return '<button class="tab'+(S.tab===t[0]?' on':'')+'" data-act="tab" data-t="'+t[0]+'">'+t[1]+'</button>'; }).join('')+'</div>';
   var day=dayOf(r.name), ot=openTrans(day);
@@ -354,9 +359,16 @@ function flagSave(id, fields, msg){
 function selNames(){ return Object.keys(S.sel).filter(function(k){ return S.sel[k]; }); }
 
 function signIn(names, time){
-  var p={}, redo=[];
-  names.forEach(function(n){ var a=attOf(n); if(a.Arrival && a.Departure) redo.push(n); p[n]={Arrival:time, Departure:''}; });
-  if(redo.length && !confirm(redo.join(', ')+' already signed out. Sign back in and clear the out time?')) return;
+  var p={}, redo=[], chg=[];
+  names.forEach(function(n){ var a=attOf(n);
+    if(a.Arrival && a.Departure){
+      if(time<a.Departure){ p[n]={Arrival:time}; }            // fixing the arrival time: keep the sign-out as it is
+      else { redo.push(n); p[n]={Departure:''}; }               // came back later: keep the FIRST arrival, just reopen the day
+    } else if(a.Arrival && a.Arrival!==time){ chg.push(n+' ('+fmt(a.Arrival)+')'); p[n]={Arrival:time}; }
+    else p[n]={Arrival:time, Departure:''};
+  });
+  if(redo.length && !confirm(redo.join(', ')+' already signed out. Sign back in now? Their first arrival time stays the same.')) return;
+  if(chg.length && !confirm(chg.join(', ')+' already signed in. Change the arrival time to '+fmt(time)+'?')) return;
   patchAtt(p);
 }
 function signOut(names, time){
@@ -386,6 +398,9 @@ var ACT = {
  dprev: function(){ var go=function(){ shiftDate(-1); S.sel={}; refresh(); }; if(S.role==='teacher') needDirector(go); else go(); }, dnext: function(){ var d=new Date(S.date+'T12:00:00'); d.setDate(d.getDate()+1); var nd=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); if(S.role==='teacher' && nd>todayISO()) return; var go=function(){ shiftDate(1); S.sel={}; refresh(); }; if(S.role==='teacher' && nd!==todayISO()) needDirector(go); else go(); }, dtoday: function(){ S.date=todayISO(); S.sel={}; refresh(); },
  openroom: function(el){ S.room=decodeURIComponent(el.getAttribute('data-r')); S.view='room'; S.tab='sheet'; S.sel={}; render(); window.scrollTo(0,0); },
  back: function(){ S.view='board'; S.sel={}; render(); },
+ prevroom: function(){ ACT.gotoroom(-1); }, nextroom: function(){ ACT.gotoroom(1); },
+ gotoroom: function(d){ var i=0; for(var k=0;k<S.rooms.length;k++) if(S.rooms[k].name===S.room) i=k; var n=S.rooms.length; S.room=S.rooms[(i+d+n)%n].name; S.sel={}; render(); window.scrollTo(0,0); },
+ pickroom: function(el){ var nm=decodeURIComponent(el.value); if(nm&&roomObj(nm)){ S.room=nm; S.sel={}; render(); window.scrollTo(0,0); } },
  tab: function(el){ S.tab=el.getAttribute('data-t'); render(); },
  gotodcf: function(){ S.view='dcf'; render(); window.scrollTo(0,0); },
  gotowd: function(){ if(S.role==='director'){ S.view='withdrawn'; render(); } else needDirector(function(){ S.view='withdrawn'; render(); }); },
@@ -552,11 +567,11 @@ function rosterModal(p){
 document.addEventListener('click', function(e){
   var el=e.target.closest('[data-act]'); if(!el) return;
   var act=el.getAttribute('data-act'); var fn=ACT[act]; if(!fn) return;
-  if(act==='sel'||act==='pick') return; // handled on change
+  if(act==='sel'||act==='pick'||act==='pickroom') return; // handled on change
   if(act==='mclose' && e.target!==el) return;
   fn(el);
 });
-document.addEventListener('change', function(e){ var el=e.target; if(el.getAttribute && el.getAttribute('data-act')==='sel') ACT.sel(el); else if(el.getAttribute && el.getAttribute('data-act')==='pick') ACT.pick(el); });
+document.addEventListener('change', function(e){ var el=e.target; if(el.getAttribute && el.getAttribute('data-act')==='sel') ACT.sel(el); else if(el.getAttribute && el.getAttribute('data-act')==='pick') ACT.pick(el); else if(el.getAttribute && el.getAttribute('data-act')==='pickroom') ACT.pickroom(el); });
 document.addEventListener('keydown', function(e){ if(e.key==='Enter'){ var t=e.target; if(t.id==='pin') ACT.login(); if(t.id==='dpin') ACT.dpinok(); } });
 
 /* ---------- boot / timers ---------- */
