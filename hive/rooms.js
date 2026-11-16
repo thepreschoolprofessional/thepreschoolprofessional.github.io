@@ -210,7 +210,7 @@ function boardHTML(){
 }
 function roomHTML(){
   var r=roomObj(S.room); if(!r){ S.view='board'; return boardHTML(); }
-  var tabs=[['sheet','Sign In / Out'],['leave','Leave Room'],['staff','Staff & Ratio'],['paper','Paper Form']];
+  var tabs=[['sheet','Sign In / Out'],['leave','Leave Room'],['staff','Staff & Ratio'],['paper','Paper Form'],['food','Food Count']];
   var h='<div class="pad"><div class="rtop"><button class="btn sec sm" data-act="back">&lsaquo; Rooms</button><div class="rtt"><b>'+esc(r.name)+'</b><small>'+esc(r.teachers.join(', '))+'</small></div>'
    +(S.role==='director'?'<button class="btn sec sm" data-act="roster">Roster</button>':'<button class="btn sec sm" data-act="roster">Roster</button>')+'</div>';
   if(S.role!=='teacher' && S.rooms.length>1){
@@ -226,6 +226,7 @@ function roomHTML(){
   if(S.tab==='sheet') h+=sheetTab(r);
   else if(S.tab==='leave') h+=leaveTab(r);
   else if(S.tab==='staff') h+=staffTab(r);
+  else if(S.tab==='food') h+=foodTab(r);
   else h+=paperTab(r);
   h+='</div>';
   return h;
@@ -299,6 +300,79 @@ function paperTab(r){
   var list=roomKids(r.name), day=dayOf(r.name);
   var html=P.render({school:S.school, room:r.name, date:S.date, teachers:teachersFor(r.name), children:list, att:attMapFor(list), day:day, asOf: isToday()? nowHM(): null});
   return '<div class="noprint"><button class="btn" data-act="print">Print / save as PDF</button> <span class="sub2">This is what DCF sees — same layout as the paper roster.</span></div><div class="pfwrap">'+html+'</div>';
+}
+/* ---------- Food Count tab: the same Weekly Attendance & Meal Count form as the DCF Binder, built from this board's own sign-in and meal data ---------- */
+var FC_REPH={'DeLand 2':{name:'Kid City USA Deland 2 Inc (573)',phone:'(386) 279-7553',sponsor:'Child Care of Southwest Florida (U-2677)',sphone:'(239) 936-0899'},
+ 'Sanford':{name:'Kid City USA Sanford',phone:'(407) 942-3242',sponsor:'Community Coordinated Child Care (4C)',sphone:'(407) 522-2252'}};
+var FC_ROWS=22, FC_DN=['MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY'];
+(function(){ var st=document.createElement('style'); st.textContent='.fcw{overflow-x:auto;background:#fff;border:1px solid #ccc;border-radius:10px;padding:8px;margin-top:8px}'
+ +'.fcp{position:relative;width:1060px;margin:0 auto 14px;font:11px Arial,Helvetica,sans-serif;color:#000;background:#fff;padding:6px 10px 4px 30px}'
+ +'.fcp .hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;min-height:50px}.fcp .hl{width:32%;font-size:10px}.fcp .hl b{font:700 17px Georgia,serif;display:block;margin-top:6px}.fcp .hl i{font:12px Georgia,serif;font-style:normal;display:block}'
+ +'.fcp .hc{width:36%;text-align:center}.fcp .hc b{font:700 19px Georgia,serif;text-decoration:underline}.fcp .hc div{font-size:14px;margin-top:2px}.fcp .hr{width:32%;text-align:right}.fcp .hr b{font:700 14px Georgia,serif}.fcp .hr i{font:12px Georgia,serif;font-style:normal;display:block}'
+ +'.fcp table{border-collapse:collapse;width:100%;table-layout:fixed;border:2px solid #000}.fcp td,.fcp th{border:1px solid #000;padding:0;text-align:center;font-weight:400;overflow:hidden;white-space:nowrap}.fcp .dg{border-left:2px solid #000}'
+ +'.fcp th.dayh{font:13px Georgia,serif;line-height:1.25;height:38px}.fcp th.dayh small{display:block;font-size:12px}.fcp .cl{text-align:left;font:13px Georgia,serif;padding:0 4px;height:38px;vertical-align:bottom}.fcp .sh th{font:11px Georgia,serif;height:19px}'
+ +'.fcp tr.kid td{height:19px;font-size:11px}.fcp td.nm{text-align:left;padding-left:3px;font:12px Georgia,serif}.fcp td.age{font-size:10px;text-align:left;padding-left:2px}.fcp td.x{font-weight:700;font-size:12px}.fcp td.dsh{font-size:10px}'
+ +'.fcp .lab{text-align:left;font:12px Georgia,serif;padding:0 4px}.fcp .labr{text-align:right;font:13px Georgia,serif;padding-right:8px}.fcp tr.tot td{height:24px;font-weight:700;font-size:11px}'
+ +'.fcp .ft{margin-top:6px;font:10.5px Georgia,serif;line-height:1.3}.fcp .pg{text-align:right;font:11px Arial}'
+ +'.fcm{background:#fff8e1;border:1px solid #ffd54f;border-radius:10px;padding:8px 10px;margin:8px 0;font-size:14px}.fcm.ok{background:#e8f5e9;border-color:#a5d6a7}.fcm b{font-weight:700}'
+ +'@media print{.fcw{border:0;padding:0;overflow:visible}.fcp{width:100%;page-break-after:always;break-after:page}.fcp:last-child{page-break-after:auto;break-after:auto}}';
+ document.head.appendChild(st); })();
+function fcMonday(ds){ var d=new Date(ds+'T12:00:00'), w=d.getDay(); d.setDate(d.getDate()-(w===0?6:w-1)); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function fcAdd(ds,n){ var d=new Date(ds+'T12:00:00'); d.setDate(d.getDate()+n); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function fcMD(ds,yy){ var p=ds.split('-'); return (+p[1])+'/'+(+p[2])+(yy?'/'+p[0].slice(2):''); }
+function fcFull(ds){ var p=ds.split('-'); return p[1]+'/'+p[2]+'/'+p[0]; }
+function fcAge(dob,asOf){ if(!dob) return ''; var a=dob.split('-'), b=asOf.split('-'); var m=(+b[0]-+a[0])*12+(+b[1]-+a[1]); if(+b[2]<+a[2]) m--; if(m<0) return ''; return Math.floor(m/12)+'y '+(m%12)+'m'; }
+function fcLoad(mon){
+  S.wk={mon:mon, rows:{}, loading:true, school:S.school};
+  var days=[0,1,2,3,4].map(function(i){ return fcAdd(mon,i); });
+  Promise.all(days.map(function(d){ return api('list','Room Attendance',{date:d}).then(function(r){ var m={}; (r.records||[]).forEach(function(x){ var n=x.fields.Child; if(!n) return; var k=n.trim().toLowerCase(); if(!m[k] || x.createdTime<m[k].created) m[k]={created:x.createdTime, f:x.fields}; }); S.wk.rows[d]=m; }); }))
+  .catch(function(e){ toast('Could not load the week: '+e.message, true); })
+  .then(function(){ if(S.wk) S.wk.loading=false; if(S.view==='room' && S.tab==='food') render(); });
+}
+function fcMark(d,name){
+  var k=name.trim().toLowerCase(), f=null;
+  if(d===S.date){ var a=S.attRows[name]; if(a) f=a.f; else { for(var n in S.attRows) if(n.trim().toLowerCase()===k){ f=S.attRows[n].f; break; } } }
+  else { var m=(S.wk&&S.wk.rows[d])||{}; if(m[k]) f=m[k].f; }
+  return f ? {att:!!f.Arrival, b:!!f.B, l:!!f.L, p:!!f.P} : null;
+}
+function foodTab(r){
+  var mon=fcMonday(S.date);
+  if(!S.wk || S.wk.mon!==mon || S.wk.school!==S.school){ fcLoad(mon); return '<div class="card">Loading the week&hellip;</div>'; }
+  if(S.wk.loading) return '<div class="card">Loading the week&hellip;</div>';
+  var days=[0,1,2,3,4].map(function(i){ return fcAdd(mon,i); });
+  var kids=roomKids(r.name).map(function(c){ return {n:c.name, dob:c.dob}; }), seen={};
+  kids.forEach(function(k){ seen[k.n.trim().toLowerCase()]=1; });
+  days.forEach(function(d){ var m=(d===S.date)?null:((S.wk.rows[d])||{}); var add=function(n,f){ var key=n.trim().toLowerCase(); if(seen[key]) return; if((f['Home Room']||f['Current Room'])!==r.name) return; seen[key]=1; kids.push({n:n,dob:''}); };
+    if(m) for(var k in m) add(m[k].f.Child, m[k].f); else for(var n in S.attRows) add(n, S.attRows[n].f); });
+  kids.sort(function(a,b){ return a.n.toLowerCase()<b.n.toLowerCase()?-1:1; });
+  /* does today's board match the food count? */
+  var today=S.date, noMeal=[], mealNoIn=[];
+  kids.forEach(function(k){ var m=fcMark(today,k.n); if(!m) return; if(m.att && !m.b && !m.l && !m.p) noMeal.push(k.n); if(!m.att && (m.b||m.l||m.p)) mealNoIn.push(k.n); });
+  var h='<div class="noprint"><button class="btn" data-act="print">Print / save as PDF</button> <span class="sub2">Same Weekly Attendance &amp; Meal Count form as the DCF Binder, built from this room&rsquo;s sign-ins and meals. Print it landscape. If the food program ever needs backing up, this is the form.</span></div>';
+  h+='<div class="fcm noprint'+((noMeal.length||mealNoIn.length)?'':' ok')+'">'+(
+    (noMeal.length||mealNoIn.length)
+    ? '<b>Check '+esc(niceDate(today))+':</b>'+(noMeal.length?' signed in but no meals marked yet &mdash; '+esc(noMeal.join(', '))+'.':'')+(mealNoIn.length?' meals marked but not signed in &mdash; '+esc(mealNoIn.join(', '))+'.':'')+' Fix them on the Sign In / Out tab and this form updates.'
+    : '<b>'+esc(niceDate(today))+':</b> everyone signed in has their meals marked, and the food count matches the room.')+'</div>';
+  var n=Math.max(1,Math.ceil(kids.length/FC_ROWS)), H=FC_REPH[S.school]||FC_REPH['Sanford'], sat=fcAdd(mon,5), sun=fcAdd(mon,6);
+  h+='<div class="fcw">';
+  for(var p=0;p<n;p++){
+    var pk=kids.slice(p*FC_ROWS,(p+1)*FC_ROWS);
+    h+='<div class="fcp"><div class="hd"><div class="hl"><b>'+esc(H.name)+'</b><i>'+esc(H.phone)+'</i></div><div class="hc"><b>Weekly Attendance &amp; Meal Count Report</b><div>Week Of: '+fcMD(mon,1)+'-'+fcMD(sat,1)+' (Mon '+fcMD(mon)+'-Sun '+fcMD(sun)+')</div></div><div class="hr"><b>Sponsor: '+esc(H.sponsor)+'</b><i>'+esc(H.sphone)+'</i></div></div>';
+    h+='<table><colgroup><col style="width:5%"><col style="width:4%"><col style="width:20%">'; for(var c=0;c<35;c++) h+='<col>'; h+='</colgroup>';
+    h+='<tr><th colspan="3" class="cl">CLASSROOM #: &nbsp; <span style="font:14px Georgia">'+esc(r.name)+'</span></th>'; days.forEach(function(d,i){ h+='<th colspan="7" class="dayh dg">'+fcFull(d)+'<small>'+FC_DN[i]+'</small></th>'; }); h+='</tr>';
+    h+='<tr class="sh"><th>AGE</th><th>NBR</th><th>CHILD NAME</th>'; days.forEach(function(){ ['Att','B','','L','P','',''].forEach(function(t,j){ h+='<th'+(j===0?' class="dg"':'')+'>'+t+'</th>'; }); }); h+='</tr>';
+    var tot=days.map(function(){ return {a:0,b:0,l:0,p:0}; });
+    for(var q=0;q<FC_ROWS;q++){
+      var k=pk[q]; h+='<tr class="kid"><td class="age">'+(k?esc(fcAge(k.dob,mon)):'')+'</td><td></td><td class="nm">'+(k?esc(String(k.n).toUpperCase()):'')+'</td>';
+      days.forEach(function(d,i){ var m=k?fcMark(d,k.n):null; if(m&&m.att) tot[i].a++; if(m&&m.b) tot[i].b++; if(m&&m.l) tot[i].l++; if(m&&m.p) tot[i].p++;
+        h+='<td class="x dg">'+(m&&m.att?'X':'')+'</td><td class="x">'+(m&&m.b?'X':'')+'</td><td class="dsh">-</td><td class="x">'+(m&&m.l?'X':'')+'</td><td class="x">'+(m&&m.p?'X':'')+'</td><td class="dsh">-</td><td class="dsh">-</td>'; });
+      h+='</tr>';
+    }
+    h+='<tr><td colspan="3" class="lab" style="height:24px;border-top:2px solid #000">* Special Diet</td>'; days.forEach(function(){ h+='<td colspan="7" class="dg" style="border-top:2px solid #000"></td>'; }); h+='</tr>';
+    h+='<tr class="tot"><td colspan="3" class="labr">Daily Totals:</td>'; days.forEach(function(d,i){ var t=tot[i], has=pk.length&&(t.a||t.b||t.l||t.p); [t.a,t.b,'',t.l,t.p,'',''].forEach(function(v,j){ h+='<td'+(j===0?' class="dg"':'')+'>'+(v===''?'':(has?v:''))+'</td>'; }); }); h+='</tr></table>';
+    h+='<div class="ft">I certify that the information on this form is true and correct to the best of my knowledge and that I will claim reimbursement only for eligible meals served to eligible participants. The director signs and dates the official weekly copy in the DCF Binder.</div><div class="pg">Page '+(p+1)+' of '+n+'</div></div>';
+  }
+  return h+'</div>';
 }
 function dcfHTML(){
   var h='<div class="pad noprint"><button class="btn sec sm" data-act="back">&lsaquo; Rooms</button> <b>All rooms — '+esc(S.school)+' — '+esc(niceDate(S.date))+'</b> <button class="btn" data-act="print">Print all</button></div>';
@@ -582,7 +656,7 @@ function boot(){
   } else render();
 }
 setInterval(function(){ if(S.view!=='login' && document.visibilityState==='visible' && !modalOpen() && S.pending===0 && isToday()) refresh(true); }, 20000);
-setInterval(function(){ if(S.view!=='login' && !modalOpen() && S.view!=='dcf' && S.tab!=='paper') render(); }, 60000);
+setInterval(function(){ if(S.view!=='login' && !modalOpen() && S.view!=='dcf' && S.tab!=='paper' && S.tab!=='food') render(); }, 60000);
 document.addEventListener('visibilitychange', function(){ if(document.visibilityState==='visible' && S.view!=='login' && !modalOpen() && S.pending===0) refresh(true); });
 window.__rooms = {S:S, ACT:ACT, refresh:refresh, st:schoolTeachers, tf:teachersFor}; // for tests
 boot();
