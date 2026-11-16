@@ -31,8 +31,8 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const sidOf=n=>String(n||'').trim().split(/\s+/)[0].toLowerCase().replace(/[^a-z]/g,'');
 let STAFF=[],ITEMS=[],MSGS=[],LANGS={},CUR='',BUSY=false,SCHOOL='';
-const KINDS=['Upload a document','Training','Cleaning chart','Sign something','Read / check','Time off','Announcement','Other'];
-const KIND_ES={'Upload a document':'Subir un documento','Training':'Capacitación','Cleaning chart':'Lista de limpieza','Sign something':'Firmar algo','Read / check':'Leer / revisar','Time off':'Tiempo libre','Announcement':'Aviso','Other':'Otro'};
+const KINDS=['Upload a document','Write your bio','Training','Cleaning chart','Sign something','Read / check','Time off','Announcement','Other'];
+const KIND_ES={'Upload a document':'Subir un documento','Write your bio':'Escribir su biograf\u00eda','Training':'Capacitación','Cleaning chart':'Lista de limpieza','Sign something':'Firmar algo','Read / check':'Leer / revisar','Time off':'Tiempo libre','Announcement':'Aviso','Other':'Otro'};
 /* ready-made messages with a Spanish version already written */
 const TPL=[
  ['Upload a document','Please upload your updated document to your staff file.','Por favor suba su documento actualizado a su expediente de personal.'],
@@ -75,6 +75,7 @@ function draw(){
  +'<label>Message (English)</label><textarea id="txt" class="fi" rows="2" maxlength="300" placeholder="What does she need to do?"></textarea>'
  +'<label>Spanish version (optional &mdash; shown when the screen is in Español)</label><textarea id="es" class="fi" rows="2" maxlength="300" placeholder="Versión en español"></textarea>'
  +'<div class="row"><a class="btn sec sm" href="#" onclick="gtr();return false">Translate the English with Google</a><span class="sub">opens in a new tab &mdash; paste the Spanish back here</span></div>'
+ +'<label>Send them straight to (no teacher PIN needed from the Bear Line)</label><select id="lpre" class="fi" onchange="if(this.value)document.getElementById(\'link\').value=this.value"><option value="">Pick a place, or paste any link below</option><option value="https://thepreschoolprofessional.net/hive/my-bio.html">My Bio (write your bio)</option><option value="https://thepreschoolprofessional.net/hive/teacher-training.html">My Training</option><option value="https://thepreschoolprofessional.net/hive/handbook-training.html">Employee Handbook Training</option><option value="https://thepreschoolprofessional.net/hive/teacher.html#facil">Facility Checklists</option><option value="https://thepreschoolprofessional.net/hive/sop.html">Schedules &amp; Requests</option><option value="https://thepreschoolprofessional.net/hive/staff-agenda.html">Monthly Staff Meeting Agenda</option><option value="https://thepreschoolprofessional.net/hive/teacher.html">Teacher Portal</option></select>'
  +'<label>Link (optional, https only &mdash; opens an &ldquo;Open&rdquo; button)</label><input id="link" class="fi" placeholder="https://…">'
  +'<div class="row" style="margin-top:10px"><button class="btn" onclick="send(false)">Send to '+esc((cs.name||'').split(' ')[0]||'her')+'</button><button class="btn sec" onclick="send(true)">Send to ALL staff</button></div><div id="msg" class="sub" style="margin-top:6px"></div></div>'
  +'<div class="card" style="border-left-color:var(--grn)"><b>Waiting for '+esc(cs.name||'')+' ('+open.length+')</b>'+(open.length?open.map(row).join(''):'<div class="sub">Nothing waiting.</div>')+(done.length?'<div style="margin-top:10px"><b>Done recently</b>'+done.map(row).join('')+'</div>':'')+'</div>'

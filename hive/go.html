@@ -1,0 +1,20 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Opening…</title>
+<style>body{font-family:Arial,sans-serif;background:#fff8f0;color:#4e342e;padding:30px;text-align:center}.b{display:inline-block;margin-top:14px;padding:12px 20px;border-radius:12px;background:#6a3fb5;color:#fff;text-decoration:none;font-weight:700}</style></head><body>
+<div id="m">Opening your page… 🐝</div>
+<script>
+(function(){
+var OK=['teacher.html','my-bio.html','teacher-training.html','handbook-training.html','sop.html','staff-agenda.html','closures.html','lessons.html','clean.html'];
+function bad(t){document.getElementById('m').innerHTML='<b>'+t+'</b><br><a class="b" href="index.html">Go to the Hive sign-in</a>';}
+try{
+ var h=new URLSearchParams((location.hash||'').replace(/^#/,'')), p=h.get('p')||'', to=h.get('to')||'teacher.html';
+ history.replaceState(null,'',location.pathname);
+ var m=to.match(/^([a-z0-9-]+\.html)([?#].*)?$/i);
+ if(!p||!m||OK.indexOf(m[1])<0){bad('This link is not valid. Go back to the Bear Line and tap it again.');return;}
+ fetch('go-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pass:p})}).then(function(r){return r.json();}).then(function(j){
+  if(!j||!j.ok){bad((j&&j.error)||'This link did not work. Go back to the Bear Line and tap it again.');return;}
+  try{sessionStorage.setItem('hivePin',j.pin);sessionStorage.setItem('hiveRole','teacher');sessionStorage.setItem('hiveSchool',j.school);sessionStorage.setItem('hiveMe',j.name||'');}catch(e){}
+  location.replace(m[1]+(m[2]||''));
+ }).catch(function(){bad('Could not reach the Hive. Check the Wi-Fi and tap it again.');});
+}catch(e){bad('This link did not work.');}
+})();
+</script></body></html>

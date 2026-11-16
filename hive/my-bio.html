@@ -28,12 +28,13 @@ async function boot(){bioStyle();
   else if(q.type==='h45')h+='<select id="q_'+q.k+'"><option value="">Choose…</option>'+q.opts.map(function(o){return '<option value="'+o[0]+'">'+esc(o[1])+'</option>';}).join('')+'</select>';});
  h+='</div><div class="card"><label class="q">Your photo</label><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div class="ph" id="phbox">🐝</div><div><label class="btn sec" style="margin:0">📷 Take a selfie<input type="file" accept="image/*" capture="user" style="display:none" onchange="pick(this)"></label> <label class="btn sec" style="margin:0">📎 Choose a photo<input type="file" accept="image/*" style="display:none" onchange="pick(this)"></label></div></div></div>'
  +'<div class="msg" id="msg"></div><button class="btn" onclick="preview()">✨ Write my bio</button><div id="pv"></div>';
- $('app').innerHTML=h;}
+ $('app').innerHTML=h;preWho();}
 function pick(inp){var f=inp.files&&inp.files[0];inp.value='';if(!f)return;var u=URL.createObjectURL(f),im=new Image();
  im.onload=function(){var S=420,m=Math.min(im.width,im.height),c=document.createElement('canvas');c.width=S;c.height=S;var x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,S,S);x.drawImage(im,(im.width-m)/2,(im.height-m)/2,m,m,0,0,S,S);URL.revokeObjectURL(u);
   PHOTO=c.toDataURL('image/jpeg',0.85).split(',')[1];$('phbox').textContent='';$('phbox').style.backgroundImage='url(data:image/jpeg;base64,'+PHOTO+')';};
  im.onerror=function(){say('That picture could not be read. Try another.',1);};im.src=u;}
 function answers(){var a={};BIOQ.forEach(function(q){a[q.k]=($('q_'+q.k).value||'').trim();if(q.k2)a[q.k2]=($('q_'+q.k2).value||'').trim();});return a;}
+function preWho(){try{var me=(sessionStorage.getItem('hiveMe')||'').trim().toLowerCase().split(/\s+/)[0];var sel=document.getElementById('who');if(!me||!sel||sel.value)return;var hit=[].filter.call(sel.options,function(o){return o.value&&o.text.trim().toLowerCase().split(/\s+/)[0]===me;});if(hit.length===1)sel.value=hit[0].value;}catch(e){}}
 function who(){var s=$('who'),id=s.value;if(!id)return null;return {id:id,name:s.options[s.selectedIndex].text};}
 function preview(){var w=who();if(!w){say('Pick your name first.',1);return;}var a=answers();if(!a.why){say('Please answer question 1.',1);return;}say('');
  var bio=bioWrite(a,w.name,'',SCHOOL);
