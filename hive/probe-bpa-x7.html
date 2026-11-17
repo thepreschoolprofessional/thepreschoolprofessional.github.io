@@ -1,6 +1,0 @@
-<!doctype html><meta charset="utf-8"><title>probe</title><body><pre id="o">running</pre><iframe id="f" src="https://bearphonicsacademy.com/teachers/twos.html#day" style="width:600px;height:300px"></iframe>
-<script>
-var o=document.getElementById('o');o.textContent='';
-function L(s){o.textContent+=s+'\n';}
-fetch('https://bearphonicsacademy.com/teachers/twos.html').then(function(r){L('status '+r.status);return r.text();}).then(function(t){L('len '+t.length);var m=t.match(/<script[^>]*src="[^"]*"/g)||[];L('srcs: '+m.join(' | '));var j=t.match(/[\w\/.-]+\.(json|js)\b/g)||[];L('refs: '+Array.from(new Set(j)).slice(0,80).join(' '));var i=t.indexOf('Tickle');L('inline Tickle at '+i);}).catch(function(e){L('fetch error '+e);});
-</script>
