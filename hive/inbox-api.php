@@ -18,6 +18,7 @@ define('BASE_ID', 'app2HNkUSJqx9IkYZ');
 define('PIN_TABLE', 'Portal Access');
 define('INBOX_TABLE', 'Parent Inbox');
 define('FORM_TABLE', 'Parent Messages');
+define('BC_TABLE', 'Bear Chat Answers'); /* Bear Chat new-answers queue, added 11/17/26 */
 define('PIN_CACHE', sys_get_temp_dir() . '/hive_pins_cache.json');
 define('PIN_CACHE_TTL', 300);
 header('Content-Type: application/json; charset=utf-8');
@@ -66,6 +67,15 @@ $url = 'https://api.airtable.com/v0/' . BASE_ID . '/' . rawurlencode($table) . '
 $opts = ['http' => ['method' => 'PATCH', 'header' => "Authorization: Bearer " . AIRTABLE_TOKEN . "\r\nContent-Type: application/json\r\n", 'content' => json_encode(['fields' => $fields]), 'ignore_errors' => true, 'timeout' => 20]];
 return json_decode(file_get_contents($url, false, stream_context_create($opts)), true);
 }
+function at_post($table, $fields){
+$url = 'https://api.airtable.com/v0/' . BASE_ID . '/' . rawurlencode($table);
+$opts = ['http' => ['method' => 'POST', 'header' => "Authorization: Bearer " . AIRTABLE_TOKEN . "\r\nContent-Type: application/json\r\n", 'content' => json_encode(['fields' => $fields, 'typecast' => true]), 'ignore_errors' => true, 'timeout' => 20]];
+return json_decode(file_get_contents($url, false, stream_context_create($opts)), true);
+}
+function bc_now(){ $d = new DateTime('now', new DateTimeZone('America/New_York')); return $d->format('n/j/Y g:ia'); }
+function bc_txt($s, $n){ $s = trim(preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/', '', (string)$s)); return mb_substr($s, 0, $n); }
+function bc_row($x){ $f = $x['fields']; return ['id' => $x['id'], 'q' => $f['Question'] ?? '', 'a' => $f['Answer'] ?? '', 'alt' => $f['Other Ways to Ask'] ?? '', 'school' => $f['School'] ?? '', 'status' => $f['Status'] ?? 'Waiting',
+'by' => $f['Added By'] ?? '', 'on' => $f['Added On'] ?? '', 'okBy' => $f['Approved By'] ?? '', 'okOn' => $f['Approved On'] ?? '', 'created' => $x['createdTime'] ?? '']; }
 if (AIRTABLE_TOKEN === 'PASTE_YOUR_AIRTABLE_TOKEN_HERE') fail('The Airtable token has not been added yet.', 503);
 $input = json_decode(file_get_contents('php://input'), true);
 if (!$input) fail('Bad request');
@@ -73,6 +83,17 @@ $pin = strtoupper(trim($input['pin'] ?? ''));
 $pins = get_pins();
 if (!$pin || !isset($pins[$pin])) fail("That PIN isn't right.", 401);
 $role = $pins[$pin];
+/* Bear Chat: families (and the owner's preview) read APPROVED answers only, for their own school plus Both. Question and answer text only. */
+if (($input['action'] ?? '') === 'bc_public'){
+$PS = ['parent-sanford' => 'Sanford', 'parent-deland' => 'DeLand 2'];
+if (isset($PS[$role])) $ps = $PS[$role];
+elseif (isset($ROLE_SCHOOL[$role])) $ps = $ROLE_SCHOOL[$role];
+elseif ($role === 'parent' && in_array($input['school'] ?? '', ['Sanford', 'DeLand 2'], true)) $ps = $input['school'];
+else fail('Not available.', 403);
+$out = [];
+foreach (at_all(BC_TABLE, "AND({Status}='Approved', OR({School}='".str_replace("'", "", $ps)."', {School}='Both'))") as $x){ $r = bc_row($x); if ($r['q'] !== '' && $r['a'] !== '') $out[] = ['id' => $r['id'], 'q' => $r['q'], 'a' => $r['a'], 'alt' => $r['alt']]; }
+echo json_encode(['school' => $ps, 'answers' => array_slice($out, 0, 500)]); exit;
+}
 if (!isset($ROLE_SCHOOL[$role])) fail('Parent messages are only available to directors and the owner.', 403);
 $school = $ROLE_SCHOOL[$role];
 $sc = str_replace("'", "", $school);
@@ -104,6 +125,39 @@ $undo = !empty($input['undo']);
 $f = $undo ? ['Status' => 'New', 'Answered By' => '', 'Answered On' => ''] : ['Status' => 'Answered', 'Answered By' => $role === 'director-sanford' ? 'Sanford director' : 'DeLand 2 director', 'Answered On' => date('n/j/Y g:ia')];
 $u = at_patch(INBOX_TABLE, $id, $f);
 if (empty($u['id'])) fail('Could not save. Try again.', 500);
+echo json_encode(['ok' => true]); exit;
+}
+/* Bear Chat new-answers queue (directors and the owner through a director door) */
+$who = !empty($input['owner']) ? 'Owner' : ($role === 'director-sanford' ? 'Sanford director' : 'DeLand 2 director');
+if ($action === 'bc_list'){
+$out = []; foreach (at_all(BC_TABLE, "OR({School}='$sc', {School}='Both')") as $x) $out[] = bc_row($x);
+usort($out, function($a, $b){ return strcmp($b['created'], $a['created']); });
+echo json_encode(['school' => $school, 'answers' => array_slice($out, 0, 500)]); exit;
+}
+if ($action === 'bc_add'){
+$q = bc_txt($input['question'] ?? '', 300); $a = bc_txt($input['answer'] ?? '', 2000); $alt = bc_txt($input['alt'] ?? '', 1500);
+if (mb_strlen($q) < 4) fail('Type the question a family would ask.');
+if (mb_strlen($a) < 4) fail('Type the answer Bear Chat should give.');
+$from = preg_match('/^rec[A-Za-z0-9]{14}$/', $input['from'] ?? '') ? $input['from'] : '';
+$f = ['Question' => $q, 'Answer' => $a, 'School' => !empty($input['both']) ? 'Both' : $school, 'Status' => 'Waiting', 'Added By' => $who, 'Added On' => bc_now()];
+if ($alt !== '') $f['Other Ways to Ask'] = $alt; if ($from !== '') $f['From Message'] = $from;
+$r = at_post(BC_TABLE, $f); if (empty($r['id'])) fail('Could not save. Try again.', 500);
+echo json_encode(['ok' => true, 'id' => $r['id']]); exit;
+}
+if ($action === 'bc_set'){
+$id = preg_replace('/[^A-Za-z0-9]/', '', $input['id'] ?? ''); if (!preg_match('/^rec[A-Za-z0-9]{14}$/', $id)) fail('Bad answer id');
+$r = at_rec(BC_TABLE, $id); $rs = $r['fields']['School'] ?? '';
+if (empty($r['fields']) || ($rs !== $school && $rs !== 'Both')) fail('That answer is not in your school.', 403);
+$f = [];
+if (isset($input['question'])){ $q = bc_txt($input['question'], 300); if (mb_strlen($q) < 4) fail('Type the question a family would ask.'); $f['Question'] = $q; }
+if (isset($input['answer'])){ $a = bc_txt($input['answer'], 2000); if (mb_strlen($a) < 4) fail('Type the answer Bear Chat should give.'); $f['Answer'] = $a; }
+if (isset($input['alt'])) $f['Other Ways to Ask'] = bc_txt($input['alt'], 1500);
+if (isset($input['both'])) $f['School'] = $input['both'] ? 'Both' : $school;
+if (isset($input['status'])){ $st = $input['status'];
+if (!in_array($st, ['Waiting', 'Approved', 'Not for Bear Chat'], true)) fail('Bad status');
+$f['Status'] = $st; if ($st === 'Approved'){ $f['Approved By'] = $who; $f['Approved On'] = bc_now(); } else { $f['Approved By'] = ''; $f['Approved On'] = ''; } }
+if (!$f) fail('Nothing to change');
+$u = at_patch(BC_TABLE, $id, $f); if (empty($u['id'])) fail('Could not save. Try again.', 500);
 echo json_encode(['ok' => true]); exit;
 }
 fail('Unknown action');

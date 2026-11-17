@@ -26,6 +26,12 @@ body{margin:0;background:linear-gradient(160deg,#fff7ef,#ffe7d4);color:var(--ink
 .body{white-space:pre-wrap;margin:8px 0;font-size:.95rem;word-break:break-word}
 .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
 .none{color:var(--soft);font-style:italic;padding:18px 4px}
+/* Bear Chat answers */
+.btn.bc{background:#8d5524}.bcf{background:#fff8ef;border:2px dashed #d7b48a;border-radius:12px;padding:10px;margin-top:8px;display:grid;gap:7px}
+.bcf label{display:grid;gap:3px;font-weight:800;font-size:.85rem}.bcf input[type=text],.bcf textarea{border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:.95rem;font-weight:400}
+.bcf textarea{min-height:64px}.bcf .ck{display:flex;gap:8px;align-items:center;font-weight:700}
+.tag.wait{background:#e0a800}.tag.ok{background:var(--grn)}.tag.no{background:var(--soft)}.tag.both{background:#6a1b9a}
+.bcq{font-weight:900;font-size:1rem}.bca{white-space:pre-wrap;margin:6px 0}
 @media print{.noprint{display:none!important}body{background:#fff}}
 </style><script src="bl-brand.js?v=20261113b" defer></script>
 </head>
@@ -34,7 +40,8 @@ body{margin:0;background:linear-gradient(160deg,#fff7ef,#ffe7d4);color:var(--ink
 const PIN=sessionStorage.getItem('hivePin');
 if(!PIN) location.href='index.html';
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-let D=null,TAB='new';
+let D=null,TAB=(new URLSearchParams(location.search).get('tab')==='bc')?'bc':'new',BC=null,BCOPEN=null;
+const OWNER=!!sessionStorage.getItem('hiveOwner');
 const OFFICE=()=>D.school==='Sanford'?'sanfordoffice.1320@gmail.com':'delandoffice.238@gmail.com';
 /* opens Gmail already set to THIS school's office inbox, so the reply goes out from the office address */
 const gm=(to,su)=>'https://mail.google.com/mail/?authuser='+encodeURIComponent(OFFICE())+'&view=cm&fs=1&to='+encodeURIComponent(to)+'&su='+encodeURIComponent(su);
@@ -48,7 +55,8 @@ function render(){
  let h='<div class="top"><div><h1>💬 Parent Messages</h1><div class="sub">'+esc(D.school)+' &middot; from your office email ('+esc(OFFICE())+'), ProCare and the Parent Portal</div></div>'
   +'<div class="noprint"><a class="btn sec" href="'+(sessionStorage.getItem('hiveOwner')?'owner.html':'director.html')+'">&lsaquo; Back to portal</a></div></div>'
   +'<div class="note">Every parent reply also sits in your office Gmail. <b>Reply</b> opens Gmail from the office address, already addressed to the parent, so it threads like normal email. Messages that came through ProCare have no email on file here: answer those in ProCare. Tap <b>Mark answered</b> when done.</div>'
-  +'<div class="tabs noprint"><button class="'+(TAB==='new'?'on':'')+'" onclick="TAB=\'new\';render()">Need an answer ('+nw.length+')</button><button class="'+(TAB==='done'?'on':'')+'" onclick="TAB=\'done\';render()">Answered ('+dn.length+')</button><button onclick="load()">Refresh</button></div>';
+  +'<div class="tabs noprint"><button class="'+(TAB==='new'?'on':'')+'" onclick="TAB=\'new\';render()">Need an answer ('+nw.length+')</button><button class="'+(TAB==='done'?'on':'')+'" onclick="TAB=\'done\';render()">Answered ('+dn.length+')</button><button class="'+(TAB==='bc'?'on':'')+'" onclick="TAB=\'bc\';render()">🐻 Bear Chat answers'+(BC?' ('+BC.filter(a=>a.status==='Waiting').length+' waiting)':'')+'</button><button onclick="load()">Refresh</button></div>';
+ if(TAB==='bc'){document.getElementById('app').innerHTML=h+bcView();return;}
  if(!list.length) h+='<div class="none">'+(TAB==='new'?'Nothing waiting. You are all caught up.':'No answered messages yet.')+'</div>';
  list.forEach(m=>{
   const abs=m.type==='Absence', who=esc(m.parent||'Parent')+(m.child?' &middot; '+esc(m.child):'');
@@ -56,11 +64,49 @@ function render(){
    +(m.subject?'<div class="sub">'+esc(m.subject)+'</div>':'')+'<div class="body">'+esc(m.message)+'</div><div class="acts noprint">'
    +(m.email?'<a class="btn rep sm" target="_blank" rel="noopener" href="'+gm(m.email,(/^re:/i.test(m.subject||'')?m.subject:'Re: '+(m.subject||'Your message to Kid City USA')))+'">Reply from office email</a>':'<span class="sub">No email on file'+(m.source==='ProCare'?' &mdash; answer in ProCare':'')+'</span>')
    +(m.kind==='inbox'?(m.status==='Answered'?'<button class="btn sec sm" onclick="ans(\''+m.id+'\',true)">Move back</button>':'<button class="btn ok sm" onclick="ans(\''+m.id+'\')">Mark answered</button>'):'')
-   +'</div>'+(m.status==='Answered'&&m.on?'<div class="sub">Answered '+esc(m.on)+'</div>':'')+'</div>';
+   +'<button class="btn bc sm" onclick="bcOpen(\''+m.id+'\')">🐻 Add to Bear Chat</button>'
+   +'</div>'+(BCOPEN===m.id?bcForm(m):'')+(m.status==='Answered'&&m.on?'<div class="sub">Answered '+esc(m.on)+'</div>':'')+'</div>';
  });
  document.getElementById('app').innerHTML=h;
 }
+/* ---------- Bear Chat new-answers queue ---------- */
+function bcQ(m){return String(m.message||'').replace(/^\[Bear Chat\][^\n]*\n/,'').trim().slice(0,300);}
+function bcOpen(id){BCOPEN=BCOPEN===id?null:id;render();}
+function bcForm(m,a){
+ a=a||{};const id=a.id||'';
+ return '<div class="bcf noprint" id="bcf_'+(id||m.id)+'"><div class="sub">Write it for every family, not just this one: no names, PINs, door codes or private details. It waits here until a director or the owner approves it.</div>'
+  +'<label>Question a family would ask<input type="text" maxlength="300" data-k="q" value="'+esc(a.q!=null?a.q:bcQ(m))+'"></label>'
+  +'<label>Bear Chat\'s answer<textarea maxlength="2000" data-k="a">'+esc(a.a||'')+'</textarea></label>'
+  +'<label>Other ways to ask (optional, one per line)<textarea maxlength="1500" data-k="alt">'+esc(a.alt||'')+'</textarea></label>'
+  +'<label class="ck"><input type="checkbox" data-k="both"'+(a.school==='Both'?' checked':'')+'> Use at both schools (same handbook)</label>'
+  +'<div class="acts"><button class="btn ok sm" onclick="bcSave(\''+(id||m.id)+'\','+(id?'true':'false')+')">'+(id?'Save changes':'Add to the Bear Chat queue')+'</button><button class="btn sec sm" onclick="BCOPEN=null;render()">Cancel</button></div></div>';
+}
+function bcVals(key){const b=document.getElementById('bcf_'+key),g=k=>b.querySelector('[data-k="'+k+'"]');return {question:g('q').value,answer:g('a').value,alt:g('alt').value,both:g('both').checked};}
+async function bcSave(key,edit){
+ const v=bcVals(key);
+ try{ if(edit) await api('bc_set',Object.assign({id:key,owner:OWNER},v)); else await api('bc_add',Object.assign({from:/^rec/.test(key)?key:'',owner:OWNER},v));
+  BCOPEN=null; await bcLoad(); if(!edit){TAB='bc';} render(); }catch(e){alert(e.message);} }
+async function bcSet(id,status){try{await api('bc_set',{id,status,owner:OWNER});await bcLoad();render();}catch(e){alert(e.message);}}
+async function bcLoad(){try{BC=(await api('bc_list')).answers;}catch(e){BC=BC||[];}}
+function bcView(){
+ if(!BC) return '<div class="none">Loading Bear Chat answers…</div>';
+ const order={'Waiting':0,'Approved':1,'Not for Bear Chat':2},L=BC.slice().sort((x,y)=>order[x.status]-order[y.status]);
+ let h='<div class="note">When you answer a parent, tap <b>🐻 Add to Bear Chat</b> on their message so the next family who asks gets the answer right away. New answers wait here. Once one is <b>approved</b>, Bear Chat uses it.</div>'
+  +'<div class="acts noprint" style="margin-bottom:6px"><button class="btn bc sm" onclick="bcOpen(\'new\')">➕ New Bear Chat answer</button></div>'+(BCOPEN==='new'?bcForm({id:'new',message:''}):'');
+ if(!L.length) h+='<div class="none">No Bear Chat answers yet.</div>';
+ L.forEach(a=>{
+  const tg=a.status==='Approved'?'<span class="tag ok">Approved</span>':a.status==='Waiting'?'<span class="tag wait">Waiting for approval</span>':'<span class="tag no">Not for Bear Chat</span>';
+  h+='<div class="msg'+(a.status==='Waiting'?'':' done')+'"><div class="mh"><span class="bcq">'+esc(a.q)+'</span><span>'+tg+(a.school==='Both'?'<span class="tag both">Both schools</span>':'')+'</span></div>'
+   +'<div class="bca">'+esc(a.a)+'</div>'+(a.alt?'<div class="sub">Also: '+esc(a.alt.replace(/\n+/g,' · '))+'</div>':'')
+   +'<div class="sub">Added '+esc(a.on)+(a.by?' by '+esc(a.by):'')+(a.okBy?' · approved '+esc(a.okOn)+' by '+esc(a.okBy):'')+'</div>'
+   +'<div class="acts noprint">'+(a.status!=='Approved'?'<button class="btn ok sm" onclick="bcSet(\''+a.id+'\',\'Approved\')">Approve</button>':'')
+   +(a.status!=='Not for Bear Chat'?'<button class="btn sec sm" onclick="bcSet(\''+a.id+'\',\'Not for Bear Chat\')">Not for Bear Chat</button>':'')
+   +(a.status!=='Waiting'?'<button class="btn sec sm" onclick="bcSet(\''+a.id+'\',\'Waiting\')">Move back to waiting</button>':'')
+   +'<button class="btn sec sm" onclick="bcOpen(\''+a.id+'\')">Edit</button></div>'+(BCOPEN===a.id?bcForm({},a):'')+'</div>';
+ });
+ return h;
+}
 async function ans(id,undo){try{await api('pi_answer',{id,undo:!!undo});await load();}catch(e){alert(e.message);}}
-async function load(){try{D=await api('pi_list');render();}catch(e){document.getElementById('app').innerHTML='<div class="note">'+esc(e.message)+'</div><a class="btn sec" href="index.html">Back to sign in</a>';}}
+async function load(){try{D=await api('pi_list');bcLoad().then(render);render();}catch(e){document.getElementById('app').innerHTML='<div class="note">'+esc(e.message)+'</div><a class="btn sec" href="index.html">Back to sign in</a>';}}
 load();
 </script></body></html>

@@ -24,7 +24,7 @@ function toks(s){
     .filter(function(w){ return w && !STOPSET[w]; }).map(stem);
 }
 var INDEX = [], DF = {}, NQ = 0;
-function build(){
+function build(){ DF = {};
   INDEX = D.QS.map(function(e){
     var set = {}, kset = {};
     e.q.forEach(function(q){ toks(q).forEach(function(t){ set[t]=1; }); });
@@ -255,7 +255,7 @@ function handoff(question, type){
     var fields = {Name:name, School:OPT.school, Type:'💬 General Feedback / Question', Email:/@/.test(contact)?contact:'', Phone:/@/.test(contact)?'':contact,
       Details:'[Bear Chat] '+type+'\n'+msg, Submitted:new Date().toISOString(), Status:'New'};
     if (OPT.mode !== 'live'){
-      f.outerHTML = '<div class="bc-preview-note"><b>Preview only. Nothing was sent.</b><br>When Bear Chat is live, this goes to the '+esc(OPT.school)+' director as a regular parent message (Director Portal, Parent Messages), marked [Bear Chat], with the family\'s name and contact. When the director answers, the question and answer can be added to Bear Chat for the next family who asks.</div>';
+      f.outerHTML = '<div class="bc-preview-note"><b>Preview only. Nothing was sent.</b><br>When Bear Chat is live, this goes to the '+esc(OPT.school)+' director as a regular parent message (Director Portal, Parent Replies), marked [Bear Chat], with the family\'s name and contact. The director answers the family as usual, then taps Add to Bear Chat so the next family who asks gets the answer once it is approved.</div>';
       return;
     }
     f.querySelector('button').disabled = true;
@@ -300,6 +300,17 @@ function setupVoice(){
   };
 }
 
+/* approved answers from the directors' Bear Chat queue (Airtable: Bear Chat Answers, Status Approved) */
+function loadNew(){
+  fetch('inbox-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:OPT.pin, action:'bc_public', school:OPT.school})})
+    .then(function(r){ return r.json(); }).then(function(j){
+      var L = (j && j.answers) || []; if (!L.length) return;
+      D.QS = D.QS.filter(function(e){ return !e.fromQueue; });
+      L.forEach(function(x){ var q = [String(x.q)].concat(String(x.alt||'').split(/\n+/).map(function(t){ return t.trim(); }).filter(Boolean)).slice(0, 12);
+        D.QS.push({id:'new-'+x.id, c:'New answers from your directors', q:q, k:'', a:String(x.a), fromQueue:true}); });
+      build(); renderBrowse();
+    }).catch(function(){});
+}
 function mount(el, opt){
   OPT = opt || {}; ROOT = el; build();
   try{ MISSED = JSON.parse(sessionStorage.getItem('bcMissed')||'[]'); }catch(e){ MISSED = []; }
@@ -309,7 +320,7 @@ function mount(el, opt){
     + '<div class="bc-voice-note">Voice uses your browser\'s free voice typing (Google in Chrome, Apple in Safari). Best for school questions, not private details.</div>'
     + '<div class="bc-browse"></div><div class="bc-missed"></div></div>';
   el.querySelector('.bc-bar').onsubmit = function(ev){ ev.preventDefault(); var i = el.querySelector('.bc-input'); ask(i.value); i.value=''; };
-  renderBrowse(); renderMissed(); setupVoice();
+  renderBrowse(); renderMissed(); setupVoice(); loadNew();
   var sc = D.schools[OPT.school] || {};
   say('bot', 'Hi! I\'m Bear Chat 🐻 for '+(sc.name||OPT.school)+'. Ask me about closures, hours, fees, what to bring, sick days, pick-up, the menu, lessons or events. If I don\'t know, I\'ll send your question to your director.',
     chips([{label:'Is the school open tomorrow?'},{label:'When is the next holiday?'},{label:"What's for lunch this week?"},{label:'What does my child need to bring?'}], function(it){ ask(it.label); }));
