@@ -247,12 +247,12 @@ function certBlock(c){
   const signed=!!t.signedAt;
   h+='<div class="cert'+(signed?'':' need')+'"><div class="t"><b>'+esc(t.title)+'</b><small>'+dur(t.hrs)+' · completed '+fmt(t.date)+'</small>'+(signed?'<small>Signed by '+esc(t.signer)+' on '+fmt(t.signedAt.slice(0,10))+'</small>':'')+'</div>'
    +(signed?'<img class="sigimg" src="'+t.sig+'" alt="signature"> <button class="btn sm sec" onclick="printCert(\''+t.cid+'\')">🖨 Print</button>'
-          :'<button class="btn sm red" onclick="signOpen(\''+t.cid+'\')">✍ Sign now</button> <button class="btn sm sec" onclick="printCert(\''+t.cid+'\')">Preview</button>')+'</div>';});
+          :'<button class="btn sm red" onclick="certSignOpen(\''+t.cid+'\')">✍ Sign now</button> <button class="btn sm sec" onclick="printCert(\''+t.cid+'\')">Preview</button>')+'</div>';});
  return h+'</div>';}
 let SGD=null;
-function signOpen(cid){
+function certSignOpen(cid){
  const m=$('mod');$('modbox').innerHTML='<h3 style="margin:0 0 6px">Sign this certificate</h3><div class="sub">Sign with your finger or mouse. After you save, nobody can change it.</div><canvas id="sg"></canvas>'
- +'<input class="fi" id="sn" placeholder="Print your name" maxlength="60"><div class="msg" id="sm"></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn grn" onclick="signSave(\''+cid+'\')">Save signature</button><button class="btn sec" onclick="padClear()">Clear</button><button class="btn sec" onclick="$(\'mod\').style.display=\'none\'">Cancel</button></div>';
+ +'<input class="fi" id="sn" placeholder="Print your name" maxlength="60"><div class="msg" id="sm"></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn grn" onclick="certSignSave(\''+cid+'\')">Save signature</button><button class="btn sec" onclick="padClear()">Clear</button><button class="btn sec" onclick="$(\'mod\').style.display=\'none\'">Cancel</button></div>';
  m.style.display='flex';try{$('sn').value=localStorage.getItem('hiveName')||'';}catch(e){}
  const cv=$('sg'),r=cv.getBoundingClientRect(),D=Math.max(1,window.devicePixelRatio||1);cv.width=r.width*D;cv.height=r.height*D;
  const x=cv.getContext('2d');x.scale(D,D);x.lineWidth=2.4;x.lineCap='round';x.strokeStyle='#0d1b6b';SGD={on:false,ink:false};
@@ -261,7 +261,7 @@ function signOpen(cid){
  cv.onpointermove=function(e){if(!SGD.on)return;const p=pt(e);x.lineTo(p[0],p[1]);x.stroke();SGD.ink=true;};
  cv.onpointerup=cv.onpointercancel=function(){SGD.on=false;};}
 function padClear(){const cv=$('sg'),x=cv.getContext('2d');x.save();x.setTransform(1,0,0,1,0,0);x.clearRect(0,0,cv.width,cv.height);x.restore();SGD.ink=false;}
-async function signSave(cid){
+async function certSignSave(cid){
  const nm=$('sn').value.trim();if(!SGD.ink){say('sm','Please sign in the box first.',1);return;}if(!nm){say('sm','Print your name too.',1);return;}
  try{localStorage.setItem('hiveName',nm);}catch(e){}
  const cv=$('sg'),o=document.createElement('canvas');o.width=500;o.height=Math.round(500*cv.height/cv.width);o.getContext('2d').drawImage(cv,0,0,o.width,o.height);
