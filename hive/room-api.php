@@ -26,6 +26,26 @@ $in = json_decode(file_get_contents('php://input'), true); if (!is_array($in)) f
 $sk = (string)($in['s'] ?? ''); $rk = (string)($in['r'] ?? '');
 if (!isset($SCHOOLS[$sk]) || !isset($ROOMS[$sk][$rk])) fail('This room page was not found.', 404);
 $school = $SCHOOLS[$sk]; list($label, $rooms) = $ROOMS[$sk][$rk];
+/* LOCATION LOCK (11/17/26): the page only shows after the phone proves it is at THIS school. The phone sends its location; we ask the school's Bear Line door check
+   (the same location the front sign-in tablet uses, key kept in the private Airtable table 'Door Keys', never sent to the page) and hand back a 20-minute pass. */
+$SECRET = hash('sha256', 'roomloc|'.$__t);
+function mkpass($sk){ global $SECRET; $e = time() + 1200; return $e.'.'.hash_hmac('sha256', $sk.'|'.$e, $SECRET); }
+function okpass($sk, $p){ global $SECRET; $x = explode('.', (string)$p); if (count($x) !== 2 || !ctype_digit($x[0]) || (int)$x[0] < time()) return false; return hash_equals(hash_hmac('sha256', $sk.'|'.$x[0], $SECRET), $x[1]); }
+if (($in['act'] ?? '') === 'loc'){
+  $bl = ($sk === 'deland') ? 'https://bearphonicsacademy.com/elc-1ce53ee46c/bearline-api.php' : 'https://bearphonicsacademy.com/elc-94f077be04/bearline-api.php';
+  $o = ['http'=>['method'=>'GET','header'=>"Authorization: Bearer $__t\r\n",'ignore_errors'=>true,'timeout'=>20]];
+  $kd = json_decode(@file_get_contents('https://api.airtable.com/v0/app2HNkUSJqx9IkYZ/'.rawurlencode('Door Keys').'?'.http_build_query(['maxRecords'=>10]), false, stream_context_create($o)) ?: '', true);
+  $key = '';
+  foreach (($kd['records'] ?? []) as $r){ if (strtolower(trim($r['fields']['School'] ?? '')) === $sk) $key = trim($r['fields']['Door Key'] ?? ''); }
+  if ($key === '') fail('not_set', 503);
+  if (!isset($in['lat']) || !isset($in['lng']) || $in['lat'] === null || $in['lng'] === null) fail('no_location', 400);
+  $ctx0 = stream_context_create(['http'=>['method'=>'POST','header'=>"Content-Type: application/json\r\n",'content'=>json_encode(['action'=>'door_check','key'=>$key,'lat'=>(float)$in['lat'],'lng'=>(float)$in['lng'],'acc'=>(float)($in['acc'] ?? 0)]),'timeout'=>20,'ignore_errors'=>true]]);
+  $dc = json_decode(@file_get_contents($bl, false, $ctx0) ?: '', true);
+  if (is_array($dc) && !empty($dc['ok'])){ echo json_encode(['ok'=>true,'pass'=>mkpass($sk)]); exit; }
+  $er = is_array($dc) ? (string)($dc['error'] ?? '') : '';
+  http_response_code(403); echo json_encode(['error'=>in_array($er, ['too_far','slow_down','no_location'], true) ? $er : 'check_failed']); exit;
+}
+if (!okpass($sk, $in['pass'] ?? '')) fail('need_location', 403);
 function at($path, $query){
   global $__t;
   $o = ['http'=>['method'=>'GET','header'=>"Authorization: Bearer $__t\r\n",'ignore_errors'=>true,'timeout'=>25]];

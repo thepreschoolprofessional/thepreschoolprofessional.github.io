@@ -82,9 +82,30 @@ var PICK=[['sanford','honeybees','Sanford: Honeybees (Toddler/Infant)'],['sanfor
 if(!S||!R){try{var sv=JSON.parse(localStorage.getItem('bearRoomPick')||'null');if(sv&&sv.s&&sv.r&&!q.get('pick')){S=sv.s;R=sv.r}}catch(e){}}
 if(!S||!R){document.getElementById('rn').textContent='Bear Classroom Pack';document.getElementById('sc').textContent='Kid City USA';document.getElementById('app').className='';document.getElementById('app').innerHTML='<div class="sec"><h2>Pick this tablet\'s classroom</h2><div class="sub">The tablet will remember it and open straight to this room each time.</div>'+PICK.filter(function(p){return !S||p[0]===S}).map(function(p){return'<div class="tile" style="margin-bottom:10px" onclick="try{localStorage.setItem(\'bearRoomPick\',JSON.stringify({s:\''+p[0]+'\',r:\''+p[1]+'\'}))}catch(e){}location.href=\'room.html?s='+p[0]+'&r='+p[1]+'\'">'+esc(p[2])+'</div>'}).join('')+'</div>'}else{
 try{if(q.get('app'))localStorage.setItem('bearRoomPick',JSON.stringify({s:S,r:R}))}catch(e){}
- fetch('room-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({s:S,r:R})}).then(function(r){return r.json()}).then(function(d){
-  if(d.error){document.getElementById('app').textContent=d.error;return}
+ var APP=document.getElementById('app');
+ function getPass(){try{var x=JSON.parse(localStorage.getItem('roomPass_'+S)||'null');if(x&&x.p&&x.e>Date.now())return x.p}catch(e){}return ''}
+ function post(o){o.s=S;o.r=R;return fetch('room-api.php',{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify(o)}).then(function(r){return r.json()})}
+ function msg(h){APP.className='';APP.innerHTML='<div class="sec" style="text-align:center;padding:26px 18px">'+h+'</div>'}
+ function again(){return "<p><button onclick='location.reload()' style='font:inherit;padding:12px 26px;border-radius:12px;border:0;background:#e8730c;color:#fff;font-weight:700'>Try again / Intentar de nuevo</button></p>"}
+ function locate(){
+  msg("<p style='font-size:20px'><b>Checking that you are at the school...</b><br>Verificando que está en la escuela...</p><p>Please tap <b>Allow</b> if your phone asks for your location.<br>Toque <b>Permitir</b> si su teléfono pide su ubicación.</p>");
+  var done=false;
+  function send(lat,lng,acc){post({act:'loc',lat:lat,lng:lng,acc:acc}).then(function(r){
+   if(r&&r.ok){try{localStorage.setItem('roomPass_'+S,JSON.stringify({p:r.pass,e:Date.now()+19*60000}))}catch(e){}load();}
+   else if(r&&r.error==='too_far')msg("<p style='font-size:20px'><b>These classroom pages can only be opened at the school.</b><br>Estas páginas solo se pueden abrir en la escuela.</p><p>Scan the poster in the classroom again when you are here.<br>Escanee el cartel en el salón cuando esté aquí.</p>"+again());
+   else if(r&&r.error==='slow_down')msg("<p>Too many tries. Please wait a few minutes.<br>Demasiados intentos. Espere unos minutos.</p>");
+   else if(r&&r.error==='no_location')msg("<p style='font-size:20px'><b>Location is needed.</b> Turn on location for your browser, then try again.<br>Se necesita su ubicación. Actívela y vuelva a intentar.</p>"+again());
+   else msg("<p>This page could not check the school location right now. Please tell the director.<br>No se pudo verificar la ubicación. Avise a la directora.</p>"+again());
+  }).catch(function(){msg("<p>Can't reach the server. Check your connection.</p>"+again())})}
+  if(!navigator.geolocation){send(null,null,0);return}
+  navigator.geolocation.getCurrentPosition(function(p){if(done)return;done=true;send(p.coords.latitude,p.coords.longitude,p.coords.accuracy||0)},function(){if(done)return;done=true;send(null,null,0)},{enableHighAccuracy:true,timeout:20000,maximumAge:0});
+ }
+ function load(){var pass=getPass();if(!pass){locate();return}
+  post({pass:pass}).then(function(d){
+  if(d.error==='need_location'){try{localStorage.removeItem('roomPass_'+S)}catch(e){}locate();return}
+  if(d.error){APP.textContent=d.error;return}
   D=d;document.getElementById('sc').textContent='Kid City USA '+d.school;document.body.className=(S==='deland')?'deland':'sanford';document.getElementById('rn').textContent=d.room;
   document.getElementById('dt').textContent=new Date(d.today+'T12:00:00').toLocaleDateString([], {weekday:'long',month:'long',day:'numeric',year:'numeric'});document.title=d.room+' - Posted Items';draw();
- }).catch(function(){document.getElementById('app').textContent='Could not load. Please try again.'})}
+ }).catch(function(){APP.textContent='Could not load. Please try again.'})}
+ load()}
 </script></body></html>
