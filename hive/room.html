@@ -33,15 +33,16 @@ h2{margin:0 0 4px;font-family:var(--f-display);font-size:21px;font-weight:600;co
 .tile .miss{color:var(--bad);font-weight:800;font-size:12px;display:block;margin-top:3px}.msg{padding:26px;text-align:center;color:var(--muted)}
 .foot{text-align:center;color:var(--muted);font-size:12px;padding:6px 16px 26px}.foot a{color:var(--muted)}
 @media print{.tiles,.chips{display:none}}
+.big{display:block;width:100%;font:inherit;font-weight:800;font-size:18px;border:0;border-radius:14px;padding:15px;background:var(--ok);color:#fff;margin:10px 0;cursor:pointer}.msg{padding:14px;text-align:center;color:var(--muted)}
 </style></head><body>
 <header><div class="brand"><img src="bp-logo.png" alt="Bear Phonics Academy" onerror="this.style.display='none'"><div><b>Bear Line</b><small>Classroom Pack</small></div></div><span class="pill sch" id="sc">Kid City USA</span><div class="dt" id="dt"></div></header><div class="stripe"></div>
 <main><h1 class="ttl" id="rn">Posted items</h1><div id="app" class="msg">Loading...</div></main>
 <div class="foot"><a href="room.html?pick=1" style="color:#667">Change classroom</a><br>Bear Line Classroom Pack &middot; Kid City USA &middot; these records update live as staff complete them. Showing the last 2 months.</div>
-<script src="sop-data.js?v=9"></script>
+<script src="sop-data.js?v=9"></script><script src="food-form.js?v=1"></script>
 <script>
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
-var q=new URLSearchParams(location.search),S=q.get('s')||'',R=q.get('r')||'',D=null,cur=(q.get('t')&&['signin','classroom','bathroom','indoor','schedule','forms','bios'].indexOf(q.get('t'))>=0)?q.get('t'):'signin',selDate={};
-var SEC={signin:['✅','Sign Children In / Out','Tap a child'],classroom:['🧹','Classroom Cleaning Chart','Every day, last 2 months'],bathroom:['🚽','Bathroom Cleaning Chart','Every day, last 2 months'],indoor:['🏠','Daily Indoor Inspection','Every day, last 2 months'],schedule:['🗓','Daily Schedule','Today\'s classroom routine'],forms:['🖨️','Official Forms','Pick dates and print'],bios:['👩‍🏫','Meet Our Teachers','Staff bios and photos']};
+var q=new URLSearchParams(location.search),S=q.get('s')||'',R=q.get('r')||'',D=null,cur=(q.get('t')&&['signin','classroom','bathroom','indoor','schedule','forms','bios','food','allergy'].indexOf(q.get('t'))>=0)?q.get('t'):'signin',selDate={};
+var SEC={signin:['✅','Sign Children In / Out','Tap a child'],classroom:['🧹','Classroom Cleaning Chart','Every day, last 2 months'],bathroom:['🚽','Bathroom Cleaning Chart','Every day, last 2 months'],indoor:['🏠','Daily Indoor Inspection','Every day, last 2 months'],schedule:['🗓','Daily Schedule','Today\'s classroom routine'],food:['🍎','Food Program Attendance','Weekly form, print'],allergy:['⚠️','Allergies','See and add'],forms:['🖨️','Official Forms','Pick dates and print'],bios:['👩‍🏫','Meet Our Teachers','Staff bios and photos']};
 function fd(s){var p=s.split('-');return (+p[1])+'/'+(+p[2])}
 function dow(s){return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(s+'T12:00:00').getDay()]}
 function days(){var o=[],t=new Date(D.today+'T12:00:00');for(var i=0;i<62;i++){var d=new Date(t-i*864e5);if(d.getDay()===0||d.getDay()===6)continue;o.push(d.toISOString().slice(0,10))}return o}
@@ -114,9 +115,14 @@ function makeForms(){
   try{FM.url=URL.createObjectURL(new Blob([r.bytes],{type:'application/pdf'}))}catch(e){}FM.msg=r.pages+' page'+(r.pages>1?'s':'')+' ready.';draw()}).catch(function(e){FM.busy=false;FM.msg=esc(e.message||'Could not make the forms. Please try again.');draw()})}
  if(window.RoomForms)go();else{s.src='room-forms.js?v=2';s.onload=go;s.onerror=function(){FM.busy=false;FM.msg='Could not load the form tools. Check your connection.';draw()};document.head.appendChild(s)}
 }
+function pk(o){o.s=S;o.p='classroom';o.pass=getPass();return fetch('pack-api.php',{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify(o)}).then(function(r){return r.json()})}
+function mountAllergy(){var el=document.getElementById('mnt');if(!el)return;AllergyUI.mount(el,{post:pk,room:R,roomLabel:D.room,dtok:null,src:'Classroom QR'})}
+function mountFood(){var el=document.getElementById('mnt');if(!el)return;el.innerHTML='<div class="sec"><div class="msg">Loading...</div></div>';
+ pk({act:'rooms'}).then(function(r){var l=(r.rooms||[]).filter(function(x){return x.slug===R}).map(function(x){return x.name});if(!l.length){el.innerHTML='<div class="sec"><div class="msg">'+esc(r.error||'Room not found.')+'</div></div>';return}
+  FoodForm.mount(el,{school:D.school,today:D.today,rooms:l,allowAll:l.length>1,post:pk})})}
 function draw(){
  var h='<div class="tiles">'+Object.keys(SEC).map(function(k){return'<div class="tile'+(k===cur?' on':'')+'" onclick="cur=\''+k+'\';draw()"><span class="e">'+SEC[k][0]+'</span>'+SEC[k][1]+'<small>'+SEC[k][2]+'</small>'+(missing(k)?'<span class="miss">NOT DONE TODAY</span>':'')+'</div>'}).join('')+'</div>';
- if(cur==='schedule'){h+=schedHtml()}else if(cur==='signin'){h+=signHtml()}else if(cur==='forms'){h+=formsHtml()}else if(cur==='bios'){
+ if(cur==='food'||cur==='allergy'){h+='<div id="mnt"></div>'}else if(cur==='schedule'){h+=schedHtml()}else if(cur==='signin'){h+=signHtml()}else if(cur==='forms'){h+=formsHtml()}else if(cur==='bios'){
   h+='<div class="sec"><h2>👩‍🏫 Meet Our Teachers</h2><div class="sub">Teachers at '+esc(D.school)+'</div>'+(D.bios.length?D.bios.map(function(b){return'<div class="bio">'+(b.photo?'<img src="data:image/jpeg;base64,'+b.photo+'">':'<div class="ph"></div>')+'<div><b>'+esc(b.name)+'</b><div class="r">'+esc(b.role)+'</div><p>'+esc(b.bio)+'</p></div></div>'}).join(''):'<div class="msg">Teacher bios are being added. Check back soon.</div>')+'</div>';
  }else{
   var L=D.charts[cur]||[],by={};L.forEach(function(c){(by[c.date]=by[c.date]||[]).push(c)});
@@ -130,6 +136,7 @@ function draw(){
   h+='</div>';
  }
  document.getElementById('app').className='';document.getElementById('app').innerHTML=h;
+ if(cur==='food')mountFood();if(cur==='allergy')mountAllergy();
 }
 var PICK=[['sanford','honeybees','Sanford: Honeybees (Toddler/Infant)'],['sanford','vpk','Sanford: VPK / Pre-School (Pollen-Jocks)'],['sanford','schoolagers','Sanford: Schoolagers (Worker Bees)'],['deland','honeybees','DeLand 2: Honey Bees (Toddlers, Front)'],['deland','honeycombs','DeLand 2: Honey Combs'],['deland','infant','DeLand 2: Infant / Toddler Room']];
 if(!S||!R){try{var sv=JSON.parse(localStorage.getItem('bearRoomPick')||'null');if(sv&&sv.s&&sv.r&&!q.get('pick')){S=sv.s;R=sv.r}}catch(e){}}
