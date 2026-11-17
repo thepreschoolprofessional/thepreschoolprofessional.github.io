@@ -8,6 +8,7 @@ function bad(t){document.getElementById('m').innerHTML='<b>'+t+'</b><br><a class
 try{
  var h=new URLSearchParams((location.hash||'').replace(/^#/,'')), p=h.get('p')||'', to=h.get('to')||'teacher.html';
  history.replaceState(null,'',location.pathname);
+ try{['hivePin','hiveRole','hiveSchool','hiveMe'].forEach(function(k){sessionStorage.removeItem(k);});localStorage.removeItem('hiveKeep_director');}catch(e){}
  var m=to.match(/^([a-z0-9-]+\.html)([?#].*)?$/i);
  if(!p||!m||OK.indexOf(m[1])<0){bad('This link is not valid. Go back to the Bear Line and tap it again.');return;}
  fetch('go-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pass:p})}).then(function(r){return r.json();}).then(function(j){

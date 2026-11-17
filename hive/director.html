@@ -871,7 +871,7 @@ async function sendTabNote(id){
 // ---- BOOT ----
 (async function(){
   const who = await api({action:'whoami'});
-  if(!who.school){ location.href='index.html'; return; }
+  if(!who.school || who.role!=='director'){ try{sessionStorage.clear();}catch(e){} location.href='index.html'; return; }
   SCHOOL = who.school;
   const b = document.getElementById('schoolBadge');
   b.textContent = '🏫 ' + SCHOOL;

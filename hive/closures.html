@@ -76,7 +76,7 @@ function render(key, locked, role){
   h += '<div class="flyer"><img src="'+s.file+'.png" alt="'+s.name+' closure calendar 2026-27"></div>';
   h += '<div class="dl"><a href="'+s.file+'.pdf" target="_blank" rel="noopener">&#128196; Open / print the PDF</a><a class="sec" href="'+s.file+'.png" download>&#11015; Save the picture</a><button id="prCal">&#128424; Print full page</button></div>';
   h += '<div class="note">'+s.name+' VPK follows the '+s.cal+' school calendar. Questions or Break Camp pricing? Contact your school&rsquo;s front office.</div>';
-  const parentView = (role==='parent') || /parent\.html/.test(document.referrer||'');
+  const parentView = (role!=='director');  // holiday flyers are for the director portal only (teachers and parents see the calendar only)
   if(!parentView){
   h += '<div class="hol"><h2>&#127881; Holiday closure flyers</h2><div class="hs">Tap Print under a flyer to print it full page, or tap the flyer to open it full size.</div><div class="grid">';
   const slug = s.name.toLowerCase();
