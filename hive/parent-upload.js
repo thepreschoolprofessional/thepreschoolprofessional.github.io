@@ -21,8 +21,8 @@
     m.innerHTML='<div style="background:#fff;border-radius:20px;max-width:480px;width:100%;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,.35);font-family:inherit;max-height:96vh;overflow:auto">'+
       '<div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0;color:#00838f">📤 Send a Document</h2><button id="dmX" style="border:0;background:#eee;border-radius:50%;width:36px;height:36px;font-size:18px;cursor:pointer" aria-label="Close">✕</button></div>'+
       '<div id="dmForm">'+
-      '<label style="'+lbl+'">Your name</label><input class="inp" id="dmParent" autocomplete="name">'+
-      '<label style="'+lbl+'">Your child\'s name</label><input class="inp" id="dmChild" placeholder="First and last name">'+
+      '<label style="'+lbl+'">Your name</label><input class="inp" id="dmParent" autocomplete="off">'+
+      '<label style="'+lbl+'">Your child\'s name</label><input class="inp" id="dmChild" autocomplete="off" placeholder="First and last name">'+
       '<label style="'+lbl+'">Which document is it?</label><select class="inp" id="dmDoc">'+opts+'</select>'+
       '<div id="dmOtherWrap" style="display:none"><label style="'+lbl+'">What is it called?</label><input class="inp" id="dmOther" placeholder="Example: doctor\'s note"></div>'+
       '<label style="'+lbl+'">Take a photo or choose a file</label><input type="file" id="dmFile" accept="image/*,application/pdf" style="width:100%;padding:10px;border:3px dashed #00838f;border-radius:14px;background:#f2fafb">'+
@@ -33,7 +33,7 @@
       '<button class="go g1" id="dmMore" style="border:0;cursor:pointer;width:100%;margin-top:10px">Send another page</button><button id="dmClose" style="border:0;background:#eee;border-radius:12px;padding:12px;width:100%;margin-top:8px;font-weight:800;cursor:pointer">Done</button></div></div>';
     document.body.appendChild(m);
     var $=function(i){return document.getElementById(i);};
-    try{var w=JSON.parse(localStorage.getItem('pl_who')||'{}'); if(w.parent)$('dmParent').value=w.parent; if(w.child)$('dmChild').value=w.child;}catch(e){}
+    try{var w=(window.PPA&&PPA.who)?PPA.who():null; if(w&&w.parent)$('dmParent').value=w.parent; if(w&&w.child)$('dmChild').value=w.child;}catch(e){}
     $('dmX').onclick=close; $('dmClose').onclick=close;
     m.addEventListener('click',function(e){if(e.target===m)close();});
     $('dmDoc').onchange=function(){$('dmOtherWrap').style.display=this.value==='other'?'block':'none';};
@@ -63,7 +63,6 @@
       var b64=await toB64(f);
       var r=await fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pin,action:'pp_doc_send',parent:parent,child:child,doc:doc,other:other,req:(REQ?REQ.id:''),b64:b64,name:f.name})});
       var j=await r.json(); if(j.error) throw new Error(j.error);
-      try{localStorage.setItem('pl_who',JSON.stringify(Object.assign(JSON.parse(localStorage.getItem('pl_who')||'{}'),{parent:parent,child:child})));}catch(e){}
       $('dmForm').style.display='none'; $('dmDone').style.display='block'; if(REQ&&window.PP_REQ_REFRESH) setTimeout(window.PP_REQ_REFRESH,300);
     }catch(e){err.textContent=e.message||'Something went wrong. Please try again.';}
     btn.disabled=false; btn.textContent='Send to the school';
