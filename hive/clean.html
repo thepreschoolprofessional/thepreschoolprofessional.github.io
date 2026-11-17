@@ -28,9 +28,14 @@ input.t{width:100%;border:2px solid #e5d9c8;border-radius:12px;padding:12px;font
 var esc=function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
 var pass=(location.hash.match(/p=([^&]+)/)||[])[1]||'';
 try{if(pass){sessionStorage.setItem('cleanPass',pass);history.replaceState(null,'',location.pathname);}else pass=sessionStorage.getItem('cleanPass')||'';}catch(e){}
+var DIR=null;try{var hm=location.hash.match(/r=([^&]+)&s=([a-z]+)&k=([a-z]+)&t=([a-z]+)/);if(hm){DIR={r:hm[1],s:hm[2],k:hm[3],t:hm[4]};sessionStorage.setItem('cleanDirect',JSON.stringify(DIR));history.replaceState(null,'',location.pathname);}else{DIR=JSON.parse(sessionStorage.getItem('cleanDirect')||'null');}}catch(e){}
+if(DIR&&hm){pass='';try{sessionStorage.removeItem('cleanPass')}catch(e){}}
+var CLASSMAP={deland:{honeybees:['Ones','Twos'],honeycombs:['Threes','Fours / VPK'],infant:['Infant Room']},sanford:{honeybees:['Ones'],vpk:['Fours / VPK'],schoolagers:['School Age']}};
+var FORMMAP={classroom:'\uD83E\uDDF9 Classroom Cleaning',bathroom:'\uD83D\uDEBD Bathroom Cleaning',indoor:'\uD83C\uDFE0 Indoor Inspection'};
+var BACK=DIR?('room.html?s='+DIR.s+'&r='+DIR.k+'&t='+DIR.t):'';
 var S={name:'',room:'',form:'',rooms:[],forms:[]},app=document.getElementById('app');
-function api(a,x){x=x||{};x.pass=pass;x.action=a;return fetch('clean-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(x)}).then(function(r){return r.json()});}
-function dead(m){document.getElementById('who').textContent='';app.innerHTML='<div class="msg err">'+esc(m||'This link is not valid. Go back to the Bear Line clock screen and tap the cleaning chart button again.')+'</div>';}
+function api(a,x){x=x||{};if(DIR){x.rpass=DIR.r;x.sk=DIR.s;}else x.pass=pass;x.action=a;return fetch('clean-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(x)}).then(function(r){return r.json()});}
+function dead(m){document.getElementById('who').textContent='';if(m==='need_location'){app.innerHTML='<div class="msg err">This page timed out. Please go back to the classroom page and tap the button again.</div>'+(BACK?'<a class="go" style="text-align:center;text-decoration:none" href="'+BACK+'">Back to the classroom page</a>':'');return;}app.innerHTML='<div class="msg err">'+esc(m||'This link is not valid. Go back to the Bear Line clock screen and tap the cleaning chart button again.')+'</div>';}
 function pickScreen(){
  var h='<div class="step">1. Your name</div><input class="t" id="nm" value="'+esc(S.name)+'">';
  h+='<div class="step">2. Which room or area?</div><div class="grid">'+S.rooms.map(function(r){return'<div class="pick'+(S.room===r?' sel':'')+'" data-room="'+esc(r)+'">'+esc(r)+'</div>';}).join('')+'</div>';
@@ -48,27 +53,32 @@ function chart(){
  api('items',{form:S.form}).then(function(j){
   if(j.error)return dead(j.error);
   if(!j.items.length){app.innerHTML='<div class="msg warn">No items on this chart yet.</div><button class="go" onclick="location.reload()">Back</button>';return;}
-  var h='<div class="step">'+esc(S.form)+' · '+esc(S.room)+'</div>';
+  var h='<div class="step">'+esc(S.form)+(DIR?'':' · '+esc(S.room))+'</div>';
+  if(DIR){var opts=(CLASSMAP[DIR.s]||{})[DIR.k]||[];h+='<div class="step" style="margin-top:4px">Your name</div><input class="t" id="nm2" value="'+esc(S.name)+'" placeholder="Type your name" autocomplete="off">';
+   if(opts.length>1){h+='<div class="step">Which room?</div><div class="grid">'+opts.map(function(r){return'<div class="pick'+(S.room===r?' sel':'')+'" data-r2="'+esc(r)+'">'+esc(r)+'</div>'}).join('')+'</div>';}}
   j.items.forEach(function(it){h+='<div class="row" data-ok="1" data-item="'+esc(it.item)+'"><b>'+esc(it.item)+'</b><div class="tg"><button type="button" class="ok on">✅ OK</button><button type="button" class="bad">⚠️ Needs attention</button></div><input class="note" placeholder="Note (optional)…"></div>';});
   h+='<button class="go" id="send">Submit ✅</button><button class="go" id="back" style="background:#9b8576">← Back</button>';
   app.innerHTML=h;
   app.querySelectorAll('.row').forEach(function(r){var o=r.querySelector('.ok'),b=r.querySelector('.bad');o.onclick=function(){r.setAttribute('data-ok','1');o.classList.add('on');b.classList.remove('on');};b.onclick=function(){r.setAttribute('data-ok','0');b.classList.add('on');o.classList.remove('on');};});
-  document.getElementById('back').onclick=pickScreen;
+  if(DIR){app.querySelectorAll('[data-r2]').forEach(function(e){e.onclick=function(){S.room=e.getAttribute('data-r2');app.querySelectorAll('[data-r2]').forEach(function(z){z.classList.toggle('sel',z===e)});};});}
+  document.getElementById('back').onclick=DIR?function(){location.href=BACK}:pickScreen;
   document.getElementById('send').onclick=function(){
+   if(DIR){var n2=document.getElementById('nm2').value.trim();if(!n2){alert('Please type your name first.');return}if(!S.room){alert('Please pick the room.');return}S.name=n2;try{localStorage.setItem('bearRoomBy',n2)}catch(e){}}
    var btn=this;btn.disabled=true;btn.textContent='Saving…';
    var rows=[].map.call(app.querySelectorAll('.row'),function(r){return{item:r.getAttribute('data-item'),ok:r.getAttribute('data-ok')!=='0',note:r.querySelector('.note').value};});
    api('submit',{form:S.form,room:S.room,name:S.name,rows:rows}).then(function(x){
-    if(x.ok){app.innerHTML='<div class="msg ok">✅ Submitted! Your director will get it. 💛</div><button class="go" id="more">Do another chart</button><button class="go" id="done" style="background:#9b8576">I\'m done — back to Bear Line</button><div id="hist"></div>';S.form='';
-     document.getElementById('more').onclick=pickScreen;document.getElementById('done').onclick=function(){try{window.close();}catch(e){}history.length>1?history.back():(location.href='https://bearphonicsacademy.com/');};hist();}
+    if(x.ok){app.innerHTML='<div class="msg ok">✅ Submitted! Your director will get it. 💛</div>'+(DIR?'':'<button class="go" id="more">Do another chart</button>')+'<button class="go" id="done" style="background:#9b8576">'+(DIR?'Back to the classroom page':'I\'m done — back to Bear Line')+'</button><div id="hist"></div>';S.form='';
+     if(!DIR)document.getElementById('more').onclick=pickScreen;document.getElementById('done').onclick=function(){if(DIR){location.href=BACK;return}try{window.close();}catch(e){}history.length>1?history.back():(location.href='https://bearphonicsacademy.com/');};hist();}
     else{btn.disabled=false;btn.textContent='Submit ✅';alert(x.error||'Did not save — try again.');}
    }).catch(function(){btn.disabled=false;btn.textContent='Submit ✅';alert('No connection — try again.');});
   };
  });
 }
-if(!pass)return dead();
+if(!pass&&!DIR)return dead();
 api('whoami').then(function(j){
  if(j.error||!j.ok)return dead(j.error);
  S.name=j.name||'';S.rooms=j.rooms;S.forms=j.forms;
+ if(DIR){try{S.name=localStorage.getItem('bearRoomBy')||''}catch(e){}S.form=FORMMAP[DIR.t]||'';var op=(CLASSMAP[DIR.s]||{})[DIR.k]||[];S.room=op.length===1?op[0]:'';document.getElementById('who').textContent=j.school+' · '+S.form.replace(/^\S+ /,'');if(!S.form)return dead('This link is not valid.');chart();return;}
  document.getElementById('who').textContent=j.school+' · cleaning charts only';
  pickScreen();
 }).catch(function(){dead('No connection — try again.');});

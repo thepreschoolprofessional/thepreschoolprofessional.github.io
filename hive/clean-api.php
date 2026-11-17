@@ -1,7 +1,7 @@
 <?php
 /* THE HIVE — Cleaning chart pass API (11/13/26). NO staff PIN: a 30-minute pass minted by Bear Line (signed, school-locked) opens ONLY the cleaning/inspection forms.
 Can do exactly three things: list checklist items for one allowed form, save a Facility Submission for the pass's own school, list today's submissions for that school.
-Nothing else in the Hive is reachable from here. Incident reports are NOT included (those stay behind the teacher PIN). */
+Nothing else in the Hive is reachable from here. A classroom-page location pass (rpass) also works for the same forms. Incident reports are NOT included (those stay behind the teacher PIN). */
 $__t = '';
 foreach ([dirname(__DIR__, 2).'/hive-token.php', dirname(__DIR__).'/hive-token.php', __DIR__.'/hive-token.php'] as $__f){
   if (file_exists($__f)){ include $__f; if (defined('HIVE_TOKEN')){ $__t = HIVE_TOKEN; break; } }
@@ -20,6 +20,16 @@ $ROOMS = ['Infant Room','Ones','Twos','Threes','Fours / VPK','School Age','Kitch
 $FORMS = ['🚽 Bathroom Cleaning','🧹 Classroom Cleaning','🏠 Indoor Inspection','🛝 Outdoor / Playground Inspection','🧼 Sanitation & Safety','🌙 End of Day Building Sweep'];
 $in = json_decode(file_get_contents('php://input'), true); if (!is_array($in)) fail('Bad request');
 $pass = (string)($in['pass'] ?? ''); $action = (string)($in['action'] ?? '');
+$rpass = (string)($in['rpass'] ?? ''); $rsk = (string)($in['sk'] ?? ''); $direct = false;
+if ($rpass !== ''){
+  /* CLASSROOM QR PACK (11/17/26): the classroom page already proved the phone/tablet is AT the school (location pass). That same pass opens the three classroom charts directly, no PIN. */
+  $SC = ['sanford'=>'Sanford', 'deland'=>'DeLand 2'];
+  if (!isset($SC[$rsk])) fail('This link is not valid. Go back to the classroom page and tap the button again.', 403);
+  $x = explode('.', $rpass); $sec = hash('sha256', 'roomloc|'.AT_TOKEN);
+  if (AT_TOKEN === '' || count($x) !== 2 || !ctype_digit($x[0]) || (int)$x[0] < time() || !hash_equals(hash_hmac('sha256', $rsk.'|'.$x[0], $sec), $x[1]))
+    fail('need_location', 403);
+  $school = $SC[$rsk]; $direct = true; $v = ['ok'=>true, 'name'=>''];
+} else {
 // Which school's Bear Line signed this pass? (read the payload, then let THAT Bear Line check the signature)
 $pp = explode('.', $pass, 2); $pl = json_decode(base64_decode(strtr($pp[0] ?? '', '-_', '+/')), true);
 $school = (is_array($pl) && in_array($pl['school'] ?? '', ['Sanford','DeLand 2'], true)) ? $pl['school'] : '';
@@ -30,11 +40,13 @@ $bl = $school === 'Sanford' ? 'https://bearphonicsacademy.com/elc-94f077be04/bea
 $ctx = stream_context_create(['http'=>['method'=>'POST','header'=>"Content-Type: application/json\r\n",'content'=>json_encode(['action'=>'clean_verify','code'=>ELC_SYNC_CODE,'pass'=>$pass]),'timeout'=>20,'ignore_errors'=>true]]);
 $v = json_decode(@file_get_contents($bl, false, $ctx) ?: '', true);
 if (!is_array($v) || empty($v['ok'])) fail('This link has timed out (they last 30 minutes). Go back to the Bear Line clock screen and tap the cleaning chart button again.', 403);
+}
 
-if ($action === 'whoami'){ echo json_encode(['ok'=>true,'name'=>$v['name'],'school'=>$school,'rooms'=>$ROOMS,'forms'=>$FORMS]); exit; }
+if ($action === 'whoami'){ echo json_encode(['ok'=>true,'name'=>$v['name'],'school'=>$school,'rooms'=>$ROOMS,'forms'=>$FORMS,'direct'=>$direct]); exit; }
 
 if ($action === 'items'){
   $form = (string)($in['form'] ?? ''); if (!in_array($form, $FORMS, true)) fail('Unknown form');
+  if ($direct && !in_array($form, ['🚽 Bathroom Cleaning','🧹 Classroom Cleaning','🏠 Indoor Inspection'], true)) fail('Unknown form');
   $d = at('GET', 'Facility Checklists', ['maxRecords'=>500, 'filterByFormula'=>"AND({Chart}='".str_replace("'", "\\'", $form)."',{Portal Visibility}='Both')"]);
   $seen = []; $items = [];
   foreach (($d['records'] ?? []) as $r){ $f = $r['fields']; $it = $f['Item'] ?? ''; if ($it !== '' && !isset($seen[$it])){ $seen[$it] = 1; $items[] = ['item'=>$it, 'order'=>$f['Order'] ?? 0]; } }
@@ -46,6 +58,8 @@ if ($action === 'submit'){
   $form = (string)($in['form'] ?? ''); $room = (string)($in['room'] ?? ''); $name = trim((string)($in['name'] ?? ''));
   if (!in_array($form, $FORMS, true) || !in_array($room, $ROOMS, true)) fail('Pick a room and a form.');
   if ($name === '') $name = (string)$v['name'];
+  if ($name === '') fail('Type your name first.');
+  if ($direct && !in_array($form, ['🚽 Bathroom Cleaning','🧹 Classroom Cleaning','🏠 Indoor Inspection'], true)) fail('Unknown form');
   $name = mb_substr($name, 0, 80);
   $lines = []; $flags = [];
   foreach ((array)($in['rows'] ?? []) as $r){
