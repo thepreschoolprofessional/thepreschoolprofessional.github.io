@@ -39,13 +39,13 @@ h2{margin:0 0 4px;font-family:var(--f-display);font-size:21px;font-weight:600;co
 <script src="sop-data.js?v=9"></script>
 <script>
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
-var q=new URLSearchParams(location.search),S=q.get('s')||'',R=q.get('r')||'',D=null,cur=(q.get('t')&&['classroom','bathroom','indoor','schedule','bios'].indexOf(q.get('t'))>=0)?q.get('t'):'classroom',selDate={};
-var SEC={classroom:['🧹','Classroom Cleaning Chart','Every day, last 2 months'],bathroom:['🚽','Bathroom Cleaning Chart','Every day, last 2 months'],indoor:['🏠','Daily Indoor Inspection','Every day, last 2 months'],schedule:['🗓','Daily Schedule','Today\'s classroom routine'],bios:['👩‍🏫','Meet Our Teachers','Staff bios and photos']};
+var q=new URLSearchParams(location.search),S=q.get('s')||'',R=q.get('r')||'',D=null,cur=(q.get('t')&&['classroom','bathroom','indoor','schedule','forms','bios'].indexOf(q.get('t'))>=0)?q.get('t'):'classroom',selDate={};
+var SEC={classroom:['🧹','Classroom Cleaning Chart','Every day, last 2 months'],bathroom:['🚽','Bathroom Cleaning Chart','Every day, last 2 months'],indoor:['🏠','Daily Indoor Inspection','Every day, last 2 months'],schedule:['🗓','Daily Schedule','Today\'s classroom routine'],forms:['🖨️','Official Forms','Pick dates and print'],bios:['👩‍🏫','Meet Our Teachers','Staff bios and photos']};
 function fd(s){var p=s.split('-');return (+p[1])+'/'+(+p[2])}
 function dow(s){return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(s+'T12:00:00').getDay()]}
 function days(){var o=[],t=new Date(D.today+'T12:00:00');for(var i=0;i<62;i++){var d=new Date(t-i*864e5);if(d.getDay()===0||d.getDay()===6)continue;o.push(d.toISOString().slice(0,10))}return o}
 function wk(s){var g=new Date(s+'T12:00:00').getDay();return g>0&&g<6}
-function missing(k){if(k==='bios'||k==='schedule'||!D||!wk(D.today))return false;return !(D.charts[k]||[]).some(function(c){return c.date===D.today})}
+function missing(k){if(k==='bios'||k==='schedule'||k==='forms'||!D||!wk(D.today))return false;return !(D.charts[k]||[]).some(function(c){return c.date===D.today})}
 var SOPR={sanford:{honeybees:['Honeybees - Tod./Inf.'],vpk:['VPK/Pre-School (Pollen-Jocks)'],schoolagers:['Schoolagers (Worker Bees)']},deland:{honeybees:['Honey Bees - Tod. Front'],honeycombs:["Three's - Honey Combs","Four's - Honey Combs"],infant:['Infant/Toddler']}},wedView=null;
 function t12(x){try{return SOP.fmt(x)}catch(e){return x}}
 function nowMin(){var p=new Date().toLocaleTimeString('en-GB',{timeZone:'America/New_York',hour:'2-digit',minute:'2-digit'}).split(':');return +p[0]*60+ +p[1]}
@@ -63,9 +63,36 @@ function schedHtml(){
   L.forEach(function(b){var on=live&&mm(b.s)<=n0&&n0<mm(b.e);h+='<div class="it" style="display:flex;gap:10px;'+(on?'background:#fff3cf;border-left:4px solid #f2b632;font-weight:800':'')+'"><span style="min-width:132px;color:#8a5a00;font-weight:700">'+esc(t12(b.s)+' - '+t12(b.e))+'</span><span>'+esc(b.t)+(b.f?' <span style="font-weight:400;color:#667;font-size:12px">(fixed time)</span>':'')+(on?'  ◀ NOW':'')+'</span></div>'});
   h+='</div>'});
  return h+'</div>'}
+var FM={from:'',to:'',pick:{bee:true,bath:true,ind:true},busy:false,msg:'',url:''};
+function isoAdd(s,n){var d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function formsHtml(){
+ var min=isoAdd(D.today,-62),max=D.today;if(!FM.from){FM.from=isoAdd(D.today,-13);FM.to=D.today}
+ var h='<div class="sec"><h2>🖨️ Official Forms</h2><div class="sub">'+esc(D.room)+'. These are the real Kid City forms filled in from what staff completed. Pick the dates you need, choose the forms, then tap Make my forms.</div>'
+ +'<div class="alert" style="background:#fdf0cf;border-color:#e8a317;color:#5a4a1c"><b>Only the last 2 months are shown here.</b> If you need older forms, please ask your director. Older forms are kept in the vault.</div>'
+ +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0"><label style="flex:1;min-width:140px;font-weight:700">From<input type="date" id="fmf" value="'+FM.from+'" min="'+min+'" max="'+max+'" onchange="FM.from=this.value" style="display:block;width:100%;font:inherit;padding:10px;border:1px solid var(--line);border-radius:10px;margin-top:4px"></label>'
+ +'<label style="flex:1;min-width:140px;font-weight:700">To<input type="date" id="fmt" value="'+FM.to+'" min="'+min+'" max="'+max+'" onchange="FM.to=this.value" style="display:block;width:100%;font:inherit;padding:10px;border:1px solid var(--line);border-radius:10px;margin-top:4px"></label></div>'
+ +[['bee','Classroom Cleaning Chart (Bee Clean Chart)'],['bath','Bathroom Cleaning Log'],['ind','Daily Indoor Inspection']].map(function(x){return'<label style="display:block;padding:6px 0;font-size:16px"><input type="checkbox" '+(FM.pick[x[0]]?'checked ':'')+'onchange="FM.pick[\''+x[0]+'\']=this.checked" style="width:20px;height:20px;vertical-align:middle;margin-right:8px">'+x[1]+'</label>'}).join('')
+ +'<p><button onclick="makeForms()" id="fmb" style="font:inherit;font-weight:700;padding:13px 26px;border-radius:12px;border:0;background:var(--orange,#e8730c);color:#fff">'+(FM.busy?'Making your forms...':'Make my forms')+'</button></p>'
+ +'<div id="fmo">'+(FM.msg?'<div class="msg">'+FM.msg+'</div>':'')+(FM.url?'<p><a href="'+FM.url+'" target="_blank" style="display:inline-block;padding:13px 26px;border-radius:12px;background:#2e8b57;color:#fff;font-weight:700;text-decoration:none">Open and print</a> &nbsp; <a href="'+FM.url+'" download="Official-Forms.pdf" style="font-weight:700">Save a copy</a></p>':'')+'</div>'
+ +'<div class="sub">Each page is one month (cleaning charts) or one week (indoor inspection) with only the days you picked filled in. The director signs the inspection form. Days that were not completed stay blank.</div></div>';
+ return h}
+function makeForms(){
+ if(FM.busy)return;var f=FM.from,t=FM.to,min=isoAdd(D.today,-62);
+ var pick=['bee','bath','ind'].filter(function(k){return FM.pick[k]});
+ FM.url='';
+ if(!f||!t){FM.msg='Pick a From and a To date.';draw();return}
+ if(f>t){FM.msg='The From date is after the To date.';draw();return}
+ if(f<min){FM.msg='Only the last 2 months are available here. Please ask your director for older forms. They are kept in the vault.';draw();return}
+ if(!pick.length){FM.msg='Tick at least one form.';draw();return}
+ FM.busy=true;FM.msg='';draw();
+ var s=document.createElement('script');
+ function go(){RoomForms.build(D,f,t>D.today?D.today:t,pick).then(function(r){FM.busy=false;if(!r.pages){FM.msg='No completed forms were found for those dates and forms.';draw();return}
+  try{FM.url=URL.createObjectURL(new Blob([r.bytes],{type:'application/pdf'}))}catch(e){}FM.msg=r.pages+' page'+(r.pages>1?'s':'')+' ready.';draw()}).catch(function(e){FM.busy=false;FM.msg=esc(e.message||'Could not make the forms. Please try again.');draw()})}
+ if(window.RoomForms)go();else{s.src='room-forms.js?v=1';s.onload=go;s.onerror=function(){FM.busy=false;FM.msg='Could not load the form tools. Check your connection.';draw()};document.head.appendChild(s)}
+}
 function draw(){
  var h='<div class="tiles">'+Object.keys(SEC).map(function(k){return'<div class="tile'+(k===cur?' on':'')+'" onclick="cur=\''+k+'\';draw()"><span class="e">'+SEC[k][0]+'</span>'+SEC[k][1]+'<small>'+SEC[k][2]+'</small>'+(missing(k)?'<span class="miss">NOT DONE TODAY</span>':'')+'</div>'}).join('')+'</div>';
- if(cur==='schedule'){h+=schedHtml()}else if(cur==='bios'){
+ if(cur==='schedule'){h+=schedHtml()}else if(cur==='forms'){h+=formsHtml()}else if(cur==='bios'){
   h+='<div class="sec"><h2>👩‍🏫 Meet Our Teachers</h2><div class="sub">Teachers at '+esc(D.school)+'</div>'+(D.bios.length?D.bios.map(function(b){return'<div class="bio">'+(b.photo?'<img src="data:image/jpeg;base64,'+b.photo+'">':'<div class="ph"></div>')+'<div><b>'+esc(b.name)+'</b><div class="r">'+esc(b.role)+'</div><p>'+esc(b.bio)+'</p></div></div>'}).join(''):'<div class="msg">Teacher bios are being added. Check back soon.</div>')+'</div>';
  }else{
   var L=D.charts[cur]||[],by={};L.forEach(function(c){(by[c.date]=by[c.date]||[]).push(c)});
