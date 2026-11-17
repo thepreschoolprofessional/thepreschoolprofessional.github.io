@@ -125,7 +125,7 @@ foreach (($pa['records'] ?? []) as $r){ if (strtolower(trim($r['fields']['Role']
 if ($pp !== ''){
   $ctx = stream_context_create(['http'=>['method'=>'POST','header'=>"Content-Type: application/json\r\n",'content'=>json_encode(['pin'=>$pp,'action'=>'bios_public']),'timeout'=>25,'ignore_errors'=>true]]);
   $b = json_decode(@file_get_contents('https://thepreschoolprofessional.net/hive/files-api.php', false, $ctx) ?: '', true);
-  foreach (($b['staff'] ?? []) as $p) $bios[] = ['name'=>$p['name'], 'role'=>$p['role'], 'bio'=>$p['bio'], 'photo'=>$p['photo']];
+  foreach (($b['staff'] ?? []) as $p) $bios[] = ['name'=>$p['name'], 'role'=>$p['role'], 'bio'=>$p['bio'], 'photo'=>$p['photo'], 'a'=>($p['a'] ?? new stdClass)];
 }
 /* classroom daily schedules (SOP): saved edits only; the page merges them over the built-in defaults */
 $sop = new stdClass;

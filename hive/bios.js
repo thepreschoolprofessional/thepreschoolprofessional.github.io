@@ -12,42 +12,52 @@ window.BIOQ=[
  {k:'fun',t:'Tell families something fun about you.',type:'area',ph:'Languages you speak, a favorite book, anything you like!'}
 ];
 function sent(t){t=String(t||'').trim();if(!t)return '';return /[.!?]$/.test(t)?t:t+'.';}
+function lc(t){t=String(t||'').trim().replace(/[.!?]+$/,'');return t?t.charAt(0).toLowerCase()+t.slice(1):'';}
+var EDUP={"High school diploma / GED":"","Some college":"college coursework","CDA credential":"a CDA credential","Associate degree":"an associate degree","Bachelor's degree":"a bachelor's degree","Master's degree or higher":"a master's degree or higher"};
 window.bioWrite=function(a,name,role,school){
  a=a||{};var out=[];
- var intro='Hello, families! I\'m '+name+(role?', a '+String(role).toLowerCase().replace(/^a /,''):'')+' at Kid City USA'+(school?' '+school:'')+'.';
- if(a.why)intro+=' Why early childhood? '+sent(a.why);
+ var intro='Hello, families! I\'m '+name+', and I\'m so happy to be part of the Kid City USA'+(school?' '+school:'')+' family.';
+ if(a.why)intro+=' '+sent(a.why);
  out.push(intro);
- var c=[];
- if(a.edu){c.push('My education: '+a.edu+(a.edufield?' ('+a.edufield.replace(/[.]+$/,'')+')':'')+'.');}
- if(a.h45==='yes')c.push('I have completed my 45-hour child care training.');
- else if(a.h45==='progress')c.push('I am currently completing my 45-hour child care training.');
- var y=parseInt(a.years,10);if(y>0)c.push('I have '+y+' year'+(y===1?'':'s')+' of experience working with children.');
- if(c.length)out.push(c.join(' '));
+ var y=parseInt(a.years,10),ed=EDUP[a.edu]!=null?EDUP[a.edu]:(a.edu||''),bits=[];
+ if(y>0)bits.push(y+' year'+(y===1?'':'s')+' of experience working with children');
+ if(ed)bits.push(ed+(a.edufield?' ('+a.edufield.replace(/[.]+$/,'')+')':''));
+ if(a.h45==='yes')bits.push('my 45-hour child care training completed');
+ else if(a.h45==='progress')bits.push('my 45-hour child care training underway');
+ if(bits.length){var last=bits.pop();out.push('I bring '+(bits.length?bits.join(', ')+(bits.length>1?',':'')+' and ':'')+last+' to our classrooms every day.'+(a.fav?' My favorite thing to do with the children is to '+lc(a.fav)+'.':''));}
+ else if(a.fav)out.push('My favorite thing to do with the children is to '+lc(a.fav)+'.');
  var m=[];
- if(a.fav)m.push('My favorite thing to do with the children: '+sent(a.fav));
- if(a.hobbies)m.push('Outside the classroom, I love: '+sent(a.hobbies));
- if(a.fun)m.push('A little more about me: '+sent(a.fun));
+ if(a.hobbies)m.push('Outside the classroom, I love '+lc(a.hobbies)+'.');
+ if(a.fun)m.push(sent(a.fun));
  if(m.length)out.push(m.join(' '));
  return out.join('\n\n');
 };
-var CSS='.bc{position:relative;max-width:720px;margin:14px auto;border-radius:22px;overflow:hidden;background:#FFF8E1;border:3px solid #E0A100;box-shadow:0 6px 18px rgba(120,80,0,.18);font-family:Georgia,"Times New Roman",serif;color:#4A2C0A;page-break-inside:avoid}'
-+'.bc:before{content:"";position:absolute;inset:0;opacity:.55;background-image:url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'56\' height=\'97\' viewBox=\'0 0 56 97\'><path d=\'M28 2 L54 17 L54 47 L28 62 L2 47 L2 17 Z\' fill=\'none\' stroke=\'%23F2C14E\' stroke-width=\'2\'/><path d=\'M28 64 L28 95 M2 80 L28 95 L54 80\' fill=\'none\' stroke=\'%23F2C14E\' stroke-width=\'2\'/></svg>");background-size:56px 97px}'
-+'.bc .bh{position:relative;height:96px;background:linear-gradient(135deg,#F5B400,#E08A00 60%,#C62F3A);}'
-+'.bc .bh:after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:22px;background:#FFF8E1;border-radius:60% 60% 0 0/100% 100% 0 0}'
-+'.bc .bs{position:absolute;right:14px;top:10px;color:#fff;font:700 11px Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;text-shadow:0 1px 2px rgba(0,0,0,.3)}'
-+'.bc .bp{position:relative;display:flex;justify-content:center;margin-top:-64px}'
-+'.bc .bp .ph{width:140px;height:140px;border-radius:50%;border:6px solid #fff;outline:4px solid #E0A100;background:#F9E7A8 center/cover no-repeat;box-shadow:0 4px 12px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;font-size:3rem}'
-+'.bc .bb{position:relative;padding:10px 24px 24px;text-align:center}'
-+'.bc h3{margin:8px 0 2px;font-size:1.7rem;color:#7a1f1f}'
-+'.bc .br{display:inline-block;background:#C62F3A;color:#fff;font:700 12px Arial,sans-serif;padding:4px 12px;border-radius:99px;letter-spacing:.04em}'
-+'.bc .chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:12px 0}'
-+'.bc .chip{background:#fff;border:2px solid #F2C14E;color:#6b3f00;border-radius:99px;padding:3px 11px;font:600 12px Arial,sans-serif}'
-+'.bc .tx{text-align:left;font-size:1rem;line-height:1.55;background:rgba(255,255,255,.78);border-radius:14px;padding:14px 16px;border-left:5px solid #C62F3A}'
-+'.bc .tx p{margin:0 0 10px}.bc .tx p:last-child{margin:0}'
+var HEX="url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='56' height='97' viewBox='0 0 56 97'><path d='M28 2 L54 17 L54 47 L28 62 L2 47 L2 17 Z' fill='none' stroke='%23F2C14E' stroke-width='2'/><path d='M28 64 L28 95 M2 80 L28 95 L54 80' fill='none' stroke='%23F2C14E' stroke-width='2'/></svg>\")";
+var CSS='.bcs{max-width:760px;margin:0 auto;padding:4px 0 30px}'
++'.bc{position:relative;max-width:720px;margin:0 auto 34px;border-radius:28px;overflow:hidden;background:linear-gradient(180deg,#FFF3C4 0%,#FFF8E1 38%,#FFFDF5 100%);border:3px solid #E0A100;box-shadow:0 10px 28px rgba(120,80,0,.22);font-family:Georgia,"Times New Roman",serif;color:#4A2C0A;page-break-inside:avoid}'
++'.bc:before{content:"";position:absolute;inset:0;opacity:.6;background-image:'+HEX+';background-size:56px 97px;pointer-events:none}'
++'.bc .bh{position:relative;height:118px;background:linear-gradient(135deg,#F5B400,#E08A00 55%,#C62F3A)}'
++'.bc .bh:before{content:"\\1F41D  \\2728  \\1F41D";position:absolute;left:18px;top:12px;font-size:20px;letter-spacing:6px;opacity:.9}'
++'.bc .bh:after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:26px;background:#FFF3C4;border-radius:60% 60% 0 0/100% 100% 0 0}'
++'.bc .bs{position:absolute;right:16px;top:14px;color:#fff;font:700 11px Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;text-shadow:0 1px 2px rgba(0,0,0,.35)}'
++'.bc .bp{position:relative;display:flex;justify-content:center;margin-top:-78px}'
++'.bc .bp .ph{width:156px;height:156px;border-radius:50%;border:6px solid #fff;outline:4px solid #E0A100;background:#F9E7A8 center/cover no-repeat;box-shadow:0 6px 16px rgba(0,0,0,.28);display:flex;align-items:center;justify-content:center;font-size:3.4rem}'
++'.bc .bb{position:relative;padding:12px 28px 30px;text-align:center}'
++'.bc .kick{font:700 12px Arial,sans-serif;letter-spacing:.18em;text-transform:uppercase;color:#C62F3A;margin-top:10px}'
++'.bc h3{margin:4px 0 8px;font-size:2.1rem;line-height:1.1;color:#7a1f1f}'
++'.bc .br{display:inline-block;background:#C62F3A;color:#fff;font:700 12px Arial,sans-serif;padding:5px 14px;border-radius:99px;letter-spacing:.05em}'
++'.bc .chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:14px 0 4px}'
++'.bc .chip{background:#fff;border:2px solid #F2C14E;color:#6b3f00;border-radius:99px;padding:4px 12px;font:600 12.5px Arial,sans-serif}'
++'.bc .dv{height:4px;width:96px;margin:18px auto;background:linear-gradient(90deg,#F5B400,#C62F3A);border-radius:4px}'
++'.bc .tx{text-align:left;font-size:1.06rem;line-height:1.7;background:rgba(255,255,255,.82);border-radius:18px;padding:20px 22px}'
++'.bc .tx p{margin:0 0 14px}.bc .tx p:last-child{margin:0}'
++'.bc .tx p:first-child{font-size:1.16rem;font-weight:700;color:#7a1f1f;line-height:1.5}'
++'@media(max-width:520px){.bc .bb{padding:10px 16px 24px}.bc h3{font-size:1.7rem}.bc .tx{padding:16px}}'
 +'@media print{.bc{box-shadow:none;-webkit-print-color-adjust:exact;print-color-adjust:exact}}';
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 window.bioStyle=function(){if(document.getElementById('bioCss'))return;var s=document.createElement('style');s.id='bioCss';s.textContent=CSS;document.head.appendChild(s);};
 window.bioCss=CSS;
+var ROLEN={Support:'Classroom Support',Teacher:'Teacher',Director:'Director'};
 window.bioCard=function(r,school){
  var a=r.a||{},chips=[];
  if(a.edu)chips.push('🎓 '+esc(a.edu));
@@ -56,8 +66,8 @@ window.bioCard=function(r,school){
  var paras=String(r.bio||'').split(/\n\s*\n/).map(function(p){return '<p>'+esc(p)+'</p>';}).join('');
  return '<div class="bc"><div class="bh"><span class="bs">Kid City USA'+(school?' · '+esc(school):'')+'</span></div>'
  +'<div class="bp"><div class="ph"'+(r.photo?' style="background-image:url(data:image/jpeg;base64,'+r.photo+')"':'')+'>'+(r.photo?'':'🐝')+'</div></div>'
- +'<div class="bb"><h3>'+esc(r.name)+'</h3>'+(r.role?'<span class="br">'+esc(r.role)+'</span>':'')
+ +'<div class="bb"><div class="kick">Meet your teacher</div><h3>'+esc(r.name)+'</h3>'+(r.role?'<span class="br">'+esc(ROLEN[r.role]||r.role)+'</span>':'')
  +(chips.length?'<div class="chips">'+chips.map(function(c){return '<span class="chip">'+c+'</span>';}).join('')+'</div>':'')
- +'<div class="tx">'+paras+'</div></div></div>';
+ +'<div class="dv"></div><div class="tx">'+paras+'</div></div></div>';
 };
 })();

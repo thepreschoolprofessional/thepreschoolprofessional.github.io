@@ -167,7 +167,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 </div>
 </div>
 </main>
-<script src="bios.js?v=1"></script>
+<script src="bios.js?v=2"></script>
 <script src="parent-pp.js?v=10"></script>
 <script src="parent-upload.js?v=2"></script>
 <script src="install-prompt.js?v=1"></script>
@@ -229,7 +229,7 @@ async function loadTeachers(){
     var r=await fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:PIN,action:'bios_public',school:sc})});
     var j=await r.json(); if(j.error) throw new Error(j.error);
     bioStyle();
-    box.innerHTML = j.staff.length ? j.staff.map(function(t){ return bioCard(t, sc); }).join('') : 'Our teacher bios are coming soon. 🐝';
+    box.innerHTML = j.staff.length ? '<div class="bcs">'+j.staff.map(function(t){ return bioCard(t, sc); }).join('')+'</div>' : 'Our teacher bios are coming soon. 🐝';
     teachDone=sc;
   }catch(e){ box.textContent='Our teacher bios are coming soon. 🐝'; }
 }

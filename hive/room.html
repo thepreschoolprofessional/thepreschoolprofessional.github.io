@@ -34,7 +34,7 @@ h2{margin:0 0 4px;font-family:var(--f-display);font-size:21px;font-weight:600;co
 .foot{text-align:center;color:var(--muted);font-size:12px;padding:6px 16px 26px}.foot a{color:var(--muted)}
 @media print{.tiles,.chips{display:none}}
 .big{display:block;width:100%;font:inherit;font-weight:800;font-size:18px;border:0;border-radius:14px;padding:15px;background:var(--ok);color:#fff;margin:10px 0;cursor:pointer}.msg{padding:14px;text-align:center;color:var(--muted)}
-</style></head><body>
+</style><script src="bios.js?v=2"></script></head><body>
 <header><div class="brand"><img src="bp-logo.png" alt="Bear Phonics Academy" onerror="this.style.display='none'"><div><b>Bear Line</b><small>Classroom Pack</small></div></div><span class="pill sch" id="sc">Kid City USA</span><div class="dt" id="dt"></div></header><div class="stripe"></div>
 <main><h1 class="ttl" id="rn">Posted items</h1><div id="app" class="msg">Loading...</div></main>
 <div class="foot"><a href="room.html?pick=1" style="color:#667">Change classroom</a><br>Bear Line Classroom Pack &middot; Kid City USA &middot; these records update live as staff complete them. Showing the last 2 months.</div>
@@ -123,7 +123,7 @@ function mountFood(){var el=document.getElementById('mnt');if(!el)return;el.inne
 function draw(){
  var h='<div class="tiles">'+Object.keys(SEC).map(function(k){return'<div class="tile'+(k===cur?' on':'')+'" onclick="cur=\''+k+'\';draw()"><span class="e">'+SEC[k][0]+'</span>'+SEC[k][1]+'<small>'+SEC[k][2]+'</small>'+(missing(k)?'<span class="miss">NOT DONE TODAY</span>':'')+'</div>'}).join('')+'</div>';
  if(cur==='food'||cur==='allergy'){h+='<div id="mnt"></div>'}else if(cur==='schedule'){h+=schedHtml()}else if(cur==='signin'){h+=signHtml()}else if(cur==='forms'){h+=formsHtml()}else if(cur==='bios'){
-  h+='<div class="sec"><h2>👩‍🏫 Meet Our Teachers</h2><div class="sub">Teachers at '+esc(D.school)+'</div>'+(D.bios.length?D.bios.map(function(b){return'<div class="bio">'+(b.photo?'<img src="data:image/jpeg;base64,'+b.photo+'">':'<div class="ph"></div>')+'<div><b>'+esc(b.name)+'</b><div class="r">'+esc(b.role)+'</div><p>'+esc(b.bio)+'</p></div></div>'}).join(''):'<div class="msg">Teacher bios are being added. Check back soon.</div>')+'</div>';
+  bioStyle();h+='<div class="sec"><h2>👩‍🏫 Meet Our Teachers</h2><div class="sub">Teachers at '+esc(D.school)+'</div>'+(D.bios.length?'<div class="bcs">'+D.bios.map(function(b){return bioCard(b,D.school)}).join('')+'</div>':'<div class="msg">Teacher bios are being added. Check back soon.</div>')+'</div>';
  }else{
   var L=D.charts[cur]||[],by={};L.forEach(function(c){(by[c.date]=by[c.date]||[]).push(c)});
   var ds=days(),have=ds.filter(function(d){return by[d]}),sel=selDate[cur]||have[0]||null;
