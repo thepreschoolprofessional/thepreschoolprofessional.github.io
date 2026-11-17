@@ -192,7 +192,7 @@ function loginHTML(){
    +'<button class="link" data-act="help">How do I put this on my phone like an app?</button></div>';
 }
 function headerHTML(){
-  var h='<div class="hdr"><div class="hl"><b>'+esc(S.school)+'</b><span class="chip">'+(S.role==='director'?'Director':'Teacher')+'</span></div>'
+  var h='<div class="hdr"><div class="hl"><b>'+esc(S.school)+'</b><span class="chip">'+(S.role==='director'?'Director':(S.asTeacher?'Teacher view':'Teacher'))+'</span></div>'
    +'<div class="hr"><span id="sv" class="sv ok">Saved</span><button class="ib" data-act="refresh" title="Refresh">&#8635;</button><button class="ib" data-act="help" title="Help">?</button><button class="ib" data-act="logout" title="Log out">&#9099;</button></div></div>'
    +'<div class="dnav"><button class="ib" data-act="dprev">&lsaquo;</button><div class="dt">'+esc(niceDate(S.date))+(isToday()?' <span class="chip g">Today</span>':' <span class="chip o">Back-fill (director)</span>')+'</div><button class="ib" data-act="dnext">&rsaquo;</button>'+(isToday()?'':'<button class="btn sec sm" data-act="dtoday">Today</button>')+'</div>';
   return h;
@@ -782,7 +782,7 @@ document.addEventListener('keydown', function(e){ if(e.key==='Enter'){ var t=e.t
 function boot(){
   var pin=ls('hiveRoomsPin');
   if(pin){ S.pin=pin; S.school=ls('hiveRoomsSchool')||'DeLand 2';
-    api('whoami','').then(function(w){ S.role=w.role; if(w.school) S.school=w.school; S.view='board'; return refresh(); }).catch(function(){ S.view='login'; render(); });
+    api('whoami','').then(function(w){ S.role=w.role; if(w.school) S.school=w.school; if(S.role==='director' && /[?&]as=teacher\b/.test(location.search)){ S.role='teacher'; S.asTeacher=1; } S.view='board'; return refresh(); }).catch(function(){ S.view='login'; render(); });
   } else render();
 }
 setInterval(function(){ if(S.view!=='login' && document.visibilityState==='visible' && !modalOpen() && S.pending===0 && isToday()) refresh(true); }, 20000);

@@ -460,7 +460,7 @@ function mount(el, opt){
 }
 function greet(){
   var sc = D.schools[OPT.school] || {};
-  say('bot', 'Hi! I\'m Bear Chat 🐻 for '+(sc.name||OPT.school)+'. Ask me about closures, hours, fees, what to bring, sick days, pick-up, the menu, lessons, events, enrolling or Parent Orientation. If I don\'t know, I\'ll send your question to your director.',
+  say('bot', 'Hi! I\'m Bear Chat for '+(sc.name||OPT.school)+'. Ask me about closures, hours, fees, what to bring, sick days, pick-up, the menu, lessons, events, enrolling or Parent Orientation. If I don\'t know, I\'ll send your question to your director.',
     chips([{label:'Is the school open tomorrow?'},{label:'When is the next holiday?'},{label:"What's for lunch this week?"},{label:'What does my child need to bring?'}], function(it){ ask(it.label); }));
 }
 /* activity keeps the chat; 3 minutes without use clears it so the next family starts fresh */
