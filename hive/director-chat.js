@@ -118,6 +118,251 @@ var LIVE = {
   }
 };
 
+/* ---------- live: what a class is doing on a day (director-chat-lessons.js, copied from the Bear Phonics Academy Teacher Hubs) ---------- */
+var L = window.DC_LESSONS || {classes:{}};
+var HUB = 'https://bearphonicsacademy.com/teachers/';
+var CLASSES = [
+  {k:'ones',   n:'Ones',   icon:'🧸', re:/\b(ones|one year olds?|1 year olds?|1s|ones class)\b/},
+  {k:'twos',   n:'Twos',   icon:'🚂', re:/\b(twos|two year olds?|2 year olds?|2s|twos class)\b/},
+  {k:'threes', n:'Threes', icon:'🖍️', re:/\b(threes|three year olds?|3 year olds?|3s)\b/},
+  {k:'fours',  n:'Fours / VPK', icon:'🎒', re:/\b(fours|four year olds?|4 year olds?|4s|vpk|pre k|prek|pollen jocks?)\b/},
+  {k:'infant', n:'Infants', re:/\b(infants?|babies|baby room)\b/},
+  {k:'sa',     n:'School Age', re:/\b(school age|schoolagers?|school agers?|worker bees|after school|aftercare)\b/}
+];
+function plain(s){ return ' '+String(s||'').toLowerCase().replace(/[’']/g,'').replace(/[^a-z0-9]+/g,' ').trim()+' '; }
+var CLASS_RX = new RegExp(CLASSES.map(function(c){ return c.re.source; }).join('|'), 'g');
+function classIn(text){ var t = plain(text); for (var i=0;i<CLASSES.length;i++){ if (CLASSES[i].re.test(t)) return CLASSES[i]; } return null; }
+function classByKey(k){ for (var i=0;i<CLASSES.length;i++) if (CLASSES[i].k===k) return CLASSES[i]; return null; }
+var LESSON_WORDS = /\b(lessons?|teach|teaching|taught|learn|learning|doing|plans?|activity|activities|crafts?|art|circle time|morning meeting|story|book|read aloud|reading|song|letter|word|trait|theme|show|episode|outside play|stream|curriculum|working on|centers?|small groups?|topic)\b/;
+var NOT_DAILY = /\b(pdf|print|printable|workbooks?|supplements?|wizard|phonics books?|monthly|month s plan|months plan|take homes?|take home|resources|folder|upload|binder)\b/;
+function wantsLesson(text){
+  var t = plain(text), c = classIn(text), d = dayIn(norm(text)) || /\b(this week)\b/.test(t);
+  if (!LESSON_WORDS.test(t)) return false;
+  if (NOT_DAILY.test(t) && !d) return false;
+  if (/\b(file|files|folder|pin|code|ratio|ratios|attendance|signed in|sign in|hours)\b/.test(t)) return false;
+  return !!(c || (d && /\b(class|classes|classroom|room|kids|children|students|lesson|lessons|teach|teaching|learning)\b/.test(t)));
+}
+function nextSchoolDay(dt){ var x = dt; while (x.getUTCDay()===0 || x.getUTCDay()===6) x = addDays(x,1); return x; }
+function lessonLines(c, s, dt){
+  var p = ((L.classes[c.k]||{}).days||{})[s], o = [];
+  if (!p) return null;
+  o.push((c.icon?c.icon+' ':'')+c.n+' · '+nice(dt)+(p.theme ? '\nTheme: '+p.theme : ''));
+  var w = []; if (p.letter) w.push('Letter of the week: '+p.letter); if (p.word) w.push('Word: '+p.word); if (p.trait) w.push('Trait: '+p.trait);
+  if (w.length) o.push(w.join(' · '));
+  var b = function(lbl, v){ if (v && (!v.join || v.length)) o.push('• '+lbl+': '+(v.join ? v.join('; ') : v)); };
+  b('Morning meeting', p.topics); b('Centers (craft and sensory)', p.craft); b('Small groups', p.lessons); b('Song', p.song);
+  b('Outside play', p.outside); b('Read-aloud', p.reading); b('S.T.R.E.A.M.', p.stream); b('Show', p.show);
+  return o.join('\n');
+}
+function lastDay(c){ var d = Object.keys((L.classes[c.k]||{}).days||{}).sort(); return d.length ? d[d.length-1] : ''; }
+function hubBtn(c, today){ return {label:'📅 Open the '+c.n+' Teacher Hub'+(today?' (opens on today)':''), href:HUB+c.k+'.html#day'}; }
+LIVE.lesson = function(e, text){
+  var c = classIn(text), n = norm(text), info = dayIn(n), t = todayUTC(), week = /\bthis week\b/.test(plain(text));
+  if (!c) return {t:'Which class do you want?', ask:CLASSES.slice(0,4).map(function(x){ return {label:x.icon+' '+x.n, q:x.n+' '+(text.replace(/[?.!]+$/,''))}; }), noGo:1};
+  if (c.k==='infant') return {t:'Infants don\'t have a daily Teacher Hub plan. Their monthly plan in the Lesson Plan Wizard is a folder with take-home and sign language activities (no weekly grid).', go:'Lesson Plan Wizard'};
+  if (c.k==='sa') return {t:'School Age doesn\'t have daily plans in the Teacher Hub yet ("coming soon"). The monthly School Age plan and the K-3 and 4-6 workbooks are in the Lesson Plan Wizard.', go:'Lesson Plan Wizard'};
+  if (!L.classes[c.k]) return {t:'I don\'t have the '+c.n+' daily plans copied yet. The Teacher Hub opens on today\'s plan.', btns:[hubBtn(c,1)], go:'Daily Plans'};
+  var days = [];
+  if (week || (info && info.kind==='nextweek')){
+    var mon = addDays(t, -((t.getUTCDay()+6)%7)); if (info && info.kind==='nextweek') mon = addDays(mon,7);
+    for (var i=0;i<5;i++) days.push(addDays(mon,i));
+    var lines = days.map(function(d){ var s = ymd(d), p = L.classes[c.k].days[s], cl = closureOn(d);
+      if (p) return '• '+nice(d)+': '+[p.craft&&p.craft[0], p.reading&&('read-aloud '+p.reading)].filter(Boolean).join('; ');
+      if (cl) return '• '+nice(d)+': '+kindStr(cl)+' ('+cl[3]+')';
+      return '• '+nice(d)+': '+(s < (Object.keys(L.classes[c.k].days).sort()[0]||'') ? 'not copied (see the Teacher Hub)' : 'no plan in the Teacher Hub'); });
+    var p0 = L.classes[c.k].days[ymd(days[0])] || L.classes[c.k].days[ymd(days[1])] || {};
+    return {t:c.n+', week of '+nice(days[0])+(p0.theme?'\nTheme: '+p0.theme:'')+(p0.letter?' · Letter '+p0.letter:'')+'\n'+lines.join('\n')+'\nAsk me about one day for the full plan.', btns:[hubBtn(c)], go:'Lesson Plan Wizard', noGo:0};
+  }
+  var hdt = null;
+  if (!info){ var hn = (/\bturkey\b/.test(n) && !/\bthanksgiving\b/.test(n)) ? null : holidayIn(n);
+    if (hn){ var Hs = closuresFor().filter(function(x){ return x[1] >= ymd(t) && String(x[3]).toLowerCase().indexOf(String(hn).toLowerCase()) > -1; }).sort(function(a,b){ return (a[2]==='all'?0:1)-(b[2]==='all'?0:1) || (a[0]<b[0]?-1:1); }); if (Hs.length) hdt = new Date(Hs[0][0]+'T00:00:00Z'); } }
+  var dt = hdt || (info ? resolveDay(info) : t), note = '';
+  if (!dt) dt = t;
+  if (dt.getUTCDay()===0 || dt.getUTCDay()===6){ note = nice(dt)+' is a weekend, so here\'s the next school day.\n'; dt = nextSchoolDay(dt); }
+  var s = ymd(dt), cl = closureOn(dt), txt = lessonLines(c, s, dt);
+  if (!txt){
+    var closedL = ((L.classes[c.k]||{}).closed||[]).indexOf(s) > -1;
+    if (cl || closedL) return {t:note+nice(dt)+': no '+c.n+' plan. '+(cl ? OPT.school+' is '+kindStr(cl)+' ('+cl[3]+').' : 'The Teacher Hub shows it as a closed day.'), btns:[hubBtn(c)]};
+    var ld = lastDay(c);
+    if (ld && s > ld) return {t:note+'I have the '+c.n+' daily plans through '+niceStr(ld)+'. For '+nice(dt)+', open the Teacher Hub, or the monthly plan in the Lesson Plan Wizard.', btns:[hubBtn(c)], go:'Lesson Plan Wizard'};
+    return {t:note+'I don\'t have a '+c.n+' plan for '+nice(dt)+'. The Teacher Hub has every day it covers.', btns:[hubBtn(c)], go:'Daily Plans'};
+  }
+  var more = CLASSES.slice(0,4).filter(function(x){ return x.k!==c.k; }).map(function(x){ return {label:x.icon+' '+x.n+(s===ymd(t)?' today':' that day'), q:'What are the '+x.n.split(' ')[0]+' doing '+(s===ymd(t)?'today':'on '+nice(dt))}; });
+  if (s===ymd(t)) more.unshift({label:c.n+' tomorrow', q:'What are the '+c.n.split(' ')[0]+' doing tomorrow'});
+  return {t:note+txt+'\nTimes, directions and links are in the '+c.n+' Teacher Hub.', btns:[hubBtn(c, s===ymd(t))], go:'Lesson Plan Wizard', ask:more};
+};
+
+var HUB_DOCS = /\b(workbooks?|supplements?|instructions|resource pages?|take homes?|take home|hive pages?|monthly plan|month s plan|months plan|lesson plan pdf|printables?)\b/;
+LIVE.hubDocs = function(e, text){
+  var c = classIn(text);
+  if (!c || c.k==='infant' || c.k==='sa') return {t:'The monthly lesson plans, workbooks and supplements for every class are in the Lesson Plan Wizard. Pick the class and the month.'+(c&&c.k==='sa'?' School Age has K-3 and 4-6 workbooks there.':''), go:'Lesson Plan Wizard'};
+  return {t:'In the '+c.n+' Teacher Hub, under Daily Plans, pick the month. The buttons above the day plan open the Lesson Plan, the Student Workbook (whole month), the Teacher\'s Supplement, the Instructions, Resource pages and HIVE take-home pages. Each day also has a button for that day\'s supplement pages. The December workbook links aren\'t opening yet, and Mrs. Bear has been told. The same files are also in the Lesson Plan Wizard.', btns:[hubBtn(c)], go:'Lesson Plan Wizard'};
+};
+
+/* ---------- live: open one child's or staff member's file (the director's own Student Files / Staff Files, looked up when asked; nothing is stored) ---------- */
+var DOCS = {
+  student: [
+    [/\b(cubby|bin label|bin labels|picture of (the |him|her|them)|photo of (the |him|her|them)|childs picture|childs photo|kids picture|take (a |their |his |her )?(picture|photo|pic)|upload (a |their |his |her )?(picture|photo|pic)|add (a |their |his |her )?(picture|photo|pic)|(picture|photo|pic) (in|to|on|for) )\b/, 'cubby', 'Cubby & bin photo', 'Tap 📷 Take photo or 📎 Choose photo. It only shows once a photo release is on file.'],
+    [/\b(photo release|video release|media release|picture release)\b/, 'photo', 'Photo / video release'],
+    [/\b(shots?|shot record|immunizations?|vaccines?|vaccinations?|680|681|dh 680|dh 681)\b/, 'imm', 'Immunization record (DH 680 / 681)'],
+    [/\b(physicals?|3040|dh 3040|check ?up|well visit|physical exam)\b/, 'phys', 'Physical exam (DH 3040)'],
+    [/\b(registration|enrollment packet|registration packet)\b/, 'reg', 'Registration form / enrollment packet'],
+    [/\b(medication|medicine|meds|inhaler|epi ?pen)\b/, 'medauth', 'Medication authorization'],
+    [/\b(medical treatment|medical authorization|treatment authorization)\b/, 'med', 'Medical treatment authorization'],
+    [/\b(emergency contacts?|authorized pick ?up|pick ?up list|pickup)\b/, 'em', 'Emergency contacts & authorized pickup'],
+    [/\b(allerg(y|ies)|care plan|special needs plan)\b/, 'allg', 'Allergy / special needs care plan'],
+    [/\b(diet|dietary|meal changes?|medical statement|special diet)\b/, 'dmed', 'Medical statement / dietary request'],
+    [/\b(infant feeding|formula|feeding form)\b/, 'infant', 'Infant feeding form'],
+    [/\b(free and reduced|free reduced|f and r|f r form)\b/, 'fr', 'Free & reduced meal application'],
+    [/\b(food program enrollment|cacfp)\b/, 'cacfp', 'Food Program enrollment'],
+    [/\b(parent id|parents id|drivers? licen[cs]e|id copy|photo id)\b/, 'pid', 'Parent ID copy'],
+    [/\b(financial agreement|tuition agreement)\b/, 'fin', 'Financial agreement'],
+    [/\b(handbook)\b/, 'hb', 'Handbook receipt'],
+    [/\b(orientation)\b/, 'por', 'Parent orientation'],
+    [/\b(distracted driver)\b/, 'dd', 'Distracted driver information'],
+    [/\b(flu|influenza)\b/, 'flu', 'Influenza information'],
+    [/\b(discipline|expulsion)\b/, 'disc', 'Discipline & expulsion policy receipt'],
+    [/\b(transport consent|emergency transport)\b/, 'tcons', 'Emergency medical consent for transport'],
+    [/\b(sleep position|feeding device)\b/, 'sleep', 'Physician authorization (sleep position / feeding device)'],
+    [/\b(brochure|know your child care)\b/, 'broch', 'Know Your Child Care Facility brochure receipt'],
+    [/\b(elc certificate|payment certificate|school readiness certificate|eligibility)\b/, 'elcpay', 'ELC / School Readiness payment certificate'],
+    [/\b(elc|4c|early learning coalition)\b/, 'elc', 'Other ELC / 4C paperwork'],
+    [/\b(custody|court)\b/, 'cust', 'Custody / court papers'],
+    [/\b(what makes my child special|all about me)\b/, 'special', 'What makes my child special'],
+    [/\b(nutrition|physical activity policy)\b/, 'nut', 'Nutrition & physical activity policy'],
+    [/\b(food and activity permission|food permission)\b/, 'foodp', 'Food and activity permission']
+  ],
+  staff: [
+    [/\b(bio|bio card|staff photo|teacher photo|their picture|her picture|his picture|picture|photo|pic)\b/, 'bio', 'Bio card & photo', 'Tap the Bio card & photo box to add the photo and short bio for the parent page.'],
+    [/\b(training certificates?|sign (a |the |their |his |her )?certificates?|certificates? to sign|lesson certificates?)\b/, 'cert', 'Training certificates', 'Tap Sign now on each certificate waiting for your signature.'],
+    [/\b(cpr)\b/, 'cpr', 'Infant & child CPR certificate'],
+    [/\b(first aid)\b/, 'fa', 'First Aid certificate'],
+    [/\b(background|screening|clearinghouse|fingerprints?|level 2)\b/, 'bg', 'Background screening'],
+    [/\b(tb|tuberculosis|health screening)\b/, 'tb', 'TB / health screening'],
+    [/\b(safe sleep)\b/, 'ss', 'Safe Sleep certificate'],
+    [/\b(transcript|40 hour|10 hour|dcf training|dcf hours)\b/, 'dcf', 'DCF training transcript'],
+    [/\b(cda|credential|fcccp|director credential)\b/, 'cred', 'Staff / Director credential'],
+    [/\b(diploma|degree|education|transcripts? from school|high school)\b/, 'edu', 'Education credentials'],
+    [/\b(drivers? licen[cs]e|license copy|id copy)\b/, 'dl', 'Driver\'s license'],
+    [/\b(i 9|i9|w 4|w4|direct deposit|tax forms?)\b/, 'tax', 'Direct deposit / W-4 / I-9'],
+    [/\b(application)\b/, 'app', 'Application for Employment'],
+    [/\b(references?|reference check|employment history)\b/, 'ref', 'Employment history / reference check'],
+    [/\b(good moral|affidavit)\b/, 'gm', 'Affidavit of Good Moral Character'],
+    [/\b(orientation)\b/, 'orient', 'Orientation certificate'],
+    [/\b(fire extinguisher)\b/, 'fire', 'Fire extinguisher training'],
+    [/\b(in ?service|5268)\b/, 'inserv', 'In-service training record (CF-FSP 5268)'],
+    [/\b(review|evaluation|90 day)\b/, 'rev', '90-day and performance reviews'],
+    [/\b(time ?sheets?)\b/, 'pay', 'Signed weekly time sheets'],
+    [/\b(literacy)\b/, 'lit', 'Early Literacy training'],
+    [/\b(fare|food allergy training)\b/, 'fare', 'FARE training'],
+    [/\b(medication training|medication administration)\b/, 'med', 'Medication administration training'],
+    [/\b(transportation training|driver training)\b/, 'trans', 'Transportation training'],
+    [/\b(driver physical)\b/, 'dphys', 'Driver physical exam'],
+    [/\b(job description)\b/, 'jd', 'Job description'],
+    [/\b(code of conduct)\b/, 'coc', 'Employee code of conduct'],
+    [/\b(confidentiality)\b/, 'conf', 'Confidentiality agreement'],
+    [/\b(infant training)\b/, 'inf', 'Approved infant training'],
+    [/\b(civil rights)\b/, 'civ', 'Civil Rights training'],
+    [/\b(5131|personnel file form)\b/, 'f5131', 'Personnel file form CF-FSP 5131'],
+    [/\b(abuse hotline|central abuse)\b/, 'cah', 'Central Abuse Hotline records search'],
+    [/\b(sex offender|predator)\b/, 'sop', 'Sexual predator / offender search'],
+    [/\b(out of state)\b/, 'oos', 'Out-of-state registry searches'],
+    [/\b(volunteer)\b/, 'vol', 'Volunteer acknowledgment']
+  ]
+};
+var STAFF_WORDS = /\b(staff|teacher|teachers|employee|employees|coworker|assistant|aide|cook|floater|personnel|hire|new hire)\b/;
+var CHILD_WORDS = /\b(child|childs|children|student|students|kid|kids|son|daughter|baby|infant|toddler|family)\b/;
+var FILE_WORDS = /\b(file|files|folder|paperwork|documents?|record|records|upload|scan|attach|missing|expired|expiring|on file)\b/;
+function docIn(kind, text){ var t = plain(text), L2 = DOCS[kind]; for (var i=0;i<L2.length;i++){ if (L2[i][0].test(t)) return {key:L2[i][1], label:L2[i][2], how:L2[i][3]}; } return null; }
+function kindIn(text){ var t = plain(text); if (STAFF_WORDS.test(t) && !CHILD_WORDS.test(t)) return 'staff'; if (CHILD_WORDS.test(t)) return 'student';
+  var s = docIn('staff', text), c = docIn('student', text); if (s && !c && s.key!=='bio') return 'staff'; return ''; }
+function nameInText(text){
+  var raw = String(text||''), first = (raw.match(/[A-Za-z-]+/)||[''])[0].toLowerCase(), short = raw.split(/\s+/).filter(Boolean).length <= 5;
+  var c = nameWords(text).filter(function(x){ if (LESSON_WORDS.test(' '+x.w+' ') || GENERIC_WORDS[x.w]) return false;
+    var cap = x.w.charAt(0).toUpperCase()+x.w.slice(1);
+    if (new RegExp("\\b"+x.w+"[’']s\\b",'i').test(raw)) return true;
+    if (x.w === first) return short;
+    return new RegExp('\\b'+cap+'\\b').test(raw); });
+  return c.length ? c[0].w : '';
+}
+function wantsFile(text){ var t = plain(text), who = nameInText(text);
+  if (who && (FILE_WORDS.test(t) || docIn('student', text) || docIn('staff', text)) && !/\b(how|what|when|why|whose|does|did|do i|is there|are there)\b/.test(t)) return true;
+  if (who && / s (file|folder)\b/.test(' '+String(text).toLowerCase().replace(/[’']s\b/g,' s')+' ')) return true;
+  return /\b(upload|add|scan|attach|take|put|open|pull up|find|show me)\b.*\b(childs|child s|students|kids|teachers|staff members?|employees) (file|folder)\b/.test(t) && !/\b(what|whose|withdrawn|need)\b/.test(t); }
+var ROSTER = {};
+function roster(kind){
+  if (!OPT.pin) return Promise.reject(new Error('nopin'));
+  if (!ROSTER[kind]){
+    ROSTER[kind] = fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:OPT.pin, action:'roster', kind:kind})})
+      .then(function(r){ return r.json(); }).then(function(j){ if (!j || j.error || !j.people) throw new Error('roster'); return j.people.filter(function(p){ return !/^recTEST/.test(p.id) && !/\btest\b|practice/i.test(p.name); }); });
+    ROSTER[kind].catch(function(){ delete ROSTER[kind]; });
+  }
+  return ROSTER[kind];
+}
+function shortName(n){ var p = String(n||'').trim().split(/\s+/); if (p.length < 2) return p[0]||''; var last = p[p.length-1]; return p[0]+' '+(/^[A-Z]\.$/.test(last) ? last : last.charAt(0).toUpperCase()+'.'); }
+var NOT_NAMES = {}, GENERIC_WORDS = {};
+('pull up show open find charles can free reduced family families parent parents whose does did name iphone my list intro lesson lessons training drive need new without withdrawn blurry email reply orientation online enrollment food program elc notary copy formulas formula statement over counter medicine remind know expiring expired paper packet how what where when why who which is are do i we the a an to of for in on at with please').split(' ').forEach(function(w){ GENERIC_WORDS[w]=1; });
+('mrs mr ms miss bear bears handbook file files folder child childs student students kid kids teacher teachers staff upload picture photo pic shot shots record records physical cpr open find show '
+ + 'cubby bin take add put scan attach document documents paper papers form forms missing expired expiring new son daughter baby infant toddler director '
+ + 'release medication allergy birth certificate card first aid background id license tb today tomorrow class room twos threes fours ones vpk school').split(' ').forEach(function(w){ NOT_NAMES[w]=1; });
+function nameWords(text){
+  var raw = String(text||'').replace(/[’']s\b/gi,'').replace(/[’']/g,''), words = raw.split(/[^A-Za-z-]+/).filter(Boolean), out = [];
+  words.forEach(function(w, i){ var lw = w.toLowerCase(); if (lw.length < 2 || NOT_NAMES[lw]) return; if (STOPSET[lw] && w.charAt(0) !== w.charAt(0).toUpperCase()) return; if (i===0 && STOPSET[lw]) return;
+    out.push({w:lw, next:(words[i+1]||'')}); });
+  return out;
+}
+function findPeople(text, people){
+  var hits = [], seen = {};
+  nameWords(text).forEach(function(nw){
+    var m = people.filter(function(p){ var f = String(p.name).trim().split(/\s+/)[0].toLowerCase(); return f === nw.w; });
+    if (m.length > 1 && nw.next){ var ini = nw.next.charAt(0).toLowerCase(), m2 = m.filter(function(p){ var q = String(p.name).trim().split(/\s+/); return q.length > 1 && q[q.length-1].charAt(0).toLowerCase() === ini; }); if (m2.length) m = m2; }
+    m.forEach(function(p){ if (!seen[p.id]){ seen[p.id]=1; hits.push(p); } });
+  });
+  return hits;
+}
+function candidateName(text){ var c = nameWords(text).filter(function(x){ return !LESSON_WORDS.test(' '+x.w+' ') && !/^(how|where|what|can|need|want|please)$/.test(x.w); }); return c.length ? c[0].w : ''; }
+function fileUrl(kind, p, doc){ return 'files.html?kind='+kind+'&open='+encodeURIComponent(p.id)+(doc ? '&doc='+doc.key : ''); }
+function fileAnswer(kind, text, people){
+  var doc = docIn(kind, text), who = kind==='staff' ? 'Staff Files' : 'Student Files', hits = findPeople(text, people);
+  var how = doc ? (doc.how || 'On that line, tap 📷 Take photo or 📎 Choose file or PDF, and add the expiration date if it asks. If the paper copy is in your binder, tap Mark on file.') : '';
+  if (hits.length === 1){
+    var p = hits[0], nm = shortName(p.name);
+    return {t:(doc ? nm+'\'s file opens right at '+doc.label+'. '+how : 'Here\'s '+nm+'\'s file'+(p.sub?' ('+p.sub+')':'')+'. Red items are missing or expired.'), btns:[{label:(kind==='staff'?'🗂️':'🧒')+' Open '+nm+'\'s file', href:fileUrl(kind, p, doc)}], noGo:1};
+  }
+  if (hits.length > 1){
+    return {t:'I found '+hits.length+' with that name at '+OPT.school+'. Which one?'+(doc?' It opens at '+doc.label+'.':''), btns:hits.slice(0,6).map(function(p){ return {label:'Open '+shortName(p.name)+'\'s file'+(p.sub?' ('+p.sub+')':''), href:fileUrl(kind, p, doc)}; }), noGo:1};
+  }
+  return null;
+}
+LIVE.file = function(e, text){
+  var kind = kindIn(text) || e.kind || 'student', who = kind==='staff' ? 'Staff Files' : 'Student Files', cand = nameInText(text), doc = docIn(kind, text);
+  var std = '📷 Take photo or 📎 Choose file or PDF (or Mark on file if the paper copy is in your binder). Add the expiration date on anything that renews.';
+  var generic = (kind==='staff' ? 'Staff Files > tap the person > ' : 'Student Files > tap the child > ') + (doc ? (doc.how ? doc.label+': '+doc.how : 'find "'+doc.label+'" > '+std) : 'find the line > '+std);
+  var Cand = cand.charAt(0).toUpperCase()+cand.slice(1);
+  var box = {kind:kind, text:text};
+  if (!OPT.pin) return {t:generic, go:who};
+  if (!cand) return {t:generic+'\nTell me the '+(kind==='staff'?'staff member\'s':'child\'s')+' first name and I\'ll open their file'+(doc?' right at that line':'')+'.', go:who, nameBox:box};
+  return roster(kind).then(function(people){
+    var r = fileAnswer(kind, text, people);
+    if (!r && !kindIn(text)){ var other = kind==='staff' ? 'student' : 'staff';
+      return roster(other).then(function(pp){ return fileAnswer(other, text, pp) || {t:'I couldn\'t find "'+Cand+'" in Student Files or Staff Files at '+OPT.school+'. Check the spelling, or look under Withdrawn / Former staff. '+generic, go:who, nameBox:box, notFound:1}; }); }
+    return r || {t:'I couldn\'t find "'+Cand+'" in '+who+' at '+OPT.school+'. Check the spelling, or look under '+(kind==='staff'?'Former staff':'Withdrawn')+'. '+generic, go:who, nameBox:box, notFound:1};
+  });
+};
+LIVE.addPerson = function(e, text){
+  var kind = kindIn(text) || 'student';
+  return {t:(kind==='staff' ? 'Staff Files > ➕ Add staff: type their first and last name and pick the role. New hires who signed the online packet are added from New Hires instead (Add to Staff Files and Bear Line).' : 'Student Files > ➕ Add child: first name, last name, birthday and room. A family that registered online is added from New Enrollments instead (Approve and add to the school), which files the packet too.'),
+    btns:[{label:'➕ Add '+(kind==='staff'?'staff':'a child')+' now', href:'files.html?kind='+kind+'&add=1'}], go:kind==='staff'?'New Hires':'New Enrollments'};
+};
+
+/* the live answers above, as bank entries so they show in the browse list too */
+D.QS.push(
+  {id:'live-lesson', c:'Lessons and files', live:'lesson', q:['What are the twos doing today?','What lesson are the threes doing tomorrow?','What is the fours class learning this week?','What are the ones doing on Thursday?','What is the letter of the week for the twos?','What book do the threes read today?'], k:'lesson today tomorrow teaching learning craft letter word week class', a:'', go:'Daily Plans'},
+  {id:'live-file', c:'Lessons and files', live:'file', q:['Upload a picture to a child\'s file','Open a child\'s file','Upload a shot record to a child\'s file','Open a staff member\'s file','Upload a teacher\'s CPR card','Take a cubby photo for a child'], k:'open file folder upload picture photo shot record child staff', a:'', go:'Student Files', also:['Staff Files']},
+  {id:'live-hubdocs', c:'Lessons and files', live:'hubDocs', q:['Where is the twos workbook?','Where is the threes teacher supplement?','Where are the fours monthly instructions?'], k:'workbook supplement instructions resource take home monthly lesson plan', a:'', go:'Lesson Plan Wizard'},
+  {id:'live-add', c:'Lessons and files', live:'addPerson', q:['How do I add a child to Student Files?','How do I add a new staff member to Staff Files?','Add a child','Add a staff member'], k:'add new child staff person student files staff files', a:'', go:'Student Files'}
+);
+
 /* ---------- opening a Director Portal card ---------- */
 /* D.cards: name -> {tab:'id'} (a tab inside director.html), {page:'file.html'}, {fn:'openPins'} (a director.html button) or {url:'https://...'} */
 function findTab(name){
@@ -160,7 +405,9 @@ function ask(text, picked){
   text = String(text||'').trim(); if (!text) return;
   say('me', text);
   var e = picked, m = null;
+  if (!e){ if (classIn(text) && (HUB_DOCS.test(plain(text)) || (/\b(lesson plans?|plans?|curriculum)\b/.test(plain(text)) && /\b(january|february|march|april|may|june|july|august|september|october|november|december|monthly|this month|next month)\b/.test(plain(text)) && !(dayIn(norm(text))||{}).day)) && !/\b(file|files|attendance|pin)\b/.test(plain(text))) e = byId('live-hubdocs'); else if (wantsLesson(text)) e = byId('live-lesson'); else if (wantsFile(text)) e = byId('live-file'); }
   if (!e){ m = match(text); if (confident(m)) e = m[0].x.e; }
+  if (!e && classIn(text)){ var m2 = match(plain(text).replace(CLASS_RX, ' ')); if (confident(m2)){ m = m2; e = m2[0].x.e; } }
   if (!e){
     MISSED.push({q:text});
     var alts = (m||[]).filter(function(r){ return r.s >= 2.5; }).slice(0,3);
@@ -172,16 +419,42 @@ function ask(text, picked){
     return;
   }
   LOG.push(e.id);
-  var d = say('bot', answerText(e, text)), ex = [];
-  (e.go ? [e.go] : []).concat(e.also || []).forEach(function(g){ ex.push({label:goLabel(g), go:g}); });
+  var res = (e.live && LIVE[e.live]) ? LIVE[e.live](e, text) : null;
+  if (res && typeof res.then === 'function'){
+    var wait = say('bot', 'Looking that up…');
+    res.then(function(r){ if (r && r.notFound && !picked){ var mb = match(text); if (confident(mb) && !mb[0].x.e.live){ LOG.push(mb[0].x.e.id); show(wait, mb[0].x.e, null, text); return; } } show(wait, e, r, text); }, function(){ show(wait, e, {t:'I couldn\'t look that up right now. Try again in a minute, or open the card.'}, text); });
+    return;
+  }
+  show(say('bot', ''), e, res, text);
+}
+/* fill a bot bubble: r is a live result {t, btns:[{label,href}], go, ask:[{label,q}], nameBox, noGo}, a string, or null for a bank answer */
+function show(d, e, r, text){
+  if (typeof r === 'string') r = {t:r};
+  var txt = r ? fill(r.t||'') : answerText(e, text), ex = [];
+  d.innerHTML = esc(txt).replace(/\n/g,'<br>');
+  ((r && r.btns) || []).forEach(function(b){ ex.push({label:b.label, href:b.href}); });
+  var gos = r ? (r.noGo ? [] : (r.go ? [r.go] : (e.go ? [e.go] : [])).concat(r.go ? [] : (e.also || []))) : (e.go ? [e.go] : []).concat(e.also || []);
+  gos.forEach(function(g){ ex.push({label:goLabel(g), go:g}); });
+  ((r && r.ask) || []).forEach(function(a){ ex.push({label:a.label, q:a.q}); });
   ex.push({label:'👍 That helped', ok:1});
   ex.push({label:'Not what I asked', no:1});
   d.appendChild(chips(ex, function(it){
+    if (it.href){ window.open(it.href, '_blank'); return; }
     if (it.go){ openCard(it.go); return; }
+    if (it.q){ ask(it.q); return; }
     if (it.ok){ say('bot', 'Glad to help! 🐝'); return; }
     if (it.no){ MISSED.push({q:text, wrong:e.id}); renderMissed(); handoff(text); }
   }));
+  if (r && r.nameBox) d.appendChild(nameBox(r.nameBox));
   ROOT.querySelector('.bc-log').scrollTop = 1e9;
+}
+/* a small "first name" box: runs the file lookup again with the name added (the name is only used for this lookup) */
+function nameBox(b){
+  var f = document.createElement('form'); f.className = 'bc-form bc-name';
+  f.innerHTML = '<label>'+(b.kind==='staff'?'Staff member\'s':'Child\'s')+' first name<input name="n" maxlength="40" autocomplete="off" autocapitalize="words"></label><button type="submit" class="bc-send">Open their file</button>';
+  f.onsubmit = function(ev){ ev.preventDefault(); var n = f.elements.n.value.replace(/[^A-Za-z' -]/g,'').trim(); if (!n) return;
+    f.remove(); ask(n.charAt(0).toUpperCase()+n.slice(1)+'\'s file'+(b.kind==='staff'?' (staff)':'')+(docIn(b.kind, b.text) ? ', '+docIn(b.kind, b.text).label : ''), byId('live-file')); };
+  return f;
 }
 /* a question it can't answer goes to Mrs. Bear as a Director Portal note (the same notes Charles picks up every hour on weekdays) */
 function handoff(question){
@@ -261,12 +534,12 @@ function reset(){
   if (!ROOT) return;
   clearTimeout(IDLE); IDLE = null; HIDDEN_AT = 0;
   try{ if (REC) REC.abort(); }catch(e){} REC = null;
-  LOG = []; MISSED = [];
+  LOG = []; MISSED = []; ROSTER = {};
   var log = ROOT.querySelector('.bc-log'); if (log) log.innerHTML = '';
   var inp = ROOT.querySelector('.bc-input'); if (inp){ inp.value = ''; inp.blur(); }
   var mic = ROOT.querySelector('.bc-mic'); if (mic) mic.classList.remove('on');
   ROOT.querySelectorAll('.bc-browse details[open]').forEach(function(d){ d.open = false; });
   renderMissed(); greet();
 }
-window.DirectorChat = {mount:mount, reset:reset, match:function(t){ build(); return match(t); }, _test:{norm:norm, toks:toks, confident:confident, setSchool:function(s){ OPT.school = s; build(); }, LIVE:LIVE, byId:byId, answerText:answerText}};
+window.DirectorChat = {mount:mount, reset:reset, match:function(t){ build(); return match(t); }, _test:{wantsLesson:wantsLesson, wantsFile:wantsFile, classIn:classIn, findPeople:findPeople, docIn:docIn, kindIn:kindIn, nameWords:nameWords, norm:norm, toks:toks, confident:confident, setSchool:function(s){ OPT.school = s; build(); }, LIVE:LIVE, byId:byId, answerText:answerText}};
 })();
