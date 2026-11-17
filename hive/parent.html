@@ -315,7 +315,18 @@ if(d.records){ sent.textContent = '✅ Got it — thank you! We\'ll be in touch 
 else { sent.textContent = '😕 Hmm, something went wrong — please try again.'; }
 return false;
 }
-init();
+/* Open one card straight away from a link like parent.html#card=events&school=Sanford (used by Bear Chat answers). */
+function deepLink(){
+  var h=location.hash||''; var m=h.match(/card=([a-z]+)/); if(!m) return;
+  var id=m[1], sm=h.match(/school=([^&]+)/), sc=sm?decodeURIComponent(sm[1]):'';
+  try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){}
+  if(id==='closures'){ location.href='closures.html'; return; }
+  if(id==='app'){ location.href='install-app.html'; return; }
+  if(STAFF && !mySchool && (sc==='Sanford'||sc==='DeLand 2')) staffPick(sc);
+  var t=[].slice.call(document.querySelectorAll('nav .tab')).filter(function(x){ return (x.getAttribute('onclick')||'').indexOf("show('"+id+"'")>-1; })[0];
+  if(t) t.click();
+}
+init().then(deepLink, deepLink);
 </script>
 
 <script>

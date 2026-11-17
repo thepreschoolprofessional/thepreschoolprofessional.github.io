@@ -7,8 +7,9 @@ var D = window.BC_DATA, OPT = {}, ROOT = null, LOG = [], MISSED = [];
 var esc = function(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); };
 var STOP = ('a an the is are am be been do does did i me my we our you your it its to of in on at for and or can could would will '
   + 'what whats when where who how why there this that these those with have has had get got please hi hello hey just about any '
-  + 'if so up as by from was were need want know tell let us im ill dont cant should child like').split(' ');
+  + 'if so up as by from was were need want know tell let us im ill dont cant should child like wanna gonna gotta some').split(' ');
 var STOPSET = {}; STOP.forEach(function(w){ STOPSET[w]=1; });
+var EVENTISH = /\b(sign|signup|bring|lunch|party|potluck|feast|friendsgiving|event|food|volunteer|celebrat)/;
 var WEEKDAYS = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
 var MONTHS = ['january','february','march','april','may','june','july','august','september','october','november','december'];
 
@@ -52,13 +53,15 @@ function match(text){
   var hol = holidayIn(n), day = dayIn(n);
   scores.forEach(function(r){
     var id = r.x.e.id;
-    if (hol && id==='open-holiday') r.s += 6;
+    if (hol && id==='open-holiday' && (hasOpen || !EVENTISH.test(n))) r.s += 6;
     if (day && hasOpen){ if (day.kind==='today' && id==='open-today') r.s += 6; if (day.kind==='tomorrow' && id==='open-tomorrow') r.s += 6; if ((day.kind==='weekday'||day.kind==='date'||day.kind==='nextweek') && id==='open-date') r.s += 6; }
   });
   scores.sort(function(a,b){ return b.s - a.s; });
   return scores.filter(function(r){ return r.s > 0; }).slice(0, 4);
 }
-function confident(m){ if (!m.length) return false; var a = m[0].s, b = m.length > 1 ? m[1].s : 0; return a >= 7 || (a >= 1.5 && a >= b * 1.3); }
+function confident(m){ if (!m.length) return false; var a = m[0].s, b = m.length > 1 ? m[1].s : 0; if (a >= 7 || (a >= 1.5 && a >= b * 1.3)) return true;
+  /* near-ties that all lead to the same card are still a confident answer */
+  var g = m[0].x.e.go; return a >= 3 && !!g && m.filter(function(r){ return r.s >= a * 0.77; }).every(function(r){ return r.x.e.go === g; }); }
 
 /* ---------- dates, in Florida time ---------- */
 function todayParts(){
@@ -142,6 +145,17 @@ var LIVE = {
     return s + (openNow ? ' We are open right now.' : ' We are closed right now.');
   }
 };
+/* Parent Portal card ids (parent.html tabs) so an answer can open the right card */
+var CARD = {'Closures':'closures','Tuition':'fees','What to Bring':'bring','Send Us':'msg','When Your Child Is Sick':'sick','Food Program Forms':'forms',
+  'Send Us a Document':'docs','Menu':'menu','Drop-Off':'pick','Documents':'res','Lesson Plans':'lessons','Bear Phonics Academy Online':'bp','Meet Our Teachers':'teach',
+  'Teddy Bear Talk':'tbt','Parent Orientation':'learn','Events':'events','Newsletter':'news','Message Board':'board','Monday Overview':'mon','Friday Briefing':'fri',
+  'Things to Do':'todo','Add to Your Phone':'app','Year-Round Book Fair':'fair','Fundraiser':'fund'};
+function openCard(name){
+  var id = CARD[name]; if (!id) { window.open('parent.html','_blank'); return; }
+  var tab = [].slice.call(document.querySelectorAll('nav .tab')).filter(function(t){ return (t.getAttribute('onclick')||'').indexOf("show('"+id+"'") > -1; })[0];
+  if (tab){ tab.click(); return; }
+  window.open('parent.html#card='+id+'&school='+encodeURIComponent(OPT.school||''), '_blank');
+}
 function byId(id){ for (var i=0;i<D.QS.length;i++) if (D.QS[i].id===id) return D.QS[i]; return {}; }
 
 /* ---------- portal lookups (same calls the Parent Portal makes) ---------- */
@@ -166,13 +180,31 @@ var ASYNC = {
       });
     });
   },
-  forms: function(){ return auto().then(function(a){ if (!a.forms.length) return 'No food program forms are posted yet.'; return {html: 'Food Program forms (print, fill out and return to the office):<br>'+a.forms.slice(0,10).map(function(f){ return '• '+link(f.link, f.doc); }).join('<br>')}; }); },
+  forms: function(e){ return auto().then(function(a){
+    var re = e.formRe ? new RegExp(e.formRe, 'i') : null, F = re ? a.forms.filter(function(f){ return re.test(f.doc); }) : a.forms;
+    if (!F.length) return e.a || 'No food program forms are posted yet.';
+    return {html: esc(e.lead || 'Food Program forms (print, fill out and return to the office):')+'<br>'+F.slice(0,10).map(function(f){ return '• '+link(f.link, f.doc); }).join('<br>')+(re ? '<br>Print it, fill it out and return it to the office, or send a photo on the Send Us a Document card.' : '')}; }); },
+  withEmail: function(e){ return portalData().then(function(P){
+    var rx = new RegExp(e.emailRe, 'i'), extra = P.sections.filter(function(x){ return rx.test(x.h+' '+x.body); }).slice(0,2);
+    return {html: esc(fill(e.a))+extra.map(function(x){ var ln = x.body.split('\n').filter(function(l){ return rx.test(l); }).slice(0,2).join(' '); return '<br><br><b>From '+esc(x.src)+':</b> '+esc(ln || x.body.slice(0,200)); }).join('')}; }); },
+  teachers: function(){ return portalData().then(function(P){ var T = P.teachers;
+    if (!T.length) return "Our teacher bios are coming soon. Open the Meet Our Teachers card to see them when they're posted.";
+    return {html:'Teachers at '+esc(OPT.school)+':<br>'+T.map(function(t){ return '• <b>'+esc(t.name)+'</b>'+(t.role?', '+esc(t.role):''); }).join('<br>')+'<br>Open Meet Our Teachers to read about each one.'}; }); },
   lessons: function(){ return auto().then(function(a){ if (!a.lessons.length) return 'The '+a.monthName+' lesson plans are not posted yet. Please check back soon.'; return {html: a.monthName+' lesson plans. Pick your child\'s age group:<br>'+a.lessons.map(function(x){ return '• '+link(x.link, x.age||x.plan); }).join('<br>')}; }); },
-  weekly: function(e){ return auto().then(function(a){ var dt = function(w){ var t = Date.parse(String(w.title||'').split('—').pop()); return isNaN(t) ? 0 : t; }, W = (a.weekly||[]).filter(function(w){ return w.kind===e.kind; }).sort(function(x,y){ return dt(y)-dt(x); });
+  weekly: function(e){
+    if (/Monday|Friday/.test(e.kind)) return portalData().then(function(P){ var S = P.sections.filter(function(x){ return x.kind===e.kind; });
+      if (!S.length) return 'The '+e.kind+' will show up on its card as soon as it is sent.';
+      return {html:'<b>'+esc(S[0].src.replace(/^this week's |^last /,'').replace(/^./,function(c){ return c.toUpperCase(); }))+'</b><br>'+S.slice(0,8).map(function(x){ return '• <b>'+esc(x.h)+'</b>: '+esc(x.body.split('\n')[0].slice(0,160)); }).join('<br>')}; });
+    return auto().then(function(a){ var dt = function(w){ var t = Date.parse(String(w.title||'').split('—').pop()); return isNaN(t) ? 0 : t; }, W = (a.weekly||[]).filter(function(w){ return w.kind===e.kind; }).sort(function(x,y){ return dt(y)-dt(x); });
+    if (!W.length && e.kind === 'Things to do'){ return portalData().then(function(P){ var f = P.sections.filter(function(x){ return /things to do/i.test(x.h); })[0];
+      if (!f) return 'This week\'s list of things to do isn\'t posted yet. A new list comes out every Friday on the Things to Do card.';
+      return {html:'The new weekend list comes out on Friday. Here is the last one, from the '+esc(f.src)+':<br>'+f.body.split('\n').filter(Boolean).slice(0,8).map(function(l){ return '• '+esc(l); }).join('<br>')}; }); }
     if (!W.length) return 'This week\'s '+e.kind+' isn\'t posted yet. Check the '+e.go+' card soon.';
     var w = W[0], lines = String(w.body||'').split(/\n+/).map(function(s){ return s.replace(/^\s*[-•*]\s*/,'').trim(); }).filter(Boolean).slice(0,6);
     return {html:'<b>'+esc(w.title||e.kind)+'</b><br>'+lines.map(function(l){ return '• '+esc(l); }).join('<br>')}; }); },
-  events: function(){ return filesApi('pp_ev_list').then(function(r){ var E = (r && r.events) || [];
+  events: function(e, text){ return filesApi('pp_ev_list').then(function(r){ var E = (r && r.events) || [];
+    if (E.length){ var qt = toks(text||''), best = null, bs = 0; E.forEach(function(ev){ var et = {}; toks(ev.title+' '+evExtra(ev.title)).forEach(function(t){ et[t]=1; }); var sc = qt.filter(function(t){ return et[t]; }).length; if (sc > bs){ bs = sc; best = ev; } });
+      if (best) return {html: eventHtml(best) + (E.length > 1 ? '<br><br>Also coming up: '+E.filter(function(x){ return x !== best; }).slice(0,4).map(function(x){ return esc(x.title); }).join(', ')+'.' : '')}; }
     if (!E.length) return 'No events need sign-ups right now. Check the Events card and the newsletter for dates.';
     return {html:'Coming up:<br>'+E.slice(0,5).map(function(ev){ var d = ''; try{ d = new Date(ev.when+'T12:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}); }catch(x){ d = ev.when; } return '• <b>'+esc(ev.title)+'</b>, '+esc(d); }).join('<br>')+'<br>To sign up to bring something, open the Events and Sign-Ups card.'}; }); },
   monthDates: function(){ return auto().then(function(a){ var d = (a.newsletter && a.newsletter.form && a.newsletter.form.dates) || [];
@@ -181,17 +213,95 @@ var ASYNC = {
   board: function(){ return ppList().then(function(j){ var B = j.board || [];
     if (!B.length) return 'There are no new messages on the Message Board right now.';
     return {html: B.slice(0,3).map(function(b){ return '• <b>'+esc(b.title)+'</b>: '+esc(String(b.message||'').slice(0,220)); }).join('<br>')}; }); },
-  resources: function(){ return hiveApi({action:'list', table:'Resource Links', maxRecords:200, sortField:'Order', asParent:true}).then(function(d){
+  resources: function(e){ return hiveApi({action:'list', table:'Resource Links', maxRecords:200, sortField:'Order', asParent:true}).then(function(d){
     var R = (d.records||[]).map(function(r){ return r.fields; }).filter(function(r){ var sc = (r.School&&r.School.name)||r.School||'Both'; return (sc==='Both'||sc===OPT.school) && r.URL && r.URL.charAt(0)!=='#'; });
-    var M = R.filter(function(r){ return /handbook|registr|enroll|packet|form|document/i.test((r.Title||'')+' '+((r.Section&&r.Section.name)||r.Section||'')); });
+    var rx = new RegExp(e.resRe || 'handbook|registr|enroll|packet|form|document', 'i'), M = R.filter(function(r){ return rx.test((r.Title||'')+' '+((r.Section&&r.Section.name)||r.Section||'')); });
     var L = (M.length ? M : R).slice(0, 8);
     if (!L.length) return 'The handbook and registration documents are on the Documents and Registration card.';
     return {html:'From the Documents and Registration card:<br>'+L.map(function(r){ return '• '+link(r.URL, r.Title); }).join('<br>')}; }); }
 };
 
+/* ---------- everything on the Parent Portal right now (searched as answers) ---------- */
+function evExtra(t){ t = String(t||'').toLowerCase(); var x = 'event sign up signup bring';
+  if (/friendsgiving|thanksgiving|turkey/.test(t)) x += ' thanksgiving friendsgiving potluck feast turkey lunch food';
+  if (/christmas|holiday|winter|santa/.test(t)) x += ' christmas holiday party winter';
+  if (/picture|photo/.test(t)) x += ' picture photo day';
+  if (/party|celebrat/.test(t)) x += ' party celebration';
+  return x; }
+function evWhen(ev){ try{ var d = new Date(ev.when+'T12:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}); var t = String(ev.time||'').split(':'), h = +t[0];
+  return d + (ev.time ? ' at '+((h%12)||12)+':'+(t[1]||'00')+(h>=12?' PM':' AM') : ''); }catch(x){ return ev.when; } }
+function eventHtml(ev){
+  var items = ev.items || [], need = items.filter(function(i){ return i.left > 0; }), gone = items.length - need.length;
+  return '<b>'+esc(ev.title)+'</b><br>'+esc(evWhen(ev))+(ev.rooms && ev.rooms.length ? ' · '+esc(ev.rooms.join(', ')) : '')
+    + (ev.note ? '<br>'+esc(ev.note) : '')
+    + (need.length ? '<br><br><b>Still needed:</b><br>'+need.map(function(i){ return '• '+esc(i.name)+' ('+i.left+' left)'; }).join('<br>') : (items.length ? '<br><br>Everything on the list is taken. You can still offer something else.' : ''))
+    + (gone ? '<br>'+gone+' item'+(gone>1?'s are':' is')+' already taken.' : '')
+    + '<br><br>To sign up, open Events and Sign-Ups, check what you will bring, add your family name and tap Sign me up.';
+}
+var SECRET = /(pin|passcode|door code|password|gate code)[^.\n]{0,40}\d{3,}/i;
+function emailSections(html, src){
+  var t = String(html||'').replace(/<style[\s\S]*?<\/style>/gi,'').replace(/<(br|\/p|\/div|\/li|\/h\d|\/tr|\/td)[^>]*>/gi,'\n').replace(/<[^>]+>/g,' ');
+  var ta = document.createElement('textarea'); ta.innerHTML = t; t = ta.value;
+  var L = t.split('\n').map(function(l){ return l.replace(/[\s ]+/g,' ').trim(); }).filter(function(l){ return l && /[a-z0-9]/i.test(l); });
+  var out = [], cur = null;
+  L.forEach(function(l){
+    var head = l.length <= 60 && !/[.!?:,;)]$/.test(l) && !/^[•\-*]/.test(l) && !/^(mon|tue|wed|thu|fri|sat|sun)[a-z]*\b/i.test(l) && !/^[“"]/.test(l);
+    if (head){ cur = {h:l, lines:[], src:src}; out.push(cur); }
+    else if (cur) cur.lines.push(l.replace(/^[•\-*]\s*/,''));
+  });
+  return out.filter(function(x){ return x.lines.length && !SECRET.test(x.h+' '+x.lines.join(' ')) && !/^(with mrs|kid city usa|the monday honey|bear line|dear |good morning|happy friday)/i.test(x.h) && !(x.lines.length===1 && /^(monday|friday|happy friday|dear |good morning)/i.test(x.lines[0])); }).map(function(x){ return {h:x.h, body:x.lines.join('\n'), src:x.src}; });
+}
+function newest(W, kind){ var dt = function(w){ var t = Date.parse(String(w.title||'').split('—').pop()); return isNaN(t) ? 0 : t; };
+  return (W||[]).filter(function(w){ return w.kind===kind; }).sort(function(x,y){ return dt(y)-dt(x); })[0]; }
+function soft(p){ return p.then(function(x){ return x; }, function(){ return null; }); }
+function portalData(){ return cached('portal', function(){
+  return Promise.all([soft(auto()), soft(ppList()), soft(filesApi('pp_ev_list')),
+    soft(hiveApi({action:'list', table:'Resource Links', maxRecords:200, sortField:'Order', asParent:true})), soft(filesApi('bios_public'))]).then(function(R){
+    var a = R[0] || {}, sections = [];
+    [['Monday Overview','this week\'s Monday Overview'],['Friday Briefing','last Friday Briefing']].forEach(function(k){ var w = newest(a.weekly, k[0]); if (w) sections = sections.concat(emailSections(w.body, k[1]).map(function(x){ x.kind = k[0]; return x; })); });
+    var res = ((R[3] && R[3].records) || []).map(function(r){ return r.fields; }).filter(function(r){ var sc = (r.School&&r.School.name)||r.School||'Both'; return (sc==='Both'||sc===OPT.school) && r.URL && !/^(Menu|Newsletter|Lesson Plans)\b/i.test(r.Title||''); });
+    return {auto:a, board:(R[1] && R[1].board) || [], events:(R[2] && R[2].events) || [], res:res,
+      teachers:((R[4] && R[4].staff) || []).map(function(t){ return {name:t.name, role:t.role}; }), sections:sections};
+  }); }); }
+var AGE = {'Infant':'infant infants baby babies newborn','Ones':'ones one 1 year old toddler','Twos':'twos two 2 year old toddler','Threes':'threes three 3 year old preschool',
+  'Fours':'fours four 4 year old vpk pre-k prek','School Age':'school age after school kindergarten older'};
+var FORMK = [[/medical statement \(/i,'allergy allergic food allergies special diet dietary needs doctor medical peanut nut gluten dairy lactose'],[/food substitution/i,'allergy allergic substitute substitution swap special diet'],
+  [/milk/i,'milk dairy lactose soy almond oat milk substitute whole'],[/dietary preference/i,'vegetarian vegan religious preference halal kosher pork diet'],[/infant feeding/i,'infant baby bottle formula breast milk feeding schedule'],
+  [/formula/i,'formula infant baby special formula medical'],[/infant menu/i,'infant baby menu food eat'],[/free.*reduced/i,'free reduced meal application income lunch cost price']];
+var RESK = [[/facebook/i,'facebook social follow'],[/instagram/i,'instagram social follow'],[/tiktok/i,'tiktok social follow'],[/review/i,'review google rate stars recommend'],
+  [/registration|register/i,'register registration enroll sign new child sibling procare update information'],[/handbook/i,'handbook rules policies policy guide'],[/calendar/i,'calendar closures year yearly dates holidays'],
+  [/college/i,'college degree masters teacher job career tuition'],[/packet/i,'packet homework take home missed'],[/uniform/i,'uniform shirt order size buy']];
+function kw(map, t){ return map.filter(function(m){ return m[0].test(t); }).map(function(m){ return m[1]; }).join(' '); }
+function loadPortal(){
+  portalData().then(function(P){
+    var Q = [], C = 'On the portal right now', a = P.auto || {};
+    P.events.forEach(function(ev, i){ Q.push({id:'ev-'+i, c:C, go:'Events', html:eventHtml(ev), q:[ev.title, 'Sign up for '+ev.title, 'What can I bring to '+ev.title+'?', 'When is '+ev.title+'?'],
+      k:ev.title+' '+(ev.note||'')+' '+(ev.items||[]).map(function(x){ return x.name; }).join(' ')+' '+evExtra(ev.title)}); });
+    (a.weekly||[]).filter(function(w){ return w.kind==='Update'; }).forEach(function(w, i){ var ev = /sign.?up|events/i.test(w.body||'');
+      Q.push({id:'up-'+i, c:C, go:ev ? 'Events' : 'Newsletter', a:String(w.body||''), q:[w.title], k:w.title+' '+(w.body||'')+' '+evExtra(w.title)}); });
+    var td = (a.weekly||[]).filter(function(w){ return w.kind==='Things to do'; })[0];
+    if (td) Q.push({id:'todo-now', c:C, go:'Things to Do', html:'<b>'+esc(td.title)+'</b><br>'+String(td.body||'').split(/\n+/).filter(Boolean).map(function(l){ return '• '+esc(l.replace(/^\s*[-•*]\s*/,'')); }).join('<br>'),
+      q:['Things to do this weekend', 'What can we do this weekend near '+OPT.school+'?'], k:'weekend things do fun family free '+td.title+' '+td.body});
+    P.sections.forEach(function(x, i){ Q.push({id:'em-'+i, c:C, go:x.kind, html:'<b>'+esc(x.h)+'</b><br>'+x.body.split('\n').map(esc).join('<br>')+'<br><i>From '+esc(x.src)+'.</i>',
+      q:[x.h], k:x.h+' '+x.body+(/suppl/i.test(x.h+x.body) ? ' wipes tissues supplies' : '')}); });
+    (a.forms||[]).forEach(function(f, i){ Q.push({id:'form-'+i, c:C, go:'Food Program Forms', html:link(f.link, f.doc)+'<br>Print it, fill it out and return it to the office, or send a photo on the Send Us a Document card.',
+      q:[f.doc, 'Where is the '+f.doc+'?'], k:f.doc+' form '+kw(FORMK, f.doc)}); });
+    (a.lessons||[]).forEach(function(l, i){ Q.push({id:'lp-'+i, c:C, go:'Lesson Plans', html:a.monthName+' lesson plan for '+esc(l.age||l.plan)+': '+link(l.link, 'Open the lesson plan'),
+      q:['Lesson plan for '+(l.age||l.plan), 'What is my '+(l.age||'')+' learning?'], k:'lesson plan learning '+(l.age||'')+' '+(AGE[l.age]||'')}); });
+    P.board.forEach(function(b, i){ Q.push({id:'bd-'+i, c:C, go:'Message Board', html:'<b>'+esc(b.title)+'</b><br>'+esc(b.message).replace(/\n/g,'<br>'), q:[b.title], k:b.title+' '+b.message}); });
+    P.res.forEach(function(r, i){ var u = String(r.URL||''), msg = u.charAt(0)==='#', t = msg ? u.slice(u.indexOf(':')+1) : '';
+      Q.push({id:'rl-'+i, c:C, go:msg ? 'Send Us' : 'Documents', html:esc(r.Description||r.Title)+'<br>'+(msg ? 'Open Send Us a Message and pick '+esc(t)+'.' : link(u, 'Open '+r.Title)), q:[r.Title], k:r.Title+' '+(r.Description||'')+' '+kw(RESK, r.Title)}); });
+    P.teachers.forEach(function(t, i){ Q.push({id:'tc-'+i, c:C, go:'Meet Our Teachers', a:t.name+(t.role ? ' is on our team: '+t.role+'.' : ' is on our team.')+' Open Meet Our Teachers to read more.', q:['Who is '+t.name+'?'], k:t.name+' '+(t.role||'')+' teacher'}); });
+    Q.forEach(function(e){ e.dyn = true; e.q = e.q.filter(Boolean); e.k = String(e.k||'').replace(SECRET, ''); });
+    D.QS = D.QS.filter(function(e){ return !e.dyn; }).concat(Q);
+    build(); renderBrowse();
+  }).catch(function(){});
+}
+
 /* ---------- answering ---------- */
 function fill(s){ var sc = D.schools[OPT.school] || {}; return String(s).replace(/\{(\w+)\}/g, function(_, k){ return sc[k] || (k==='school' ? OPT.school : ''); }); }
 function answer(e, text){
+  if (e.html) return Promise.resolve({html:e.html});
   if (e.live && LIVE[e.live]) return Promise.resolve(fill(LIVE[e.live](e, text)));
   if (e.live && ASYNC[e.live]) return ASYNC[e.live](e, text).then(function(r){ return typeof r === 'string' ? fill(r) : r; }).catch(function(){ return 'I couldn\'t load that just now. It\'s on the '+(e.go||'portal')+' card in the Parent Portal.'; });
   return Promise.resolve(fill(e.a));
@@ -234,7 +344,7 @@ function ask(text, picked){
     ex.push({label:'👍 That helped', ok:1});
     ex.push({label:'Not what I asked', no:1});
     wait.appendChild(chips(ex, function(it){
-      if (it.go){ window.open('parent.html','_blank'); return; }
+      if (it.go){ openCard(it.go); return; }
       if (it.h){ handoff(text, it.h); return; }
       if (it.ok){ say('bot', 'Glad to help! 🐝'); return; }
       if (it.no){ MISSED.push({q:text, at:new Date().toISOString(), wrong:e.id}); saveMissed(); renderMissed(); handoff(text, 'Question from Bear Chat'); }
@@ -320,7 +430,7 @@ function mount(el, opt){
     + '<div class="bc-voice-note">Voice uses your browser\'s free voice typing (Google in Chrome, Apple in Safari). Best for school questions, not private details.</div>'
     + '<div class="bc-browse"></div><div class="bc-missed"></div></div>';
   el.querySelector('.bc-bar').onsubmit = function(ev){ ev.preventDefault(); var i = el.querySelector('.bc-input'); ask(i.value); i.value=''; };
-  renderBrowse(); renderMissed(); setupVoice(); loadNew();
+  renderBrowse(); renderMissed(); setupVoice(); loadNew(); loadPortal();
   var sc = D.schools[OPT.school] || {};
   say('bot', 'Hi! I\'m Bear Chat 🐻 for '+(sc.name||OPT.school)+'. Ask me about closures, hours, fees, what to bring, sick days, pick-up, the menu, lessons or events. If I don\'t know, I\'ll send your question to your director.',
     chips([{label:'Is the school open tomorrow?'},{label:'When is the next holiday?'},{label:"What's for lunch this week?"},{label:'What does my child need to bring?'}], function(it){ ask(it.label); }));
