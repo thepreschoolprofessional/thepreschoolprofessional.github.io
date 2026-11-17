@@ -473,6 +473,14 @@ function toggleMeal(names, m, mode){
 
 /* ---------- school-age helpers: day gate, transition form, transportation catch-up ---------- */
 function gateDay(cb){ if(S.role==='teacher' && !isToday()) needDirector(function(){ cb(); }); else cb(); }
+function trPresentAt(n,t){ var a=attOf(n); if(!a.Arrival) return false; if(!t) return true; if(a.Arrival>t) return false; var so=a['School Out']||'', si=a['School In']||''; if(so && so<=t && (!si || si>t)) return false; if(a.Departure && a.Departure<t) return false; return true; }
+function trKidsHtml(x,i){ var have=(i>=0 && x.kids && x.kids.length)?x.kids:null, t=x.out||'';
+  var kids=roomKids(S.room); if(have) have.forEach(function(n){ if(!kids.some(function(c){return c.name===n;})) kids.push({name:n}); });
+  if(!kids.length) return '<div class="sub2">No children on this room\'s list.</div>';
+  return kids.map(function(c){ var on=have? have.indexOf(c.name)>=0 : trPresentAt(c.name,t);
+    return '<label class="ck2" style="display:block;padding:3px 0"><input type="checkbox" class="tkid" value="'+esc(c.name)+'"'+(on?' checked':'')+' onchange="trKidCount()"> '+esc(c.name)+'</label>'; }).join(''); }
+function trKidCount(){ var n=document.querySelectorAll('.tkid:checked').length, e=document.getElementById('tkn'); if(e) e.textContent=n+' child'+(n===1?'':'ren')+' checked.'; var c=document.getElementById('tocnt'); if(c) c.value=n; var ic=document.getElementById('ticnt'), ti=document.getElementById('tin'); if(ic && ti && ti.value && !ic.dataset.touched) ic.value=n; }
+function trKidsRefresh(){ var t=(document.getElementById('tout')||{}).value||''; document.querySelectorAll('.tkid').forEach(function(b){ b.checked=trPresentAt(b.value,t); }); trKidCount(); }
 function trForm(i){
   var r=roomObj(S.room), day=ensureDay(S.room), x=(i>=0&&day.transitions[i])||{}, pres=presentIn(S.room).length;
   var dests=['Outside','Playroom'].concat(S.rooms.filter(function(z){return z.name!==S.room;}).map(function(z){return z.name;})).concat(['Office','Other (type it in)']);
@@ -480,13 +488,15 @@ function trForm(i){
   openModal('<h3>'+(i>=0?'Edit transition':'Add a transition from the paper form')+'</h3><p class="sub2">'+esc(niceDate(S.date))+'. Copy what is on the paper form.</p>'
    +'<label class="lbl">Where did they go?</label><select class="inp" id="tdest" onchange="document.getElementById(\'tdestO\').style.display=this.value===\'Other (type it in)\'?\'block\':\'none\'">'+dests.map(function(d){ return '<option'+((known?d===x.dest:(x.dest&&d==='Other (type it in)'))?' selected':'')+'>'+esc(d)+'</option>'; }).join('')+'</select>'
    +'<input class="inp" id="tdestO" placeholder="Type where they went" value="'+esc(!known&&x.dest?x.dest:'')+'" style="margin-top:6px;display:'+(!known&&x.dest?'block':'none')+'">'
-   +'<div class="trow"><label class="lbl" style="min-width:120px">Time out</label><input class="inp" type="time" id="tout" value="'+esc(x.out||'')+'"></div>'
+   +'<div class="trow"><label class="lbl" style="min-width:120px">Time out</label><input class="inp" type="time" id="tout" value="'+esc(x.out||'')+'" '+(i<0?'onchange="trKidsRefresh()"':'')+'></div>'
+   +'<label class="lbl">Who went (check each child)</label><div id="tkids" style="max-height:200px;overflow:auto;border:1px solid #ddd;border-radius:10px;padding:6px 10px">'+trKidsHtml(x,i)+'</div><div class="sub2" id="tkn"></div>'
    +'<div class="trow"><label class="lbl" style="min-width:120px">Count going out</label><input class="inp" type="number" inputmode="numeric" id="tocnt" value="'+esc(x.outCount!==undefined&&x.outCount!==''?x.outCount:(i<0?pres:''))+'"></div>'
    +'<label class="lbl">Counted by (out)</label>'+whoSelect(S.room,'toby')
    +'<div class="trow"><label class="lbl" style="min-width:120px">Time back in</label><input class="inp" type="time" id="tin" value="'+esc(x['in']||'')+'"></div>'
    +'<div class="trow"><label class="lbl" style="min-width:120px">Count coming back</label><input class="inp" type="number" inputmode="numeric" id="ticnt" value="'+esc(x.inCount!==undefined?x.inCount:'')+'"></div>'
    +'<label class="lbl">Counted by (back)</label>'+whoSelect(S.room,'tiby')
    +'<div id="merr" class="err"></div><div class="mrow"><button class="btn sec" data-act="mclose2">Cancel</button><button class="btn grn" data-act="trsave" data-i="'+i+'">Save</button></div>');
+  trKidCount(); if(i>=0 && x.inCount!==undefined && x.inCount!=='') { var icx=document.getElementById('ticnt'); if(icx) icx.dataset.touched='1'; }
   if(x.outBy){ var e=document.getElementById('toby'); if(e){ if(![].some.call(e.options,function(o){return o.value===x.outBy||o.text===x.outBy;})) e.insertAdjacentHTML('afterbegin','<option>'+esc(x.outBy)+'</option>'); e.value=x.outBy; } }
   if(x.inBy){ var e2=document.getElementById('tiby'); if(e2){ if(![].some.call(e2.options,function(o){return o.value===x.inBy||o.text===x.inBy;})) e2.insertAdjacentHTML('afterbegin','<option>'+esc(x.inBy)+'</option>'); e2.value=x.inBy; } }
 }
@@ -597,9 +607,10 @@ var ACT = {
    var out=val('tout'), tin=val('tin'), oc=parseInt(val('tocnt'),10), ic=parseInt(val('ticnt'),10);
    if(!dest){ err.textContent='Pick where they went.'; return; } if(!out){ err.textContent='Enter the time they left the room.'; return; }
    if(tin && tin<out){ err.textContent='Back-in time is before the out time.'; return; }
+   var chk=[].map.call(document.querySelectorAll('.tkid:checked'),function(b){return b.value;}); if(!chk.length){ err.textContent='Check the children who went (at least one).'; return; }
    var day=ensureDay(S.room), by=val('toby'), iby=val('tiby');
    var rec=(i>=0 && day.transitions[i]) ? day.transitions[i] : {kids:[]};
-   rec.dest=dest; rec.out=out; rec.outCount=isNaN(oc)?'':oc; rec.outBy=by; rec['in']=tin||''; rec.inCount=tin?(isNaN(ic)?'':ic):''; rec.inBy=tin?iby:'';
+   rec.kids=chk; if(tin) rec.kidsIn=chk.slice(); rec.dest=dest; rec.out=out; rec.outCount=isNaN(oc)?'':oc; rec.outBy=by; rec['in']=tin||''; rec.inCount=tin?(isNaN(ic)?'':ic):''; rec.inBy=tin?iby:'';
    if(i<0){ day.transitions.push(rec); day.counts.push({t:out,count:rec.outCount,by:by,kind:'sweep'}); if(tin) day.counts.push({t:tin,count:rec.inCount,by:iby,kind:'sweep'}); }
    day.transitions.sort(function(a,b){ return (a.out||'')<(b.out||'')?-1:1; }); day.transitions.forEach(function(x,k){ x.n=k+1; });
    saveDay(S.room); closeModal(); render(); toast('Transition saved.'); },
