@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Bear Pack - Kid City USA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&display=swap"><link rel="manifest" href="room-manifest.json"><meta name="theme-color" content="#fbf8f1"><link rel="apple-touch-icon" href="room-192.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<style>
+:root{--bg:#fbf8f1;--surface:#fff;--sunk:#f3ecdc;--ink:#2b2117;--muted:#7a6a55;--line:#e6dcc6;--honey:#e8a317;--honey-soft:#fdf0cf;--ok:#2f8a4f;--ok-soft:#e2f3e8;--warn:#b86e00;--warn-soft:#fff1d6;--bad:#c2372f;--bad-soft:#fde6e3;--info:#2d6aa3;--info-soft:#e3eef9;--peach:#fde7d3;--orange:#e8730c;--sch:#c98a0b;--f-display:"Fredoka","Trebuchet MS",system-ui,sans-serif;--f-body:"Nunito Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--r:18px}
+body.deland{--sch:#e0457b}
+*{box-sizing:border-box}body{margin:0;font-family:var(--f-body);background:var(--bg);color:var(--ink);padding-top:env(safe-area-inset-top,0px)}
+header{max-width:820px;margin:0 auto;padding:14px 16px 8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto}.brand img{height:46px;width:auto}.brand b{font-family:var(--f-display);font-size:25px;font-weight:700;display:block;line-height:1.05}.brand small{color:var(--muted);font-size:13px}
+.pill{border:1.5px solid var(--line);background:#fff;border-radius:99px;padding:7px 14px;font-size:14px;font-weight:600;color:var(--ink);text-decoration:none}.pill.sch{background:var(--sch);border-color:var(--sch);color:#fff}
+header .dt{width:100%;color:var(--muted);font-size:13px;margin-top:-2px}
+.stripe{max-width:820px;margin:0 auto;height:5px;border-radius:5px;background:linear-gradient(90deg,var(--honey),var(--sch))}
+main{max-width:820px;margin:0 auto;padding:14px 16px 8px}
+.ttl{font-family:var(--f-display);font-size:28px;font-weight:700;margin:2px 0 12px}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}@media(min-width:620px){.tiles{grid-template-columns:repeat(5,1fr)}}
+.tile{position:relative;border:2px solid transparent;border-radius:var(--r);padding:12px 8px;text-align:center;font-family:var(--f-display);font-weight:600;font-size:15px;line-height:1.15;cursor:pointer;color:var(--ink)}
+.tile:nth-child(1){background:var(--info-soft)}.tile:nth-child(2){background:var(--peach)}.tile:nth-child(3){background:var(--ok-soft)}.tile:nth-child(4){background:var(--honey-soft)}.tile:nth-child(5){background:#f1e6fa}
+.tile .e{font-size:28px;display:block;margin-bottom:2px}.tile small{display:block;font-family:var(--f-body);font-weight:400;color:var(--muted);font-size:12px;margin-top:3px}
+.tile.on{border-color:var(--ink);box-shadow:0 3px 0 var(--ink)}
+.sec{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:14px}
+h2{margin:0 0 4px;font-family:var(--f-display);font-size:21px;font-weight:600;color:var(--ink)}.sub{color:var(--muted);font-size:14px;margin-bottom:10px}
+.chip.todo{background:#fff3c4;color:#8a5a00;border-color:#f0b400;font-weight:700}.chip.todo small{font-size:9px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px}
+.chip{border-radius:12px;padding:7px 8px;font-size:12px;line-height:1.1;text-align:center;cursor:pointer;border:2px solid transparent;min-width:46px}
+.chip.ok{background:var(--ok-soft);color:var(--ok)}.chip.flag{background:var(--bad-soft);color:var(--bad)}.chip.none{background:var(--sunk);color:#a99978;cursor:default}.chip.sel{border-color:var(--ink)}
+.chart{border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin-bottom:10px;background:#fffdf8}
+.chart .top{display:flex;justify-content:space-between;gap:8px;font-weight:700;margin-bottom:6px}.badge{font-size:12px;border-radius:20px;padding:2px 10px}.badge.ok{background:var(--ok-soft);color:var(--ok)}.badge.flag{background:var(--bad-soft);color:var(--bad)}
+.it{padding:6px 0;border-top:1px solid var(--sunk);font-size:15px}.it.bad{color:var(--bad);font-weight:600}
+.bio{display:flex;gap:12px;border-top:1px solid var(--line);padding:12px 0}.bio:first-child{border-top:0}.bio img{width:84px;height:84px;border-radius:50%;object-fit:cover;border:3px solid var(--honey);flex:none}.bio .ph{width:84px;height:84px;border-radius:50%;background:var(--sunk);flex:none}
+.bio b{font-family:var(--f-display);font-size:18px;font-weight:600}.bio .r{color:var(--muted);font-size:13px;margin-bottom:4px}.bio p{margin:0;font-size:15px;line-height:1.4}
+.alert{background:var(--bad-soft);border:2px solid var(--bad);color:#8c1d16;border-radius:var(--r);padding:12px 14px;margin-bottom:12px;font-weight:700}.alert a{display:inline-block;margin-top:8px;background:var(--orange);color:#fff;text-decoration:none;border-radius:99px;padding:10px 18px;font-size:15px;font-family:var(--f-display)}
+.tile .miss{color:var(--bad);font-weight:800;font-size:12px;display:block;margin-top:3px}.msg{padding:26px;text-align:center;color:var(--muted)}
+.foot{text-align:center;color:var(--muted);font-size:12px;padding:6px 16px 26px}.foot a{color:var(--muted)}
+@media print{.tiles,.chips{display:none}}
+</style><style>
+.big{display:block;width:100%;font:inherit;font-weight:800;font-size:18px;border:0;border-radius:14px;padding:15px;background:var(--ok);color:#fff;margin:10px 0;cursor:pointer}
+.big.sec2{background:#9b8576}.inp{display:block;width:100%;font:inherit;padding:11px;border:1px solid var(--line);border-radius:10px;margin:4px 0 10px;background:#fff}
+.lbl{font-weight:700;font-size:14px}.row{border-top:1px solid var(--sunk);padding:8px 0}.row b{display:block;font-size:15px;margin-bottom:4px}
+.tg button{font:inherit;font-weight:700;border:2px solid var(--line);background:#fff;border-radius:10px;padding:8px 14px;margin-right:6px}.tg .ok.on{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}.tg .bad.on{background:var(--bad-soft);border-color:var(--bad);color:var(--bad)}
+.note{display:none;margin-top:6px}.row.isbad .note{display:block}
+canvas.sig{width:100%;height:150px;border:2px dashed var(--line);border-radius:12px;background:#fff;touch-action:none}
+.ck{display:inline-block;margin:4px 10px 4px 0;font-size:16px}.ck input{width:20px;height:20px;vertical-align:middle;margin-right:6px}
+.tiles.p{grid-template-columns:1fr 1fr}@media(min-width:620px){.tiles.p{grid-template-columns:repeat(4,1fr)}}
+</style></head><body>
+<header><div class="brand"><img src="bp-logo.png" alt="Bear Phonics Academy" onerror="this.style.display='none'"><div><b>Bear Line</b><small id="pk">School Pack</small></div></div><span class="pill sch" id="sc">Kid City USA</span><div class="dt" id="dt"></div></header><div class="stripe"></div>
+<main><h1 class="ttl" id="rn">School pack</h1><div id="app" class="msg">Loading...</div></main>
+<div class="foot">Bear Line School Pack &middot; Kid City USA &middot; opens only at the school &middot; showing the last 2 months. Anything saved here goes straight to the official forms.</div>
+<script src="pdf-lib.min.js?v=117"></script><script src="room-forms.js?v=2"></script>
+<script>
+var q=new URLSearchParams(location.search),S=q.get('s')||'',P=q.get('p')||'',D=null,cur='',F=null,PRN={from:'',to:'',pick:{},busy:false,msg:'',url:''},VS={list:null};
+var CLOSED=['2026-07-03','2026-07-31','2026-09-07','2026-11-11','2026-11-26','2026-11-27','2026-12-23','2026-12-24','2026-12-25','2027-01-01','2027-01-18','2027-03-26','2027-05-31','2027-06-18'];
+var PACKS={
+ office:{t:'Front Office Pack',tiles:[['play','🛝','Playground Inspection','chart'],['eod','🌙','End of Day Sweep','chart'],['san','🧼','Sanitation & Safety','chart'],['sec','🔒','Security & Sign-in','chart'],['bath','🚽','Staff / Common Bathrooms','chart'],['drill','🧯','Fire & Emergency Drills','drill'],['ill','🤒','Sick Child / Early Pick-Up','ill'],['allergy','⚠️','Allergy List','allergy'],['print','🖨️','Official Forms','print']],prn:[['out','Daily Playground Inspection'],['eod','End of Day Building Sweep'],['bath','Bathroom Cleaning Log (common areas)'],['san','Sanitation & Safety Log'],['sec','Security & Sign-in Log']]},
+ kitchen:{t:'Kitchen Pack',tiles:[['tmp','🌡️','Kitchen Temperatures','chart'],['ksan','🧼','Kitchen Sanitation','chart'],['allergy','⚠️','Allergy List','allergy'],['print','🖨️','Official Forms','print']],prn:[['tmp','Temperature Log (fridge / freezer / water)']]},
+ visitor:{t:'Visitor Pack',tiles:[['visit','📝','Visitor Sign In / Out','visit']],prn:[]}
+};
+var TYPEMAP={play:'play',eod:'eod',san:'san',sec:'sec',bath:'bath',ksan:'ksan',tmp:'tmp'};
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function fd(s){var p=s.split('-');return (+p[1])+'/'+(+p[2])}
+function dow(s){return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(s+'T12:00:00').getDay()]}
+function isoAdd(s,n){var d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function wdays(){var o=[];for(var i=0;i<62;i++){var d=isoAdd(D.today,-i),g=new Date(d+'T12:00:00').getDay();if(g>0&&g<6)o.push(d)}return o}
+var APP=document.getElementById('app'),PK=PACKS[P];
+function getPass(){try{var x=JSON.parse(localStorage.getItem('roomPass_'+S)||'null');if(x&&x.p&&x.e>Date.now())return x.p}catch(e){}return ''}
+function post(o){o.s=S;o.p=P;if(!o.pass)o.pass=getPass();return fetch('pack-api.php',{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify(o)}).then(function(r){return r.json()})}
+function msg(h){APP.className='';APP.innerHTML='<div class="sec" style="text-align:center;padding:26px 18px">'+h+'</div>'}
+function again(){return "<p><button onclick='location.reload()' style='font:inherit;padding:12px 26px;border-radius:12px;border:0;background:#e8730c;color:#fff;font-weight:700'>Try again / Intentar de nuevo</button></p>"}
+function who(){try{return localStorage.getItem('bearRoomBy')||''}catch(e){return ''}}
+function keepWho(n){try{localStorage.setItem('bearRoomBy',n)}catch(e){}}
+function pad(id){var c=document.getElementById(id),x=c.getContext('2d'),dn=false,any=false,r;function size(){r=c.getBoundingClientRect();c.width=r.width*2;c.height=r.height*2;x.scale(2,2);x.lineWidth=2.4;x.lineCap='round';x.strokeStyle='#111'}size();
+ function pt(e){var t=e.touches?e.touches[0]:e;return[t.clientX-r.left,t.clientY-r.top]}
+ function st(e){e.preventDefault();dn=true;var p=pt(e);x.beginPath();x.moveTo(p[0],p[1])}function mv(e){if(!dn)return;e.preventDefault();var p=pt(e);x.lineTo(p[0],p[1]);x.stroke();any=true}function en(){dn=false}
+ c.addEventListener('mousedown',st);c.addEventListener('mousemove',mv);window.addEventListener('mouseup',en);c.addEventListener('touchstart',st,{passive:false});c.addEventListener('touchmove',mv,{passive:false});c.addEventListener('touchend',en);
+ return{get:function(){return any?c.toDataURL('image/png'):''},clear:function(){x.clearRect(0,0,r.width,r.height);any=false}}}
+function done(k,date){var f=D.forms[k];return D.days.filter(function(x){return x.t===f.type&&x.r===f.room&&x.d===date})}
+function draw(){
+ var h='<div class="tiles p">'+PK.tiles.map(function(t){var miss=(t[3]==='chart'&&D.today&&isWd(D.today)&&CLOSED.indexOf(D.today)<0&&!done(t[0],D.today).length);
+  return '<div class="tile'+(t[0]===cur?' on':'')+'" onclick="cur=\''+t[0]+'\';F=null;draw()"><span class="e">'+t[1]+'</span>'+t[2]+(miss?'<span class="miss">NOT DONE TODAY</span>':'')+'</div>'}).join('')+'</div>';
+ var t=PK.tiles.filter(function(x){return x[0]===cur})[0];
+ if(!t){h+='<div class="sec"><h2>Tap a tile above</h2><div class="sub">Everything here saves straight to the official school forms. The last 2 months are always shown, so any missed day can be filled in.</div></div>'}
+ else if(t[3]==='chart')h+=F?formHtml():chartHtml(t);
+ else if(t[3]==='drill')h+=drillHtml();else if(t[3]==='ill')h+=illHtml();else if(t[3]==='allergy')h+=allergyHtml();else if(t[3]==='print')h+=printHtml();else if(t[3]==='visit')h+=visitHtml();
+ APP.className='';APP.innerHTML=h;if(t&&t[3]==='visit')visitInit();if(F&&t&&t[3]==='chart')formInit();
+}
+function isWd(d){var g=new Date(d+'T12:00:00').getDay();return g>0&&g<6}
+function chartHtml(t){var k=t[0],f=D.forms[k],ds=wdays(),td=done(k,D.today).length;
+ var h='<div class="sec"><h2>'+t[1]+' '+t[2]+'</h2><div class="sub">'+esc(f.room)+'. Green = done, red = something needed attention, <b style="color:#b3261e">yellow &ldquo;NOT DONE&rdquo; = missed day: tap it to fill that day in right now</b>. Closed days are skipped.</div>';
+ if(isWd(D.today)&&CLOSED.indexOf(D.today)<0)h+=(td?'':'<div class="alert">⚠️ Today\'s '+esc(t[2])+' has NOT been completed yet.</div>')+'<button class="big" onclick="openForm(\''+k+'\',\''+D.today+'\')">'+(td?'Add to today\'s chart':'Do today\'s chart now')+' &rarr;</button>';
+ h+='<div class="chips">'+ds.map(function(d){var x=done(k,d),c=x.length?(x.some(function(y){return y.s==='flag'})?'flag':'ok'):'none',closed=CLOSED.indexOf(d)>=0,todo=(!x.length&&!closed&&d!==D.today);
+  return '<div class="chip '+(todo?'todo':c)+'"'+((todo)?' onclick="openForm(\''+k+'\',\''+d+'\')"':'')+(closed?' style="opacity:.45"':'')+'>'+dow(d)+'<br><b>'+fd(d)+'</b>'+(todo?'<br><small>NOT DONE</small>':(closed?'<br><small>closed</small>':''))+'</div>'}).join('')+'</div></div>';return h}
+function openForm(k,d){F={k:k,date:d};draw();window.scrollTo(0,0)}
+function formItems(){var f=D.forms[F.k],it=f.items.slice();if(f.monx&&f.monx.length&&new Date(F.date+'T12:00:00').getDay()===1)it=it.concat(f.monx);return it}
+function formHtml(){var f=D.forms[F.k],its=formItems(),dp=F.date.split('-');
+ var h='<div class="sec"><h2>'+esc(f.type)+'</h2><div class="sub">'+esc(f.room)+'</div>'+(F.date!==D.today?'<div class="alert" style="background:#fff3c4;border-color:#f0b400;color:#5a4a1c">📅 You are filling in <b>'+(+dp[1])+'/'+(+dp[2])+'/'+dp[0]+'</b> (a missed day). Only mark what was really done that day.</div>':'')
+ +'<label class="lbl">Your name</label><input class="inp" id="nm" value="'+esc(who())+'" placeholder="Type your name" autocomplete="off">';
+ if(f.two)h+='<label class="lbl">Second closing staff name</label><input class="inp" id="nm2" placeholder="Second name" autocomplete="off">';
+ its.forEach(function(it,i){
+  if(f.temps)h+='<div class="row"><b>'+esc(it)+'</b><input class="inp tv" data-i="'+i+'" type="number" inputmode="decimal" step="0.1" placeholder="Temperature in °F" style="max-width:200px"><input class="inp tn" data-i="'+i+'" placeholder="Note (optional)"></div>';
+  else if(f.slots)h+='<label class="ck" style="display:block;padding:6px 0"><input type="checkbox" class="sl" data-i="'+i+'"> '+esc(it)+'</label>';
+  else h+='<div class="row" data-i="'+i+'" data-ok="1"><b>'+esc(it)+'</b><div class="tg"><button type="button" class="ok on">✅ OK</button><button type="button" class="bad">⚠️ Needs attention</button></div><input class="inp note" placeholder="What needs attention?"></div>'});
+ h+='<div id="er" style="color:#b3261e;font-weight:700;min-height:22px"></div><button class="big" id="sv">Save ✅</button><button class="big sec2" id="bk">Back</button></div>';return h}
+function formInit(){var f=D.forms[F.k];
+ document.querySelectorAll('.row[data-ok]').forEach(function(r){var o=r.querySelector('.ok'),b=r.querySelector('.bad');o.onclick=function(){r.setAttribute('data-ok','1');r.classList.remove('isbad');o.classList.add('on');b.classList.remove('on')};b.onclick=function(){r.setAttribute('data-ok','0');r.classList.add('isbad');b.classList.add('on');o.classList.remove('on')}});
+ document.getElementById('bk').onclick=function(){F=null;draw()};
+ document.getElementById('sv').onclick=function(){var er=document.getElementById('er'),b=this,n=document.getElementById('nm').value.trim();if(!n){er.textContent='Please type your name.';return}
+  var o={act:'submit',form:F.k,name:n,date:F.date===D.today?'':F.date,rows:[]};if(f.two){o.name2=document.getElementById('nm2').value.trim()}
+  if(f.temps){document.querySelectorAll('.tv').forEach(function(e){var i=+e.getAttribute('data-i');o.rows.push({i:i,val:e.value,note:document.querySelectorAll('.tn')[i].value})})}
+  else if(f.slots){document.querySelectorAll('.sl').forEach(function(e){o.rows.push({i:+e.getAttribute('data-i'),ok:e.checked})})}
+  else document.querySelectorAll('.row[data-ok]').forEach(function(r){o.rows.push({i:+r.getAttribute('data-i'),ok:r.getAttribute('data-ok')==='1',note:r.querySelector('.note').value})});
+  keepWho(n);b.disabled=true;b.textContent='Saving...';
+  post(o).then(function(x){if(x.ok){F=null;reload('Saved. Thank you!')}else if(x.error==='need_location'){try{localStorage.removeItem('roomPass_'+S)}catch(e){}locate()}else{b.disabled=false;b.textContent='Save ✅';er.textContent=x.error||'Did not save. Try again.'}}).catch(function(){b.disabled=false;b.textContent='Save ✅';er.textContent='No connection. Try again.'})}}
+function reload(m){post({act:'info'}).then(function(d){if(d.error){msg(esc(d.error));return}D=d;draw();if(m)toast(m)})}
+function toast(m){var t=document.createElement('div');t.textContent=m;t.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#2f8a4f;color:#fff;padding:12px 22px;border-radius:30px;font-weight:700;z-index:9';document.body.appendChild(t);setTimeout(function(){t.remove()},2600)}
+function simple(id,fields,act,title,sub,extra){ /* generic form */
+ return '<div class="sec"><h2>'+title+'</h2><div class="sub">'+sub+'</div>'+fields+'<div id="er" style="color:#b3261e;font-weight:700;min-height:22px"></div><button class="big" id="go">Save ✅</button></div>'}
+function val(id){var e=document.getElementById(id);return e?e.value.trim():''}
+function inp(id,l,ph,ty){return '<label class="lbl">'+l+'</label><input class="inp" id="'+id+'" '+(ty?'type="'+ty+'" ':'')+'placeholder="'+(ph||'')+'" autocomplete="off">'}
+function nmField(){return '<label class="lbl">Your name</label><input class="inp" id="nm" value="'+esc(who())+'" placeholder="Type your name" autocomplete="off">'}
+function wire(act,keys,ok){setTimeout(function(){var b=document.getElementById('go');if(!b)return;b.onclick=function(){var o={act:act},er=document.getElementById('er');keys.forEach(function(k){o[k[0]]=k[1]==='chk'?[].map.call(document.querySelectorAll('.sy:checked'),function(e){return e.value}):val(k[1])});if(!o.name){er.textContent='Please type your name.';return}keepWho(o.name);b.disabled=true;b.textContent='Saving...';
+  post(o).then(function(x){if(x.ok){ok&&ok();reload('Saved. Thank you!')}else if(x.error==='need_location'){try{localStorage.removeItem('roomPass_'+S)}catch(e){}locate()}else{b.disabled=false;b.textContent='Save ✅';er.textContent=x.error||'Did not save.'}}).catch(function(){b.disabled=false;b.textContent='Save ✅';er.textContent='No connection.'})}},0)}
+function drillHtml(){wire('drill',[['name','nm'],['date','dd'],['type','dt'],['time','dtm'],['adults','da'],['kids','dk'],['clear','dc'],['route','dr'],['ext','de'],['note','dn'],['init','di']]);
+ var past=(D.drills||[]).map(function(x){return '<div class="it">'+esc(x.date)+' &middot; <b>'+esc(x.type)+'</b>'+(x.time?' at '+esc(x.time):'')+'</div>'}).join('')||'<div class="sub">No drills logged yet.</div>';
+ return simple('d',nmField()+'<label class="lbl">Date of the drill</label><input class="inp" type="date" id="dd" value="'+D.today+'" max="'+D.today+'"><label class="lbl">Type of drill</label><select class="inp" id="dt">'+D.dtypes.map(function(x){return'<option>'+esc(x)+'</option>'}).join('')+'</select>'+inp('dtm','Time started','','time')+inp('da','Adults present','','number')+inp('dk','Children present','','number')+inp('dc','Time to clear the building (e.g. 2 min 10 sec)','')+inp('dr','Route used / meeting place','')+inp('de','Alarm / extinguisher / exit-light check','')+inp('dn','Notes','')+inp('di','Initials',''),'drill','🧯 Fire & Emergency Drill Log','Log a drill. It goes straight to the drill log.')+'<div class="sec"><h2>Past drills</h2>'+past+'</div>'}
+function illHtml(){wire('illness',[['name','nm'],['child','ic'],['room','ir'],['symptoms','chk'],['temp','it'],['noticed','in'],['called','icl'],['director','idr'],['pickup_by','ipb'],['pickup_at','ipa'],['notes','ino']]);
+ var sy=['Fever','Vomiting','Diarrhea','Cough','Rash','Headache','Stomach ache','Pink eye','Injury','Other'].map(function(x){return '<label class="ck"><input type="checkbox" class="sy" value="'+x+'"> '+x+'</label>'}).join('');
+ return simple('i',nmField()+inp('ic','Child (first name and last initial)','')+inp('ir','Classroom','')+'<label class="lbl">Symptoms</label><div>'+sy+'</div>'+inp('it','Temperature','','')+inp('in','Time noticed','','time')+inp('icl','Parent called at','','time')+inp('idr','Director told (name)','')+inp('ipb','Picked up by','')+inp('ipa','Picked up at','','time')+inp('ino','Notes',''),'ill','🤒 Sick Child / Early Pick-Up','Fill this out when a child is sick or goes home early. The director is flagged.')}
+function allergyHtml(){wire('allergy_add',[['name','nm'],['child','ac'],['allergy','al'],['plan','ap']]);
+ var l=(D.allergies||[]).map(function(x){return '<div class="it"><b>'+esc(x.child)+'</b> &mdash; '+esc(x.allergy)+(x.plan?' <small>('+esc(x.plan)+')</small>':'')+'</div>'}).join('')||'<div class="sub">No approved allergies on the list.</div>';
+ return '<div class="sec"><h2>⚠️ Allergy List</h2><div class="sub">Approved by the director. First name and last initial only.</div>'+l+'</div>'+simple('a',nmField()+inp('ac','Child (first name and last initial)','')+inp('al','Allergy','')+inp('ap','Reaction / plan (optional)',''),'allergy','Add an allergy','New ones wait for the director to approve them (they show as Pending).')}
+function printHtml(){var min=isoAdd(D.today,-62);if(!PRN.from){PRN.from=isoAdd(D.today,-13);PRN.to=D.today;PK.prn.forEach(function(x){PRN.pick[x[0]]=true})}
+ return '<div class="sec"><h2>🖨️ Official Forms</h2><div class="sub">The real Kid City forms filled in from what was completed here. Pick the dates, choose the forms, tap Make my forms.</div><div class="alert" style="background:#fdf0cf;border-color:#e8a317;color:#5a4a1c"><b>Only the last 2 months are shown here.</b> Older forms are kept in the vault: ask your director.</div>'
+ +'<div style="display:flex;gap:10px;flex-wrap:wrap"><label style="flex:1;min-width:140px" class="lbl">From<input type="date" class="inp" value="'+PRN.from+'" min="'+min+'" max="'+D.today+'" onchange="PRN.from=this.value"></label><label style="flex:1;min-width:140px" class="lbl">To<input type="date" class="inp" value="'+PRN.to+'" min="'+min+'" max="'+D.today+'" onchange="PRN.to=this.value"></label></div>'
+ +PK.prn.map(function(x){return '<label class="ck" style="display:block"><input type="checkbox" '+(PRN.pick[x[0]]?'checked ':'')+'onchange="PRN.pick[\''+x[0]+'\']=this.checked"> '+x[1]+'</label>'}).join('')
+ +'<button class="big" onclick="makePrint()">'+(PRN.busy?'Making your forms...':'Make my forms')+'</button>'+(PRN.msg?'<div class="msg">'+PRN.msg+'</div>':'')+(PRN.url?'<p><a href="'+PRN.url+'" target="_blank" style="display:inline-block;padding:13px 26px;border-radius:12px;background:#2e8b57;color:#fff;font-weight:700;text-decoration:none">Open and print</a> &nbsp; <a href="'+PRN.url+'" download="Official-Forms.pdf" style="font-weight:700">Save a copy</a></p>':'')+'</div>'}
+function parseItems(t){return String(t||'').split(/\r?\n/).filter(function(l){return l.trim()}).map(function(l){return{ok:!/^(⚠|❌|🚨)/.test(l.trim()),t:l.replace(/^[^\w]+/,'').trim()}})}
+function makePrint(){if(PRN.busy)return;var f=PRN.from,t=PRN.to,pick=PK.prn.map(function(x){return x[0]}).filter(function(k){return PRN.pick[k]});PRN.url='';
+ if(!f||!t||f>t){PRN.msg='Pick a From and a To date (From must come first).';draw();return}if(!pick.length){PRN.msg='Tick at least one form.';draw();return}
+ PRN.busy=true;PRN.msg='';draw();
+ post({act:'subs',from:f,to:t}).then(function(r){if(!r.ok)throw new Error(r.error||'Could not load');var C={play:[],eod:[],bathroom:[],san:[],sec:[],tmp:[]};
+  r.subs.forEach(function(x){var o={room:x.r,date:x.d,by:x.by,items:parseItems(x.items)},k=null;
+   if(x.t.indexOf('Playground')>=0)k='play';else if(x.t.indexOf('End of Day')>=0)k='eod';else if(x.t.indexOf('Bathroom')>=0)k='bathroom';else if(x.t.indexOf('Sanitation')>=0&&x.r!=='Kitchen')k='san';else if(x.t.indexOf('Security')>=0)k='sec';else if(x.t.indexOf('Temp')>=0)k='tmp';
+   if(k)C[k].push(o)});
+  return RoomForms.build({school:r.school,charts:C},f,t>D.today?D.today:t,pick)}).then(function(r){PRN.busy=false;if(!r.pages){PRN.msg='No completed forms were found for those dates.';draw();return}try{PRN.url=URL.createObjectURL(new Blob([r.bytes],{type:'application/pdf'}))}catch(e){}PRN.msg=r.pages+' page'+(r.pages>1?'s':'')+' ready.';draw()}).catch(function(e){PRN.busy=false;PRN.msg=esc(e.message||'Could not make the forms.');draw()})}
+function visitHtml(){return '<div class="sec"><h2>📝 Visitor Sign In / Out</h2><div class="sub">Business visitors and guests sign in here and sign out when they leave. Anyone still signed in at 5:30 PM is signed out automatically.</div><div id="vlist"></div></div><div class="sec" id="vin"></div>'}
+function visitInit(){var vs=D.visitors||[];var l=document.getElementById('vlist');
+ l.innerHTML='<h2 style="font-size:18px">Here now</h2>'+(vs.length?vs.map(function(v,i){return '<button class="big sec2" style="font-size:16px" data-i="'+i+'">'+esc(v.name)+' <small>('+esc(v.from)+', in '+esc(v.in)+')</small> &mdash; tap to sign out</button>'}).join(''):'<div class="sub">No visitors are signed in right now.</div>');
+ l.querySelectorAll('button[data-i]').forEach(function(b){b.onclick=function(){outSign(vs[+b.getAttribute('data-i')])}});visIn()}
+function visIn(){var v=document.getElementById('vin');v.innerHTML='<h2>Sign in</h2>'+inp('vn','Your name','')+inp('vf','Company or why you are here','')+inp('vv','Who are you here to see (optional)','')+'<label class="lbl">Sign here</label><canvas class="sig" id="sg"></canvas><div><a href="#" id="sc2">Clear</a></div><div id="er" style="color:#b3261e;font-weight:700;min-height:22px"></div><button class="big" id="go">Sign in ✅</button>';
+ var pd=pad('sg');document.getElementById('sc2').onclick=function(e){e.preventDefault();pd.clear()};
+ document.getElementById('go').onclick=function(){var b=this,er=document.getElementById('er'),s=pd.get();if(!val('vn')||!val('vf')){er.textContent='Please type your name and why you are here.';return}if(!s){er.textContent='Please sign in the box.';return}b.disabled=true;b.textContent='Saving...';
+  post({act:'visitor_in',visitor:val('vn'),from:val('vf'),visiting:val('vv'),sig:s}).then(function(x){if(x.ok)reload('You are signed in at '+x.time+'. Please sign out when you leave.');else{b.disabled=false;b.textContent='Sign in ✅';er.textContent=x.error||'Did not save.'}})}}
+function outSign(v){var s=document.getElementById('vin');s.innerHTML='<h2>Sign out: '+esc(v.name)+'</h2><label class="lbl">Sign here</label><canvas class="sig" id="sg"></canvas><div><a href="#" id="sc2">Clear</a></div><div id="er" style="color:#b3261e;font-weight:700;min-height:22px"></div><button class="big" id="go">Sign out ✅</button><button class="big sec2" id="bk">Back</button>';
+ var pd=pad('sg');document.getElementById('sc2').onclick=function(e){e.preventDefault();pd.clear()};document.getElementById('bk').onclick=visIn;window.scrollTo(0,document.body.scrollHeight);
+ document.getElementById('go').onclick=function(){var b=this,er=document.getElementById('er'),sg=pd.get();if(!sg){er.textContent='Please sign in the box.';return}b.disabled=true;b.textContent='Saving...';
+  post({act:'visitor_out',id:v.id,sig:sg}).then(function(x){if(x.ok)reload('Signed out. Thank you!');else{b.disabled=false;b.textContent='Sign out ✅';er.textContent=x.error||'Did not save.'}})}}
+function locate(){msg("<p style='font-size:20px'><b>Checking that you are at the school...</b><br>Verificando que está en la escuela...</p><p>Please tap <b>Allow</b> if your phone asks for your location.<br>Toque <b>Permitir</b> si su teléfono pide su ubicación.</p>");var dn=false;
+ function send(lat,lng,acc){post({act:'loc',pass:'x',lat:lat,lng:lng,acc:acc}).then(function(r){
+  if(r&&r.ok){try{localStorage.setItem('roomPass_'+S,JSON.stringify({p:r.pass,e:Date.now()+19*60000}))}catch(e){}load()}
+  else if(r&&r.error==='too_far')msg("<p style='font-size:20px'><b>These pages can only be opened at the school.</b><br>Estas páginas solo se pueden abrir en la escuela.</p>"+again());
+  else if(r&&r.error==='slow_down')msg("<p>Too many tries. Please wait a few minutes.</p>");
+  else if(r&&r.error==='no_location')msg("<p style='font-size:20px'><b>Location is needed.</b> Turn on location for your browser, then try again.</p>"+again());
+  else msg("<p>This page could not check the school location right now. Please tell the director.</p>"+again())}).catch(function(){msg("<p>Can't reach the server. Check your connection.</p>"+again())})}
+ if(!navigator.geolocation){send(null,null,0);return}
+ navigator.geolocation.getCurrentPosition(function(p){if(dn)return;dn=true;send(p.coords.latitude,p.coords.longitude,p.coords.accuracy||0)},function(){if(dn)return;dn=true;send(null,null,0)},{enableHighAccuracy:true,timeout:20000,maximumAge:0})}
+function load(){if(!getPass()){locate();return}
+ post({act:'info'}).then(function(d){if(d.error==='need_location'){try{localStorage.removeItem('roomPass_'+S)}catch(e){}locate();return}if(d.error){msg(esc(d.error));return}
+  D=d;document.getElementById('sc').textContent='Kid City USA '+d.school;document.body.className=(S==='deland')?'deland':'sanford';document.getElementById('dt').textContent=new Date(d.today+'T12:00:00').toLocaleDateString([], {weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  var first=PK.tiles[0];if(P==='visitor')cur='visit';draw()}).catch(function(){msg('Could not load. Please try again.'+again())})}
+if(!PK||(S!=='sanford'&&S!=='deland')){document.getElementById('app').textContent='This page was not found.'}else{document.getElementById('rn').textContent=PK.t;document.getElementById('pk').textContent=PK.t;document.title=PK.t+' - Kid City USA';load()}
+</script></body></html>

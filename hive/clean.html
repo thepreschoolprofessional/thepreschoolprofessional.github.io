@@ -28,7 +28,7 @@ input.t{width:100%;border:2px solid #e5d9c8;border-radius:12px;padding:12px;font
 var esc=function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
 var pass=(location.hash.match(/p=([^&]+)/)||[])[1]||'';
 try{if(pass){sessionStorage.setItem('cleanPass',pass);history.replaceState(null,'',location.pathname);}else pass=sessionStorage.getItem('cleanPass')||'';}catch(e){}
-var DIR=null;try{var hm=location.hash.match(/r=([^&]+)&s=([a-z]+)&k=([a-z]+)&t=([a-z]+)/);if(hm){DIR={r:hm[1],s:hm[2],k:hm[3],t:hm[4]};sessionStorage.setItem('cleanDirect',JSON.stringify(DIR));history.replaceState(null,'',location.pathname);}else{DIR=JSON.parse(sessionStorage.getItem('cleanDirect')||'null');}}catch(e){}
+var DIR=null;try{var hm=location.hash.match(/r=([^&]+)&s=([a-z]+)&k=([a-z]+)&t=([a-z]+)(?:&d=(\d{4}-\d{2}-\d{2}))?/);if(hm){DIR={r:hm[1],s:hm[2],k:hm[3],t:hm[4],d:hm[5]||''};sessionStorage.setItem('cleanDirect',JSON.stringify(DIR));history.replaceState(null,'',location.pathname);}else{DIR=JSON.parse(sessionStorage.getItem('cleanDirect')||'null');}}catch(e){}
 if(DIR&&hm){pass='';try{sessionStorage.removeItem('cleanPass')}catch(e){}}
 var CLASSMAP={deland:{honeybees:['Ones','Twos'],honeycombs:['Threes','Fours / VPK'],infant:['Infant Room']},sanford:{honeybees:['Ones'],vpk:['Fours / VPK'],schoolagers:['School Age']}};
 var FORMMAP={classroom:'\uD83E\uDDF9 Classroom Cleaning',bathroom:'\uD83D\uDEBD Bathroom Cleaning',indoor:'\uD83C\uDFE0 Indoor Inspection'};
@@ -54,6 +54,7 @@ function chart(){
   if(j.error)return dead(j.error);
   if(!j.items.length){app.innerHTML='<div class="msg warn">No items on this chart yet.</div><button class="go" onclick="location.reload()">Back</button>';return;}
   var h='<div class="step">'+esc(S.form)+(DIR?'':' · '+esc(S.room))+'</div>';
+  if(DIR&&DIR.d){var dp=DIR.d.split('-');h+='<div class="msg warn" style="margin:6px 0">📅 You are filling in <b>'+(+dp[1])+'/'+(+dp[2])+'/'+dp[0]+'</b> (a missed day). Only mark what was really done that day.</div>';}
   if(DIR){var opts=(CLASSMAP[DIR.s]||{})[DIR.k]||[];h+='<div class="step" style="margin-top:4px">Your name</div><input class="t" id="nm2" value="'+esc(S.name)+'" placeholder="Type your name" autocomplete="off">';
    if(opts.length>1){h+='<div class="step">Which room?</div><div class="grid">'+opts.map(function(r){return'<div class="pick'+(S.room===r?' sel':'')+'" data-r2="'+esc(r)+'">'+esc(r)+'</div>'}).join('')+'</div>';}}
   j.items.forEach(function(it){h+='<div class="row" data-ok="1" data-item="'+esc(it.item)+'"><b>'+esc(it.item)+'</b><div class="tg"><button type="button" class="ok on">✅ OK</button><button type="button" class="bad">⚠️ Needs attention</button></div><input class="note" placeholder="Note (optional)…"></div>';});
@@ -66,7 +67,7 @@ function chart(){
    if(DIR){var n2=document.getElementById('nm2').value.trim();if(!n2){alert('Please type your name first.');return}if(!S.room){alert('Please pick the room.');return}S.name=n2;try{localStorage.setItem('bearRoomBy',n2)}catch(e){}}
    var btn=this;btn.disabled=true;btn.textContent='Saving…';
    var rows=[].map.call(app.querySelectorAll('.row'),function(r){return{item:r.getAttribute('data-item'),ok:r.getAttribute('data-ok')!=='0',note:r.querySelector('.note').value};});
-   api('submit',{form:S.form,room:S.room,name:S.name,rows:rows}).then(function(x){
+   api('submit',{form:S.form,room:S.room,name:S.name,rows:rows,date:(DIR&&DIR.d)||''}).then(function(x){
     if(x.ok){app.innerHTML='<div class="msg ok">✅ Submitted! Your director will get it. 💛</div>'+(DIR?'':'<button class="go" id="more">Do another chart</button>')+'<button class="go" id="done" style="background:#9b8576">'+(DIR?'Back to the classroom page':'I\'m done — back to Bear Line')+'</button><div id="hist"></div>';S.form='';
      if(!DIR)document.getElementById('more').onclick=pickScreen;document.getElementById('done').onclick=function(){if(DIR){location.href=BACK;return}try{window.close();}catch(e){}history.length>1?history.back():(location.href='https://bearphonicsacademy.com/');};hist();}
     else{btn.disabled=false;btn.textContent='Submit ✅';alert(x.error||'Did not save — try again.');}

@@ -20,6 +20,7 @@ main{max-width:820px;margin:0 auto;padding:14px 16px 8px}
 .tile.on{border-color:var(--ink);box-shadow:0 3px 0 var(--ink)}
 .sec{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:14px}
 h2{margin:0 0 4px;font-family:var(--f-display);font-size:21px;font-weight:600;color:var(--ink)}.sub{color:var(--muted);font-size:14px;margin-bottom:10px}
+.chip.todo{background:#fff3c4;color:#8a5a00;border-color:#f0b400;font-weight:700}.chip.todo small{font-size:9px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px}
 .chip{border-radius:12px;padding:7px 8px;font-size:12px;line-height:1.1;text-align:center;cursor:pointer;border:2px solid transparent;min-width:46px}
 .chip.ok{background:var(--ok-soft);color:var(--ok)}.chip.flag{background:var(--bad-soft);color:var(--bad)}.chip.none{background:var(--sunk);color:#a99978;cursor:default}.chip.sel{border-color:var(--ink)}
@@ -66,7 +67,8 @@ function signHtml(){
 function siLoad(){SI.busy=true;post({pass:getPass(),act:'kids'}).then(function(r){SI.busy=false;if(r.error==='need_location'){try{localStorage.removeItem('roomPass_'+S)}catch(e){}locate();return}if(r.error){SI.msg=r.error;SI.list=SI.list||[]}else{SI.list=r.kids||[];SI.msg=''}draw()}).catch(function(){SI.busy=false;SI.list=SI.list||[];SI.msg='Could not load. Check the connection and try again.';draw()})}
 function siGo(nm,d){var by=(SI.by||'').trim();if(!by){SI.msg='Type your name first.';draw();document.getElementById('siBy')&&document.getElementById('siBy').focus();return}
  if(SI.busy)return;SI.busy=true;SI.msg='';post({pass:getPass(),act:'sign',child:decodeURIComponent(nm),dir:d,by:by}).then(function(r){SI.busy=false;if(r.error==='need_location'){try{localStorage.removeItem('roomPass_'+S)}catch(e){}locate();return}if(r.error){SI.msg=r.error}else{SI.list=r.kids||SI.list}draw()}).catch(function(){SI.busy=false;SI.msg='Did not save. Check the connection and try again.';draw()})}
-function doChart(){var p=getPass();if(!p){locate();return}location.href='clean.html#r='+encodeURIComponent(p)+'&s='+encodeURIComponent(S)+'&k='+encodeURIComponent(R)+'&t='+encodeURIComponent(cur)}
+function doChart(d){var p=getPass();if(!p){locate();return}location.href='clean.html#r='+encodeURIComponent(p)+'&s='+encodeURIComponent(S)+'&k='+encodeURIComponent(R)+'&t='+encodeURIComponent(cur)+(d?'&d='+d:'')}
+var CLOSED=['2026-07-03','2026-07-31','2026-09-07','2026-11-11','2026-11-26','2026-11-27','2026-12-23','2026-12-24','2026-12-25','2027-01-01','2027-01-18','2027-03-26','2027-05-31','2027-06-18'];
 function missing(k){if(k==='signin'||k==='bios'||k==='schedule'||k==='forms'||!D||!wk(D.today))return false;return !(D.charts[k]||[]).some(function(c){return c.date===D.today})}
 var SOPR={sanford:{honeybees:['Honeybees - Tod./Inf.'],vpk:['VPK/Pre-School (Pollen-Jocks)'],schoolagers:['Schoolagers (Worker Bees)']},deland:{honeybees:['Honey Bees - Tod. Front'],honeycombs:["Three's - Honey Combs","Four's - Honey Combs"],infant:['Infant/Toddler']}},wedView=null;
 function t12(x){try{return SOP.fmt(x)}catch(e){return x}}
@@ -110,7 +112,7 @@ function makeForms(){
  var s=document.createElement('script');
  function go(){RoomForms.build(D,f,t>D.today?D.today:t,pick).then(function(r){FM.busy=false;if(!r.pages){FM.msg='No completed forms were found for those dates and forms.';draw();return}
   try{FM.url=URL.createObjectURL(new Blob([r.bytes],{type:'application/pdf'}))}catch(e){}FM.msg=r.pages+' page'+(r.pages>1?'s':'')+' ready.';draw()}).catch(function(e){FM.busy=false;FM.msg=esc(e.message||'Could not make the forms. Please try again.');draw()})}
- if(window.RoomForms)go();else{s.src='room-forms.js?v=1';s.onload=go;s.onerror=function(){FM.busy=false;FM.msg='Could not load the form tools. Check your connection.';draw()};document.head.appendChild(s)}
+ if(window.RoomForms)go();else{s.src='room-forms.js?v=2';s.onload=go;s.onerror=function(){FM.busy=false;FM.msg='Could not load the form tools. Check your connection.';draw()};document.head.appendChild(s)}
 }
 function draw(){
  var h='<div class="tiles">'+Object.keys(SEC).map(function(k){return'<div class="tile'+(k===cur?' on':'')+'" onclick="cur=\''+k+'\';draw()"><span class="e">'+SEC[k][0]+'</span>'+SEC[k][1]+'<small>'+SEC[k][2]+'</small>'+(missing(k)?'<span class="miss">NOT DONE TODAY</span>':'')+'</div>'}).join('')+'</div>';
@@ -122,7 +124,7 @@ function draw(){
   var go='<button onclick="doChart()" style="display:block;width:100%;font:inherit;font-weight:800;font-size:18px;border:0;border-radius:14px;padding:15px;background:var(--ok);color:#fff;margin-bottom:12px;cursor:pointer">'+(missing(cur)?'Do today\'s '+SEC[cur][1].replace(' Chart','')+' now':'Add to today\'s '+SEC[cur][1].replace(' Chart',''))+' &rarr;</button>';
   if(missing(cur))h+='<div class="alert">⚠️ Today\'s '+SEC[cur][1]+' has NOT been completed yet. Tap the green button below to fill it out right now. No PIN needed.</div>';
   h+=go;
-  h+='<div class="sec"><h2>'+SEC[cur][0]+' '+SEC[cur][1]+'</h2><div class="sub">'+esc(D.room)+'. Tap a day to see that day\'s chart. Green = completed, red = something needed attention, gray = no chart recorded.</div><div class="chips">'+ds.map(function(d){var b=by[d],c=!b?'none':(b.some(function(x){return x.status==='flag'})?'flag':'ok');return'<div class="chip '+c+(d===sel?' sel':'')+'"'+(b?' onclick="selDate[cur]=\''+d+'\';draw()"':'')+'>'+dow(d)+'<br><b>'+fd(d)+'</b></div>'}).join('')+'</div>';
+  h+='<div class="sec"><h2>'+SEC[cur][0]+' '+SEC[cur][1]+'</h2><div class="sub">'+esc(D.room)+'. Tap a day to see that day\'s chart. Green = completed, red = something needed attention, <b style="color:#b3261e">yellow &ldquo;NOT DONE&rdquo; = missed day: tap it to fill that day in right now</b>.</div><div class="chips">'+ds.map(function(d){var b=by[d],c=!b?'none':(b.some(function(x){return x.status==='flag'})?'flag':'ok');var td=(!b&&CLOSED.indexOf(d)<0&&d!==D.today);if(td)c='todo';return'<div class="chip '+c+(d===sel?' sel':'')+'"'+(b?' onclick="selDate[cur]=\''+d+'\';draw()"':(td?' onclick="doChart(\''+d+'\')"':''))+'>'+dow(d)+'<br><b>'+fd(d)+'</b>'+(td?'<br><small>NOT DONE</small>':'')+'</div>'}).join('')+'</div>';
   if(!sel)h+='<div class="msg">No charts recorded in the last 2 months.</div>';
   else h+='<div class="sub"><b>'+dow(sel)+' '+fd(sel)+'</b></div>'+by[sel].map(function(c){return'<div class="chart"><div class="top"><span>Completed by '+esc(c.by||'staff')+(c.at?' at '+new Date(c.at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit',timeZone:'America/New_York'}):'')+'</span><span class="badge '+c.status+'">'+(c.status==='ok'?'All OK':'Needs attention')+'</span></div>'+c.items.map(function(i){return'<div class="it'+(i.ok?'':' bad')+'">'+(i.ok?'✅ ':'⚠️ ')+esc(i.t)+'</div>'}).join('')+'</div>'}).join('');
   h+='</div>';

@@ -69,10 +69,11 @@ if ($action === 'submit'){
     if (!$ok) $flags[] = $it.($note !== '' ? ' ('.$note.')' : '');
   }
   if (!$lines) fail('Nothing to save.');
-  date_default_timezone_set('America/New_York'); $now = new DateTime('now');
-  $fields = ['School'=>$school,'Room / Classroom'=>$room,'Form Type'=>$form,'Staff Name'=>$name,'Date'=>$now->format('Y-m-d'),'Submitted At'=>gmdate('c'),
+  date_default_timezone_set('America/New_York'); $now = new DateTime('now'); $dt = $now->format('Y-m-d');
+  $dq = (string)($in['date'] ?? ''); if ($dq !== ''){ if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dq) || $dq > $dt || $dq < date('Y-m-d', strtotime('-62 days'))) fail('Pick a day from the last 2 months.'); $dt = $dq; }
+  $fields = ['School'=>$school,'Room / Classroom'=>$room,'Form Type'=>$form,'Staff Name'=>$name,'Date'=>$dt,'Submitted At'=>gmdate('c'),
     'Items'=>implode("\n", $lines),'Overall Status'=>$flags ? '⚠️ Issues Flagged' : '✅ All OK','Status'=>'🟡 Pending',
-    'Submission'=>$school.' · '.$room.' · '.preg_replace('/^\S+ /', '', $form).' · '.$now->format('n/j g:i A')];
+    'Submission'=>$school.' · '.$room.' · '.preg_replace('/^\S+ /', '', $form).' · '.substr($dt,5,2).'/'.substr($dt,8,2).($dq!==''?' (filled in late)':' '.$now->format('g:i A'))];
   if ($flags) $fields['Details'] = "Needs attention:\n- ".implode("\n- ", $flags);
   $res = at('POST', 'Facility Submissions', null, ['records'=>[['fields'=>$fields]], 'typecast'=>true]);
   if (empty($res['records'][0]['id'])) fail('Did not save — try again.', 502);
