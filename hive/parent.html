@@ -168,7 +168,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 </div>
 </main>
 <script src="bios.js?v=1"></script>
-<script src="parent-pp.js?v=8"></script>
+<script src="parent-pp.js?v=9"></script>
 <script src="parent-upload.js?v=1"></script>
 <script src="install-prompt.js?v=1"></script>
 <script>
@@ -325,6 +325,7 @@ function deepLink(){
   if(STAFF && !mySchool && (sc==='Sanford'||sc==='DeLand 2')) staffPick(sc);
   var t=[].slice.call(document.querySelectorAll('nav .tab')).filter(function(x){ return (x.getAttribute('onclick')||'').indexOf("show('"+id+"'")>-1; })[0];
   if(t) t.click();
+  var lm=h.match(/lesson=([a-z]+)/); if(t && id==='learn' && lm && window.PPA && PPA.learn) PPA.learn(lm[1]);
 }
 init().then(deepLink, deepLink);
 </script>

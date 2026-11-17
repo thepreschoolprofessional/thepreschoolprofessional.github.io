@@ -23,6 +23,8 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
 .bc-chip{border:2px solid #ffd2b0;background:#fff;border-radius:999px;padding:6px 12px;font-size:.85rem;font-weight:700;color:var(--ink);cursor:pointer;}
 .bc-chip:hover{background:#fff0e3;}
 .bc-bar{display:flex;gap:6px;margin-top:10px;}
+.bc-privacy{font-size:.8rem;color:var(--soft);margin:8px 2px 0;}
+.bc-clear{border:2px solid #ffd2b0;background:#fff;border-radius:999px;padding:3px 10px;font-size:.8rem;font-weight:800;color:var(--ink);cursor:pointer;margin-left:4px;}
 .bc-input{flex:1;padding:12px 14px;border-radius:14px;border:2px solid #ffd2b0;font-size:1rem;}
 .bc-mic,.bc-go{border:0;border-radius:14px;padding:0 16px;font-size:1.05rem;font-weight:800;cursor:pointer;color:#fff;background:var(--purple);}
 .bc-go{background:var(--pink);}
@@ -50,8 +52,8 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
 <body>
 <header><h1>🐻 Bear Chat</h1><div class="sub" id="sub"></div></header>
 <div id="app"></div>
-<script src="bear-chat-data.js?v=3"></script>
-<script src="bear-chat.js?v=3"></script>
+<script src="bear-chat-data.js?v=4"></script>
+<script src="bear-chat.js?v=4"></script>
 <script>
 (function(){
   var pin = sessionStorage.getItem('hivePin'), owner = sessionStorage.getItem('hiveOwner')==='1', school = sessionStorage.getItem('hiveSchool');

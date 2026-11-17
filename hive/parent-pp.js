@@ -280,7 +280,7 @@ async function showEmail(kind,boxId){
     open(0);
   }catch(e){box.innerHTML='<div class="empty">Could not load right now. Please try again in a moment.</div>';}
 }
-window.PPA={show:function(w){
+window.PPA={learn:function(id){renderLearn(id);var d=document.querySelector('#learnBox details.pl[open]');if(d&&d.scrollIntoView)d.scrollIntoView({behavior:'smooth',block:'start'});},show:function(w){
   if(w==='mon'){showEmail('Monday Overview','monBox');return;}
   if(w==='fri'){showEmail('Friday Briefing','friBox');return;}
   if(w==='menu')showDoc('menu','menuBox','menu',/^Menu/i);

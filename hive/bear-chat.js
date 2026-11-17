@@ -3,7 +3,8 @@
    Anything it can't match goes to the family's school director as a regular Parent Message.
    BearChat.mount(el, {school, pin, mode}) where mode is 'preview' (nothing is sent) or 'live'. */
 (function(){
-var D = window.BC_DATA, OPT = {}, ROOT = null, LOG = [], MISSED = [];
+var D = window.BC_DATA, OPT = {}, ROOT = null, LOG = [], MISSED = [], BLOBS = [], IDLE = null, HIDDEN_AT = 0, REC = null;
+var IDLE_MS = 3*60*1000, AWAY_MS = 60*1000; /* clear after 3 minutes without use, or after 1 minute away from the page */
 var esc = function(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); };
 var STOP = ('a an the is are am be been do does did i me my we our you your it its to of in on at for and or can could would will '
   + 'what whats when where who how why there this that these those with have has had get got please hi hello hey just about any '
@@ -138,6 +139,10 @@ var LIVE = {
     if (!L.length) return 'There are no more closures on this school year\'s calendar.';
     return 'Coming up:\n' + L.map(function(c){ return '• '+rangeStr(c)+': '+c[3]+(c[2]==='all'?' (closed for everyone)':c[2]==='early'?' (closing early)':' (VPK and school-age closed, preschool open)'); }).join('\n') + '\nThe Closures card has the full calendar to print.';
   },
+  lesson: function(e){
+    var L = (D.lessons||{})[e.lesson]; if (!L) return 'This is one of the Parent Orientation lessons. Open the Parent Orientation card to take it.';
+    return 'The "'+L.t+'" lesson in Parent Orientation covers:\n'+L.pts.map(function(p){ return '• '+p; }).join('\n');
+  },
   hours: function(){
     var p = todayParts(), dt = todayUTC(), wd = dt.getUTCDay(), c = closureOn(dt), mins = p.hh*60 + p.mm;
     var s = 'We are open Monday through Friday, 6:30 AM to 5:30 PM. Children must be picked up by closing time.';
@@ -150,8 +155,16 @@ var CARD = {'Closures':'closures','Tuition':'fees','What to Bring':'bring','Send
   'Send Us a Document':'docs','Menu':'menu','Drop-Off':'pick','Documents':'res','Lesson Plans':'lessons','Bear Phonics Academy Online':'bp','Meet Our Teachers':'teach',
   'Teddy Bear Talk':'tbt','Parent Orientation':'learn','Events':'events','Newsletter':'news','Message Board':'board','Monday Overview':'mon','Friday Briefing':'fri',
   'Things to Do':'todo','Add to Your Phone':'app','Year-Round Book Fair':'fair','Fundraiser':'fund'};
-function openCard(name){
+/* the family Welcome page (where Register Online and Book a tour live) */
+var WELCOME = {'Register Online':'reg','Welcome Page':''};
+function openCard(name, lesson){
+  if (name in WELCOME){ window.open('welcome.html?school='+encodeURIComponent(OPT.school||'')+(WELCOME[name] ? '#'+WELCOME[name] : ''), '_blank'); return; }
   var id = CARD[name]; if (!id) { window.open('parent.html','_blank'); return; }
+  if (lesson){
+    var lt = [].slice.call(document.querySelectorAll('nav .tab')).filter(function(t){ return (t.getAttribute('onclick')||'').indexOf("show('learn'") > -1; })[0];
+    if (lt && window.PPA && PPA.learn){ lt.click(); PPA.learn(lesson); return; }
+    window.open('parent.html#card=learn&lesson='+encodeURIComponent(lesson)+'&school='+encodeURIComponent(OPT.school||''), '_blank'); return;
+  }
   var tab = [].slice.call(document.querySelectorAll('nav .tab')).filter(function(t){ return (t.getAttribute('onclick')||'').indexOf("show('"+id+"'") > -1; })[0];
   if (tab){ tab.click(); return; }
   window.open('parent.html#card='+id+'&school='+encodeURIComponent(OPT.school||''), '_blank');
@@ -175,7 +188,7 @@ var ASYNC = {
       return filesApi('pp_get',{name:it.file}).then(function(g){
         if (!g || g.error) throw 0;
         var bin = atob(g.b64), u8 = new Uint8Array(bin.length); for (var i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
-        var ext = (it.file.split('.').pop()||'').toLowerCase(), u = URL.createObjectURL(new Blob([u8],{type: ext==='pdf'?'application/pdf':(ext==='png'?'image/png':'image/jpeg')}));
+        var ext = (it.file.split('.').pop()||'').toLowerCase(), u = URL.createObjectURL(new Blob([u8],{type: ext==='pdf'?'application/pdf':(ext==='png'?'image/png':'image/jpeg')})); BLOBS.push(u);
         return {html: 'Here is '+(it.month && it.month!==j.month ? 'the most recent ' : 'this month\'s ')+esc(e.doc)+': '+link(u, 'Open the '+(it.title||e.doc))};
       });
     });
@@ -325,7 +338,7 @@ function ask(text, picked){
   var e = picked, m = null;
   if (!e){ m = match(text); if (confident(m)) e = m[0].x.e; }
   if (!e){
-    MISSED.push({q:text, at:new Date().toISOString()}); saveMissed();
+    MISSED.push({q:text, at:new Date().toISOString()});
     var alts = (m||[]).filter(function(r){ return r.s >= 2.5; }).slice(0,3);
     var ex = document.createElement('div');
     if (alts.length){ ex.appendChild(chips(alts.map(function(r){ return {label:r.x.e.q[0], e:r.x.e}; }), function(it){ ask(it.label, it.e); })); }
@@ -339,24 +352,26 @@ function ask(text, picked){
   answer(e, text).then(function(r){
     if (r && r.html) wait.innerHTML = r.html; else wait.innerHTML = esc(r).replace(/\n/g,'<br>');
     var ex = [];
-    if (e.go) ex.push({label:'Open '+e.go+' in the portal', go:e.go});
+    var L = e.lesson && (D.lessons||{})[e.lesson];
+    if (e.go) ex.push({label:e.go in WELCOME ? (e.go==='Register Online' ? '📝 Register Online' : 'Open our Welcome page') : (L && e.go==='Parent Orientation' ? '🎓 Take this lesson' : 'Open '+e.go+' in the portal'), go:e.go, lesson:L && e.go==='Parent Orientation' ? e.lesson : ''});
+    if (L && e.go!=='Parent Orientation') ex.push({label:'🎓 Learn more: '+L.t+' lesson', go:'Parent Orientation', lesson:e.lesson});
     if (e.handoff) ex.push({label:'💬 Send this to the director', h:e.handoff});
     ex.push({label:'👍 That helped', ok:1});
     ex.push({label:'Not what I asked', no:1});
     wait.appendChild(chips(ex, function(it){
-      if (it.go){ openCard(it.go); return; }
+      if (it.go){ openCard(it.go, it.lesson); return; }
       if (it.h){ handoff(text, it.h); return; }
       if (it.ok){ say('bot', 'Glad to help! 🐝'); return; }
-      if (it.no){ MISSED.push({q:text, at:new Date().toISOString(), wrong:e.id}); saveMissed(); renderMissed(); handoff(text, 'Question from Bear Chat'); }
+      if (it.no){ MISSED.push({q:text, at:new Date().toISOString(), wrong:e.id}); renderMissed(); handoff(text, 'Question from Bear Chat'); }
     }));
     ROOT.querySelector('.bc-log').scrollTop = 1e9;
   });
 }
 function handoff(question, type){
   var f = document.createElement('form'); f.className = 'bc-form';
-  f.innerHTML = '<label>Your name<input name="n" required maxlength="80"></label>'
-    + '<label>Phone or email (so the director can reply)<input name="c" maxlength="120"></label>'
-    + '<label>Your message<textarea name="m" required maxlength="1500"></textarea></label>'
+  f.innerHTML = '<label>Your name<input name="n" required maxlength="80" autocomplete="off"></label>'
+    + '<label>Phone or email (so the director can reply)<input name="c" maxlength="120" autocomplete="off"></label>'
+    + '<label>Your message<textarea name="m" required maxlength="1500" autocomplete="off"></textarea></label>'
     + '<button type="submit" class="bc-send">'+(OPT.mode==='live' ? 'Send to the director' : 'Preview: show what would be sent')+'</button>';
   f.querySelector('textarea').value = question;
   f.onsubmit = function(ev){
@@ -376,11 +391,10 @@ function handoff(question, type){
   say('bot', OPT.mode==='live' ? 'I\'ll send this to your director. Add your name and how to reach you.' : 'In the live version, the family fills this in and it goes to the director.', f);
 }
 
-/* ---------- questions it couldn't answer (this device only, for the preview) ---------- */
-function saveMissed(){ try{ sessionStorage.setItem('bcMissed', JSON.stringify(MISSED.slice(-50))); }catch(e){} }
+/* ---------- questions it couldn't answer (owner preview only, kept in memory, cleared with the chat) ---------- */
 function renderMissed(){
   var el = ROOT.querySelector('.bc-missed'); if (!el) return;
-  if (!MISSED.length){ el.innerHTML = ''; return; }
+  if (!MISSED.length || OPT.mode !== 'preview'){ el.innerHTML = ''; return; }
   el.innerHTML = '<details><summary>Questions Bear Chat couldn\'t answer this session ('+MISSED.length+')</summary><ul>'+MISSED.map(function(m){ return '<li>'+esc(m.q)+(m.wrong?' <i>(gave the wrong answer)</i>':'')+'</li>'; }).join('')+'</ul></details>';
 }
 
@@ -400,11 +414,11 @@ function setupVoice(){
   if (!SR){ btn.style.display = 'none'; ROOT.querySelector('.bc-voice-note').textContent = 'Tip: tap the microphone on your phone\'s keyboard to speak your question.'; return; }
   var rec = null, on = false;
   btn.onclick = function(){
-    if (on && rec){ rec.stop(); return; }
-    rec = new SR(); rec.lang = 'en-US'; rec.interimResults = true; rec.maxAlternatives = 1;
+    if (on && rec && rec === REC){ rec.stop(); return; }
+    rec = REC = new SR(); rec.lang = 'en-US'; rec.interimResults = true; rec.maxAlternatives = 1;
     var inp = ROOT.querySelector('.bc-input'), finalText = '';
     rec.onresult = function(ev){ var t = ''; for (var i=0;i<ev.results.length;i++){ t += ev.results[i][0].transcript; if (ev.results[i].isFinal) finalText = t; } inp.value = t; };
-    rec.onend = function(){ on = false; btn.classList.remove('on'); if (finalText.trim()){ ask(finalText); inp.value = ''; } };
+    rec.onend = function(){ on = false; btn.classList.remove('on'); if (rec !== REC) return; REC = null; if (finalText.trim()){ ask(finalText); inp.value = ''; } };
     rec.onerror = function(){ on = false; btn.classList.remove('on'); };
     on = true; btn.classList.add('on'); rec.start();
   };
@@ -422,18 +436,47 @@ function loadNew(){
     }).catch(function(){});
 }
 function mount(el, opt){
-  OPT = opt || {}; ROOT = el; build();
-  try{ MISSED = JSON.parse(sessionStorage.getItem('bcMissed')||'[]'); }catch(e){ MISSED = []; }
+  OPT = opt || {}; ROOT = el; build(); MISSED = [];
+  try{ sessionStorage.removeItem('bcMissed'); }catch(e){} /* the old preview kept missed questions here; nothing is stored now */
   el.innerHTML = '<div class="bc-wrap">'
-    + '<div class="bc-log"></div>'
+    + '<div class="bc-log" aria-live="polite"></div>'
+    + '<div class="bc-privacy">🔒 This chat is private to you. It clears itself after 3 minutes without use, and nothing is saved on this device. <button type="button" class="bc-clear">Clear chat now</button></div>'
     + '<form class="bc-bar"><input class="bc-input" placeholder="Type or speak a question…" autocomplete="off" maxlength="300"><button type="button" class="bc-mic" title="Speak">🎤</button><button class="bc-go" type="submit">Ask</button></form>'
     + '<div class="bc-voice-note">Voice uses your browser\'s free voice typing (Google in Chrome, Apple in Safari). Best for school questions, not private details.</div>'
     + '<div class="bc-browse"></div><div class="bc-missed"></div></div>';
   el.querySelector('.bc-bar').onsubmit = function(ev){ ev.preventDefault(); var i = el.querySelector('.bc-input'); ask(i.value); i.value=''; };
+  el.querySelector('.bc-clear').onclick = function(){ reset(); el.querySelector('.bc-input').focus(); };
+  ['keydown','pointerdown','touchstart','input'].forEach(function(t){ el.addEventListener(t, poke, true); });
+  if (!window.__bcHooks){ window.__bcHooks = 1;
+    window.addEventListener('pagehide', function(){ reset(); });
+    window.addEventListener('pageshow', function(ev){ if (ev.persisted) reset(); });
+    document.addEventListener('visibilitychange', function(){
+      if (document.visibilityState === 'hidden') HIDDEN_AT = Date.now();
+      else if (HIDDEN_AT && Date.now() - HIDDEN_AT > AWAY_MS) reset();
+    });
+  }
   renderBrowse(); renderMissed(); setupVoice(); loadNew(); loadPortal();
+  greet();
+}
+function greet(){
   var sc = D.schools[OPT.school] || {};
-  say('bot', 'Hi! I\'m Bear Chat 🐻 for '+(sc.name||OPT.school)+'. Ask me about closures, hours, fees, what to bring, sick days, pick-up, the menu, lessons or events. If I don\'t know, I\'ll send your question to your director.',
+  say('bot', 'Hi! I\'m Bear Chat 🐻 for '+(sc.name||OPT.school)+'. Ask me about closures, hours, fees, what to bring, sick days, pick-up, the menu, lessons, events, enrolling or Parent Orientation. If I don\'t know, I\'ll send your question to your director.',
     chips([{label:'Is the school open tomorrow?'},{label:'When is the next holiday?'},{label:"What's for lunch this week?"},{label:'What does my child need to bring?'}], function(it){ ask(it.label); }));
 }
-window.BearChat = {mount:mount, match:function(t){ build(); return match(t); }, _test:{norm:norm, toks:toks, dayIn:dayIn, holidayIn:holidayIn, confident:confident, setSchool:function(s){ OPT.school = s; }, LIVE:LIVE, byId:byId}};
+/* activity keeps the chat; 3 minutes without use clears it so the next family starts fresh */
+function poke(){ clearTimeout(IDLE); IDLE = setTimeout(function(){ if (LOG.length || MISSED.length || ROOT.querySelector('.bc-me')) reset(); }, IDLE_MS); }
+/* wipe everything this family typed or saw: the conversation, any half-filled message, voice, opened files */
+function reset(){
+  if (!ROOT) return;
+  clearTimeout(IDLE); IDLE = null; HIDDEN_AT = 0;
+  try{ if (REC) REC.abort(); }catch(e){} REC = null;
+  BLOBS.forEach(function(u){ try{ URL.revokeObjectURL(u); }catch(e){} }); BLOBS = [];
+  LOG = []; MISSED = [];
+  var log = ROOT.querySelector('.bc-log'); if (log) log.innerHTML = '';
+  var inp = ROOT.querySelector('.bc-input'); if (inp){ inp.value = ''; inp.blur(); }
+  var mic = ROOT.querySelector('.bc-mic'); if (mic) mic.classList.remove('on');
+  ROOT.querySelectorAll('.bc-browse details[open]').forEach(function(d){ d.open = false; });
+  renderMissed(); greet();
+}
+window.BearChat = {mount:mount, reset:reset, match:function(t){ build(); return match(t); }, _test:{norm:norm, toks:toks, dayIn:dayIn, holidayIn:holidayIn, confident:confident, setSchool:function(s){ OPT.school = s; }, LIVE:LIVE, byId:byId}};
 })();
