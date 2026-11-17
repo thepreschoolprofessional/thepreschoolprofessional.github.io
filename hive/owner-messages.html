@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Messages - The Hive</title>
+<style>
+:root{--bg:#f7f4ee;--ink:#2b2118;--card:#fff;--line:#e5dccd;--acc:#5a4cc9;--mut:#76695c;--ok:#2e7d32;--bad:#b71c1c;--warn:#b26a00}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+header{padding:14px 16px;background:#fff;border-bottom:2px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+h1{font-size:20px;margin:0;flex:1}
+main{max-width:860px;margin:0 auto;padding:12px 16px 40px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:4px 0 10px;-webkit-overflow-scrolling:touch}
+.chip{flex:none;border:1.5px solid var(--line);background:#fff;color:var(--ink);border-radius:999px;padding:7px 12px;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap}
+.chip.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.badge{display:inline-block;min-width:20px;padding:1px 6px;margin-left:6px;border-radius:999px;background:var(--bad);color:#fff;font-size:12px;text-align:center}
+.chip.on .badge{background:#fff;color:var(--acc)}
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;color:var(--mut);font-size:13.5px}
+.bar label{display:flex;gap:5px;align-items:center;cursor:pointer}
+.post{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:10px}
+.post.Urgent{border-left-color:var(--bad)}.post.Important{border-left-color:var(--warn)}.post.Quiet{opacity:.85}
+.post.new{box-shadow:0 0 0 2px #d9d3ff}
+.post.done{opacity:.6}
+.top{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.ttl{font-weight:800;font-size:15.5px;flex:1;min-width:0;overflow-wrap:anywhere}
+.sub{color:var(--mut);font-size:12.5px}
+.tag{font-size:11.5px;font-weight:800;padding:1px 7px;border-radius:999px;background:#efeaff;color:var(--acc)}
+.tag.u{background:#fde8e8;color:var(--bad)}.tag.i{background:#fff1dc;color:var(--warn)}.tag.a{background:#fff1dc;color:var(--warn)}
+.body{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14.5px;line-height:1.45;margin-top:6px}
+.body.clip{max-height:7.5em;overflow:hidden;-webkit-mask-image:linear-gradient(#000 70%,transparent)}
+.more{background:none;border:0;color:var(--acc);font-weight:700;padding:4px 0;cursor:pointer;font-size:13.5px}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+button.b{background:var(--acc);color:#fff;border:0;border-radius:10px;padding:7px 12px;font-size:13.5px;font-weight:700;cursor:pointer}
+button.g{background:#fff;color:var(--acc);border:1.5px solid var(--acc)}
+.notes{margin-top:8px;border-top:1px dashed var(--line);padding-top:6px}
+.note{font-size:13.5px;padding:4px 0;white-space:pre-wrap;overflow-wrap:anywhere}
+textarea{width:100%;min-height:64px;font:inherit;font-size:14.5px;padding:8px;border:1.5px solid var(--line);border-radius:10px;margin-top:6px}
+a{color:var(--acc)}
+.msg{padding:30px;text-align:center;color:var(--mut)}
+#say{min-height:18px;font-weight:700;font-size:13.5px}
+</style><script src="bl-brand.js?v=20261113b" defer></script>
+</head><body>
+<header><h1>💬 Messages <span class="sub">(owner only)</span></h1><button class="b g" onclick="load()">Refresh</button></header>
+<main id="app"><div class="msg">Loading…</div></main>
+<script>
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+var PIN=null,POSTS=[],CH='All',SHOW_DONE=false,OPEN={},LOCK=null,TIMER=null,API='owner-messages-api.php',SEEN_KEY='hiveOwnerMsgSeen';
+try{var now=Date.now();for(var i=localStorage.length-1;i>=0;i--){var k=localStorage.key(i);if(k&&k.indexOf('hiveOwnerPinHandoff_')===0){var ts=+k.split('_')[1];if(now-ts<60000&&!PIN)PIN=localStorage.getItem(k);localStorage.removeItem(k)}}}catch(e){}
+try{if(PIN)sessionStorage.setItem('hiveOwnerMsgPin',PIN);else PIN=sessionStorage.getItem('hiveOwnerMsgPin')}catch(e){}
+var app=document.getElementById('app');
+function lock(){PIN=null;try{sessionStorage.removeItem('hiveOwnerMsgPin')}catch(e){}clearInterval(TIMER);app.innerHTML='<div class="msg">Locked after 30 minutes. Open it again from the Owner Portal.</div>'}
+function touch(){clearTimeout(LOCK);LOCK=setTimeout(lock,30*60000)}
+['click','keydown','touchstart'].forEach(function(e){document.addEventListener(e,function(){if(PIN)touch()},{passive:true})});
+function post(o){o.pin=PIN;return fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(o)}).then(function(r){return r.json()})}
+function say(t,bad){var s=document.getElementById('say');if(s){s.textContent=t||'';s.style.color=bad?'var(--bad)':'var(--ok)'}}
+function seen(){try{return JSON.parse(localStorage.getItem(SEEN_KEY)||'{}')}catch(e){return{}}}
+function markSeen(ch){var s=seen(),t=new Date().toISOString();if(ch==='All'){chans().forEach(function(c){s[c]=t})}else s[ch]=t;try{localStorage.setItem(SEEN_KEY,JSON.stringify(s))}catch(e){}}
+function isNew(p){var s=seen()[p.Channel||'Other'];return !s||(p['Posted At']||'')>s}
+function when(iso){if(!iso)return'';var d=new Date(iso),t=new Date();var sameDay=d.toDateString()===t.toDateString();return(sameDay?'Today':d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'}))+' '+d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}
+function link(s){return esc(s).replace(/(https:\/\/[^\s<>"]+)/g,'<a href="$1" target="_blank" rel="noopener">link</a>')}
+function tops(){return POSTS.filter(function(p){return !p['Reply To']})}
+function notesFor(id){return POSTS.filter(function(p){return p['Reply To']===id}).sort(function(a,b){return(a['Posted At']||'')<(b['Posted At']||'')?-1:1})}
+function chans(){var o={};tops().forEach(function(p){o[p.Channel||'Other']=1});var order=['Charles Alerts','Run Log','Owner To-Do','Inquiries','Finance','Weekly Briefing','Director Meetings','Social & Content'];return Object.keys(o).sort(function(a,b){var x=order.indexOf(a),y=order.indexOf(b);return(x<0?99:x)-(y<0?99:y)||a.localeCompare(b)})}
+function load(){
+ if(!PIN){app.innerHTML='<div class="msg">Please open this from the Owner Portal.</div>';return}
+ touch();
+ post({action:'list'}).then(function(d){
+  if(d.error){app.innerHTML='<div class="msg">'+esc(d.error)+'</div>';return}
+  POSTS=d.posts||[];render();
+ }).catch(function(){app.innerHTML='<div class="msg">Could not load. Please try again.</div>'});
+}
+function render(){
+ var cs=chans(),t=tops();
+ var cnt=function(c){return t.filter(function(p){return(c==='All'||(p.Channel||'Other')===c)&&!p['Done By']&&isNew(p)}).length};
+ var h='<div class="chips">'+['All'].concat(cs).map(function(c){var n=cnt(c);return'<button class="chip'+(c===CH?' on':'')+'" data-c="'+esc(c)+'" onclick="pick(this)">'+esc(c)+(n?'<span class="badge">'+n+'</span>':'')+'</button>'}).join('')+'</div>';
+ h+='<div class="bar"><label><input type="checkbox" '+(SHOW_DONE?'checked':'')+' onchange="SHOW_DONE=this.checked;render()"> Show handled</label><span style="flex:1"></span><button class="b g" onclick="markSeen(CH);render()">Mark all read</button></div><div id="say"></div>';
+ var list=t.filter(function(p){return(CH==='All'||(p.Channel||'Other')===CH)&&(SHOW_DONE||!p['Done By'])});
+ list.sort(function(a,b){return(b.Pinned?1:0)-(a.Pinned?1:0)||((b['Posted At']||'')>(a['Posted At']||'')?1:-1)});
+ if(!list.length)h+='<div class="msg">Nothing waiting here.'+(SHOW_DONE?'':' Tick “Show handled” to see older ones.')+'</div>';
+ list.forEach(function(p){
+  var pr=p.Priority||'Normal',body=p.Message||'',long=body.length>380||body.split('\n').length>6,op=!!OPEN[p.id],ns=notesFor(p.id);
+  h+='<div class="post '+esc(pr)+(isNew(p)&&!p['Done By']?' new':'')+(p['Done By']?' done':'')+'"><div class="top"><div class="ttl">'+(p.Pinned?'📌 ':'')+esc(p.Title||'(no title)')+'</div>';
+  if(pr==='Urgent')h+='<span class="tag u">Urgent</span>';else if(pr==='Important')h+='<span class="tag i">Important</span>';
+  if(p['Needs Action']&&!p['Done By'])h+='<span class="tag a">Needs you</span>';
+  h+='</div><div class="sub">'+esc(p.Channel||'')+' · '+esc(p.School||'Both')+' · '+esc(p['Posted By']||'')+' · '+when(p['Posted At'])+(p['Done By']?' · handled '+when(p['Done At']):'')+'</div>';
+  if(body)h+='<div class="body'+(long&&!op?' clip':'')+'">'+link(body)+'</div>'+(long?'<button class="more" data-id="'+p.id+'" onclick="tog(this)">'+(op?'Show less':'Show all')+'</button>':'');
+  if(p['Drive Link'])h+='<div style="margin-top:6px"><a href="'+esc(p['Drive Link'])+'" target="_blank" rel="noopener">'+esc(p['Drive Label']||'Open file')+'</a></div>';
+  if(ns.length)h+='<div class="notes">'+ns.map(function(n){return'<div class="note"><b>'+esc(n['Posted By']||'')+'</b> <span class="sub">'+when(n['Posted At'])+'</span><br>'+link(n.Message||'')+'</div>'}).join('')+'</div>';
+  h+='<div class="acts"><button class="b" data-id="'+p.id+'" data-u="'+(p['Done By']?1:0)+'" onclick="done(this)">'+(p['Done By']?'Undo handled':'Handled')+'</button><button class="b g" data-id="'+p.id+'" data-on="'+(p.Pinned?0:1)+'" onclick="pin(this)">'+(p.Pinned?'Unpin':'Pin')+'</button><button class="b g" data-id="'+p.id+'" onclick="noteBox(this)">Add note</button></div><div id="nb_'+p.id+'"></div></div>';
+ });
+ app.innerHTML=h;
+}
+function pick(b){CH=b.getAttribute('data-c');render();window.scrollTo(0,0)}
+function tog(b){var id=b.getAttribute('data-id');OPEN[id]=!OPEN[id];render()}
+function upd(np){for(var i=0;i<POSTS.length;i++)if(POSTS[i].id===np.id){POSTS[i]=np;return}POSTS.push(np)}
+function done(b){b.disabled=true;post({action:'done',id:b.getAttribute('data-id'),undo:b.getAttribute('data-u')==='1'}).then(function(d){if(d.error){say(d.error,true);b.disabled=false;return}upd(d.post);render()}).catch(function(){say('Could not save. Try again.',true);b.disabled=false})}
+function pin(b){b.disabled=true;post({action:'pin',id:b.getAttribute('data-id'),on:b.getAttribute('data-on')==='1'}).then(function(d){if(d.error){say(d.error,true);b.disabled=false;return}upd(d.post);render()}).catch(function(){say('Could not save. Try again.',true);b.disabled=false})}
+function noteBox(b){var id=b.getAttribute('data-id'),el=document.getElementById('nb_'+id);if(el.innerHTML){el.innerHTML='';return}el.innerHTML='<textarea id="nt_'+id+'" placeholder="A private note for yourself (only you see it)"></textarea><div class="acts"><button class="b" data-id="'+id+'" onclick="saveNote(this)">Save note</button></div>';document.getElementById('nt_'+id).focus()}
+function saveNote(b){var id=b.getAttribute('data-id'),t=document.getElementById('nt_'+id).value.trim();if(!t)return;b.disabled=true;post({action:'note',id:id,text:t}).then(function(d){if(d.error){say(d.error,true);b.disabled=false;return}upd(d.post);render()}).catch(function(){say('Could not save. Try again.',true);b.disabled=false})}
+load();TIMER=setInterval(function(){if(PIN&&!document.querySelector('textarea'))load()},120000);
+</script></body></html>
