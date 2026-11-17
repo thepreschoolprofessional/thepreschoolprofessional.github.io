@@ -433,6 +433,7 @@ D.QS.push(
   {id:'live-file', c:'Lessons and files', live:'file', q:['Upload a picture to a child\'s file','Open a child\'s file','Upload a shot record to a child\'s file','Open a staff member\'s file','Upload a teacher\'s CPR card','Take a cubby photo for a child'], k:'open file folder upload picture photo shot record child staff', a:'', go:'Student Files', also:['Staff Files']},
   {id:'live-hubdocs', c:'Lessons and files', live:'hubDocs', q:['Where is a class\'s workbook or packet?','Where is the twos workbook?','Where is the threes teacher supplement?','Where are the fours monthly instructions?'], k:'workbook supplement instructions resource take home monthly lesson plan', a:'', go:'Lesson Plan Wizard'},
   {id:'live-add', c:'Lessons and files', live:'addPerson', q:['How do I add a child to Student Files?','How do I add a new staff member to Staff Files?','Add a child','Add a staff member'], k:'add new child staff person student files staff files', a:'', go:'Student Files'},
+  {id:'live-act', c:'Rooms: move, go out, meals', live:'act', q:['Move a child to another room','Move everyone in one room to another room','The twos are going to the playground','The twos are back inside','Mark breakfast for everyone signed in','Mark lunch for every room','Mark PM snack for every room'], k:'move child room playground outside back inside mark breakfast lunch snack', a:'', go:'Classroom Attendance'},
   {id:'live-stats', c:'Counts: who is done', live:'stats', topic:'files', q:['How many children are missing paperwork?','Who is missing a physical?','How many staff are missing something in their files?'], k:'how many count missing paperwork who', a:'', go:'Student Files', also:['Staff Files']},
   {id:'stat-bios', c:'Counts: who is done', live:'stats', topic:'bios', q:['How many staff finished their bios?','Who hasn\'t done their staff bio?','How many bios are waiting for approval?'], k:'how many count bio bios finished done', a:'', go:'Staff Files'},
   {id:'stat-training', c:'Counts: who is done', live:'stats', topic:'training', q:['How many staff finished their training hours?','Who has no training this year?','How many certificates need my signature?'], k:'how many count training hours certificates finished', a:'', go:'Staff Training Status'},
@@ -595,6 +596,155 @@ function statsAnswer(e, text){
     return {t:out.join('\n'), go:kinds[0] === 'staff' ? 'Staff Files' : 'Student Files', also:kinds.length > 1 ? ['Staff Files'] : []};
   });
 }
+/* ---------- live: moves, room transitions and meal marking (built 11/17/26, Mrs. Bear's yes). Today only, director PIN only.
+   Nothing saves until the director taps Confirm on the list. Saves through rooms-api.php exactly like the Rooms board.
+   Meal windows (Mrs. Bear 11/17/26): breakfast ends 9 AM; lunch 11 AM to 1 PM; snack 2:30 to 4:30 PM, both schools. ---------- */
+var MEALS = {B:{n:'breakfast', from:'00:00', to:'09:00'}, L:{n:'lunch', from:'11:00', to:'13:00'}, P:{n:'PM snack', from:'14:30', to:'16:30'}};
+var OUT_PLACES = ['Playground','Outside','Playroom','Office'];
+function nowET(){ try { var p = new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York', hour:'2-digit', minute:'2-digit', hour12:false}).formatToParts(new Date()), h = '', m = ''; p.forEach(function(x){ if (x.type==='hour') h = x.value; if (x.type==='minute') m = x.value; }); if (h === '24') h = '00'; return h+':'+m; } catch(e){ var d = new Date(); return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); } }
+function hm12(t){ var h = +t.slice(0,2), m = t.slice(3,5); return ((h%12)||12)+':'+m+' '+(h<12?'AM':'PM'); }
+function rq(action, table, x){ return postJ('rooms-api.php', Object.assign({pin:OPT.pin, action:action, table:table}, x||{})); }
+function dayData(){
+  var d = todayET();
+  return Promise.all([rq('list','Rooms'), rq('list','Room Children'), rq('list','Room Attendance',{date:d}), rq('list','Room Day',{date:d})]).then(function(r){
+    var rooms = (r[0].records||[]).filter(function(x){ return x.fields.Active; }).sort(function(a,b){ return (a.fields.Order||99)-(b.fields.Order||99); }).map(function(x){ return {name:x.fields.Room, teachers:String(x.fields.Teachers||'').split(',').map(function(t){ return t.trim(); }).filter(Boolean)}; });
+    var kids = (r[1].records||[]).map(function(x){ var f = x.fields; return {name:f.Child||'', room:f.Room||'', st:(f.Status&&f.Status.name)||f.Status||'Active'}; }).filter(function(k){ return k.name && k.st === 'Active'; });
+    var att = {}; (r[2].records||[]).forEach(function(x){ var n = x.fields.Child; if (!n) return; if (!att[n] || x.createdTime < att[n].c) att[n] = {id:x.id, c:x.createdTime, f:x.fields}; });
+    var days = {}; (r[3].records||[]).forEach(function(x){ var rm = x.fields.Room; if (!rm) return; if (!days[rm] || x.createdTime < days[rm].c){ var tr = [], ct = []; try { tr = JSON.parse(x.fields.Transitions||'[]'); } catch(e){} try { ct = JSON.parse(x.fields.Counts||'[]'); } catch(e){} days[rm] = {id:x.id, c:x.createdTime, transitions:tr, counts:ct}; } });
+    kids.forEach(function(k){ var a = att[k.name]; k.att = a ? a.f : {}; k.attId = a ? a.id : null; k.now = k.att['Current Room'] || k.room; k.here = !!(k.att.Arrival && !k.att.Departure); });
+    return {date:d, rooms:rooms, kids:kids, days:days};
+  });
+}
+function roomIn(text, rooms, after){
+  var t = plain(text); if (after){ var i = t.lastIndexOf(' '+after+' '); if (i < 0) return null; t = ' '+t.slice(i + after.length + 2); }
+  for (var i2=0;i2<rooms.length;i2++){ var p = plain(rooms[i2].name); if (t.indexOf(p) > -1) return rooms[i2].name; }
+  var c = classIn(t); if (c){ var hit = rooms.filter(function(r){ return c.re.test(plain(r.name)); }); if (hit.length === 1) return hit[0].name; }
+  return null;
+}
+function el(tag, attrs, html){ var e = document.createElement(tag); Object.keys(attrs||{}).forEach(function(k){ e.setAttribute(k, attrs[k]); }); if (html != null) e.innerHTML = html; return e; }
+function selectBox(opts, pick){ var s = el('select', {'class':'bc-sel'}); if (!pick){ var z = el('option', {}, 'Pick one…'); z.value = ''; z.selected = true; s.appendChild(z); } opts.forEach(function(o){ var x = el('option', {}, esc(o)); x.value = o; if (o === pick) x.selected = true; s.appendChild(x); }); return s; }
+function kidBoxes(list, ticked){ var w = el('div', {'class':'bc-kids'}); list.forEach(function(k){ var lb = el('label', {'class':'bc-kid'}), cb = el('input', {type:'checkbox'}); cb.checked = !!ticked(k); cb._kid = k; lb.appendChild(cb); lb.appendChild(document.createTextNode(' '+shortName(k.name)+(k.note ? ' ('+k.note+')' : ''))); w.appendChild(lb); }); return w; }
+function picked(w){ return Array.prototype.slice.call(w.querySelectorAll('input[type=checkbox]')).filter(function(c){ return c.checked && c._kid; }).map(function(c){ return c._kid; }); }
+function confirmRow(panel, label, run){
+  var msg = el('div', {'class':'bc-err'}), b = el('button', {type:'button', 'class':'bc-chip bc-go'}, esc(label)), x = el('button', {type:'button', 'class':'bc-chip'}, 'Cancel');
+  x.onclick = function(){ panel.innerHTML = '<div class="bc-preview-note">Cancelled. Nothing was saved.</div>'; };
+  b.onclick = function(){ msg.textContent = ''; var p; try { p = run(msg); } catch(e){ msg.textContent = e.message; return; } if (!p) return; b.disabled = true; b.textContent = 'Saving…';
+    p.then(function(done){ panel.innerHTML = '<div class="bc-preview-note">✅ '+esc(done)+'</div>'; }, function(e){ b.disabled = false; b.textContent = label; msg.textContent = 'That didn\'t save: '+(e && e.message || 'try again')+'. Nothing was changed.'; }); };
+  var r = el('div', {'class':'bc-chips'}); r.appendChild(b); r.appendChild(x); panel.appendChild(msg); panel.appendChild(r);
+}
+function inChunks(action, table, recs){ var p = Promise.resolve(); for (var i=0;i<recs.length;i+=10){ (function(c){ p = p.then(function(){ return rq(action, table, {records:c}); }); })(recs.slice(i,i+10)); } return p; }
+function saveRoomDay(D, room, change){
+  /* read the room's day again right before saving, so nothing a teacher saved a moment ago is lost */
+  return rq('list','Room Day',{date:D.date}).then(function(r){
+    var cur = null; (r.records||[]).forEach(function(x){ if (x.fields.Room === room && (!cur || x.createdTime < cur.createdTime)) cur = x; });
+    var tr = [], ct = []; if (cur){ try { tr = JSON.parse(cur.fields.Transitions||'[]'); } catch(e){} try { ct = JSON.parse(cur.fields.Counts||'[]'); } catch(e){} }
+    change(tr, ct);
+    var f = {Transitions:JSON.stringify(tr), Counts:JSON.stringify(ct)};
+    if (cur) return rq('update','Room Day',{recordId:cur.id, fields:f});
+    return rq('create','Room Day',{fields:Object.assign({Key:OPT.school+'|'+room+'|'+D.date, Room:room, Date:D.date, Staff:'{}', Mgmt:'{}', Notes:''}, f)});
+  });
+}
+var ACT_Q = /\b(did|does|do|is|are|was|were|has|have|forgot|forget|clock|clocked|email|message|automation)\b.*\b(go out|went out|clock|in from lunch)\b|\b(how (do|can|should|would) (i|we|you|teachers?|staff)|how do|how many|how much|why|what|when|where|can teachers?|should (i|we))\b/;
+function actKind(text){
+  var t = plain(text);
+  if (ACT_Q.test(t)) return '';
+  var meal = /\b(breakfast|lunch|snack|snacks|pm snack|afternoon snack)\b/.test(t);
+  if (meal && /\b(mark|sign|log|check|give|record|update|put|add|had|ate|eaten|fed|got)\b/.test(t)) return 'meal';
+  if (/\b(back (in|inside|in the room|from)|came back|coming back|returned|returning)\b/.test(t)) return 'back';
+  if (/\b(going|go|headed|heading|leaving|leave|transition|transitioning|taking|take|out to|went)\b/.test(t) && /\b(playground|outside|playroom|office|gym|out)\b/.test(t)) return 'out';
+  if (/\b(move|moving|moved|switch|transfer|combine|combining)\b/.test(t) && / (to|into|in with) /.test(t)) return 'move';
+  return '';
+}
+function wantsAct(text){ return !!actKind(text); }
+LIVE.act = function(e, text){
+  var kind = actKind(text) || e.act || '';
+  if (!OPT.pin) return {t:'This works from the Director Portal with your director PIN. You can also do it on the Rooms board.', go:'Classroom Attendance'};
+  return dayData().then(function(D){
+    var t = plain(text), now = nowET(), panel = el('div', {'class':'bc-panel'}), names = D.rooms.map(function(r){ return r.name; });
+    if (!D.rooms.length) return {t:'I couldn\'t read the rooms right now. The Rooms board can do this.', go:'Classroom Attendance'};
+    /* ----- meals ----- */
+    if (kind === 'meal'){
+      var m = /\b(lunch)\b/.test(t) ? 'L' : (/\bsnack/.test(t) ? 'P' : 'B'), W = MEALS[m], only = roomIn(text, D.rooms);
+      if (now < W.from) return {t:'It isn\'t '+W.n+' time yet. '+W.n.charAt(0).toUpperCase()+W.n.slice(1)+' is '+hm12(W.from)+' to '+hm12(W.to)+', and I only mark children who were here for it.', go:'Classroom Attendance'};
+      var ok = function(k){ var a = k.att; if (!a.Arrival || a.Arrival >= W.to) return false; if (a.Departure && a.Departure <= W.from) return false; return true; };
+      var sa = function(k){ return /^Schoolagers/i.test(k.room||'') || /^Schoolagers/i.test(k.now||''); };
+      var rooms = only ? [only] : names, total = 0, already = 0, skippedSA = 0, groups = [];
+      rooms.forEach(function(rm){ var list = D.kids.filter(function(k){ return k.now === rm && ok(k); });
+        var todo = list.filter(function(k){ if (k.att[m]){ already++; return false; } if (m === 'L' && sa(k)){ skippedSA++; return false; } return true; });
+        if (!todo.length) return; total += todo.length; panel.appendChild(el('div', {'class':'bc-h'}, esc(rm)+' ('+todo.length+')')); var w = kidBoxes(todo, function(){ return true; }); groups.push(w); panel.appendChild(w); });
+      var tail = (already ? '\n'+pl(already, 'child', 'children')+' already had '+W.n+' marked.' : '')+(skippedSA ? '\n'+pl(skippedSA, 'school-ager')+' left out. School-agers only get lunch when you confirm it on the Rooms board.' : '');
+      if (!total) return {t:'Nobody is left to mark for '+W.n+(only ? ' in '+only : '')+'.'+tail, go:'Classroom Attendance'};
+      confirmRow(panel, 'Confirm '+W.n+' for '+total, function(msg){
+        var sel = []; groups.forEach(function(w){ sel = sel.concat(picked(w)); }); if (!sel.length){ msg.textContent = 'Tick at least one child.'; return null; }
+        var recs = sel.filter(function(k){ return k.attId; }).map(function(k){ var f = {}; f[m] = true; return {id:k.attId, fields:f}; });
+        return inChunks('updateMany', 'Room Attendance', recs).then(function(){ return W.n.charAt(0).toUpperCase()+W.n.slice(1)+' marked for '+pl(recs.length, 'child', 'children')+'. The Rooms board and its food program forms show it now.'; });
+      });
+      return {t:'Here are the children signed in for '+W.n+' ('+(W.from === '00:00' ? 'here before '+hm12(W.to) : hm12(W.from)+' to '+hm12(W.to))+')'+(only ? ' in '+only : ' in every room')+'. Untick anyone who didn\'t eat, then tap Confirm.'+tail, panel:panel, go:'Classroom Attendance', noGo:1};
+    }
+    /* ----- move children to another room ----- */
+    if (kind === 'move'){
+      var to = roomIn(text, D.rooms, 'to') || roomIn(text, D.rooms, 'into') || roomIn(text, D.rooms, 'with'), from = null, ti = t.lastIndexOf(' to ');
+      var fromTxt = ti > -1 ? t.slice(0, ti) : t; from = roomIn(fromTxt, D.rooms);
+      var here = D.kids.filter(function(k){ return k.here; }), named = findPeople(text, here), all = /\b(all|everyone|everybody|whole|the rest)\b/.test(t);
+      var pool = from ? here.filter(function(k){ return k.now === from; }) : (named.length ? here : []);
+      if (!pool.length && !named.length) return {t:(from ? 'No children are signed in to '+from+' right now.' : 'Tell me who to move and where, like "move Mia to '+names[0]+'" or "move everyone in '+names[0]+' to '+(names[1]||names[0])+'".')+' Only children signed in today can be moved.', go:'Classroom Attendance'};
+      named.forEach(function(k){ if (pool.indexOf(k) < 0) pool.push(k); });
+      pool.forEach(function(k){ k.note = k.now; });
+      var dest = selectBox(names, to || '');
+      panel.appendChild(el('div', {'class':'bc-h'}, 'Move to')); panel.appendChild(dest);
+      panel.appendChild(el('div', {'class':'bc-h'}, 'Children (signed in now)'));
+      var w2 = kidBoxes(pool, function(k){ return all || named.indexOf(k) > -1 || (!named.length && from); }); panel.appendChild(w2);
+      confirmRow(panel, 'Confirm move', function(msg){
+        var sel = picked(w2), rm = dest.value; if (!rm){ msg.textContent = 'Pick the room to move them to.'; return null; } if (!sel.length){ msg.textContent = 'Tick at least one child.'; return null; }
+        var recs = sel.filter(function(k){ return k.attId && k.now !== rm; }).map(function(k){ return {id:k.attId, fields:{'Current Room':rm}}; });
+        if (!recs.length){ msg.textContent = 'They are already in '+rm+'.'; return null; }
+        var after = D.kids.filter(function(k){ return k.here && (k.now === rm || sel.indexOf(k) > -1); }).length;
+        return inChunks('updateMany', 'Room Attendance', recs).then(function(){ return 'Moved '+pl(recs.length, 'child', 'children')+' to '+rm+'. '+rm+' now has '+after+' signed in. Check the ratio on the Rooms board.'; });
+      });
+      return {t:'Check the room and the children, then tap Confirm. This changes each child\'s current room in today\'s attendance, the same as Move on the Rooms board.', panel:panel, go:'Classroom Attendance', noGo:1};
+    }
+    /* ----- a room leaving for the playground, or coming back ----- */
+    var room = roomIn(text, D.rooms), rsel = selectBox(names, room || ''), count = el('input', {type:'number', 'class':'bc-sel', inputmode:'numeric'}), by = el('select', {'class':'bc-sel'}), swp = el('input', {type:'checkbox'});
+    var fillBy = function(){ by.innerHTML = ''; var r0 = D.rooms.filter(function(r){ return r.name === rsel.value; })[0] || {teachers:[]}; r0.teachers.concat(['Director']).forEach(function(n){ var o = el('option', {}, esc(n)); o.value = n; by.appendChild(o); }); };
+    var openT = function(rm){ var d = D.days[rm]; if (!d) return null; for (var i=d.transitions.length-1;i>=0;i--){ if (!d.transitions[i]['in']) return d.transitions[i]; } return null; };
+    var hereIn = function(rm){ return D.kids.filter(function(k){ return k.here && k.now === rm; }); };
+    if (kind === 'out'){
+      var dl = OUT_PLACES.concat(names), dt = /\bplayground\b/.test(t) ? 'Playground' : (/\bplayroom|gym\b/.test(t) ? 'Playroom' : (/\boffice\b/.test(t) ? 'Office' : (/\boutside\b/.test(t) ? 'Outside' : 'Playground')));
+      var dsel = selectBox(dl, dt), setCount = function(){ count.value = hereIn(rsel.value).length; fillBy(); };
+      rsel.onchange = setCount; setCount();
+      [['Room', rsel], ['Going to', dsel], ['Children counted leaving', count], ['Counted by', by]].forEach(function(x){ panel.appendChild(el('div', {'class':'bc-h'}, x[0])); panel.appendChild(x[1]); });
+      var sl = el('label', {'class':'bc-kid'}); sl.appendChild(swp); sl.appendChild(document.createTextNode(' A teacher did a sweep and no child was left in the classroom')); panel.appendChild(sl);
+      confirmRow(panel, 'Confirm leaving now', function(msg){
+        var rm = rsel.value, exp = hereIn(rm).length, cnt = parseInt(count.value, 10), at = nowET();
+        if (!rm){ msg.textContent = 'Pick the room.'; return null; } if (!exp){ msg.textContent = 'No children are signed in to '+rm+'.'; return null; }
+        if (openT(rm)){ msg.textContent = rm+' is already out. Tell me when they are back inside.'; return null; }
+        if (isNaN(cnt)){ msg.textContent = 'Enter the count.'; return null; } if (!swp.checked){ msg.textContent = 'The sweep has to be done and ticked first.'; return null; }
+        if (cnt !== exp && !window.confirm('The count is '+cnt+' but '+exp+' are signed in to '+rm+'. Re-count to be sure. Save anyway?')) return null;
+        return saveRoomDay(D, rm, function(tr, ct){ tr.push({n:tr.length+1, dest:dsel.value, out:at, outCount:cnt, outBy:by.value, kids:hereIn(rm).map(function(k){ return k.name; })}); ct.push({t:at, count:cnt, by:by.value, kind:'sweep'}); })
+          .then(function(){ return rm+' is out to '+dsel.value+' at '+hm12(at)+' with '+cnt+' children, counted by '+by.value+'. It shows on the Rooms board.'; });
+      });
+      return {t:'Before they leave: count the children and sweep the room. Then fill this in and tap Confirm. It logs the transition on the Rooms board.', panel:panel, go:'Classroom Attendance', noGo:1};
+    }
+    if (kind === 'back'){
+      var outRooms = names.filter(function(rm){ return !!openT(rm); });
+      if (!outRooms.length) return {t:'No room is logged as out right now.', go:'Classroom Attendance'};
+      if (!room || outRooms.indexOf(room) < 0) room = outRooms.length === 1 ? outRooms[0] : (room || '');
+      rsel = selectBox(outRooms, room); var setBack = function(){ var o = openT(rsel.value); count.value = o ? o.outCount : ''; fillBy(); };
+      rsel.onchange = setBack; setBack();
+      [['Room coming back', rsel], ['Children counted coming back', count], ['Counted by', by]].forEach(function(x){ panel.appendChild(el('div', {'class':'bc-h'}, x[0])); panel.appendChild(x[1]); });
+      var sl2 = el('label', {'class':'bc-kid'}); sl2.appendChild(swp); sl2.appendChild(document.createTextNode(' A teacher swept the area they left and nobody was left behind')); panel.appendChild(sl2);
+      confirmRow(panel, 'Confirm back inside', function(msg){
+        var rm = rsel.value, o = openT(rm), cnt = parseInt(count.value, 10), at = nowET();
+        if (!o){ msg.textContent = rm+' is not logged as out.'; return null; } if (isNaN(cnt)){ msg.textContent = 'Enter the count.'; return null; } if (!swp.checked){ msg.textContent = 'The sweep has to be done and ticked first.'; return null; }
+        if (cnt !== +o.outCount && !window.confirm('The count is '+cnt+' but '+o.outCount+' left. A child may be missing. Keep looking and only save if every child is accounted for. Save anyway?')) return null;
+        return saveRoomDay(D, rm, function(tr, ct){ for (var i=tr.length-1;i>=0;i--){ if (!tr[i]['in']){ tr[i]['in'] = at; tr[i].inCount = cnt; tr[i].inBy = by.value; tr[i].kidsIn = hereIn(rm).map(function(k){ return k.name; }); break; } } ct.push({t:at, count:cnt, by:by.value, kind:'sweep'}); })
+          .then(function(){ return rm+' is back inside at '+hm12(at)+' with '+cnt+' children, counted by '+by.value+'.'; });
+      });
+      return {t:'Count everyone back in and sweep the area they left. Then tap Confirm.', panel:panel, go:'Classroom Attendance', noGo:1};
+    }
+    return {t:'I can move children, log a room going out or coming back, or mark a meal. Tell me which.', go:'Classroom Attendance'};
+  });
+};
 var MONTH_RX = /\b(january|february|march|april|may|june|july|august|september|october|november|december|monthly|this month|next month)\b/;
 function wantsKit(text){
   var t = plain(text), c = classIn(text);
@@ -607,7 +757,7 @@ function ask(text, picked){
   text = String(text||'').trim(); if (!text) return;
   say('me', text);
   var e = picked, m = null;
-  if (!e){ if (wantsStats(text)) e = byId('live-stats'); else if (wantsKit(text)) e = byId('live-hubdocs'); else if (wantsLesson(text)) e = byId('live-lesson'); else if (wantsFile(text)) e = byId('live-file'); }
+  if (!e){ if (wantsAct(text)) e = byId('live-act'); else if (wantsStats(text)) e = byId('live-stats'); else if (wantsKit(text)) e = byId('live-hubdocs'); else if (wantsLesson(text)) e = byId('live-lesson'); else if (wantsFile(text)) e = byId('live-file'); }
   if (!e){ m = match(text); if (confident(m)) e = m[0].x.e; }
   if (!e && classIn(text)){ var m2 = match(plain(text).replace(CLASS_RX, ' ')); if (confident(m2)){ m = m2; e = m2[0].x.e; } }
   if (!e){
@@ -640,6 +790,7 @@ function show(d, e, r, text){
   ((r && r.ask) || []).forEach(function(a){ ex.push({label:a.label, q:a.q}); });
   ex.push({label:'👍 That helped', ok:1});
   ex.push({label:'Not what I asked', no:1});
+  if (r && r.panel) d.appendChild(r.panel);
   d.appendChild(chips(ex, function(it){
     if (it.href){ window.open(it.href, '_blank'); return; }
     if (it.go){ openCard(it.go); return; }
@@ -728,7 +879,7 @@ function mount(el, opt){
   renderBrowse(); renderMissed(); setupVoice(); greet();
 }
 function greet(){
-  say('bot', 'Hi! I\'m Director Bear Chat 🐻 for '+OPT.school+'. Ask me where something is or how to do it in the Director Portal: food program, DCF binder, files, staff hours, schedules, enrollments, new hires, reports and more. I\'ll give you the steps and a button to the right card.',
+  say('bot', 'Hi! I\'m Director Bear Chat for '+OPT.school+'. Ask me where something is or how to do it in the Director Portal: food program, DCF binder, files, staff hours, schedules, enrollments, new hires, reports and more. I\'ll give you the steps and a button to the right card.',
     chips((D.starters||[]).map(function(s){ return {label:s}; }), function(it){ ask(it.label); }));
 }
 function poke(){ clearTimeout(IDLE); IDLE = setTimeout(function(){ if (LOG.length || MISSED.length || ROOT.querySelector('.bc-me')) reset(); }, IDLE_MS); }
@@ -743,5 +894,5 @@ function reset(){
   ROOT.querySelectorAll('.bc-browse details[open]').forEach(function(d){ d.open = false; });
   renderMissed(); greet();
 }
-window.DirectorChat = {mount:mount, reset:reset, match:function(t){ build(); return match(t); }, _test:{wantsKit:wantsKit, wantsStats:wantsStats, statTopic:statTopic, wantsLesson:wantsLesson, wantsFile:wantsFile, classIn:classIn, findPeople:findPeople, docIn:docIn, kindIn:kindIn, nameWords:nameWords, norm:norm, toks:toks, confident:confident, setSchool:function(s){ OPT.school = s; build(); }, LIVE:LIVE, byId:byId, answerText:answerText}};
+window.DirectorChat = {mount:mount, reset:reset, match:function(t){ build(); return match(t); }, _test:{wantsAct:wantsAct, actKind:actKind, wantsKit:wantsKit, wantsStats:wantsStats, statTopic:statTopic, wantsLesson:wantsLesson, wantsFile:wantsFile, classIn:classIn, findPeople:findPeople, docIn:docIn, kindIn:kindIn, nameWords:nameWords, norm:norm, toks:toks, confident:confident, setSchool:function(s){ OPT.school = s; build(); }, LIVE:LIVE, byId:byId, answerText:answerText}};
 })();
