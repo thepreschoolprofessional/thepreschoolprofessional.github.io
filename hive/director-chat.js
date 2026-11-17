@@ -432,7 +432,17 @@ D.QS.push(
   {id:'live-lesson', c:'Lessons and files', live:'lesson', q:['What is a class doing today?','What are the twos doing today?','What lesson are the threes doing tomorrow?','What is the fours class learning this week?','What are the ones doing on Thursday?','What is the letter of the week for the twos?','What book do the threes read today?'], k:'lesson today tomorrow teaching learning craft letter word week class', a:'', go:'Daily Plans'},
   {id:'live-file', c:'Lessons and files', live:'file', q:['Upload a picture to a child\'s file','Open a child\'s file','Upload a shot record to a child\'s file','Open a staff member\'s file','Upload a teacher\'s CPR card','Take a cubby photo for a child'], k:'open file folder upload picture photo shot record child staff', a:'', go:'Student Files', also:['Staff Files']},
   {id:'live-hubdocs', c:'Lessons and files', live:'hubDocs', q:['Where is a class\'s workbook or packet?','Where is the twos workbook?','Where is the threes teacher supplement?','Where are the fours monthly instructions?'], k:'workbook supplement instructions resource take home monthly lesson plan', a:'', go:'Lesson Plan Wizard'},
-  {id:'live-add', c:'Lessons and files', live:'addPerson', q:['How do I add a child to Student Files?','How do I add a new staff member to Staff Files?','Add a child','Add a staff member'], k:'add new child staff person student files staff files', a:'', go:'Student Files'}
+  {id:'live-add', c:'Lessons and files', live:'addPerson', q:['How do I add a child to Student Files?','How do I add a new staff member to Staff Files?','Add a child','Add a staff member'], k:'add new child staff person student files staff files', a:'', go:'Student Files'},
+  {id:'live-stats', c:'Counts: who is done', live:'stats', topic:'files', q:['How many children are missing paperwork?','Who is missing a physical?','How many staff are missing something in their files?'], k:'how many count missing paperwork who', a:'', go:'Student Files', also:['Staff Files']},
+  {id:'stat-bios', c:'Counts: who is done', live:'stats', topic:'bios', q:['How many staff finished their bios?','Who hasn\'t done their staff bio?','How many bios are waiting for approval?'], k:'how many count bio bios finished done', a:'', go:'Staff Files'},
+  {id:'stat-training', c:'Counts: who is done', live:'stats', topic:'training', q:['How many staff finished their training hours?','Who has no training this year?','How many certificates need my signature?'], k:'how many count training hours certificates finished', a:'', go:'Staff Training Status'},
+  {id:'stat-rooms', c:'Counts: who is done', live:'stats', topic:'rooms', q:['How many kids are in each class?','How many children are signed in right now?','How many kids are in the twos?'], k:'how many count kids children class signed in enrolled', a:'', go:'Classroom Attendance'},
+  {id:'stat-timeoff', c:'Counts: who is done', live:'stats', topic:'timeoff', q:['How many time off requests are waiting?','Who has time off coming up?'], k:'how many count time off vacation requests waiting', a:'', go:'Time Off requests'},
+  {id:'stat-newhires', c:'Counts: who is done', live:'stats', topic:'newhires', q:['How many new hires finished training?','Which new hires still need their packet?'], k:'how many count new hires training packet', a:'', go:'New Hires'},
+  {id:'stat-enroll', c:'Counts: who is done', live:'stats', topic:'enroll', q:['How many enrollment packets are waiting?'], k:'how many count enrollment packets waiting', a:'', go:'New Enrollments'},
+  {id:'stat-orientation', c:'Counts: who is done', live:'stats', topic:'orientation', q:['How many families finished Parent Orientation?'], k:'how many count families orientation signed', a:'', go:'Parent Portal'},
+  {id:'stat-uploads', c:'Counts: who is done', live:'stats', topic:'uploads', q:['How many parent uploads are waiting?'], k:'how many count parent uploads waiting', a:'', go:'Parent Uploads'},
+  {id:'stat-portal', c:'Counts: who is done', live:'stats', topic:'portal', q:['Is the menu and newsletter posted this month?','Which parent portal items are not posted?'], k:'menu newsletter posted portal', a:'', go:'Update the Parent Portal'}
 );
 
 /* ---------- opening a Director Portal card ---------- */
@@ -473,6 +483,118 @@ function chips(list, onPick){
   return w;
 }
 function goLabel(g){ var c = D.cards[g] || {}; return (c.icon ? c.icon+' ' : '')+'Open '+g; }
+/* ---------- live: counts across the Director Portal cards (read only; names as First L.) ---------- */
+function postJ(url, body){ return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){ return r.json(); }).then(function(j){ if (!j || j.error) throw new Error((j && j.error) || 'lookup'); return j; }); }
+var STATS = null, STATS_AT = 0;
+function stats(){
+  if (!OPT.pin) return Promise.reject(new Error('nopin'));
+  if (!STATS || Date.now() - STATS_AT > 60000){ STATS_AT = Date.now(); STATS = postJ('files-api.php', {pin:OPT.pin, action:'chat_stats'}); STATS.catch(function(){ STATS = null; }); }
+  return STATS;
+}
+function todayET(){ try { return new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York'}).format(new Date()); } catch(e){ return new Date().toISOString().slice(0,10); } }
+function roomsNow(){
+  var rq = function(t, x){ return postJ('rooms-api.php', Object.assign({pin:OPT.pin, action:'list', table:t}, x||{})); };
+  return Promise.all([rq('Rooms'), rq('Room Children'), rq('Room Attendance', {date:todayET()})]).then(function(r){
+    var rooms = (r[0].records||[]).filter(function(x){ return x.fields.Active; }).sort(function(a,b){ return (a.fields.Order||99)-(b.fields.Order||99); }).map(function(x){ return x.fields.Room; });
+    var kids = (r[1].records||[]).map(function(x){ var f = x.fields; return {n:f.Child||'', room:f.Room||'', st:(f.Status&&f.Status.name)||f.Status||'Active'}; }).filter(function(k){ return k.n && k.st === 'Active'; });
+    var att = {}; (r[2].records||[]).forEach(function(x){ var n = x.fields.Child; if (!n) return; if (!att[n] || x.createdTime < att[n].c) att[n] = {c:x.createdTime, f:x.fields}; });
+    var out = {}; rooms.forEach(function(rm){ out[rm] = {enrolled:0, here:0, gone:0, meals:{B:0,L:0,P:0}}; });
+    kids.forEach(function(k){ var a = (att[k.n]||{}).f || {}, home = k.room, now = a['Current Room'] || home;
+      if (out[home]) out[home].enrolled++;
+      if (a.Arrival && out[now]){ if (a.Departure) out[now].gone++; else out[now].here++; ['B','L','P'].forEach(function(m){ if (a[m]) out[now].meals[m]++; }); } });
+    return {rooms:rooms, by:out};
+  });
+}
+function nmOf(x){ return typeof x === 'string' ? x : x.n; }
+function listOf(a, max){ max = max || 12; a = (a||[]).map(nmOf); if (!a.length) return ''; return a.slice(0,max).join(', ')+(a.length > max ? ', and '+(a.length-max)+' more' : ''); }
+function pl(n, one, many){ return n+' '+(n === 1 ? one : (many || one+'s')); }
+function sumObj(o){ var n = 0; Object.keys(o||{}).forEach(function(k){ n += o[k]; }); return n; }
+var STAT_TOPICS = [
+  {k:'bios', re:/\b(bios?|biography|biographies|meet (our|the) teachers?|about me)\b/},
+  {k:'newhires', re:/\b(new hires?|hires|onboarding|new staff|new employees?)\b/},
+  {k:'training', re:/\b(training|in ?service|inservice|ce hours?|certificates?|certs|lessons? (done|completed|finished)|training hours|hours of training)\b/},
+  {k:'timeoff', re:/\b(time off|vacation|vacations|pto|days? off|leave requests?)\b/},
+  {k:'enroll', re:/\b(enrollments?|enroll|registrations?|enrollment packets?|new families)\b/},
+  {k:'orientation', re:/\b(orientations?)\b/},
+  {k:'uploads', re:/\b(uploads?|uploaded|documents? (parents|families) sent|parent documents?)\b/},
+  {k:'portal', re:/\b(menus?|newsletters?)\b/},
+  {k:'files', re:/\b(missing|expired|expiring|paperwork|files?|documents?|records?|physicals?|immunizations?|shot records?|background (checks?|screening)|cpr|first aid)\b/},
+  {k:'rooms', re:/\b(kids|children|students|class size|class sizes|enrolled|signed in|here today|here right now|in the building|present|headcount|head count)\b/}
+];
+var STAT_CUE = /\b(how many|how much|who (has|hasnt|has not|still|didnt|did not|is|isnt|are|arent|needs?|hasn)|whos|which (staff|teachers?|kids|children|families|students|ones|classes|rooms|people)|count|counts|number of|total|totals|anyone|anybody|everyone|everybody|status|still (need|needs|missing|waiting)|left to|not (done|finished|completed|signed|posted)|completed|finished|done with|list of|how are we|how far)\b/;
+function statTopic(text){ var t = plain(text); for (var i=0;i<STAT_TOPICS.length;i++){ if (STAT_TOPICS[i].re.test(t)) return STAT_TOPICS[i].k; } return ''; }
+function wantsStats(text){
+  var t = plain(text), k = statTopic(text);
+  if (!k || !STAT_CUE.test(t)) return false;
+  if (/\b(where|contact|contacts|cost|costs|price|handbook|taken|used|how long)\b|how many hours is\b/.test(t)) return false;
+  if (/\bhow (do|can|should|would) (i|we|you|they)\b|\b(required|requirement|supposed to|allowed)\b|\b(do|does) (staff|teachers?|employees|they|we|each|a teacher|a child|kids|children) need\b|\bneed (a|an|to)\b/.test(t)) return false;
+  if (k === 'rooms' && !/\b(how many|count|counts|number of|total|size|sizes|headcount|head count|who is|whos|which (kids|children|students))\b/.test(t)) return false;
+  return true;
+}
+function kindWord(text){ return /\b(staff|teachers?|employees?)\b/.test(plain(text)) ? 'staff' : (/\b(kids|children|students?|child|families)\b/.test(plain(text)) ? 'student' : ''); }
+LIVE.stats = function(e, text){
+  var r = statsAnswer(e, text), tidy = function(x){ if (x && x.t) x.t = x.t.replace(/\.\./g, '.'); return x; };
+  return (r && typeof r.then === 'function') ? r.then(tidy) : tidy(r);
+};
+function statsAnswer(e, text){
+  var k = statTopic(text) || e.topic || '';
+  if (!OPT.pin) return {t:'Counts come from your live portal. Open the card to see them.', go:e.go};
+  if (k === 'rooms') return roomsNow().catch(function(){ return stats().then(function(S){ var by = {}, rooms = Object.keys(S.roomsEnrolled||{}); rooms.forEach(function(rm){ by[rm] = {enrolled:S.roomsEnrolled[rm], here:0, gone:0, meals:{B:0,L:0,P:0}, noLive:1}; }); return {rooms:rooms, by:by, noLive:1}; }); }).then(function(R){
+    if (R.noLive){ var c0 = classIn(text), t0 = plain(text), pk = R.rooms.filter(function(rm){ var p = plain(rm); return t0.indexOf(p) > -1 || (c0 && c0.re.test(p)); }), sh = pk.length ? pk : R.rooms;
+      return {t:'Children on each room\'s list at '+OPT.school+':\n'+sh.map(function(rm){ return '• '+rm+': '+R.by[rm].enrolled; }).join('\n')+'\nI couldn\'t read today\'s sign-ins just now. The Rooms board shows who is here.', go:'Classroom Attendance'}; }
+    var c = classIn(text), t = plain(text), pick = R.rooms.filter(function(rm){ var p = plain(rm); return t.indexOf(p) > -1 || (c && c.re.test(p)); });
+    var show = pick.length ? pick : R.rooms, tot = {e:0, h:0, g:0};
+    var lines = show.map(function(rm){ var x = R.by[rm]; tot.e += x.enrolled; tot.h += x.here; tot.g += x.gone; return '• '+rm+': '+x.enrolled+' enrolled, '+x.here+' signed in now'+(x.gone ? ', '+x.gone+' already went home' : ''); });
+    var head = pick.length === 1 ? pick[0]+' has '+pl(R.by[pick[0]].enrolled, 'child', 'children')+' on its list, and '+R.by[pick[0]].here+' are signed in there right now.' : (c && !pick.length ? 'I couldn\'t tell which room is the '+c.n+', so here are all rooms at '+OPT.school+':' : 'Here\'s every room at '+OPT.school+' right now ('+tot.h+' signed in, '+tot.e+' enrolled):');
+    var mealLine = pick.length === 1 ? '\nMeals marked today: breakfast '+R.by[pick[0]].meals.B+', lunch '+R.by[pick[0]].meals.L+', PM snack '+R.by[pick[0]].meals.P+'.' : '';
+    return {t:head+(pick.length === 1 ? '' : '\n'+lines.join('\n'))+mealLine+'\nSigned in now counts the room a child was moved to. Enrolled counts each child\'s home room.', go:'Classroom Attendance'};
+  });
+  return stats().then(function(S){
+    var sch = OPT.school, kw = kindWord(text);
+    if (k === 'bios'){ var b = S.bios;
+      return {t:'Staff bios at '+sch+': '+b.posted.length+' of '+b.staff+' are posted for families.'
+        +(b.waiting.length ? '\nWaiting for your approval ('+b.waiting.length+'): '+listOf(b.waiting)+'.' : '\nNone are waiting for your approval.')
+        +(b.none.length ? '\nNot started ('+b.none.length+'): '+listOf(b.none)+'.' : '\nEveryone has started one.')
+        +(b.nophoto.length ? '\nNo face photo yet ('+b.nophoto.length+'): '+listOf(b.nophoto)+'. A bio can\'t post without one.' : '')
+        +(b.pendingNames.length ? '\nAlso sent by '+listOf(b.pendingNames)+', who '+(b.pendingNames.length === 1 ? 'isn\'t' : 'aren\'t')+' on the staff list yet.' : ''), go:'Staff Files', also:['Parent Portal: Meet Our Teachers']}; }
+    if (k === 'training'){ var r = S.training;
+      return {t:'Training for '+S.year+' at '+sch+': '+r.met.length+' of '+r.staff+' staff have reached '+r.goal+' hours.'
+        +(r.some.length ? '\nStarted, not there yet ('+r.some.length+'): '+r.some.slice(0,12).map(function(x){ return x.n+' '+x.hrs+'h'; }).join(', ')+(r.some.length > 12 ? ', and '+(r.some.length-12)+' more' : '')+'.' : '')
+        +(r.none.length ? '\nNo lessons yet this year ('+r.none.length+'): '+listOf(r.none)+'.' : '')
+        +'\n'+pl(r.unsigned, 'certificate')+' still need your signature.'
+        +(r.pendingNames.length ? '\nCertificates from names not on the staff list: '+listOf(r.pendingNames)+'.' : ''), go:'Staff Training Status', also:['Staff Files']}; }
+    if (k === 'timeoff'){ var o = S.timeoff;
+      return {t:(o.pending.length ? pl(o.pending.length, 'time off request')+' waiting for you'+(o.short ? ', '+o.short+' under two weeks\' notice' : '')+': '+o.pending.slice(0,10).map(function(x){ return x.n+' ('+x.from+(x.to !== x.from ? ' to '+x.to : '')+')'; }).join(', ')+'.' : 'No time off requests are waiting for you.')
+        +(o.upcoming.length ? '\nApproved and coming up: '+o.upcoming.slice(0,10).map(function(x){ return x.n+' ('+x.from+(x.to !== x.from ? ' to '+x.to : '')+')'; }).join(', ')+'.' : ''), go:'Time Off requests'}; }
+    if (k === 'newhires'){ var h = S.newhires;
+      if (!h.total) return {t:'There are no open new hires at '+sch+'.', go:'New Hires'};
+      return {t:pl(h.total, 'new hire')+' open at '+sch+'.'
+        +'\nPacket signed: '+(h.packetIn.length ? listOf(h.packetIn) : 'none yet')+'.'
+        +(h.noPacket.length ? '\nNo packet yet: '+listOf(h.noPacket)+'.' : '')
+        +'\nTraining finished ('+h.trainTotal+' steps): '+(h.trainDone.length ? listOf(h.trainDone) : 'nobody yet')+'.'
+        +(h.training.length ? '\nStill training: '+h.training.slice(0,10).map(function(x){ return x.n+' '+x.done+'/'+h.trainTotal; }).join(', ')+'.' : ''), go:'New Hires'}; }
+    if (k === 'enroll'){ var n = S.enroll, bs = n.byStatus;
+      return {t:(n.new.length ? pl(n.new.length, 'enrollment packet')+' waiting for your review: '+listOf(n.new)+'.' : 'No enrollment packets are waiting for review.')
+        +'\nAll packets on file: '+(bs.approved||0)+' approved, '+(bs.declined||0)+' declined, '+(bs['new']||0)+' new.', go:'New Enrollments'}; }
+    if (k === 'orientation'){ var g = S.orientation;
+      return {t:pl(g.signed, 'family has', 'families have')+' signed Parent Orientation at '+sch+'.'+(g.started.length ? '\nStarted but not signed ('+g.started.length+'): '+listOf(g.started)+'.' : ''), go:'Parent Portal'}; }
+    if (k === 'uploads'){ var u = S.uploads, ub = u.byStatus;
+      return {t:(u.new ? pl(u.new, 'parent upload')+' waiting for you to check.' : 'No parent uploads are waiting for you.')
+        +'\nOn file: '+(ub.filed||0)+' filed, '+(ub.pending||0)+' kept under Pending Enrollment, '+(ub.rejected||0)+' sent back.', go:'Parent Uploads'}; }
+    if (k === 'portal'){ var miss = (S.parentPortal||[]).filter(function(x){ return !x.ok; });
+      return {t:miss.length ? 'Not posted on the Parent Portal yet: '+miss.map(function(x){ return x.monthName+' '+x.label; }).join(', ')+'.' : 'The '+(S.parentPortal||[]).map(function(x){ return x.monthName+' '+x.label; }).join(' and ')+' are posted.', go:'Update the Parent Portal'}; }
+    /* files: staff or students, with the missing items by document */
+    var kinds = kw ? [kw] : ['student','staff'], out = [];
+    kinds.forEach(function(kd){ var f = S.files[kd], who = kd === 'staff' ? 'staff' : 'children', docs = f.docs || {};
+      out.push((kd === 'staff' ? 'Staff Files' : 'Student Files')+': '+f.peopleMissing+' of '+f.people+' '+who+' are missing something ('+pl(f.missing, 'item')+'), and '+pl(f.soon, 'item')+' '+(f.soon === 1 ? 'is expiring soon or needs' : 'are expiring soon or need')+' a date.');
+      var want = docIn(kd, text);
+      Object.keys(docs).filter(function(dk){ return !want || dk === want.key; }).sort(function(a,b){ return docs[b].missing.length - docs[a].missing.length; }).slice(0, want ? 1 : 6).forEach(function(dk){ var x = docs[dk];
+        if (x.missing.length) out.push('• '+x.label+' missing ('+x.missing.length+'): '+listOf(x.missing, want ? 30 : 6)+'.');
+        if (x.soon.length && want) out.push('• '+x.label+' expiring soon or needs a date ('+x.soon.length+'): '+listOf(x.soon, 30)+'.'); });
+      if (want && !docs[want.key]) out.push('• Everyone has '+want.label+' on file.'); });
+    return {t:out.join('\n'), go:kinds[0] === 'staff' ? 'Staff Files' : 'Student Files', also:kinds.length > 1 ? ['Staff Files'] : []};
+  });
+}
 var MONTH_RX = /\b(january|february|march|april|may|june|july|august|september|october|november|december|monthly|this month|next month)\b/;
 function wantsKit(text){
   var t = plain(text), c = classIn(text);
@@ -485,7 +607,7 @@ function ask(text, picked){
   text = String(text||'').trim(); if (!text) return;
   say('me', text);
   var e = picked, m = null;
-  if (!e){ if (wantsKit(text)) e = byId('live-hubdocs'); else if (wantsLesson(text)) e = byId('live-lesson'); else if (wantsFile(text)) e = byId('live-file'); }
+  if (!e){ if (wantsStats(text)) e = byId('live-stats'); else if (wantsKit(text)) e = byId('live-hubdocs'); else if (wantsLesson(text)) e = byId('live-lesson'); else if (wantsFile(text)) e = byId('live-file'); }
   if (!e){ m = match(text); if (confident(m)) e = m[0].x.e; }
   if (!e && classIn(text)){ var m2 = match(plain(text).replace(CLASS_RX, ' ')); if (confident(m2)){ m = m2; e = m2[0].x.e; } }
   if (!e){
@@ -513,7 +635,7 @@ function show(d, e, r, text){
   var txt = r ? fill(r.t||'') : answerText(e, text), ex = [];
   d.innerHTML = esc(txt).replace(/\n/g,'<br>');
   ((r && r.btns) || []).forEach(function(b){ ex.push({label:b.label, href:b.href}); });
-  var gos = r ? (r.noGo ? [] : (r.go ? [r.go] : (e.go ? [e.go] : [])).concat(r.go ? [] : (e.also || []))) : (e.go ? [e.go] : []).concat(e.also || []);
+  var gos = r ? (r.noGo ? [] : (r.go ? [r.go] : (e.go ? [e.go] : [])).concat(r.go ? (r.also || []) : (e.also || []))) : (e.go ? [e.go] : []).concat(e.also || []);
   gos.forEach(function(g){ ex.push({label:goLabel(g), go:g}); });
   ((r && r.ask) || []).forEach(function(a){ ex.push({label:a.label, q:a.q}); });
   ex.push({label:'👍 That helped', ok:1});
@@ -621,5 +743,5 @@ function reset(){
   ROOT.querySelectorAll('.bc-browse details[open]').forEach(function(d){ d.open = false; });
   renderMissed(); greet();
 }
-window.DirectorChat = {mount:mount, reset:reset, match:function(t){ build(); return match(t); }, _test:{wantsKit:wantsKit, wantsLesson:wantsLesson, wantsFile:wantsFile, classIn:classIn, findPeople:findPeople, docIn:docIn, kindIn:kindIn, nameWords:nameWords, norm:norm, toks:toks, confident:confident, setSchool:function(s){ OPT.school = s; build(); }, LIVE:LIVE, byId:byId, answerText:answerText}};
+window.DirectorChat = {mount:mount, reset:reset, match:function(t){ build(); return match(t); }, _test:{wantsKit:wantsKit, wantsStats:wantsStats, statTopic:statTopic, wantsLesson:wantsLesson, wantsFile:wantsFile, classIn:classIn, findPeople:findPeople, docIn:docIn, kindIn:kindIn, nameWords:nameWords, norm:norm, toks:toks, confident:confident, setSchool:function(s){ OPT.school = s; build(); }, LIVE:LIVE, byId:byId, answerText:answerText}};
 })();

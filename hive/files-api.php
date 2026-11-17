@@ -1128,6 +1128,51 @@ if (!$isDir) fail('Files are only available with a director PIN.', 403);
 /* ---- Director actions (own school only) ---- */
 $kind = $input['kind'] ?? 'staff';
 if (!in_array($kind, $KINDS, true)) fail('Bad file type');
+/* ---- Director Bear Chat: read-only counts across the Director Portal cards (built 11/17/26). Never writes, never calls 'attention'.
+   Names come back as "First L." only. Undo: delete this block. ---- */
+if ($action === 'chat_stats'){
+$sn = function($n){ return short_child($n); }; $yr = date('Y'); $today = date('Y-m-d');
+$st = ['school'=>$school, 'year'=>$yr];
+$sr = roster($school, 'staff'); if ($sr === null) fail('Could not read the staff list right now.', 502);
+$bio = ['staff'=>0, 'posted'=>[], 'waiting'=>[], 'none'=>[], 'nophoto'=>[]];
+$tr = ['goal'=>$CE_GOAL, 'staff'=>0, 'met'=>[], 'some'=>[], 'none'=>[], 'unsigned'=>0, 'lessons'=>0];
+$fs = ['staff'=>['people'=>0, 'peopleMissing'=>0, 'missing'=>0, 'soon'=>0, 'docs'=>[]], 'student'=>['people'=>0, 'peopleMissing'=>0, 'missing'=>0, 'soon'=>0, 'docs'=>[]]];
+$addDoc = function(&$bucket, $dd, $who){ if (!in_array($dd['status'], ['missing', 'expired', 'soon', 'needdate'], true)) return; $k = $dd['key']; if (!isset($bucket[$k])) $bucket[$k] = ['label'=>$dd['label'], 'missing'=>[], 'soon'=>[]]; $bucket[$k][($dd['status'] === 'missing' || $dd['status'] === 'expired') ? 'missing' : 'soon'][] = $who; };
+foreach ($sr as $p){ if (strpos($p['id'], 'recTEST') === 0) continue; $who = $sn($p['name']);
+ $v = person_view($school, 'staff', $p['id'], $p); $fs['staff']['people']++; if ($v['red']) $fs['staff']['peopleMissing']++; $fs['staff']['missing'] += $v['red']; $fs['staff']['soon'] += $v['amber'];
+ foreach ($v['docs'] as $dd) $addDoc($fs['staff']['docs'], $dd, $who);
+ $bio['staff']++; $b = jread(pdir($school, 'staff', $p['id']).'/bio.json', []);
+ if (!empty($b['approved']) && !empty($b['bio'])) $bio['posted'][] = $who; elseif (!empty($b['bio'])) $bio['waiting'][] = $who; else $bio['none'][] = $who;
+ if (empty($v['face'])) $bio['nophoto'][] = $who;
+ $tr['staff']++; $h = 0; $n = 0; foreach (($v['certs'] ?? []) as $c){ if (empty($c['signedAt'])) $tr['unsigned']++; if (($c['year'] ?? substr($c['date'] ?? '', 0, 4)) === $yr){ $n++; $h += (float)($c['hrs'] ?? 0); } }
+ $tr['lessons'] += $n; $row = ['n'=>$who, 'hrs'=>round($h, 2), 'lessons'=>$n];
+ if ($h >= $CE_GOAL) $tr['met'][] = $row; elseif ($n) $tr['some'][] = $row; else $tr['none'][] = $who;
+}
+$pf = pend_f($school); $pd = $pf ? jread($pf, []) : []; $bio['pendingNames'] = []; $tr['pendingNames'] = [];
+foreach ($pd as $q){ $who = $sn($q['name'] ?? ''); if (!empty($q['bio']['bio'])) $bio['pendingNames'][] = $who; if (!empty($q['certs'])){ $tr['pendingNames'][] = $who; $tr['unsigned'] += count($q['certs']); } }
+$stu = roster($school, 'student'); $rooms = [];
+if ($stu !== null){ foreach ($stu as $p){ if (strpos($p['id'], 'recTEST') === 0) continue; $rm = $p['sub'] !== '' ? $p['sub'] : 'No room'; $rooms[$rm] = ($rooms[$rm] ?? 0) + 1;
+ $v = person_view($school, 'student', $p['id'], $p); $fs['student']['people']++; if ($v['red']) $fs['student']['peopleMissing']++; $fs['student']['missing'] += $v['red']; $fs['student']['soon'] += $v['amber'];
+ foreach ($v['docs'] as $dd) $addDoc($fs['student']['docs'], $dd, $sn($p['name'])); } }
+$st['bios'] = $bio; $st['training'] = $tr; $st['files'] = $fs; $st['roomsEnrolled'] = $rooms;
+$tf = to_file($school); $tl = ($tf && is_file($tf)) ? jread($tf, []) : []; $to = ['pending'=>[], 'short'=>0, 'upcoming'=>[]];
+foreach ($tl as $r){ $s0 = $r['status'] ?? 'pending'; if ($s0 === 'pending'){ $to['pending'][] = ['n'=>$sn($r['name'] ?? ''), 'from'=>$r['from'] ?? '', 'to'=>$r['to'] ?? '', 'short'=>!empty($r['short'])]; if (!empty($r['short'])) $to['short']++; }
+ elseif ($s0 === 'approved' && ($r['to'] ?? '') >= $today) $to['upcoming'][] = ['n'=>$sn($r['name'] ?? ''), 'from'=>$r['from'] ?? '', 'to'=>$r['to'] ?? '']; }
+$st['timeoff'] = $to;
+$nh = ['total'=>0, 'byStatus'=>[], 'packetIn'=>[], 'noPacket'=>[], 'trainDone'=>[], 'training'=>[], 'trainTotal'=>count($NH_TRAIN)];
+foreach (nh_list_all($school) as $h){ $s0 = $h['status'] ?? 'new'; if ($s0 === 'archived') continue; $nh['total']++; $nh['byStatus'][$s0] = ($nh['byStatus'][$s0] ?? 0) + 1; $who = $sn($h['name'] ?? '');
+ if (!empty($h['packet'])) $nh['packetIn'][] = $who; else $nh['noPacket'][] = $who; $d0 = nh_train_done($h); if ($d0 >= count($NH_TRAIN)) $nh['trainDone'][] = $who; else $nh['training'][] = ['n'=>$who, 'done'=>$d0]; }
+$st['newhires'] = $nh;
+$en = ['byStatus'=>[], 'new'=>[]]; foreach (en_list_all($school) as $x){ $s0 = $x['status'] ?? 'new'; $en['byStatus'][$s0] = ($en['byStatus'][$s0] ?? 0) + 1; if ($s0 === 'new') $en['new'][] = $sn(($x['child']['first'] ?? '').' '.($x['child']['last'] ?? '')); }
+$st['enroll'] = $en;
+$pdd = pp_dir($school); $oo = $pdd ? jread($pdd.'/orientation.json', []) : []; $or = ['signed'=>0, 'started'=>[]];
+foreach ($oo as $x){ if (!empty($x['signed'])) $or['signed']++; else $or['started'][] = $sn($x['child'] ?? ''); }
+$st['orientation'] = $or;
+$up = ['byStatus'=>[], 'new'=>0]; foreach (up_all($school) as $x){ $s0 = $x['status'] ?? 'new'; $up['byStatus'][$s0] = ($up['byStatus'][$s0] ?? 0) + 1; if ($s0 === 'new') $up['new']++; }
+$st['uploads'] = $up;
+$st['parentPortal'] = pp_status_list($school);
+echo json_encode($st); exit;
+}
 
 if ($action === 'attention'){
 $items = [];
