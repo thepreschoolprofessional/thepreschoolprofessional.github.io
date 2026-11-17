@@ -23,6 +23,15 @@ function child_fl($s){ $p=preg_split('/\s+/',trim((string)$s)); if(!$p||$p[0]===
 function sigok($s){ return strpos($s,'data:image/png;base64,')===0 && strlen($s)>=600 && strlen($s)<=60000; }
 $now=new DateTime('now'); $today=$now->format('Y-m-d'); $nowt=$now->format('g:i A'); $hm=$now->format('H:i'); $op=(string)($in['op'] ?? '');
 
+/* auto sign-out: anyone still In from an earlier day, or still In after 5:30 PM today, is signed out at 5:30 PM (no signature) */
+function sweep(){ global $school,$today,$hm;
+  $r=at('GET','Visitor Log',['maxRecords'=>100,'filterByFormula'=>"AND({School}='$school',{Status}='In')"]); $n=0;
+  foreach(($r['records'] ?? []) as $x){ $d=$x['fields']['Date'] ?? ''; if($d==='' ) continue;
+    if($d<$today || ($d===$today && $hm>='17:30')){
+      $u=at('PATCH','Visitor Log/'.$x['id'],null,['fields'=>['Time Out'=>'5:30 PM (auto)','Status'=>'Out','Source'=>(($x['fields']['Source'] ?? '').' · auto sign-out 5:30 PM')],'typecast'=>true]); if(!empty($u['id'])) $n++; } }
+  return $n; }
+if ($op==='sweep'){ out(['ok'=>true,'signed_out'=>sweep()]); }
+if (in_array($op,['list','in','out'],true)) sweep();
 if ($op==='list'){ /* who is still here (business visitors only), first name + last initial */
   $r=at('GET','Visitor Log',['maxRecords'=>200,'filterByFormula'=>"AND({School}='$school',IS_SAME({Date},'$today','day'),{Status}='In')"]); $o=[];
   foreach(($r['records'] ?? []) as $x){ $f=$x['fields']; $p=preg_split('/\s+/',trim($f['Visitor'] ?? '')); $n=($p[0] ?? '').(count($p)>1?' '.mb_strtoupper(mb_substr(end($p),0,1)).'.':''); $o[]=['id'=>$x['id'],'name'=>$n,'from'=>$f['From (Company / Reason)'] ?? '','in'=>$f['Time In'] ?? '']; }
@@ -64,9 +73,10 @@ if ($op==='in'){
 if ($op==='out'){
   $id=(string)($in['id'] ?? ''); $sig=(string)($in['sig'] ?? ''); if(!preg_match('/^rec[A-Za-z0-9]{14}$/',$id)) out(['ok'=>false,'error'=>'bad'],400); if(!sigok($sig)) out(['ok'=>false,'error'=>'need_sig'],400);
   $r=at('GET','Visitor Log/'.$id); $f=$r['fields'] ?? null;
-  if(!$f || ($f['School'] ?? '')!==$school || ($f['Date'] ?? '')!==$today || ($f['Status'] ?? '')!=='In') out(['ok'=>false,'error'=>'not_in'],404);
+  if(!$f || ($f['School'] ?? '')!==$school) out(['ok'=>false,'error'=>'not_in'],404);
+  if(($f['Status'] ?? '')==='Out') out(['ok'=>true,'time'=>($f['Time Out'] ?? $nowt),'already'=>true]);
   $u=at('PATCH','Visitor Log/'.$id,null,['fields'=>['Time Out'=>$nowt,'Signature Out'=>$sig,'Status'=>'Out'],'typecast'=>true]);
-  if(empty($u['id'])) out(['ok'=>false,'error'=>'save_failed'],502);
+  if(empty($u['id']) || ($u['fields']['Status'] ?? '')!=='Out' || ($u['fields']['Time Out'] ?? '')==='') out(['ok'=>false,'error'=>'save_failed'],502);
   out(['ok'=>true,'time'=>$nowt]);
 }
 out(['ok'=>false,'error'=>'bad_op'],400);
