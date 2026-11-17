@@ -48,7 +48,7 @@ canvas.sig{width:100%;height:150px;border:2px dashed var(--line);border-radius:1
 <div class="foot">Bear Line School Pack &middot; Kid City USA &middot; opens only at the school (director pack: with your director code) &middot; showing the last 2 months. Anything saved here goes straight to the official forms.</div>
 <script src="pdf-lib.min.js?v=117"></script><script src="room-forms.js?v=2"></script><script src="food-form.js?v=1"></script>
 <script>
-var q=new URLSearchParams(location.search),S=q.get('s')||'',P=q.get('p')||'',D=null,RM=null,cur='',F=null,PRN={from:'',to:'',pick:{},busy:false,msg:'',url:''},VS={list:null};
+var q=new URLSearchParams(location.search),S=q.get('s')||'',P=q.get('p')||'',D=null,RM=null,PEND=0,cur='',F=null,PRN={from:'',to:'',pick:{},busy:false,msg:'',url:''},VS={list:null};
 var CLOSED=['2026-07-03','2026-07-31','2026-09-07','2026-11-11','2026-11-26','2026-11-27','2026-12-23','2026-12-24','2026-12-25','2027-01-01','2027-01-18','2027-03-26','2027-05-31','2027-06-18'];
 var PACKS={
  office:{t:'Front Office Pack',tiles:[['play','🛝','Playground Inspection','chart'],['eod','🌙','End of Day Sweep','chart'],['san','🧼','Sanitation & Safety','chart'],['sec','🔒','Security & Sign-in','chart'],['bath','🚽','Staff / Common Bathrooms','chart'],['drill','🧯','Fire & Emergency Drills','drill'],['ill','🤒','Sick Child / Early Pick-Up','ill'],['allergy','⚠️','Allergies','allergy'],['food','🍎','Food Program Attendance','food'],['print','🖨️','Official Forms','print']],prn:[['out','Daily Playground Inspection'],['eod','End of Day Building Sweep'],['bath','Bathroom Cleaning Log (common areas)'],['san','Sanitation & Safety Log'],['sec','Security & Sign-in Log']]},
@@ -77,7 +77,7 @@ function pad(id){var c=document.getElementById(id),x=c.getContext('2d'),dn=false
 function done(k,date){var f=D.forms[k];return D.days.filter(function(x){return x.t===f.type&&x.r===f.room&&x.d===date})}
 function draw(){
  var h='<div class="tiles p">'+PK.tiles.map(function(t){var miss=(t[3]==='chart'&&D.today&&isWd(D.today)&&CLOSED.indexOf(D.today)<0&&!done(t[0],D.today).length);
-  return '<div class="tile'+(t[0]===cur?' on':'')+'" onclick="cur=\''+t[0]+'\';F=null;draw()"><span class="e">'+t[1]+'</span>'+t[2]+(miss?'<span class="miss">NOT DONE TODAY</span>':'')+'</div>'}).join('')+'</div>';
+  return '<div class="tile'+(t[0]===cur?' on':'')+'" onclick="cur=\''+t[0]+'\';F=null;draw()"><span class="e">'+t[1]+'</span>'+t[2]+(miss?'<span class="miss">NOT DONE TODAY</span>':'')+((t[3]==='allergy'&&PEND>0)?'<span class="miss">'+PEND+' waiting for approval</span>':'')+'</div>'}).join('')+'</div>';
  var t=PK.tiles.filter(function(x){return x[0]===cur})[0];
  if(!t){h+='<div class="sec"><h2>Tap a tile above</h2><div class="sub">Everything here saves straight to the official school forms. The last 2 months are always shown, so any missed day can be filled in.</div></div>'}
  else if(t[3]==='chart')h+=F?formHtml():chartHtml(t);
@@ -176,7 +176,7 @@ function dirLogin(m){msg("<h2 style='margin:0 0 6px'>🔑 Director code</h2><p c
  document.getElementById('dgo').onclick=go;document.getElementById('dpin').onkeydown=function(e){if(e.key==='Enter')go()};setTimeout(function(){var i=document.getElementById('dpin');if(i)i.focus()},50)}
 function load(){if(P==='director'&&(!getPass()||!dtok())){dirLogin();return}if(P!=='director'&&!getPass()){locate();return}
  post({act:'info'}).then(function(d){if(d.error==='need_location'){try{localStorage.removeItem('roomPass_'+S);localStorage.removeItem('dirTok_'+S)}catch(e){}if(P==='director')dirLogin();else locate();return}if(d.error){msg(esc(d.error));return}
-  D=d;document.getElementById('sc').textContent='Kid City USA '+d.school;document.body.className=(S==='deland')?'deland':'sanford';document.getElementById('dt').textContent=new Date(d.today+'T12:00:00').toLocaleDateString([], {weekday:'long',month:'long',day:'numeric',year:'numeric'});
-  var first=PK.tiles[0];if(P==='visitor')cur='visit';if(P==='director')post({act:'rooms'}).then(function(r){RM=r.rooms||[];if(cur==='rooms')draw()});draw()}).catch(function(){msg('Could not load. Please try again.'+again())})}
+  D=d;document.getElementById('sc').textContent='Kid City USA '+d.school;document.body.className=(S==='deland')?'deland':'sanford';if(P==='director'&&!document.getElementById('lk')){var lb=document.createElement('span');lb.id='lk';lb.className='pill';lb.style.cursor='pointer';lb.textContent='🔒 Lock';lb.onclick=function(){try{localStorage.removeItem('roomPass_'+S);localStorage.removeItem('dirTok_'+S)}catch(e){}location.reload()};document.getElementById('sc').parentNode.insertBefore(lb,document.getElementById('sc').nextSibling)}document.getElementById('dt').textContent=new Date(d.today+'T12:00:00').toLocaleDateString([], {weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  var first=PK.tiles[0];if(P==='visitor')cur='visit';if(P!=='visitor')post({act:'allergies',r:''}).then(function(r){PEND=(r.list||[]).filter(function(x){return x.status==='Pending'}).length;draw()});if(P==='director')post({act:'rooms'}).then(function(r){RM=r.rooms||[];if(cur==='rooms')draw()});draw()}).catch(function(){msg('Could not load. Please try again.'+again())})}
 if(!PK||(S!=='sanford'&&S!=='deland')){document.getElementById('app').textContent='This page was not found.'}else{document.getElementById('rn').textContent=PK.t;document.getElementById('pk').textContent=PK.t;document.title=PK.t+' - Kid City USA';load()}
 </script></body></html>

@@ -33,12 +33,13 @@ function pages(o){ /* o: school, room, mon, kids[{n,age}], rows{date:{lowername:
     h+='<tr class="sh"><th>AGE</th><th>NBR</th><th>CHILD NAME</th>';days.forEach(function(){['Att','B','','L','P','',''].forEach(function(t,j){h+='<th'+(j===0?' class="dg"':'')+'>'+t+'</th>'})});h+='</tr>';
     var tot=days.map(function(){return{a:0,b:0,l:0,p:0}});
     for(var q=0;q<FC_ROWS;q++){
-      var k=pk[q];h+='<tr class="kid"><td class="age">'+(k?esc(k.age||''):'')+'</td><td></td><td class="nm">'+(k?esc(String(k.n).toUpperCase()):'')+'</td>';
+      var k=pk[q];h+='<tr class="kid"><td class="age">'+(k?esc(k.age||''):'')+'</td><td></td><td class="nm">'+(k?esc(String(k.n).toUpperCase())+(k.diet?' *':''):'')+'</td>';
       days.forEach(function(d,i){var m=k&&o.rows[d]?o.rows[d][String(k.n).trim().toLowerCase()]:null;if(m&&m.att)tot[i].a++;if(m&&m.b)tot[i].b++;if(m&&m.l)tot[i].l++;if(m&&m.p)tot[i].p++;
         h+='<td class="x dg">'+(m&&m.att?'X':'')+'</td><td class="x">'+(m&&m.b?'X':'')+'</td><td class="dsh">-</td><td class="x">'+(m&&m.l?'X':'')+'</td><td class="x">'+(m&&m.p?'X':'')+'</td><td class="dsh">-</td><td class="dsh">-</td>'});
       h+='</tr>';
     }
-    h+='<tr><td colspan="3" class="lab" style="height:24px;border-top:2px solid #000">* Special Diet</td>';days.forEach(function(){h+='<td colspan="7" class="dg" style="border-top:2px solid #000"></td>'});h+='</tr>';
+    var dl=pk.filter(function(k){return k.diet}).map(function(k){return k.n+': '+k.diet}).join(';  ');
+    h+='<tr><td colspan="3" class="lab" style="height:24px;border-top:2px solid #000">* Special Diet</td><td colspan="35" class="dg" style="border-top:2px solid #000;text-align:left;white-space:normal;font:10px Georgia,serif;padding:2px 5px;line-height:1.25">'+esc(dl)+'</td></tr>';
     h+='<tr class="tot"><td colspan="3" class="labr">Daily Totals:</td>';days.forEach(function(d,i){var t=tot[i],has=pk.length&&(t.a||t.b||t.l||t.p);[t.a,t.b,'',t.l,t.p,'',''].forEach(function(v,j){h+='<td'+(j===0?' class="dg"':'')+'>'+(v===''?'':(has?v:''))+'</td>'})});h+='</tr></table>';
     h+='<div class="ft">I certify that the information on this form is true and correct to the best of my knowledge and that I will claim reimbursement only for eligible meals served to eligible participants. The director signs and dates the official weekly copy in the DCF Binder.</div><div class="pg">Page '+(p+1)+' of '+n+'</div></div>';
   }

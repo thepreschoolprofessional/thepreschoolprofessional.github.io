@@ -132,13 +132,15 @@ if ($act === 'food'){
   $rn = (string)($in['room'] ?? ''); $okn = room_names(''); if (!in_array($rn, $okn, true)) fail('Pick a room.');
   $mon = (string)($in['mon'] ?? ''); if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $mon) || (int)date('N', strtotime($mon)) !== 1 || $mon > $today || $mon < date('Y-m-d', strtotime('-69 days'))) fail('Pick a week from the last 2 months.');
   $days = []; for ($i = 0; $i < 5; $i++) $days[] = date('Y-m-d', strtotime($mon.' +'.$i.' days'));
-  $kids = []; $seen = []; foreach (roster([$rn]) as $k){ $kids[] = ['n'=>$k['n'], 'age'=>age_str($k['dob'], $mon)]; $seen[strtolower($k['n'])] = 1; }
+  $dm = []; $al = at('GET', 'Child Allergies', ['maxRecords'=>300, 'filterByFormula'=>"AND({School}='".$school."',{Status}='Approved')"]);
+  foreach (($al['records'] ?? []) as $r){ $f = $r['fields']; $c = strtolower(child_fl($f['Child'] ?? '')); if ($c === '') continue; $a = nm($f['Allergy'] ?? '', 60); if ($a === '') continue; $dm[$c] = isset($dm[$c]) ? $dm[$c].', '.$a : $a; }
+  $kids = []; $seen = []; foreach (roster([$rn]) as $k){ $kids[] = ['n'=>$k['n'], 'age'=>age_str($k['dob'], $mon), 'diet'=>$dm[strtolower(child_fl($k['n']))] ?? '']; $seen[strtolower($k['n'])] = 1; }
   $rows = [];
   foreach ($days as $d){
     $ar = at('GET', 'Room Attendance', ['maxRecords'=>400, 'filterByFormula'=>"AND({School}='".$school."',IS_SAME({Date},'$d','day'),OR({Home Room}='".esc_q($rn)."',{Current Room}='".esc_q($rn)."'))"]); $m = [];
     foreach (($ar['records'] ?? []) as $x){ $f = $x['fields']; $c = trim($f['Child'] ?? ''); if ($c === '') continue; $kk = strtolower($c);
       if (!isset($m[$kk])) $m[$kk] = ['att'=>!empty($f['Arrival']), 'b'=>!empty($f['B']), 'l'=>!empty($f['L']), 'p'=>!empty($f['P'])];
-      if (!isset($seen[$kk])){ $seen[$kk] = 1; $kids[] = ['n'=>$c, 'age'=>'']; } }
+      if (!isset($seen[$kk])){ $seen[$kk] = 1; $kids[] = ['n'=>$c, 'age'=>'', 'diet'=>$dm[strtolower(child_fl($c))] ?? '']; } }
     $rows[$d] = $m; }
   usort($kids, function($a, $b){ return strcasecmp($a['n'], $b['n']); });
   echo json_encode(['ok'=>true,'school'=>$school,'room'=>$rn,'mon'=>$mon,'kids'=>$kids,'rows'=>$rows]); exit;
