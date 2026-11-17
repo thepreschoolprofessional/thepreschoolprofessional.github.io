@@ -1025,6 +1025,26 @@ setTimeout(chk,1500);setInterval(chk,300000);})();
 </script>
 <script>try{if(sessionStorage.getItem('hiveOwner')){document.querySelectorAll('a.back').forEach(function(a){a.href='owner.html';a.textContent='← Owner Portal';});}}catch(e){}</script>
 
+<!-- open-card-link: director.html#open=<card name> opens that card (used by Director Bear Chat) -->
+<script>
+(function(){
+  var h=decodeURIComponent((location.hash||'').replace(/^#/,''));if(h.indexOf('open=')!==0)return;
+  var name=h.slice(5).trim();if(!name)return;var tries=0;
+  function lab(t){return (t.textContent||'').replace(/\s+/g,' ').trim().replace(/^[^A-Za-z0-9]+\s/,'');}
+  function go(){
+    if((typeof SCHOOL==='undefined'||!SCHOOL)&&tries++<40){setTimeout(go,250);return;}
+    try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}
+    var L=[].slice.call(document.querySelectorAll('nav .tab'));var tab=L.filter(function(t){return lab(t)===name;})[0]||L.filter(function(t){return lab(t).indexOf(name)===0;})[0];if(!tab)return;
+    var oc=tab.getAttribute('onclick')||'';
+    if(/^\s*show\(|location\.href=/.test(oc)){tab.click();var p=document.querySelector('.panel.show');(p||tab).scrollIntoView({behavior:'smooth',block:'start'});return;}
+    var b=document.createElement('button');b.type='button';b.textContent='Tap here to open '+name;
+    b.style.cssText='position:fixed;left:50%;transform:translateX(-50%);top:14px;z-index:99999;background:#2e8b57;color:#fff;border:0;border-radius:14px;padding:14px 20px;font-weight:800;font-size:16px;box-shadow:0 6px 20px rgba(0,0,0,.35);cursor:pointer;max-width:92vw';
+    b.onclick=function(){b.remove();tab.click();};document.body.appendChild(b);
+    tab.scrollIntoView({behavior:'smooth',block:'center'});tab.style.outline='4px solid #ffd23f';setTimeout(function(){tab.style.outline='';},8000);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',go);else go();
+})();
+</script>
 <!-- closures-new-badge -->
 <script>
 (function(){
