@@ -766,6 +766,9 @@ $mt = strtotime($mk.'-01'); $mname = date('F', $mt);
 $L = pp_at_all('tblSVP23UQnBu0YFo'); $lessons = [];
 foreach ($L as $f){ $mo = $f['Month'] ?? ''; $lk = $f['File Link'] ?? ''; if ($mo === '' || $lk === '') continue; $lessons[] = ['month'=>$mo, 'age'=>$f['Age Group'] ?? '', 'plan'=>$f['Plan'] ?? ($mo.' '.($f['Age Group'] ?? '')), 'link'=>$lk]; }
 $cur = []; foreach ($lessons as $x){ if (stripos($x['month'], $mname) === 0) $cur[] = $x; }
+/* backups: keep only this month and the two months before it */
+$keepM = [$mname, date('F', strtotime('-1 month', $mt)), date('F', strtotime('-2 months', $mt))];
+$lessons = array_values(array_filter($lessons, function($x) use ($keepM){ foreach ($keepM as $k){ if (stripos($x['month'], $k) === 0) return true; } return false; }));
 $F = pp_at_all('tblffsVYZDodfNiCV'); $forms = [];
 foreach ($F as $f){ $cat = $f['Category'] ?? ''; $doc = $f['Document'] ?? ''; $sc = $f['School'] ?? ''; $lk = $f['File Link'] ?? '';
 if ($lk === '' || ($sc !== 'Both' && $sc !== $school)) continue;
@@ -778,7 +781,7 @@ $CLP = ['2026-11-23'=>'Thanksgiving Break','2026-11-24'=>'Thanksgiving Break','2
 $dates = []; $dim = (int)date('t', $mt);
 for ($d = 1; $d <= $dim; $d++){ $ymd = $mk.'-'.sprintf('%02d', $d); $lab = date('D, M j', strtotime($ymd));
 if (isset($CLA[$ymd])) $dates[] = [$lab, 'CLOSED: '.$CLA[$ymd].(in_array($ymd, ['2026-11-26','2026-11-27'], true) ? ' (preschool closed, VPK closed all week)' : '')];
-elseif (isset($CLP[$ymd]) && !($ymd === '2027-01-05' && $school === 'DeLand 2')) $dates[] = [$lab, ($ymd === '2026-12-31' ? $CLP[$ymd] : (strpos($CLP[$ymd], 'Thanksgiving') !== false ? (in_array($ymd, ['2026-11-23','2026-11-24','2026-11-25'], true) ? 'Preschool is open. VPK is closed all week. Holiday Break Camp is open for VPK and school-age: sign up at the front desk.' : 'Thanksgiving Break') : 'Partial closure: '.$CLP[$ymd]))]; }
+elseif (isset($CLP[$ymd]) && !($ymd === '2027-01-05' && $school === 'DeLand 2')) $dates[] = [$lab, ($ymd === '2026-12-31' ? $CLP[$ymd] : (strpos($CLP[$ymd], 'Thanksgiving') !== false ? (in_array($ymd, ['2026-11-23','2026-11-24','2026-11-25'], true) ? 'Preschool is open. VPK is closed all week. Holiday Break Camp is open for VPK and school-age: sign up on the Parent Portal under Events & Sign-Ups.' : 'Thanksgiving Break') : 'Partial closure: '.$CLP[$ymd]))]; }
 /* birthdays: children (first name + last initial + day only) and staff (director-kept list) */
 $bd = []; $RC = pp_at_all('tblpEsTQ8EKbe63FA');
 foreach ($RC as $f){ if (($f['School'] ?? '') !== $school) continue; $st = strtolower($f['Status'] ?? 'active'); if ($st !== '' && $st !== 'active' && $st !== 'enrolled') continue;
@@ -790,7 +793,12 @@ foreach ($sb as $s){ if (preg_match('/^(\d{2})-(\d{2})$/', $s['md'] ?? '', $m) &
 usort($bd, function($a, $b){ return $a[0] - $b[0]; });
 $bt = implode("\n", array_map(function($x) use ($mname){ return $mname.' '.$x[0].': '.$x[1]; }, $bd));
 $weekly = []; $td = date('Y-m-d');
-foreach (pp_at_all('tbl88lfmyoO6ImePK') as $f){ $sc = $f['School'] ?? 'Both'; if ($sc !== 'Both' && $sc !== $school) continue; $fr = $f['Show From'] ?? ''; $un = $f['Show Until'] ?? ''; if (($fr !== '' && $fr > $td) || ($un !== '' && $un < $td)) continue; $weekly[] = ['title'=>$f['Title'] ?? '', 'kind'=>$f['Kind'] ?? 'Update', 'body'=>$f['Body'] ?? '']; }
+foreach (pp_at_all('tbl88lfmyoO6ImePK') as $f){ $sc = $f['School'] ?? 'Both'; if ($sc !== 'Both' && $sc !== $school) continue; $fr = $f['Show From'] ?? ''; $un = $f['Show Until'] ?? ''; $kd = $f['Kind'] ?? 'Update';
+/* Things to Do stays on its card until the next list is posted, so its end date is ignored */
+if (($fr !== '' && $fr > $td) || ($un !== '' && $un < $td && $kd !== 'Things to do')) continue; $weekly[] = ['title'=>$f['Title'] ?? '', 'kind'=>$kd, 'body'=>$f['Body'] ?? '', 'from'=>$fr]; }
+/* one Things to Do list and one Teddy Bear Talk at a time: the newest one that has started */
+foreach (['Things to do', 'Teddy Bear Talk'] as $k1){ $top = null; foreach ($weekly as $w){ if ($w['kind'] === $k1 && ($top === null || strcmp($w['from'], $top['from']) > 0)) $top = $w; }
+$weekly = array_values(array_filter($weekly, function($w) use ($k1, $top){ return $w['kind'] !== $k1 || $w === $top; })); }
 $QS = ['Children learn more from what you are than what you teach. - W.E.B. Du Bois', 'Play is the highest form of research. - Albert Einstein', 'It is easier to build strong children than to repair broken men. - Frederick Douglass', 'Every child is a different kind of flower, and all together make this world a beautiful garden.', 'Tell me and I forget. Teach me and I remember. Involve me and I learn. - Benjamin Franklin', 'A child who is loved and encouraged can do anything.', 'The more that you read, the more things you will know. - Dr. Seuss'];
 $quote = $QS[(int)date('z') % count($QS)];
 $rem = ['Please bring 160 wipes and 1 box of tissues each month. If we have not received them, a $5 supply fee is added.', 'Uniform shirts are $18. Ask the office if your child needs a new one.', 'Send a labeled change of clothes: 3 sets for infants and toddlers, 2 for preschoolers.', 'Please sign your child in and out on the tablet every day.'];

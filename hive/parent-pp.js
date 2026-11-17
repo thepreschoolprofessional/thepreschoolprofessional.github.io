@@ -31,9 +31,11 @@ function best(kind){
 }
 function stale(it){return it&&it.month&&it.month!==PP.month;}
 function needSchool(box){box.innerHTML='<div class="empty">Pick your school first (tap the card for Documents &amp; Registration, then choose a school).</div>';}
+/* backups: only this month and the two months before it */
+function recentTitle(t){var M=['january','february','march','april','may','june','july','august','september','october','november','december'],m=String(t).toLowerCase().match(/(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})/);if(!m)return true;var n=new Date(),age=(n.getFullYear()-(+m[2]))*12+(n.getMonth()-M.indexOf(m[1]));return age<=2&&age>=-1;}
 function fallbackLink(re){
   var L=(window.PP_RESOURCES&&window.PP_RESOURCES())||[];
-  for(var i=0;i<L.length;i++){var t=(L[i].Title||'');if(re.test(t)&&L[i].URL)return L[i];}
+  for(var i=0;i<L.length;i++){var t=(L[i].Title||'');if(re.test(t)&&L[i].URL&&recentTitle(t))return L[i];}
   return null;
 }
 function docHtml(it,id){
@@ -186,8 +188,8 @@ bring:{h:'🎒 What to Bring',intro:'From the Kid City USA Parent Handbook. Plea
  ],note:'Not sure about something? Ask your director. Supplies can change, and your school will tell you if anything is different.'},
 fees:{h:'💵 Tuition, Fees & Holidays',intro:'From the Kid City USA Parent Handbook.',
  s:[
- {t:'Tuition',p:['Tuition is due Friday for the upcoming week. Put your child\'s name at the bottom of any check.','If tuition is not paid by close of business Monday, a $25.00 late fee is added and your child may not attend until it is paid in full.','A child cannot stay in care if payment is more than five business days behind.']},
- {t:'Other fees',p:['$1.00 per minute per child after closing time. It is due at pick-up or before your child attends the next day.','$5.00 for every 15 minutes past the one hour you have to pick up an ill child.','$25.00 for a returned check. After the first returned check, no more checks are accepted.','$18 if your child comes without the uniform shirt. $5.00 a month if wipes and tissues are not received. $40 annual summer camp fee (school-aged only).','Registration fees are due when your child enrolls.']},
+ {t:'Tuition',p:['Tuition is due Friday for the upcoming week.','We take ProCare, debit cards, credit cards and money orders. We do not accept checks.','If tuition is not paid by close of business Monday, a $25.00 late fee is added and your child may not attend until it is paid in full.','A child cannot stay in care if payment is more than five business days behind.']},
+ {t:'Other fees',p:['$1.00 per minute per child after closing time. It is due at pick-up or before your child attends the next day.','$5.00 for every 15 minutes past the one hour you have to pick up an ill child.','$18 if your child comes without the uniform shirt. $5.00 a month if wipes and tissues are not received. $40 annual summer camp fee (school-aged only).','Registration fees are due when your child enrolls.']},
  {t:'Holidays and vacation',p:['Closed: New Year\'s Day, Good Friday, Memorial Day, Fourth of July, Labor Day, Thanksgiving Thursday and Friday, and December 24, 25 and 26. On New Year\'s Eve we close at 5:00 pm.','A holiday on Saturday is observed the Friday before. A holiday on Sunday is observed the Monday after.','No tuition credit is given for holidays or vacation time. This is built into our prices. See the Closures card for this year\'s exact dates.']},
  {t:'Absences and leaving',p:['If your child will be absent, call the center within 1 hour of their scheduled arrival time.','If your child is sick or in the hospital for a long time, talk to your director. Help is decided case by case.','Please give two (2) weeks\' notice before withdrawing your child.']},
  {t:'Hours',p:['Open Monday through Friday, 6:30 AM to 5:30 PM. Children must be picked up by closing time. If you will be late, please call the center.']}

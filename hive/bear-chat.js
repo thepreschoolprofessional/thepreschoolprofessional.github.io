@@ -197,8 +197,8 @@ var ASYNC = {
       return {html:'<b>'+esc(S[0].src.replace(/^this week's |^last /,'').replace(/^./,function(c){ return c.toUpperCase(); }))+'</b><br>'+S.slice(0,8).map(function(x){ return '• <b>'+esc(x.h)+'</b>: '+esc(x.body.split('\n')[0].slice(0,160)); }).join('<br>')}; });
     return auto().then(function(a){ var dt = function(w){ var t = Date.parse(String(w.title||'').split('—').pop()); return isNaN(t) ? 0 : t; }, W = (a.weekly||[]).filter(function(w){ return w.kind===e.kind; }).sort(function(x,y){ return dt(y)-dt(x); });
     if (!W.length && e.kind === 'Things to do'){ return portalData().then(function(P){ var f = P.sections.filter(function(x){ return /things to do/i.test(x.h); })[0];
-      if (!f) return 'This week\'s list of things to do isn\'t posted yet. A new list comes out every Friday on the Things to Do card.';
-      return {html:'The new weekend list comes out on Friday. Here is the last one, from the '+esc(f.src)+':<br>'+f.body.split('\n').filter(Boolean).slice(0,8).map(function(l){ return '• '+esc(l); }).join('<br>')}; }); }
+      if (!f) return 'This week\'s list of things to do isn\'t posted yet. A new list comes out every Monday on the Things to Do card.';
+      return {html:'The new list comes out on Monday. Here is the last one, from the '+esc(f.src)+':<br>'+f.body.split('\n').filter(Boolean).slice(0,8).map(function(l){ return '• '+esc(l); }).join('<br>')}; }); }
     if (!W.length) return 'This week\'s '+e.kind+' isn\'t posted yet. Check the '+e.go+' card soon.';
     var w = W[0], lines = String(w.body||'').split(/\n+/).map(function(s){ return s.replace(/^\s*[-•*]\s*/,'').trim(); }).filter(Boolean).slice(0,6);
     return {html:'<b>'+esc(w.title||e.kind)+'</b><br>'+lines.map(function(l){ return '• '+esc(l); }).join('<br>')}; }); },
