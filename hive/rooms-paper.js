@@ -103,7 +103,7 @@ function render(o){
   h+='</table><div class="gap"></div>';
   // children table
   var rows=o.children.length; var pad=Math.max(0,15-rows);
-  var tcols=[0,1,2];
+  var tcols=[0,1,2]; for(var q=3;q<Math.min(trans.length,5);q++) tcols.push(q); var extra=''; for(var q2=3;q2<tcols.length;q2++) extra+='<td></td><td></td>';
   h+='<table><tr><th rowspan="2" style="width:22px">#</th><th rowspan="2" style="width:15%">Child\'s Name</th><th rowspan="2">DOB</th><th rowspan="2">Age</th>'+(o.schoolAge?'<th rowspan="2">Arrival</th><th rowspan="2">Left for<br>school</th><th rowspan="2">Back from<br>school</th><th rowspan="2">Departure</th>':'<th rowspan="2">Arrival</th><th rowspan="2">Departure</th>')+'<th rowspan="2" style="width:24px">B</th><th rowspan="2" style="width:56px">L / P</th><th rowspan="2" style="width:26px">WC</th><th rowspan="2" style="width:22px">IR</th><th rowspan="2" style="width:22px">AR</th>';
   tcols.forEach(function(i){ var t=trans[i]; h+='<th colspan="2">Transition #'+(i+1)+'<br><span class="vis">'+esc(t?t.dest:'')+'</span></th>'; });
   h+='</tr><tr>';
@@ -119,12 +119,12 @@ function render(o){
      +'<td class="c sm">'+(a.WC?'X':'')+'</td><td class="c sm">'+(a.IR?'IR':'')+'</td><td class="c sm">'+(a.AR?'AR':'')+'</td>';
     tcols.forEach(function(i){
       var t=trans[i]; var wasOut=!!(t && t.kids && t.kids.indexOf(c.name)>-1);
-      h+='<td class="c tick">'+(wasOut?'X':'')+'</td><td class="c tick">'+(wasOut&&t.in?'X':'')+'</td>';
+      h+='<td class="c tick">'+(wasOut?'X':'')+'</td><td class="c tick">'+(wasOut&&t.in&&(!t.kidsIn||t.kidsIn.indexOf(c.name)>-1)?'X':'')+'</td>';
     });
     h+='</tr>';
   });
   for(var p=0;p<pad;p++){
-    h+='<tr><td class="c">'+(rows+p+1)+'</td><td>&nbsp;</td><td></td><td></td><td></td><td></td>'+(o.schoolAge?'<td></td><td></td>':'')+'<td></td><td class="lp"><div><span>&nbsp;</span><span>&nbsp;</span></div></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+    h+='<tr><td class="c">'+(rows+p+1)+'</td><td>&nbsp;</td><td></td><td></td><td></td><td></td>'+(o.schoolAge?'<td></td><td></td>':'')+'<td></td><td class="lp"><div><span>&nbsp;</span><span>&nbsp;</span></div></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>'+extra+'</tr>';
   }
   // sweep rows
   h+='<tr><td colspan="'+(o.schoolAge?13:11)+'" style="border:none"></td>';
@@ -150,8 +150,8 @@ function render(o){
   if(counts.length){
     h+='<div class="hc"><b>Headcounts / sweeps:</b> '+counts.map(function(c){ return esc(fmt12(c.t))+' &mdash; '+esc(c.count)+(c.kind==='sweep'?' (sweep)':'')+(c.by?' ('+esc(c.by)+')':''); }).join(' &nbsp;|&nbsp; ')+'</div>';
   }
-  if(trans.length>3){
-    h+='<div class="hc"><b>More transitions:</b> '+trans.slice(3).map(function(t,i){ return '#'+(i+4)+' '+esc(t.dest)+' out '+esc(fmt12(t.out))+(t.in?' in '+esc(fmt12(t.in)):''); }).join(' | ')+'</div>';
+  if(trans.length>5){
+    h+='<div class="hc"><b>More transitions:</b> '+trans.slice(5).map(function(t,i){ return '#'+(i+6)+' '+esc(t.dest)+' out '+esc(fmt12(t.out))+(t.in?' in '+esc(fmt12(t.in)):''); }).join(' | ')+'</div>';
   }
   h+='<div class="notes"><b>NOTES:</b> <span class="hl">'+esc(NOTE_TEXT)+'</span><br><span class="hl">CALL FOR A "SWEEP" AFTER YOU LEAVE CLASSROOM AND AFTER YOU RETURN TO CLASSROOM</span><br><span class="hl">ALWAYS DO A HEAD COUNT EVERY 10 MINUTES TO MAKE SURE ALL CHILDREN ARE ACCOUNTED FOR.</span></div>';
   h+='<div class="ft">'+esc(o.school||'')+' &middot; Generated from The Hive Rooms board. Names shown as first name + last initial.</div>';

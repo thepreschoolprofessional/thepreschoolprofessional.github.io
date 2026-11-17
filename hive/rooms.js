@@ -473,8 +473,8 @@ function toggleMeal(names, m, mode){
 
 /* ---------- school-age helpers: day gate, transition form, transportation catch-up ---------- */
 function gateDay(cb){ if(S.role==='teacher' && !isToday()) needDirector(function(){ cb(); }); else cb(); }
-function trPresentAt(n,t){ var a=attOf(n); if(!a.Arrival) return false; if(!t) return true; if(a.Arrival>t) return false; var so=a['School Out']||'', si=a['School In']||''; if(so && so<=t && (!si || si>t)) return false; if(a.Departure && a.Departure<t) return false; return true; }
-function trKidsHtml(x,i){ var have=(i>=0 && x.kids && x.kids.length)?x.kids:null, t=x.out||'';
+function trPresentAt(n,t){ var a=attOf(n); if(!a.Arrival) return false; if(!t) return !a.Departure && !(a['School Out'] && !a['School In']); if(a.Arrival>t) return false; var so=a['School Out']||'', si=a['School In']||''; if(so && so<=t && (!si || si>t)) return false; if(a.Departure && a.Departure<t) return false; return true; }
+function trKidsHtml(x,i){ var have=(i>=0 && x.kids && x.kids.length)?x.kids:null, t=x.out||(i<0&&isToday()?nowHM():'');
   var kids=roomKids(S.room); if(have) have.forEach(function(n){ if(!kids.some(function(c){return c.name===n;})) kids.push({name:n}); });
   if(!kids.length) return '<div class="sub2">No children on this room\'s list.</div>';
   return kids.map(function(c){ var on=have? have.indexOf(c.name)>=0 : trPresentAt(c.name,t);
@@ -493,6 +493,7 @@ function trInCount(){
   var ic=document.getElementById('ticnt'), ti=document.getElementById('tin'); if(ic) ic.value=(ti&&ti.value)? n : '';
 }
 function trKidsRefresh(){ var t=(document.getElementById('tout')||{}).value||''; document.querySelectorAll('.tkid').forEach(function(b){ b.checked=trPresentAt(b.value,t); }); trKidCount(); }
+window.trKidCount=trKidCount; window.trInCount=trInCount; window.trKidsRefresh=trKidsRefresh;
 function trForm(i){
   var r=roomObj(S.room), day=ensureDay(S.room), x=(i>=0&&day.transitions[i])||{}, pres=presentIn(S.room).length;
   var dests=['Outside','Playroom'].concat(S.rooms.filter(function(z){return z.name!==S.room;}).map(function(z){return z.name;})).concat(['Office','Other (type it in)']);
@@ -500,7 +501,7 @@ function trForm(i){
   openModal('<h3>'+(i>=0?'Edit transition':'Add a transition from the paper form')+'</h3><p class="sub2">'+esc(niceDate(S.date))+'. Copy what is on the paper form.</p>'
    +'<label class="lbl">Where did they go?</label><select class="inp" id="tdest" onchange="document.getElementById(\'tdestO\').style.display=this.value===\'Other (type it in)\'?\'block\':\'none\'">'+dests.map(function(d){ return '<option'+((known?d===x.dest:(x.dest&&d==='Other (type it in)'))?' selected':'')+'>'+esc(d)+'</option>'; }).join('')+'</select>'
    +'<input class="inp" id="tdestO" placeholder="Type where they went" value="'+esc(!known&&x.dest?x.dest:'')+'" style="margin-top:6px;display:'+(!known&&x.dest?'block':'none')+'">'
-   +'<div class="trow"><label class="lbl" style="min-width:120px">Time out</label><input class="inp" type="time" id="tout" value="'+esc(x.out||'')+'" '+(i<0?'onchange="trKidsRefresh()"':'')+'></div>'
+   +'<div class="trow"><label class="lbl" style="min-width:120px">Time out</label><input class="inp" type="time" id="tout" value="'+esc(x.out||(i<0&&isToday()?nowHM():''))+'" '+(i<0?'onchange="trKidsRefresh()"':'')+'></div>'
    +'<label class="lbl">Who went (check each child)</label><div id="tkids" style="max-height:200px;overflow:auto;border:1px solid #ddd;border-radius:10px;padding:6px 10px">'+trKidsHtml(x,i)+'</div><div class="sub2" id="tkn"></div>'
    +'<div class="trow"><label class="lbl" style="min-width:120px">Count going out</label><input class="inp" type="number" inputmode="numeric" id="tocnt" value="'+esc(x.outCount!==undefined&&x.outCount!==''?x.outCount:(i<0?pres:''))+'"></div>'
    +'<label class="lbl">Counted by (out)</label>'+whoSelect(S.room,'toby')
