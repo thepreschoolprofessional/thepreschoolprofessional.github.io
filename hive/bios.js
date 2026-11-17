@@ -52,6 +52,7 @@ var CSS='.bcs{max-width:760px;margin:0 auto;padding:4px 0 30px}'
 +'.bc .tx{text-align:left;font-size:1.06rem;line-height:1.7;background:rgba(255,255,255,.82);border-radius:18px;padding:20px 22px}'
 +'.bc .tx p{margin:0 0 14px}.bc .tx p:last-child{margin:0}'
 +'.bc .tx p:first-child{font-size:1.16rem;font-weight:700;color:#7a1f1f;line-height:1.5}'
++'.bc .qt{margin:18px 6px 0;padding:16px 18px;border-radius:16px;background:linear-gradient(135deg,#F5B400,#E08A00 60%,#C62F3A);color:#fff;font:italic 700 1.2rem Georgia,serif;line-height:1.4;text-align:center;box-shadow:0 4px 12px rgba(120,80,0,.25)}'
 +'@media(max-width:520px){.bc .bb{padding:10px 16px 24px}.bc h3{font-size:1.7rem}.bc .tx{padding:16px}}'
 +'@media print{.bc{box-shadow:none;-webkit-print-color-adjust:exact;print-color-adjust:exact}}';
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
@@ -60,14 +61,15 @@ window.bioCss=CSS;
 var ROLEN={Support:'Classroom Support',Teacher:'Teacher',Director:'Director'};
 window.bioCard=function(r,school){
  var a=r.a||{},chips=[];
+ if(r.chips&&r.chips.length){chips=r.chips.map(esc);}else{
  if(a.edu)chips.push('🎓 '+esc(a.edu));
  if(a.h45==='yes')chips.push('✅ 45-hour training complete');else if(a.h45==='progress')chips.push('📘 45-hour training in progress');
- var y=parseInt(a.years,10);if(y>0)chips.push('🧸 '+y+' year'+(y===1?'':'s')+' with children');
+ var y=parseInt(a.years,10);if(y>0)chips.push('🧸 '+y+' year'+(y===1?'':'s')+' with children');}
  var paras=String(r.bio||'').split(/\n\s*\n/).map(function(p){return '<p>'+esc(p)+'</p>';}).join('');
  return '<div class="bc"><div class="bh"><span class="bs">Kid City USA'+(school?' · '+esc(school):'')+'</span></div>'
  +'<div class="bp"><div class="ph"'+(r.photo?' style="background-image:url(data:image/jpeg;base64,'+r.photo+')"':'')+'>'+(r.photo?'':'🐝')+'</div></div>'
- +'<div class="bb"><div class="kick">Meet your teacher</div><h3>'+esc(r.name)+'</h3>'+(r.role?'<span class="br">'+esc(ROLEN[r.role]||r.role)+'</span>':'')
+ +'<div class="bb"><div class="kick">'+esc(r.kicker||'Meet your teacher')+'</div><h3>'+esc(r.name)+'</h3>'+(r.role?'<span class="br">'+esc(ROLEN[r.role]||r.role)+'</span>':'')
  +(chips.length?'<div class="chips">'+chips.map(function(c){return '<span class="chip">'+c+'</span>';}).join('')+'</div>':'')
- +'<div class="dv"></div><div class="tx">'+paras+'</div></div></div>';
+ +'<div class="dv"></div><div class="tx">'+paras+'</div>'+(r.quote?'<div class="qt">&ldquo;'+esc(r.quote)+'&rdquo;</div>':'')+'</div></div>';
 };
 })();

@@ -935,6 +935,8 @@ return $row;
 if ($action === 'bios_public'){
 $r = roster($school, 'staff'); if ($r === null) fail('Could not read the staff list right now.', 502);
 $out = []; foreach ($r as $p){ if (strpos($p['id'], 'recTEST') === 0) continue; $row = bio_public_row($school, $p); if ($row) $out[] = $row; }
+/* featured bios (owner / founder): public site information kept in hive/featured-bios.json, shown first at every school */
+$fb = @json_decode((string)@file_get_contents(__DIR__.'/featured-bios.json'), true); if (is_array($fb)) $out = array_merge($fb, $out);
 echo json_encode(['school'=>$school, 'staff'=>$out]); exit;
 }
 /* ---- Weekly FTE report (replaces the corporate Google Form). Directors only.
