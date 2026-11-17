@@ -479,7 +479,19 @@ function trKidsHtml(x,i){ var have=(i>=0 && x.kids && x.kids.length)?x.kids:null
   if(!kids.length) return '<div class="sub2">No children on this room\'s list.</div>';
   return kids.map(function(c){ var on=have? have.indexOf(c.name)>=0 : trPresentAt(c.name,t);
     return '<label class="ck2" style="display:block;padding:3px 0"><input type="checkbox" class="tkid" value="'+esc(c.name)+'"'+(on?' checked':'')+' onchange="trKidCount()"> '+esc(c.name)+'</label>'; }).join(''); }
-function trKidCount(){ var n=document.querySelectorAll('.tkid:checked').length, e=document.getElementById('tkn'); if(e) e.textContent=n+' child'+(n===1?'':'ren')+' checked.'; var c=document.getElementById('tocnt'); if(c) c.value=n; var ic=document.getElementById('ticnt'), ti=document.getElementById('tin'); if(ic && ti && ti.value && !ic.dataset.touched) ic.value=n; }
+function trKidCount(){
+  var outs=[].map.call(document.querySelectorAll('.tkid:checked'),function(b){return b.value}), e=document.getElementById('tkn');
+  if(e) e.textContent=outs.length+' child'+(outs.length===1?'':'ren')+' checked.';
+  var c=document.getElementById('tocnt'); if(c) c.value=outs.length;
+  var box=document.getElementById('tkin'); if(!box) return;
+  var prev=window.__trPrev||{}; box.querySelectorAll('.tkin').forEach(function(b){ prev[b.value]=b.checked; }); window.__trPrev=prev;
+  box.innerHTML=outs.length? outs.map(function(n){ var on=(n in prev)?prev[n]:true; return '<label class="ck2" style="display:block;padding:3px 0"><input type="checkbox" class="tkin" value="'+esc(n)+'"'+(on?' checked':'')+' onchange="trInCount()"> '+esc(n)+'</label>'; }).join('') : '<div class="sub2">Check who went first.</div>';
+  trInCount();
+}
+function trInCount(){
+  var n=document.querySelectorAll('.tkin:checked').length, e=document.getElementById('tkin2'); if(e) e.textContent=n+' came back in'+(document.querySelectorAll('.tkin').length-n>0?' ('+(document.querySelectorAll('.tkin').length-n)+' went home)':'')+'.';
+  var ic=document.getElementById('ticnt'), ti=document.getElementById('tin'); if(ic) ic.value=(ti&&ti.value)? n : '';
+}
 function trKidsRefresh(){ var t=(document.getElementById('tout')||{}).value||''; document.querySelectorAll('.tkid').forEach(function(b){ b.checked=trPresentAt(b.value,t); }); trKidCount(); }
 function trForm(i){
   var r=roomObj(S.room), day=ensureDay(S.room), x=(i>=0&&day.transitions[i])||{}, pres=presentIn(S.room).length;
@@ -492,11 +504,13 @@ function trForm(i){
    +'<label class="lbl">Who went (check each child)</label><div id="tkids" style="max-height:200px;overflow:auto;border:1px solid #ddd;border-radius:10px;padding:6px 10px">'+trKidsHtml(x,i)+'</div><div class="sub2" id="tkn"></div>'
    +'<div class="trow"><label class="lbl" style="min-width:120px">Count going out</label><input class="inp" type="number" inputmode="numeric" id="tocnt" value="'+esc(x.outCount!==undefined&&x.outCount!==''?x.outCount:(i<0?pres:''))+'"></div>'
    +'<label class="lbl">Counted by (out)</label>'+whoSelect(S.room,'toby')
-   +'<div class="trow"><label class="lbl" style="min-width:120px">Time back in</label><input class="inp" type="time" id="tin" value="'+esc(x['in']||'')+'"></div>'
+   +'<div class="trow"><label class="lbl" style="min-width:120px">Time back in</label><input class="inp" type="time" id="tin" value="'+esc(x['in']||'')+'" onchange="trInCount()"></div>'
+   +'<label class="lbl">Who came back in (uncheck children who went home)</label><div id="tkin" style="max-height:200px;overflow:auto;border:1px solid #ddd;border-radius:10px;padding:6px 10px"></div><div class="sub2" id="tkin2"></div>'
    +'<div class="trow"><label class="lbl" style="min-width:120px">Count coming back</label><input class="inp" type="number" inputmode="numeric" id="ticnt" value="'+esc(x.inCount!==undefined?x.inCount:'')+'"></div>'
    +'<label class="lbl">Counted by (back)</label>'+whoSelect(S.room,'tiby')
    +'<div id="merr" class="err"></div><div class="mrow"><button class="btn sec" data-act="mclose2">Cancel</button><button class="btn grn" data-act="trsave" data-i="'+i+'">Save</button></div>');
-  trKidCount(); if(i>=0 && x.inCount!==undefined && x.inCount!=='') { var icx=document.getElementById('ticnt'); if(icx) icx.dataset.touched='1'; }
+  window.__trPrev={}; if(i>=0 && (x.kidsIn||(x['in']&&x.kids))){ var ki=x.kidsIn||x.kids; (x.kids||[]).forEach(function(n){ window.__trPrev[n]=ki.indexOf(n)>=0; }); }
+  trKidCount();
   if(x.outBy){ var e=document.getElementById('toby'); if(e){ if(![].some.call(e.options,function(o){return o.value===x.outBy||o.text===x.outBy;})) e.insertAdjacentHTML('afterbegin','<option>'+esc(x.outBy)+'</option>'); e.value=x.outBy; } }
   if(x.inBy){ var e2=document.getElementById('tiby'); if(e2){ if(![].some.call(e2.options,function(o){return o.value===x.inBy||o.text===x.inBy;})) e2.insertAdjacentHTML('afterbegin','<option>'+esc(x.inBy)+'</option>'); e2.value=x.inBy; } }
 }
@@ -610,7 +624,7 @@ var ACT = {
    var chk=[].map.call(document.querySelectorAll('.tkid:checked'),function(b){return b.value;}); if(!chk.length){ err.textContent='Check the children who went (at least one).'; return; }
    var day=ensureDay(S.room), by=val('toby'), iby=val('tiby');
    var rec=(i>=0 && day.transitions[i]) ? day.transitions[i] : {kids:[]};
-   rec.kids=chk; if(tin) rec.kidsIn=chk.slice(); rec.dest=dest; rec.out=out; rec.outCount=isNaN(oc)?'':oc; rec.outBy=by; rec['in']=tin||''; rec.inCount=tin?(isNaN(ic)?'':ic):''; rec.inBy=tin?iby:'';
+   rec.kids=chk; rec.kidsIn=tin?[].map.call(document.querySelectorAll('.tkin:checked'),function(b){return b.value}):[]; if(tin) ic=rec.kidsIn.length; rec.dest=dest; rec.out=out; rec.outCount=isNaN(oc)?'':oc; rec.outBy=by; rec['in']=tin||''; rec.inCount=tin?(isNaN(ic)?'':ic):''; rec.inBy=tin?iby:'';
    if(i<0){ day.transitions.push(rec); day.counts.push({t:out,count:rec.outCount,by:by,kind:'sweep'}); if(tin) day.counts.push({t:tin,count:rec.inCount,by:iby,kind:'sweep'}); }
    day.transitions.sort(function(a,b){ return (a.out||'')<(b.out||'')?-1:1; }); day.transitions.forEach(function(x,k){ x.n=k+1; });
    saveDay(S.room); closeModal(); render(); toast('Transition saved.'); },
