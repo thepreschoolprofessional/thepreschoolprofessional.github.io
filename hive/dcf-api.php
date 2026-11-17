@@ -181,10 +181,29 @@ if (empty($out['records'][0]['id'])){ @unlink($dir.'/'.$id.'.'.$ext); fail('Save
 echo json_encode($out); exit;
 }
 
+if ($action === 'pfstore'){
+// A prefilled parent form (child's details already typed in) kept on the server, behind the director PIN, instead of the public website folder. Own school only.
+$m = $input['month'] ?? '';
+$child = trim(preg_replace('/[^A-Za-z0-9 ,\.\'-]/', '', $input['child'] ?? ''));
+$kind = ($input['kind'] ?? '') === 'INFANT' ? 'INFANT' : 'FR';
+$raw = base64_decode($input['b64'] ?? '', true);
+if (!preg_match('/^\d{4}-\d{2}$/', $m) || $child === '' || strlen($child) > 80 || $raw === false) fail('Missing month, child or file');
+if (substr($raw, 0, 4) !== "%PDF" || strlen($raw) < 200 || strlen($raw) > 6 * 1024 * 1024) fail('Only a PDF up to 6 MB');
+$dir = upload_dir($school);
+if (!$dir) fail('The server could not store the file. Tell Mrs. Bear.', 500);
+$id = bin2hex(random_bytes(12)).'.pdf';
+if (file_put_contents($dir.'/'.$id, $raw) === false) fail('The server could not save the file', 500);
+$data = ['child'=>$child, 'kind'=>$kind, 'file'=>$id, 'at'=>gmdate('c'), 'by'=>substr($input['by'] ?? '', 0, 60)];
+$f = ['Entry'=>$school.' · '.$m.' · PREFILL · '.$child, 'School'=>$school, 'Month'=>$m, 'Form'=>'PREFILL', 'Employee'=>$child.'|'.$kind.'|'.$id, 'Data'=>json_encode($data), 'Updated By'=>$data['by'], 'Updated At'=>$data['at']];
+$out = at_request('POST', ['Monthly Forms'], null, ['records' => [['fields' => $f]], 'typecast' => true]);
+if (empty($out['records'][0]['id'])){ @unlink($dir.'/'.$id); fail('Saved the file but could not record it. Try again.', 502); }
+echo json_encode($out); exit;
+}
+
 if ($action === 'getfile'){
 $fid = $input['id'] ?? '';
 if (!preg_match('/^[a-f0-9]{24}\.(jpg|png|pdf)$/', $fid)) fail('Bad file');
-$chk = at_request('GET', ['Monthly Forms'], ['maxRecords'=>1, 'filterByFormula'=>"AND({School}='".$school."',{Form}='SIGNED',FIND('".$fid."',{Data}))"]);
+$chk = at_request('GET', ['Monthly Forms'], ['maxRecords'=>1, 'filterByFormula'=>"AND({School}='".$school."',OR({Form}='SIGNED',{Form}='PREFILL'),FIND('".$fid."',{Data}))"]);
 if (empty($chk['records'][0])) fail('Not found', 404);
 $dir = upload_dir($school);
 $p = $dir ? $dir.'/'.$fid : '';

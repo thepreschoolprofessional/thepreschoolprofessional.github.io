@@ -287,7 +287,7 @@ function plainPdf(title,lines){
 }
 function flat(o,pre,out){ out=out||[]; if(o&&typeof o==='object'){ Object.keys(o).forEach(function(k){ flat(o[k],(pre?pre+' / ':'')+k,out); }); } else if(o!==''&&o!=null&&o!==false){ out.push(pre+': '+o); } return out; }
 function foodVault(silent){
-  var pk=S.pk, m=pk.month, keys=Object.keys(pk.recs).filter(function(k){ var p=k.split('|'); return p[0]===m && p[1]!=='SUBMITTED' && p[1]!=='SIGNED' && p[1]!=='PARENTFORMS'; });
+  var pk=S.pk, m=pk.month, keys=Object.keys(pk.recs).filter(function(k){ var p=k.split('|'); return p[0]===m && p[1]!=='SUBMITTED' && p[1]!=='SIGNED' && p[1]!=='PREFILL' && p[1]!=='PARENTFORMS'; });
   var jobs=[]; keys.forEach(function(k){ var p=k.split('|'), form=p[1], emp=p[2], d=pkData(form,emp)||{};
     if(form==='PAR') jobs.push({name:'Food Program PAR hours sheet - '+emp+' - '+m+'.pdf',make:function(){ return parPdf(emp,d,m); }});
     else { var lbl=(PFORMS.filter(function(x){return x[0]===form;})[0]||[form,form])[1]; jobs.push({name:'Food Program '+lbl+(emp?' - '+emp:'')+' - '+m+'.pdf',make:function(){ return plainPdf(lbl+(emp?' - '+emp:'')+' - '+S.school+' - '+m,flat(d,'',[])); }}); } });
@@ -743,7 +743,7 @@ function skipOn(k){ return !!skipMap()[k]; }
 function skipList(){ var sk=skipMap(), nm={SITEINFO:'Site Information',CHECKLIST:'Monthly Provider Check List',ENTRANCES:'Monthly Entrances',TERMS:'Monthly Terminations',PAR:'Personnel Activity Reports',PARENTSIGN:'Parent-signed forms',WEEKSIGN:'Weekly Attendance & Meal Count reports',RECEIPTS:'Receipts',EXPEND:'Program Expenditures Worksheet',LABOR:'Labor Summary Worksheet',q_kids:"Children's forms",q_pars:'PAR question',q_rcpt:'Receipts question',q_cover:'Cover page'}; return Object.keys(sk).filter(function(k){return sk[k];}).map(function(k){return {key:k,label:nm[k]||k};}); }
 function pfLinks(){
   var items=(pkData('PARENTFORMS')||{items:[]}).items||[], h='';
-  items.forEach(function(it,i){ if(it.done) return; h+='<div class="line bad" style="margin:6px 0"><b>'+esc(it.child)+'</b> &middot; '+esc(it.type==='INFANT'?'Infant Feeding Form':'Free & Reduced Meal Application')+(it.why?'<div class="hint">'+esc(it.why)+'</div>':'')+'<div style="margin-top:6px"><a class="btn sm" target="_blank" href="'+esc(it.file)+'">Open &amp; print</a> <label style="margin-left:10px"><input type="checkbox" class="pfdone" data-i="'+i+'"> Returned signed</label></div>'+signedBlock(it,i)+'</div>'; });
+  items.forEach(function(it,i){ if(it.done) return; h+='<div class="line bad" style="margin:6px 0"><b>'+esc(it.child)+'</b> &middot; '+esc(it.type==='INFANT'?'Infant Feeding Form':'Free & Reduced Meal Application')+(it.why?'<div class="hint">'+esc(it.why)+'</div>':'')+'<div style="margin-top:6px">'+pfOpen(it,i)+' <label style="margin-left:10px"><input type="checkbox" class="pfdone" data-i="'+i+'"> Returned signed</label></div>'+signedBlock(it,i)+'</div>'; });
   h+='<div class="hint" style="margin-top:6px"><button class="btn sec sm" data-tab="forms">All forms to print</button> <a class="btn sec sm" target="_blank" href="files.html">Student files (applications on file)</a>'+(BLANKS[S.school]||[]).map(function(b){ return ' <a class="btn sec sm" target="_blank" href="'+b[1]+'">'+b[0]+'</a>'; }).join('')+'</div>';
   return h;
 }
@@ -923,6 +923,25 @@ function savePF(data){
   return p.then(function(res){ var r=res.records?res.records[0]:res; if(r&&r.id){ pk.recs[pkKey('PARENTFORMS','')]=r; toast('Saved.'); } else toast('Did not save',true); render(); }).catch(function(e){ toast(e.message,true); });
 }
 
+/* Prefilled parent forms carry a child's details, so they live behind the director PIN (dcf-api pfstore/getfile), not in the public website folder. */
+function pfOpen(it,i){
+  if(it.fid) return '<a class="btn sm" href="#" data-pfopen="'+esc(it.fid)+'">Open &amp; print</a>';
+  if(!it.file) return '';
+  if(/^files\/food-program\//.test(it.file)) return '<a class="btn sm" target="_blank" href="'+esc(it.file)+'">Open &amp; print</a> <button class="btn sm sec" data-pfsec="'+i+'">&#128274; Move behind the PIN</button>';
+  return '<a class="btn sm" target="_blank" href="'+esc(it.file)+'">Open &amp; print</a>';
+}
+function pfOpenFile(fid){
+  var w=window.open('','_blank');
+  api('getfile','',{id:fid}).then(function(r){ var bin=atob(r.b64), a=new Uint8Array(bin.length); for(var k=0;k<bin.length;k++) a[k]=bin.charCodeAt(k); var u=URL.createObjectURL(new Blob([a],{type:'application/pdf'})); if(w) w.location.href=u; else location.href=u; }).catch(function(e){ if(w) w.close(); toast(e.message,true); });
+}
+function pfSecure(i){
+  var dd=pkData('PARENTFORMS')||{items:[]}, it=dd.items[i]; if(!it||!it.file||it.fid) return;
+  toast('Moving it behind the PIN…');
+  fetch(it.file,{cache:'no-store'}).then(function(r){ if(!r.ok) throw new Error('Could not read that form'); return r.arrayBuffer(); }).then(function(buf){
+    var b=new Uint8Array(buf), s='', CH=0x8000; for(var k=0;k<b.length;k+=CH) s+=String.fromCharCode.apply(null,b.subarray(k,k+CH));
+    return api('pfstore','Monthly Forms',{month:S.pk.month,child:it.child,kind:(it.type==='INFANT'?'INFANT':'FR'),b64:btoa(s),by:directorName()||'Director'});
+  }).then(function(res){ var r=res.records&&res.records[0]; var d=JSON.parse((r&&r.fields&&r.fields.Data)||'{}'); if(!d.file) throw new Error('It did not save. Try again.'); it.fid=d.file; it.oldFile=it.file; delete it.file; return savePF(dd); }).then(function(){ toast('Moved behind the PIN.'); }).catch(function(e){ toast(e.message,true); });
+}
 function signedFor(it){
   var kind=(it.type==='INFANT')?'INFANT':'FR', out=[];
   Object.keys(S.pk.recs).forEach(function(k){ var r=S.pk.recs[k]; if(r.fields.Form!=='SIGNED') return; var d; try{ d=JSON.parse(r.fields.Data||'{}'); }catch(e){ return; } if(d.kind===kind && (d.child||'').toLowerCase().replace(/[^a-z]/g,'')===(it.child||'').toLowerCase().replace(/[^a-z]/g,'')) out.push(d); });
@@ -971,7 +990,7 @@ function formsView(){
   h+='<div class="card"><div class="ct">Forms for parents to sign</div>';
   if(!items.length) h+='<div class="okline">Nothing waiting for a parent signature this month.</div>';
   items.forEach(function(it,i){
-    h+='<div class="line '+(it.done?'ok':'bad')+'"><b>'+esc(it.child)+'</b> &middot; '+esc(it.type==='INFANT'?'Infant Feeding Form':'Free & Reduced Meal Application')+(it.why?'<div class="hint">'+esc(it.why)+'</div>':'')+'<div style="margin-top:6px"><a class="btn sm" target="_blank" href="'+esc(it.file)+'">Open &amp; print</a> <label style="margin-left:10px"><input type="checkbox" class="pfdone" data-i="'+i+'" '+(it.done?'checked':'')+'> Returned signed</label></div>'+signedBlock(it,i)+'</div>';
+    h+='<div class="line '+(it.done?'ok':'bad')+'"><b>'+esc(it.child)+'</b> &middot; '+esc(it.type==='INFANT'?'Infant Feeding Form':'Free & Reduced Meal Application')+(it.why?'<div class="hint">'+esc(it.why)+'</div>':'')+'<div style="margin-top:6px">'+pfOpen(it,i)+' <label style="margin-left:10px"><input type="checkbox" class="pfdone" data-i="'+i+'" '+(it.done?'checked':'')+'> Returned signed</label></div>'+signedBlock(it,i)+'</div>';
   });
   h+='</div>';
   {
@@ -996,6 +1015,8 @@ document.addEventListener('input',function(e){ var t=e.target, ps=t.closest&&t.c
 document.addEventListener('change',function(e){ var t=e.target; if(t.classList&&t.classList.contains('wsflag')){ var w=pkData('WORKSHEETS')||{}; w[t.getAttribute('data-w')]=t.checked; writeRec({form:'WORKSHEETS',emp:'',data:w},false); return; } if(t.id==='kidSel'){ flushSave().then(function(){ S.pk.kid=t.value; render(); }); return; } if(t.closest&&t.closest('#paper')&&(t.type==='checkbox')&&!t.classList.contains('ws')){ postPack(); schedSave(); } });
 document.addEventListener('change',function(e){ if(e.target.classList&&e.target.classList.contains('pfup')){ var fl=e.target.files; uploadSigned(fl,+e.target.getAttribute('data-i')); return; } if(e.target.classList&&e.target.classList.contains('pfdone')){ var dd=pkData('PARENTFORMS')||{items:[]}; var it=dd.items[+e.target.getAttribute('data-i')]; if(it){ it.done=e.target.checked; savePF(dd); } return; } if(e.target.id==='pEmp'){ parPick(e.target.value); } });
 document.addEventListener('click',function(e){
+  var pfo=e.target.closest&&e.target.closest('[data-pfopen]'); if(pfo){ e.preventDefault(); pfOpenFile(pfo.getAttribute('data-pfopen')); return; }
+  var pfs=e.target.closest&&e.target.closest('[data-pfsec]'); if(pfs){ e.preventDefault(); pfSecure(+pfs.getAttribute('data-pfsec')); return; }
   var dl=e.target.closest&&e.target.closest('[data-dl]'); if(dl){ e.preventDefault(); downloadSigned(dl.getAttribute('data-dl'),dl.getAttribute('data-nm')); return; }
   var el=e.target.closest('[data-cell],[data-tab],[data-a],[data-adddrill],[data-pf],[data-goto]'); if(!el) return;
   if(el.hasAttribute('data-goto')){ S.tab='pack'; S.pk.form=el.getAttribute('data-goto'); render(); return; }
