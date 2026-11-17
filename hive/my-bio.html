@@ -20,7 +20,7 @@ function say(t,bad){var m=$('msg');if(m){m.textContent=t||'';m.className='msg '+
 async function boot(){bioStyle();
  try{var w=await api('whoami');SCHOOL=w.school;if(!SCHOOL)throw new Error('Please log in with your school\'s teacher PIN.');STAFF=(await api('staff_names')).staff.filter(function(p){return !/practice/i.test(p.name);});}
  catch(e){$('app').innerHTML='<div class="card"><b>'+esc(e.message)+'</b><p><a class="btn" href="index.html">Back to sign in</a></p></div>';return;}
- var h='<a href="teacher.html" class="sub">‹ Back</a><h1>🐝 My Bio</h1><div class="sub">Kid City USA '+esc(SCHOOL)+'. Answer a few questions and we will write a bio for you. Your director checks it before families see it.</div><div class="card"><label class="q">Who are you?</label><select id="who"><option value="">Pick your name…</option>'+STAFF.map(function(p){return '<option value="'+p.id+'">'+esc(p.name)+'</option>';}).join('')+'</select></div><div class="card" id="qs">';
+ var h='<a href="teacher.html" class="sub">‹ Back</a><h1>🐝 My Bio</h1><div class="sub">Kid City USA '+esc(SCHOOL)+'. Answer a few questions and we will write a bio for you. Your director checks it before families see it.</div><div class="card"><label class="q">Who are you?</label><select id="who" onchange="newN(this)"><option value="">Pick your name…</option>'+STAFF.map(function(p){return '<option value="'+p.id+'">'+esc(p.name)+'</option>';}).join('')+'<option value="__new">My name is not on this list. Add me.</option></select><div id="newn" style="display:none;margin-top:8px"><input id="nn" placeholder="Type your first and last name"><div class="sub">Your director will add you to the staff list and then approve your bio.</div></div></div><div class="card" id="qs">';
  BIOQ.forEach(function(q,i){h+='<label class="q">'+(i+1)+'. '+esc(q.t)+'</label>';
   if(q.type==='area')h+='<textarea id="q_'+q.k+'" placeholder="'+esc(q.ph||'')+'"></textarea>';
   else if(q.type==='num')h+='<input id="q_'+q.k+'" type="number" min="0" max="60" placeholder="'+esc(q.ph||'')+'">';
@@ -35,12 +35,13 @@ function pick(inp){var f=inp.files&&inp.files[0];inp.value='';if(!f)return;var u
  im.onerror=function(){say('That picture could not be read. Try another.',1);};im.src=u;}
 function answers(){var a={};BIOQ.forEach(function(q){a[q.k]=($('q_'+q.k).value||'').trim();if(q.k2)a[q.k2]=($('q_'+q.k2).value||'').trim();});return a;}
 function preWho(){try{var me=(sessionStorage.getItem('hiveMe')||'').trim().toLowerCase().split(/\s+/)[0];var sel=document.getElementById('who');if(!me||!sel||sel.value)return;var hit=[].filter.call(sel.options,function(o){return o.value&&o.text.trim().toLowerCase().split(/\s+/)[0]===me;});if(hit.length===1)sel.value=hit[0].value;}catch(e){}}
-function who(){var s=$('who'),id=s.value;if(!id)return null;return {id:id,name:s.options[s.selectedIndex].text};}
-function preview(){var w=who();if(!w){say('Pick your name first.',1);return;}var a=answers();if(!a.why){say('Please answer question 1.',1);return;}say('');
+function newN(e){$('newn').style.display=e.value==='__new'?'block':'none';}
+function who(){var s=$('who'),id=s.value;if(!id)return null;if(id==='__new'){var n=($('nn').value||'').trim();return n.length<3?null:{id:'__new',name:n};}return {id:id,name:s.options[s.selectedIndex].text};}
+function preview(){var w=who();if(!w){say('Pick your name, or choose "My name is not on this list" and type it.',1);return;}var a=answers();if(!a.why){say('Please answer question 1.',1);return;}say('');
  var bio=bioWrite(a,w.name,'',SCHOOL);
  $('pv').innerHTML='<div class="card"><b>Here is your bio.</b> <span class="sub">You can fix any words below.</span><textarea id="bt" style="min-height:220px;margin-top:8px">'+esc(bio)+'</textarea><div id="pcard"></div><button class="btn" onclick="send()">Send to my director</button> <button class="btn sec" onclick="preview()">Start the bio over</button></div>';
  $('bt').addEventListener('input',draw);draw();$('pv').scrollIntoView({behavior:'smooth'});}
 function draw(){var w=who(),a=answers();$('pcard').innerHTML=bioCard({name:w.name,role:'',a:a,bio:$('bt').value,photo:PHOTO},SCHOOL);}
-async function send(){var w=who();if(!w)return;var a=answers();try{await api('bio_submit',{id:w.id,a:a,bio:$('bt').value,b64:PHOTO});$('app').innerHTML='<div class="card"><h1>Thank you! 🎉</h1><p>Your bio was sent to your director. Once they approve it, families will see it on the parent page.</p><a class="btn" href="teacher.html">Back to the teacher page</a></div>';}catch(e){say(e.message,1);}}
+async function send(){var w=who();if(!w)return;var a=answers();try{if(w.id==='__new'){var r0=await api('staff_add_pending',{name:w.name});w={id:r0.id,name:r0.name};}await api('bio_submit',{id:w.id,a:a,bio:$('bt').value,b64:PHOTO});$('app').innerHTML='<div class="card"><h1>Thank you! 🎉</h1><p>Your bio was sent to your director. Once they approve it, families will see it on the parent page.</p><a class="btn" href="teacher.html">Back to the teacher page</a></div>';}catch(e){say(e.message,1);}}
 boot();
 </script></body></html>

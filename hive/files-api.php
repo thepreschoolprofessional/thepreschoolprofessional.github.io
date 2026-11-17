@@ -1092,7 +1092,19 @@ try{
 echo json_encode(['ok'=>true]); exit;
 }
 if ($action === 'bio_submit'){
-$id = $input['id'] ?? ''; if (strpos($id, 'pend_') === 0) fail('Your name is waiting for your director to add you to the staff list. Ask them, then come back.');
+$id = $input['id'] ?? '';
+if (strpos($id, 'pend_') === 0){
+$ans = []; foreach ($BIO_KEYS as $k){ $ans[$k] = bio_clean($input['a'][$k] ?? '', $k === 'years' ? 4 : 700); }
+$bio = bio_clean($input['bio'] ?? '', 1500);
+if ($ans['why'] === '' || $bio === '') fail('Please answer at least the first question.');
+$b64 = ''; if (!empty($input['b64'])){ $raw = base64_decode($input['b64'], true);
+if ($raw === false || strlen($raw) < 200 || strlen($raw) > 2 * 1024 * 1024) fail('That picture is missing or too large.');
+if (substr($raw, 0, 3) !== "\xFF\xD8\xFF") fail('Please use a JPG photo.'); $b64 = $input['b64']; }
+$f = pend_f($school); $pd = $f ? jread($f, []) : []; $hit = false;
+foreach ($pd as &$q){ if (($q['pid'] ?? '') === $id){ $hit = true; $q['bio'] = ['answers'=>$ans, 'bio'=>$bio, 'photo'=>$b64, 'at'=>gmdate('c')]; $nmq = $q['name']; } } unset($q);
+if (!$hit) fail('That name was not found. Add it again.'); jwrite($f, $pd);
+echo json_encode(['ok'=>true, 'name'=>$nmq, 'pending'=>true]); exit;
+}
 $p = find_person($school, 'staff', $id); if (!$p || !empty($p['former'])) fail('Pick your name from the list.');
 $d = pdir($school, 'staff', $id); $bf = $d.'/bio.json'; $old = jread($bf, []);
 if (!empty($old['approved']) && !$isDir) fail('Your bio is already posted. Ask your director if you want to change it.');
@@ -1120,8 +1132,9 @@ $items = [];
 $pf = pend_f($school); $pd = $pf ? jread($pf, []) : []; $keep = [];
 if ($pd){ $sr = roster($school, 'staff');
 foreach ($pd as $q){ $m = null; if ($sr) foreach ($sr as $p0){ if (strcasecmp($p0['name'], $q['name']) === 0) $m = $p0; }
-if ($m){ $cf = pdir($school, 'staff', $m['id']).'/certs.json'; $ex = jread($cf, []); foreach ($q['certs'] as $c){ $dup = false; foreach ($ex as $e){ if (($e['lesson'] ?? '') === $c['lesson'] && ($e['year'] ?? '') === $c['year']) $dup = true; } if (!$dup) $ex[] = $c; } jwrite($cf, $ex); }
-else { $keep[] = $q; $items[] = ['kind'=>'staff', 'id'=>'', 'name'=>$q['name'], 'sub'=>'Not on staff list yet', 'doc'=>'addname', 'label'=>'Add '.$q['name'].' to the staff list ('.count($q['certs']).' training certificate'.(count($q['certs']) === 1 ? '' : 's').' waiting)', 'status'=>'missing', 'red'=>true]; } }
+if ($m){ $cf = pdir($school, 'staff', $m['id']).'/certs.json'; $ex = jread($cf, []); foreach ($q['certs'] as $c){ $dup = false; foreach ($ex as $e){ if (($e['lesson'] ?? '') === $c['lesson'] && ($e['year'] ?? '') === $c['year']) $dup = true; } if (!$dup) $ex[] = $c; } jwrite($cf, $ex);
+if (!empty($q['bio']['bio'])){ $bd = pdir($school, 'staff', $m['id']); if (!is_file($bd.'/bio.json')){ jwrite($bd.'/bio.json', ['answers'=>$q['bio']['answers'], 'bio'=>$q['bio']['bio'], 'approved'=>false, 'submittedAt'=>$q['bio']['at'], 'by'=>'staff']); if (!empty($q['bio']['photo'])) file_put_contents($bd.'/face.jpg', base64_decode($q['bio']['photo'])); } } }
+else { $keep[] = $q; $items[] = ['kind'=>'staff', 'id'=>'', 'name'=>$q['name'], 'sub'=>'Not on staff list yet', 'doc'=>'addname', 'label'=>'Add '.$q['name'].' to the staff list ('.count($q['certs']).' training certificate'.(count($q['certs']) === 1 ? '' : 's').' waiting'.(!empty($q['bio']['bio']) ? ', bio waiting' : '').')', 'status'=>'missing', 'red'=>true]; } }
 if (count($keep) !== count($pd)) jwrite($pf, $keep); }
 foreach ($KINDS as $k){
 $r = roster($school, $k); if ($r === null) continue;
