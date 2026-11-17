@@ -126,8 +126,8 @@ var CLASSES = [
   {k:'twos',   n:'Twos',   icon:'🚂', re:/\b(twos|two year olds?|2 year olds?|2s|twos class)\b/},
   {k:'threes', n:'Threes', icon:'🖍️', re:/\b(threes|three year olds?|3 year olds?|3s)\b/},
   {k:'fours',  n:'Fours / VPK', icon:'🎒', re:/\b(fours|four year olds?|4 year olds?|4s|vpk|pre k|prek|pollen jocks?)\b/},
-  {k:'infant', n:'Infants', re:/\b(infants?|babies|baby room)\b/},
-  {k:'sa',     n:'School Age', re:/\b(school age|schoolagers?|school agers?|worker bees|after school|aftercare)\b/}
+  {k:'infant', n:'Infants', icon:'👶', re:/\b(infants?|babies|baby room)\b/},
+  {k:'sa',     n:'School Age', icon:'⚽', re:/\b(school age|schoolagers?|school agers?|worker bees|after school|aftercare)\b/}
 ];
 function plain(s){ return ' '+String(s||'').toLowerCase().replace(/[’']/g,'').replace(/[^a-z0-9]+/g,' ').trim()+' '; }
 var CLASS_RX = new RegExp(CLASSES.map(function(c){ return c.re.source; }).join('|'), 'g');
@@ -158,9 +158,8 @@ function lastDay(c){ var d = Object.keys((L.classes[c.k]||{}).days||{}).sort(); 
 function hubBtn(c, today){ return {label:'📅 Open the '+c.n+' Teacher Hub'+(today?' (opens on today)':''), href:HUB+c.k+'.html#day'}; }
 LIVE.lesson = function(e, text){
   var c = classIn(text), n = norm(text), info = dayIn(n), t = todayUTC(), week = /\bthis week\b/.test(plain(text));
-  if (!c) return {t:'Which class do you want?', ask:CLASSES.slice(0,4).map(function(x){ return {label:x.icon+' '+x.n, q:x.n+' '+(text.replace(/[?.!]+$/,''))}; }), noGo:1};
-  if (c.k==='infant') return {t:'Infants don\'t have a daily Teacher Hub plan. Their monthly plan in the Lesson Plan Wizard is a folder with take-home and sign language activities (no weekly grid).', go:'Lesson Plan Wizard'};
-  if (c.k==='sa') return {t:'School Age doesn\'t have daily plans in the Teacher Hub yet ("coming soon"). The monthly School Age plan and the K-3 and 4-6 workbooks are in the Lesson Plan Wizard.', go:'Lesson Plan Wizard'};
+  if (!c) return {t:'Which class do you want?', ask:CLASSES.slice(0,5).map(function(x){ return {label:x.icon+' '+x.n, q:x.n+' '+(text.replace(/[?.!]+$/,''))}; }), noGo:1};
+  if (c.k==='infant' || c.k==='sa') return LIVE.classKit(e, text);
   if (!L.classes[c.k]) return {t:'I don\'t have the '+c.n+' daily plans copied yet. The Teacher Hub opens on today\'s plan.', btns:[hubBtn(c,1)], go:'Daily Plans'};
   var days = [];
   if (week || (info && info.kind==='nextweek')){
@@ -192,11 +191,81 @@ LIVE.lesson = function(e, text){
   return {t:note+txt+'\nTimes, directions and links are in the '+c.n+' Teacher Hub.', btns:[hubBtn(c, s===ymd(t))], go:'Lesson Plan Wizard', ask:more};
 };
 
-var HUB_DOCS = /\b(workbooks?|supplements?|instructions|resource pages?|take homes?|take home|hive pages?|monthly plan|month s plan|months plan|lesson plan pdf|printables?)\b/;
+var HUB_DOCS = /\b(packets?|everything|all the plans|lesson plans?|print (a |one |the )?(page|form|sheet)s?|workbooks?|supplements?|instructions|resource pages?|take homes?|take home|hive pages?|monthly plan|month s plan|months plan|lesson plan pdf|printables?)\b/;
 LIVE.hubDocs = function(e, text){
   var c = classIn(text);
+  return LIVE.classKit(e, text);
   if (!c || c.k==='infant' || c.k==='sa') return {t:'The monthly lesson plans, workbooks and supplements for every class are in the Lesson Plan Wizard. Pick the class and the month.'+(c&&c.k==='sa'?' School Age has K-3 and 4-6 workbooks there.':''), go:'Lesson Plan Wizard'};
   return {t:'In the '+c.n+' Teacher Hub, under Daily Plans, pick the month. The buttons above the day plan open the Lesson Plan, the Student Workbook (whole month), the Teacher\'s Supplement, the Instructions, Resource pages and HIVE take-home pages. Each day also has a button for that day\'s supplement pages. The December workbook links aren\'t opening yet, and Mrs. Bear has been told. The same files are also in the Lesson Plan Wizard.', btns:[hubBtn(c)], go:'Lesson Plan Wizard'};
+};
+
+/* ---------- live: everything for one class (the Lesson Plan Index the Lesson Plan Wizard reads, fetched with the director's PIN when asked; plus the Teacher Hub) ---------- */
+var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+var AGE_OF = {infant:'Infant', ones:'Ones', twos:'Twos', threes:'Threes', fours:'Fours', sa:'School Age'};
+var LPI = null, LINK_OK = {};
+function lessonIndex(){
+  if (!LPI) LPI = fetch('api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:OPT.pin, action:'list', table:'Lesson Plan Index', maxRecords:120})})
+    .then(function(r){ return r.json(); }).then(function(d){ if (!d || d.error) throw new Error('index'); return (d.records||[]).map(function(r){ return r.fields || {}; }); })
+    .catch(function(err){ LPI = null; throw err; });
+  return LPI;
+}
+function selName(v){ return (v && v.name) || v || ''; }
+/* a workbook on this site is checked before it's offered, so a file that isn't up yet doesn't get a dead button */
+function linkOk(u){
+  if (!u) return Promise.resolve(false);
+  if (!/^https:\/\/thepreschoolprofessional\.net\/hive\//.test(u) || location.hostname !== 'thepreschoolprofessional.net') return Promise.resolve(true);
+  if (!(u in LINK_OK)) LINK_OK[u] = fetch(u.replace(/^https:\/\/thepreschoolprofessional\.net/, ''), {method:'HEAD'}).then(function(r){ return r.ok; }, function(){ return false; });
+  return LINK_OK[u];
+}
+function monthIn(text){
+  var t = plain(text), now = todayUTC().getUTCMonth();
+  if (/\bnext month\b/.test(t)) return MONTHS[(now+1)%12];
+  for (var i=0;i<12;i++) if (new RegExp('\\b'+MONTHS[i].toLowerCase()+'\\b').test(t)) return MONTHS[i];
+  return MONTHS[now];
+}
+function wpPages(c, s){ var p = ((L.classes[c.k]||{}).days||{})[s]; if (!p || !p.lessons) return [];
+  return p.lessons.filter(function(x){ return /\bWP\d+/.test(x); }).map(function(x){ return x.replace(/^Workbook:\s*/,''); }); }
+var PICK_CLASSES = ['infant','ones','twos','threes','fours','sa'];
+LIVE.classKit = function(e, text){
+  var c = classIn(text) || (e.cls && classByKey(e.cls));
+  if (!c) return {t:'Which class do you want? I\'ll bring up its daily plan, this month\'s lesson plan, workbook, teacher supplement and take-homes.', ask:PICK_CLASSES.map(function(k){ var x = classByKey(k); return {label:(x.icon||'')+' '+x.n, q:'Everything for the '+x.n.split(' ')[0]}; }), noGo:1};
+  var month = monthIn(text), age = AGE_OF[c.k], t = todayUTC(), s = ymd(t), hub = ['ones','twos','threes','fours'].indexOf(c.k) > -1;
+  var head = (c.icon?c.icon+' ':'')+c.n+' · '+month;
+  var lines = [];
+  if (L.classes[c.k] && month === MONTHS[t.getUTCMonth()]){
+    var p = (L.classes[c.k].days||{})[s];
+    if (p) { lines.push('Today: '+[p.theme, p.letter && ('letter '+p.letter), p.craft && p.craft[0]].filter(Boolean).join(' · ')+'.');
+      var wp = wpPages(c, s); if (wp.length) lines.push('Today\'s workbook pages: '+wp.join('; ')+'.'); }
+  }
+  if (c.k==='infant') lines.push('Infants don\'t have a daily Teacher Hub plan. Their monthly folder has the HIVE take-home and sign language pages.');
+  if (c.k==='sa') lines.push('School Age daily plans aren\'t in the Teacher Hub yet. The K-3 and 4-6 workbooks are below.');
+  var btns = [];
+  if (hub && c.k!=='infant' && c.k!=='sa') btns.push(hubBtn(c, 1));
+  var others = PICK_CLASSES.filter(function(k){ return k!==c.k; }).map(function(k){ var x = classByKey(k); return {label:(x.icon||'')+' '+x.n, q:'Everything for the '+x.n.split(' ')[0]+' '+month}; });
+  var nextM = MONTHS[(MONTHS.indexOf(month)+1)%12];
+  var more = (L.classes[c.k] ? [{label:c.n+' tomorrow', q:'What are the '+c.n.split(' ')[0]+' doing tomorrow'},{label:c.n+' this week', q:'What are the '+c.n.split(' ')[0]+' doing this week'}] : []).concat([{label:c.n+' in '+nextM, q:'Everything for the '+c.n.split(' ')[0]+' '+nextM}]).concat(others);
+  if (!OPT.pin) return {t:head+'\n'+lines.concat(['The Lesson Plan Wizard has this month\'s lesson plan, workbook, supplement and take-homes for every class.']).join('\n'), btns:btns, go:'Lesson Plan Wizard', ask:more};
+  return lessonIndex().then(function(rows){
+    var r = rows.filter(function(x){ return selName(x.Month)===month && selName(x['Age Group'])===age; })[0];
+    if (!r) return {t:head+'\n'+lines.concat(['There\'s no '+month+' plan for '+c.n+' in the Lesson Plan Wizard.']).join('\n'), btns:btns, go:'Lesson Plan Wizard', ask:more};
+    var folderKey = Object.keys(r).filter(function(k){ return k.indexOf('Month Folder') > -1; })[0];
+    var want = [
+      ['File Link', (c.k==='infant' ? '📂 Infant plans folder' : '📋 '+month+' Lesson Plan')],
+      ['Student Workbook Link', '📘 Student Workbook'+(c.k==='sa'?' (K-3)':'')],
+      ['Teacher Workbook Link', '📗 Teacher Supplement'+(c.k==='sa'?' (K-3)':'')],
+      ['4-6 Student Workbook Link', '📘 Student Workbook (4-6)'],
+      ['4-6 Teacher Workbook Link', '📗 Teacher Supplement (4-6)'],
+      [folderKey, '📂 Instructions, resources & take-homes']
+    ].filter(function(w){ return w[0] && r[w[0]]; });
+    return Promise.all(want.map(function(w){ return linkOk(r[w[0]]); })).then(function(ok){
+      var missing = [];
+      want.forEach(function(w, i){ if (ok[i]) btns.push({label:w[1], href:r[w[0]]}); else missing.push(w[1].replace(/^\S+ /,'')); });
+      if (missing.length) lines.push('The '+missing.join(' and ')+(missing.length>1?' aren\'t':' isn\'t')+' up on the portal yet'+(hub && c.k!=='sa' ? '; the Teacher Hub shows every page for the month.' : '.'));
+      if (r.Notes && c.k!=='infant') lines.push(r.Notes+'.');
+      lines.push('To print one page or form, open the workbook or supplement and print just that page'+(hub && c.k!=='infant' && c.k!=='sa' ? ', or tap the page in the Teacher Hub\'s day plan.' : '.'));
+      return {t:head+'\n'+lines.join('\n'), btns:btns, go:'Lesson Plan Wizard', ask:more};
+    });
+  }, function(){ return {t:head+'\n'+lines.concat(['I couldn\'t load the lesson plan list just now. The Lesson Plan Wizard has every class and month.']).join('\n'), btns:btns, go:'Lesson Plan Wizard', ask:more}; });
 };
 
 /* ---------- live: open one child's or staff member's file (the director's own Student Files / Staff Files, looked up when asked; nothing is stored) ---------- */
@@ -355,11 +424,14 @@ LIVE.addPerson = function(e, text){
     btns:[{label:'➕ Add '+(kind==='staff'?'staff':'a child')+' now', href:'files.html?kind='+kind+'&add=1'}], go:kind==='staff'?'New Hires':'New Enrollments'};
 };
 
+/* one entry per class, first in the browse list, so every class is one tap away */
+PICK_CLASSES.slice().reverse().forEach(function(k){ var x = classByKey(k), w = x.n.split(' ')[0];
+  D.QS.unshift({id:'kit-'+k, c:'Lessons and files', live:'classKit', cls:k, q:[x.icon+' '+x.n+': lesson plans and packets', 'Everything for the '+w, w+' lesson plan', w+' packet', w+' workbook'], k:'lesson plan packet workbook supplement take home '+w.toLowerCase(), a:'', go:'Lesson Plan Wizard'}); });
 /* the live answers above, as bank entries so they show in the browse list too */
 D.QS.push(
-  {id:'live-lesson', c:'Lessons and files', live:'lesson', q:['What are the twos doing today?','What lesson are the threes doing tomorrow?','What is the fours class learning this week?','What are the ones doing on Thursday?','What is the letter of the week for the twos?','What book do the threes read today?'], k:'lesson today tomorrow teaching learning craft letter word week class', a:'', go:'Daily Plans'},
+  {id:'live-lesson', c:'Lessons and files', live:'lesson', q:['What is a class doing today?','What are the twos doing today?','What lesson are the threes doing tomorrow?','What is the fours class learning this week?','What are the ones doing on Thursday?','What is the letter of the week for the twos?','What book do the threes read today?'], k:'lesson today tomorrow teaching learning craft letter word week class', a:'', go:'Daily Plans'},
   {id:'live-file', c:'Lessons and files', live:'file', q:['Upload a picture to a child\'s file','Open a child\'s file','Upload a shot record to a child\'s file','Open a staff member\'s file','Upload a teacher\'s CPR card','Take a cubby photo for a child'], k:'open file folder upload picture photo shot record child staff', a:'', go:'Student Files', also:['Staff Files']},
-  {id:'live-hubdocs', c:'Lessons and files', live:'hubDocs', q:['Where is the twos workbook?','Where is the threes teacher supplement?','Where are the fours monthly instructions?'], k:'workbook supplement instructions resource take home monthly lesson plan', a:'', go:'Lesson Plan Wizard'},
+  {id:'live-hubdocs', c:'Lessons and files', live:'hubDocs', q:['Where is a class\'s workbook or packet?','Where is the twos workbook?','Where is the threes teacher supplement?','Where are the fours monthly instructions?'], k:'workbook supplement instructions resource take home monthly lesson plan', a:'', go:'Lesson Plan Wizard'},
   {id:'live-add', c:'Lessons and files', live:'addPerson', q:['How do I add a child to Student Files?','How do I add a new staff member to Staff Files?','Add a child','Add a staff member'], k:'add new child staff person student files staff files', a:'', go:'Student Files'}
 );
 
@@ -401,11 +473,19 @@ function chips(list, onPick){
   return w;
 }
 function goLabel(g){ var c = D.cards[g] || {}; return (c.icon ? c.icon+' ' : '')+'Open '+g; }
+var MONTH_RX = /\b(january|february|march|april|may|june|july|august|september|october|november|december|monthly|this month|next month)\b/;
+function wantsKit(text){
+  var t = plain(text), c = classIn(text);
+  if (!c || /\b(file|files|attendance|pin|ratio|ratios|signed in|hours|feeding|enrollment|registration|hire|hires|onboarding|food program)\b/.test(t) || (dayIn(norm(text))||{}).day) return false;
+  if (/\b(today|tomorrow|this week|next week|yesterday)\b/.test(t)) return false;
+  if (HUB_DOCS.test(t) || MONTH_RX.test(t)) return true;
+  return t.replace(CLASS_RX, ' ').replace(/\b(the|class|classes|classroom|room|kids)\b/g,' ').trim() === '';
+}
 function ask(text, picked){
   text = String(text||'').trim(); if (!text) return;
   say('me', text);
   var e = picked, m = null;
-  if (!e){ if (classIn(text) && (HUB_DOCS.test(plain(text)) || (/\b(lesson plans?|plans?|curriculum)\b/.test(plain(text)) && /\b(january|february|march|april|may|june|july|august|september|october|november|december|monthly|this month|next month)\b/.test(plain(text)) && !(dayIn(norm(text))||{}).day)) && !/\b(file|files|attendance|pin)\b/.test(plain(text))) e = byId('live-hubdocs'); else if (wantsLesson(text)) e = byId('live-lesson'); else if (wantsFile(text)) e = byId('live-file'); }
+  if (!e){ if (wantsKit(text)) e = byId('live-hubdocs'); else if (wantsLesson(text)) e = byId('live-lesson'); else if (wantsFile(text)) e = byId('live-file'); }
   if (!e){ m = match(text); if (confident(m)) e = m[0].x.e; }
   if (!e && classIn(text)){ var m2 = match(plain(text).replace(CLASS_RX, ' ')); if (confident(m2)){ m = m2; e = m2[0].x.e; } }
   if (!e){
@@ -541,5 +621,5 @@ function reset(){
   ROOT.querySelectorAll('.bc-browse details[open]').forEach(function(d){ d.open = false; });
   renderMissed(); greet();
 }
-window.DirectorChat = {mount:mount, reset:reset, match:function(t){ build(); return match(t); }, _test:{wantsLesson:wantsLesson, wantsFile:wantsFile, classIn:classIn, findPeople:findPeople, docIn:docIn, kindIn:kindIn, nameWords:nameWords, norm:norm, toks:toks, confident:confident, setSchool:function(s){ OPT.school = s; build(); }, LIVE:LIVE, byId:byId, answerText:answerText}};
+window.DirectorChat = {mount:mount, reset:reset, match:function(t){ build(); return match(t); }, _test:{wantsKit:wantsKit, wantsLesson:wantsLesson, wantsFile:wantsFile, classIn:classIn, findPeople:findPeople, docIn:docIn, kindIn:kindIn, nameWords:nameWords, norm:norm, toks:toks, confident:confident, setSchool:function(s){ OPT.school = s; build(); }, LIVE:LIVE, byId:byId, answerText:answerText}};
 })();
