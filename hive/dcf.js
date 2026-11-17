@@ -408,9 +408,9 @@ function addDrill(d){ drillForm(/^\d{4}-\d{2}-\d{2}$/.test(d||'')?d:todayNY()); 
 /* ---------- MONTH-END FOOD PROGRAM PACKET ---------- */
 var HDR={'DeLand 2':['KID CITY USA DELAND 2 INC.','238 S ARMELIA AVE.','DELAND, FL. 32724'],'Sanford':['KID CITY USA SANFORD','1320 HICKORY AVE.','SANFORD, FL. 32771']};
 var PAR_DEFAULT={'DeLand 2':'Madhumita Sahoo'};
-function wageFor(name){ var n=String(name||'').toLowerCase(); if(S.school==='DeLand 2') return /sahoo|madhumita|honey/.test(n)?20:15; if(S.school==='Sanford') return /sheena/.test(n)?21:15; return 15; }
+function wageFor(name,k){ /* Pay rates are not kept in this public file. They come from the last packet saved for this employee (behind the director PIN); blank until the director types it once. */ var w=(S.pk&&S.pk.wages&&S.pk.wages[name])||null; if(!w) return ''; return (k&&w[k])||w.aw||w.ow||''; }
 var PARB=['bah','bth','bap','bs','bap2','baa','boh','bth2','bop','bs2','bop2','boa'];
-function laborFor(name){ var d=pkData('PAR',name); if(!d) return null; var sp=d.sp||{}, a=0, o=0; Object.keys(d.days||{}).forEach(function(k){ var r=d.days[k]; a+=parseFloat(r.a)||0; o+=parseFloat(r.o)||0; }); var ah=parseFloat(sp.ah); if(isNaN(ah)) ah=a; var oh=parseFloat(sp.oh); if(isNaN(oh)) oh=o; var w=wageFor(name), aw=parseFloat(sp.aw), ow=parseFloat(sp.ow); if(isNaN(aw)) aw=w; if(isNaN(ow)) ow=w; var t=ah*aw+oh*ow; return t>0?Math.round(t*100)/100:null; }
+function laborFor(name){ var d=pkData('PAR',name); if(!d) return null; var sp=d.sp||{}, a=0, o=0; Object.keys(d.days||{}).forEach(function(k){ var r=d.days[k]; a+=parseFloat(r.a)||0; o+=parseFloat(r.o)||0; }); var ah=parseFloat(sp.ah); if(isNaN(ah)) ah=a; var oh=parseFloat(sp.oh); if(isNaN(oh)) oh=o; var aw=parseFloat(sp.aw), ow=parseFloat(sp.ow); if(isNaN(aw)) aw=parseFloat(wageFor(name,'aw'))||0; if(isNaN(ow)) ow=parseFloat(wageFor(name,'ow'))||0; var t=ah*aw+oh*ow; return t>0?Math.round(t*100)/100:null; }
 var CHK=['Monthly Provider Check list','Infant/Child Menus (NOT NECESSARY IF CLAIMING ON-LINE)','Receipts for Operating Expenses, including itemized food/non-food receipts, including CATERED MEAL RECEIPTS','CN labels or PFS (Product Formulation Statement) for processed/pre-cooked food packages','Personnel Activity Report (PAR) for Operating Labor Expenses','Free and Reduced-Price Meal Applications, DCF forms or Center Enrollment forms with Original Child Participation forms','Infant Feeding form, Medical Statement, Dietary Preference Request form','Monthly Entrances/Terminations form','Other (Please specify)'];
 var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 S.pk={month:defMonth(),form:'PAR',emp:'',staff:null,kids:null,recs:{},loaded:''};
@@ -423,8 +423,12 @@ function loadPacket(){
   var ps=[api('list','Monthly Forms',{month:m})];
   if(!pk.staff) ps.push(api('list','Staff Roster')); else ps.push(Promise.resolve(null));
   ps.push(api('list','Room Children'));
+  ps.push(api('list','Monthly Forms',{month:shiftMonth(m,-1)}).catch(function(){return {records:[]};}));
+  ps.push(api('list','Monthly Forms',{month:shiftMonth(m,-2)}).catch(function(){return {records:[]};}));
   return Promise.all(ps).then(function(r){
     pk.recs={}; r[0].records.forEach(function(x){ pk.recs[pkKey(x.fields.Form,x.fields.Employee)]=x; });
+    /* Last pay rate typed for each employee, newest month first. */
+    pk.wages={}; [r[0],r[3],r[4]].forEach(function(res){ ((res&&res.records)||[]).forEach(function(x){ if(x.fields.Form!=='PAR'||!x.fields.Employee||pk.wages[x.fields.Employee]) return; var d; try{ d=JSON.parse(x.fields.Data||'{}'); }catch(e){ return; } var sp=d.sp||{}; if(sp.aw||sp.ow) pk.wages[x.fields.Employee]={aw:sp.aw||'',ow:sp.ow||''}; }); });
     if(r[1]) pk.staff=r[1].records.map(function(x){return x.fields.Name;}).filter(function(n){return n&&n!=='Mrs. Honey';}).sort();
     pk.kids=r[2].records; pk.loaded=m;
     if(!pk.emp){ var d=PAR_DEFAULT[S.school]; pk.emp=(d&&pk.staff.indexOf(d)>-1)?d:(pk.staff[0]||''); }
@@ -602,7 +606,7 @@ function parSheet(emp,stk){
     if(f.id==='title') return  '<input class="ptitle ovi ovl rq-in" style="position:static;width:100%;height:100%" value="'+esc(d.title||'')+'">';
     if(f.tot) return '<div class="ovt" data-pt="'+f.tot+'">0</div>';
     if(PARB.indexOf(f.id)>-1) return false;
-    if(f.sp){ var dv=sp[f.id]||''; if(!dv&&(f.id==='aw'||f.id==='ow')) dv=String(wageFor(emp)); return '<input class="ovi ovl spi" data-sp="'+f.id+'" style="position:static;width:100%;height:100%" value="'+esc(dv)+'">'; }
+    if(f.sp){ var dv=sp[f.id]||''; if(!dv&&(f.id==='aw'||f.id==='ow')) dv=String(wageFor(emp,f.id)); return '<input class="ovi ovl spi" data-sp="'+f.id+'" style="position:static;width:100%;height:100%" value="'+esc(dv)+'">'; }
     var r=(d.days||{})[f.day]||{}, off=f.day>dim;
     return '<input class="ovi pv num" data-d="'+f.day+'" data-k="'+f.k+'" inputmode="decimal" style="position:static;width:100%;height:100%" value="'+esc(r[f.k]||'')+'"'+(off?' disabled':'')+'>';
   }});
@@ -894,7 +898,7 @@ function spCalc(root){
   var ah=g('ah'); if(ah&&!ah.value&&T.a) ah.value=Math.round(T.a*100)/100; var oh=g('oh'); if(oh&&!oh.value&&T.o) oh.value=Math.round(T.o*100)/100;
   var bah=g('bah'); if(bah&&!bah.value&&T.a) bah.value=Math.round(T.a*100)/100; var boh=g('boh'); if(boh&&!boh.value&&T.o) boh.value=Math.round(T.o*100)/100;
   var tot=T.r+T.p; ['bth','bth2'].forEach(function(k){ var e=g(k); if(e&&!e.value&&tot) e.value=Math.round(tot*100)/100; });
-  var wg=wageFor((root.getAttribute&&root.getAttribute('data-emp'))||S.pk.emp); ['aw','ow'].forEach(function(k){ var e=g(k); if(e&&!e.value) e.value=wg; });
+  var wem=(root.getAttribute&&root.getAttribute('data-emp'))||S.pk.emp; ['aw','ow'].forEach(function(k){ var e=g(k); if(e&&!e.value) e.value=wageFor(wem,k); });
   set('aa',v('ah')*v('aw'),2); set('oa',v('oh')*v('ow'),2);
   set('bap',v('bah')/v('bth')*100,2); set('bap2',v('bah')/v('bth')*100,2); set('baa',v('bs')*(v('bah')/v('bth')),2);
   set('bop',v('boh')/v('bth2')*100,2); set('bop2',v('boh')/v('bth2')*100,2); set('boa',v('bs2')*(v('boh')/v('bth2')),2);
