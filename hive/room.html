@@ -50,6 +50,7 @@ function wk(s){var g=new Date(s+'T12:00:00').getDay();return g>0&&g<6}
 
 var SI={rooms:null,open:{},mv:null,msg:'',busy:false,by:''};try{SI.by=localStorage.getItem('bearRoomBy')||''}catch(e){}
 function t12(x){if(!x)return'';var m=/^(\d{1,2}):(\d{2})/.exec(x);if(!m)return x;var h=+m[1],p=h>=12?'PM':'AM';h=h%12||12;return h+':'+m[2]+' '+p}
+function encQ(x){return encodeURIComponent(x).replace(/'/g,"%27")}
 function signHtml(){
  if(SI.rooms===null&&!SI.busy){siLoad()}
  var h='<div class="sec"><h2>✅ Attendance — All Classrooms</h2><div class="sub">Every classroom at the same time. Type your name once, then tap IN or OUT, or Move a child to another room. It updates the Rooms board and attendance right away.</div>'
@@ -64,15 +65,15 @@ function signHtml(){
  var und='background:#fff;border:2px solid var(--line);color:var(--muted)';
  rs.forEach(function(r){
   var n=r.kids.filter(function(k){return k.in&&!k.out}).length,isMine=mine.indexOf(r.name)>=0,open=SI.open[r.name]!==undefined?SI.open[r.name]:isMine;
-  h+='<div style="border:2px solid '+(isMine?'var(--honey)':'var(--line)')+';border-radius:14px;margin:10px 0;padding:0 12px;background:#fff"><div onclick="siTog(\''+encodeURIComponent(r.name)+'\')" style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;cursor:pointer"><b style="font-size:17px">'+(open?'▾ ':'▸ ')+esc(r.name)+(isMine?' <small>(your room)</small>':'')+'</b><span class="badge ok">'+n+' here / '+r.kids.length+'</span></div>';
+  h+='<div style="border:2px solid '+(isMine?'var(--honey)':'var(--line)')+';border-radius:14px;margin:10px 0;padding:0 12px;background:#fff"><div onclick="siTog(\''+encQ(r.name)+'\')" style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;cursor:pointer"><b style="font-size:17px">'+(open?'▾ ':'▸ ')+esc(r.name)+(isMine?' <small>(your room)</small>':'')+'</b><span class="badge ok">'+n+' here / '+r.kids.length+'</span></div>';
   if(open){
    if(!r.kids.length)h+='<div class="msg" style="margin-bottom:10px">No children are in this room today.</div>';
-   r.kids.forEach(function(k){var st=k.in&&!k.out?'in':(k.in&&k.out?'out':'none'),nm=encodeURIComponent(k.name);
+   r.kids.forEach(function(k){var st=k.in&&!k.out?'in':(k.in&&k.out?'out':'none'),nm=encQ(k.name);
     var tag=st==='in'?'<span class="badge ok">In '+t12(k.in)+'</span>':(st==='out'?'<span class="badge flag" style="background:var(--sunk);color:var(--muted)">Out '+t12(k.out)+'</span>':'<span class="badge" style="background:var(--sunk);color:var(--muted)">Not here yet</span>');
     var btns=st==='in'?bt(nm,'out','Sign OUT','background:var(--honey);color:#2a1b00')+bt(nm,'undoin','Undo',und):(st==='out'?bt(nm,'in','Back IN','background:var(--ok);color:#fff')+bt(nm,'undoout','Undo',und):bt(nm,'in','Sign IN','background:var(--ok);color:#fff'));
     btns+='<button onclick="siMv(\''+nm+'\')" style="font:inherit;font-weight:700;border:2px solid var(--line);background:#fff;border-radius:10px;padding:10px 14px;margin-left:6px;cursor:pointer">Move</button>';
     h+='<div style="border-top:1px solid var(--sunk);padding:10px 0"><div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;justify-content:space-between"><div><b>'+esc(k.name)+'</b>'+(k.visiting?' <small>(from '+esc(k.home)+')</small>':'')+'<br>'+tag+'</div><div>'+btns+'</div></div>';
-    if(SI.mv===k.name){h+='<div style="margin-top:8px"><div class="sub" style="font-weight:700;margin-bottom:4px">Move '+esc(k.name)+' to:</div>'+SI.rooms.filter(function(z){return z.name!==r.name}).map(function(z){return'<button onclick="siMove(\''+nm+'\',\''+encodeURIComponent(z.name)+'\')" style="font:inherit;font-weight:700;border:0;border-radius:10px;padding:10px 14px;margin:0 6px 6px 0;cursor:pointer;background:#355c9a;color:#fff">'+esc(z.name)+'</button>'}).join('')+'<button onclick="SI.mv=null;draw()" style="font:inherit;border:2px solid var(--line);background:#fff;border-radius:10px;padding:10px 14px;margin-bottom:6px;cursor:pointer">Cancel</button></div>'}
+    if(SI.mv===k.name){h+='<div style="margin-top:8px"><div class="sub" style="font-weight:700;margin-bottom:4px">Move '+esc(k.name)+' to:</div>'+SI.rooms.filter(function(z){return z.name!==r.name}).map(function(z){return'<button onclick="siMove(\''+nm+'\',\''+encQ(z.name)+'\')" style="font:inherit;font-weight:700;border:0;border-radius:10px;padding:10px 14px;margin:0 6px 6px 0;cursor:pointer;background:#355c9a;color:#fff">'+esc(z.name)+'</button>'}).join('')+'<button onclick="SI.mv=null;draw()" style="font:inherit;border:2px solid var(--line);background:#fff;border-radius:10px;padding:10px 14px;margin-bottom:6px;cursor:pointer">Cancel</button></div>'}
     h+='</div>'});
   }
   h+='</div>'});
