@@ -483,4 +483,23 @@ if ($act === 'nd_counts'){
   echo json_encode(['ok'=>true, 'c'=>$c]); exit;
 }
 
+/* ---- Official daily sign in / out sheet for one classroom, to view on screen (11/18/26) ---- */
+if ($act === 'ss_get'){
+  $from = (string)($in['from'] ?? ''); $to = (string)($in['to'] ?? '');
+  if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $from) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $to) || $from > $to) fail('Pick a From and a To date.');
+  if ($to > $today) $to = $today; if ($from < date('Y-m-d', strtotime('-62 days'))) fail('Only the last 2 months are available here. Please ask your director for older forms.');
+  if (($to > $from) && (strtotime($to) - strtotime($from)) > 20 * 86400) fail('Pick 3 weeks or less at a time.');
+  $rn = room_names((string)($in['r'] ?? '')); $kids = []; foreach (roster($rn) as $k){ $kids[strtolower(child_fl($k['n']))] = child_fl($k['n']); }
+  $by = []; $off = '';
+  for ($pg = 0; $pg < 12; $pg++){
+    $q = ['pageSize'=>100, 'filterByFormula'=>"AND({School}='".$school."',NOT(IS_BEFORE({Date},'$from')),NOT(IS_AFTER({Date},'$to')))"]; if ($off !== '') $q['offset'] = $off;
+    $r = at('GET', 'Room Attendance', $q);
+    foreach (($r['records'] ?? []) as $x){ $f = $x['fields']; $kk = strtolower(child_fl($f['Child'] ?? '')); if (!isset($kids[$kk])) continue; $d = (string)($f['Date'] ?? ''); if ($d === '') continue;
+      if (!empty($f['Arrival']) || !empty($f['Departure'])) $by[$d][$kids[$kk]] = ['in'=>(string)($f['Arrival'] ?? ''), 'out'=>(string)($f['Departure'] ?? ''), 'inby'=>(string)($f['Arrival By'] ?? ''), 'outby'=>(string)($f['Departure By'] ?? '')]; }
+    $off = (string)($r['offset'] ?? ''); if ($off === '') break;
+  }
+  $days = []; for ($t = strtotime($from); $t <= strtotime($to); $t += 86400){ $w = (int)date('w', $t); if ($w === 0 || $w === 6) continue; $d = date('Y-m-d', $t); $days[] = ['date'=>$d, 'rows'=>(object)($by[$d] ?? [])]; }
+  echo json_encode(['ok'=>true, 'school'=>$school, 'kids'=>array_values($kids), 'days'=>$days]); exit;
+}
+
 fail('Unknown action');

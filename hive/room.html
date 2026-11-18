@@ -32,13 +32,13 @@ h2{margin:0 0 4px;font-family:var(--f-display);font-size:21px;font-weight:600;co
 .alert{background:var(--bad-soft);border:2px solid var(--bad);color:#8c1d16;border-radius:var(--r);padding:12px 14px;margin-bottom:12px;font-weight:700}.alert a{display:inline-block;margin-top:8px;background:var(--orange);color:#fff;text-decoration:none;border-radius:99px;padding:10px 18px;font-size:15px;font-family:var(--f-display)}
 .tile .miss{color:var(--bad);font-weight:800;font-size:12px;display:block;margin-top:3px}.msg{padding:26px;text-align:center;color:var(--muted)}
 .foot{text-align:center;color:var(--muted);font-size:12px;padding:6px 16px 26px}.foot a{color:var(--muted)}
-@media print{.tiles,.chips{display:none}}
+@media print{.tiles,.chips,.noprint,header,.foot,.stripe,#biT{display:none!important}}
 .big{display:block;width:100%;font:inherit;font-weight:800;font-size:18px;border:0;border-radius:14px;padding:15px;background:var(--ok);color:#fff;margin:10px 0;cursor:pointer}.msg{padding:14px;text-align:center;color:var(--muted)}
 </style><script src="bios.js?v=3"></script></head><body>
 <header><div class="brand"><img src="bp-logo.png" alt="Bear Phonics Academy" onerror="this.style.display='none'"><div><b>Bear Line</b><small>Classroom Pack</small></div></div><span class="pill sch" id="sc">Kid City USA</span><div class="dt" id="dt"></div></header><div class="stripe"></div>
 <main><h1 class="ttl" id="rn">Posted items</h1><div id="app" class="msg">Loading...</div></main>
 <div class="foot"><a href="room.html?pick=1" style="color:#667">Change classroom</a><br>Bear Line Classroom Pack &middot; Kid City USA &middot; these records update live as staff complete them. Showing the last 2 months.</div>
-<script src="sop-data.js?v=9"></script><script src="food-form.js?v=1"></script><script src="incident-ui.js?v=2"></script><script src="photo-ui.js?v=1"></script><script src="med-ui.js?v=1"></script><script src="obs-ui.js?v=1"></script><script src="daily-ui.js?v=1"></script>
+<script src="sop-data.js?v=9"></script><script src="food-form.js?v=1"></script><script src="incident-ui.js?v=2"></script><script src="photo-ui.js?v=1"></script><script src="med-ui.js?v=1"></script><script src="obs-ui.js?v=1"></script><script src="daily-ui.js?v=1"></script><script src="signsheet-ui.js?v=1"></script><script src="bilingual.js?v=1"></script>
 <script>
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 var q=new URLSearchParams(location.search),S=q.get('s')||'',R=q.get('r')||'',D=null,cur=(q.get('t')&&['signin','classroom','bathroom','indoor','schedule','forms','bios','food','allergy'].indexOf(q.get('t'))>=0)?q.get('t'):'signin',selDate={};
@@ -93,12 +93,13 @@ function isoAdd(s,n){var d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);retu
 function formsHtml(){
  var min=isoAdd(D.today,-62),max=D.today;if(!FM.from){FM.from=isoAdd(D.today,-13);FM.to=D.today}
  var h='<div class="sec"><h2>🖨️ Official Forms</h2><div class="sub">'+esc(D.room)+'. These are the real Kid City forms filled in from what staff completed. Pick the dates you need, choose the forms, then tap Make my forms.</div>'
+ +'<button class="big" onclick="cur=\'signsheet\';draw()">✍️ View the Official Sign In / Sign Out Sheet</button><button class="big" style="background:#355c9a" onclick="cur=\'food\';draw()">🍎 View the Food Program form (Weekly Attendance &amp; Meal Count)</button><div class="sub" style="margin-top:8px">These two open on the screen. You do not have to print them. The cleaning and inspection forms are below.</div>'
  +'<div class="alert" style="background:#fdf0cf;border-color:#e8a317;color:#5a4a1c"><b>Only the last 2 months are shown here.</b> If you need older forms, please ask your director. Older forms are kept in the vault.</div>'
  +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0"><label style="flex:1;min-width:140px;font-weight:700">From<input type="date" id="fmf" value="'+FM.from+'" min="'+min+'" max="'+max+'" onchange="FM.from=this.value" style="display:block;width:100%;font:inherit;padding:10px;border:1px solid var(--line);border-radius:10px;margin-top:4px"></label>'
  +'<label style="flex:1;min-width:140px;font-weight:700">To<input type="date" id="fmt" value="'+FM.to+'" min="'+min+'" max="'+max+'" onchange="FM.to=this.value" style="display:block;width:100%;font:inherit;padding:10px;border:1px solid var(--line);border-radius:10px;margin-top:4px"></label></div>'
  +[['bee','Classroom Cleaning Chart (Bee Clean Chart)'],['bath','Bathroom Cleaning Log'],['ind','Daily Indoor Inspection']].map(function(x){return'<label style="display:block;padding:6px 0;font-size:16px"><input type="checkbox" '+(FM.pick[x[0]]?'checked ':'')+'onchange="FM.pick[\''+x[0]+'\']=this.checked" style="width:20px;height:20px;vertical-align:middle;margin-right:8px">'+x[1]+'</label>'}).join('')
  +'<p><button onclick="makeForms()" id="fmb" style="font:inherit;font-weight:700;padding:13px 26px;border-radius:12px;border:0;background:var(--orange,#e8730c);color:#fff">'+(FM.busy?'Making your forms...':'Make my forms')+'</button></p>'
- +'<div id="fmo">'+(FM.msg?'<div class="msg">'+FM.msg+'</div>':'')+(FM.url?'<p><a href="'+FM.url+'" target="_blank" style="display:inline-block;padding:13px 26px;border-radius:12px;background:#2e8b57;color:#fff;font-weight:700;text-decoration:none">Open and print</a> &nbsp; <a href="'+FM.url+'" download="Official-Forms.pdf" style="font-weight:700">Save a copy</a></p>':'')+'</div>'
+ +'<div id="fmo">'+(FM.msg?'<div class="msg">'+FM.msg+'</div>':'')+(FM.url?'<p><a href="'+FM.url+'" target="_blank" style="display:inline-block;padding:13px 26px;border-radius:12px;background:#2e8b57;color:#fff;font-weight:700;text-decoration:none">View the forms</a> &nbsp; <a href="'+FM.url+'" download="Official-Forms.pdf" style="font-weight:700">Save a copy</a></p>':'')+'</div>'
  +'<div class="sub">Each page is one month (cleaning charts) or one week (indoor inspection) with only the days you picked filled in. The director signs the inspection form. Days that were not completed stay blank.</div></div>';
  return h}
 function makeForms(){
@@ -125,7 +126,7 @@ function mountFood(){var el=document.getElementById('mnt');if(!el)return;el.inne
   FoodForm.mount(el,{school:D.school,today:D.today,rooms:l,allowAll:l.length>1,post:pk})})}
 function draw(){
  var h='<div class="tiles">'+Object.keys(SEC).map(function(k){return'<div class="tile'+(k===cur?' on':'')+'" onclick="cur=\''+k+'\';draw()"><span class="e">'+SEC[k][0]+'</span>'+SEC[k][1]+'<small>'+SEC[k][2]+'</small>'+(missing(k)?'<span class="miss">NOT DONE TODAY</span>':'')+'</div>'}).join('')+'</div>';
- if(cur==='food'||cur==='allergy'||cur==='incident'||cur==='photo'||cur==='med'||cur==='obs'||cur==='daily'){h+='<div id="mnt"></div>'}else if(cur==='schedule'){h+=schedHtml()}else if(cur==='signin'){h+=signHtml()}else if(cur==='forms'){h+=formsHtml()}else if(cur==='bios'){
+ if(cur==='food'||cur==='allergy'||cur==='incident'||cur==='photo'||cur==='med'||cur==='obs'||cur==='daily'||cur==='signsheet'){h+='<div id="mnt"></div>'}else if(cur==='schedule'){h+=schedHtml()}else if(cur==='signin'){h+=signHtml()}else if(cur==='forms'){h+=formsHtml()}else if(cur==='bios'){
   bioStyle();h+='<div class="sec"><h2>👩‍🏫 Meet Our Teachers</h2><div class="sub">Teachers at '+esc(D.school)+'</div>'+(D.bios.length?'<div class="bcs">'+D.bios.map(function(b){return bioCard(b,D.school)}).join('')+'</div>':'<div class="msg">Teacher bios are being added. Check back soon.</div>')+'</div>';
  }else{
   var L=D.charts[cur]||[],by={};L.forEach(function(c){(by[c.date]=by[c.date]||[]).push(c)});
@@ -139,7 +140,7 @@ function draw(){
   h+='</div>';
  }
  document.getElementById('app').className='';document.getElementById('app').innerHTML=h;
- if(cur==='food')mountFood();if(cur==='allergy')mountAllergy();if(cur==='incident')mountIncident();if(cur==='photo')mountPhoto();if(cur==='med')mountMed();if(cur==='obs')ObsUI.mount(document.getElementById('mnt'),{post:pk,room:R});if(cur==='daily')DailyUI.mount(document.getElementById('mnt'),{post:pk,room:R});
+ if(cur==='food')mountFood();if(cur==='allergy')mountAllergy();if(cur==='incident')mountIncident();if(cur==='photo')mountPhoto();if(cur==='med')mountMed();if(cur==='obs')ObsUI.mount(document.getElementById('mnt'),{post:pk,room:R});if(cur==='daily')DailyUI.mount(document.getElementById('mnt'),{post:pk,room:R});if(cur==='signsheet')SignSheetUI.mount(document.getElementById('mnt'),{post:pk,room:R,roomLabel:D.room,school:D.school,today:D.today});
 }
 var PICK=[['sanford','honeybees','Sanford: Honeybees (Toddler/Infant)'],['sanford','vpk','Sanford: VPK / Pre-School (Pollen-Jocks)'],['sanford','schoolagers','Sanford: Schoolagers (Worker Bees)'],['deland','honeybees','DeLand 2: Honey Bees (Toddlers, Front)'],['deland','honeycombs','DeLand 2: Honey Combs'],['deland','infant','DeLand 2: Infant / Toddler Room']];
 if(!S||!R){try{var sv=JSON.parse(localStorage.getItem('bearRoomPick')||'null');if(sv&&sv.s&&sv.r&&!q.get('pick')){S=sv.s;R=sv.r}}catch(e){}}
@@ -150,18 +151,22 @@ try{if(q.get('app'))localStorage.setItem('bearRoomPick',JSON.stringify({s:S,r:R}
  function post(o){o.s=S;o.r=R;return fetch('room-api.php',{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify(o)}).then(function(r){return r.json()})}
  function msg(h){APP.className='';APP.innerHTML='<div class="sec" style="text-align:center;padding:26px 18px">'+h+'</div>'}
  function again(){return "<p><button onclick='location.reload()' style='font:inherit;padding:12px 26px;border-radius:12px;border:0;background:#e8730c;color:#fff;font-weight:700'>Try again / Intentar de nuevo</button></p>"}
+ var LASTACC=0;
  function locate(){
   msg("<p style='font-size:20px'><b>Checking that you are at the school...</b><br>Verificando que está en la escuela...</p><p>Please tap <b>Allow</b> if your phone asks for your location.<br>Toque <b>Permitir</b> si su teléfono pide su ubicación.</p>");
   var done=false;
-  function send(lat,lng,acc){post({act:'loc',lat:lat,lng:lng,acc:acc}).then(function(r){
+  function send(lat,lng,acc){LASTACC=acc;post({act:'loc',lat:lat,lng:lng,acc:acc}).then(function(r){
    if(r&&r.ok){try{localStorage.setItem('roomPass_'+S,JSON.stringify({p:r.pass,e:Date.now()+19*60000}))}catch(e){}load();}
-   else if(r&&r.error==='too_far')msg("<p style='font-size:20px'><b>These classroom pages can only be opened at the school.</b><br>Estas páginas solo se pueden abrir en la escuela.</p><p>Scan the poster in the classroom again when you are here.<br>Escanee el cartel en el salón cuando esté aquí.</p>"+again());
+   else if(r&&r.error==='too_far')msg("<p style='font-size:20px'><b>These classroom pages can only be opened at the school.</b><br>Estas páginas solo se pueden abrir en la escuela.</p><p>Scan the poster in the classroom again when you are here.<br>Escanee el cartel en el salón cuando esté aquí.</p><p style='font-size:13px;color:#888'>If you ARE at the school: stand near a window or the front door, make sure Wi-Fi is on, and tap Try again. (Phone location accuracy: "+Math.round(LASTACC||0)+" m)</p>"+again());
    else if(r&&r.error==='slow_down')msg("<p>Too many tries. Please wait a few minutes.<br>Demasiados intentos. Espere unos minutos.</p>");
    else if(r&&r.error==='no_location')msg("<p style='font-size:20px'><b>Location is needed.</b> Turn on location for your browser, then try again.<br>Se necesita su ubicación. Actívela y vuelva a intentar.</p>"+again());
    else msg("<p>This page could not check the school location right now. Please tell the director.<br>No se pudo verificar la ubicación. Avise a la directora.</p>"+again());
   }).catch(function(){msg("<p>Can't reach the server. Check your connection.</p>"+again())})}
   if(!navigator.geolocation){send(null,null,0);return}
-  navigator.geolocation.getCurrentPosition(function(p){if(done)return;done=true;send(p.coords.latitude,p.coords.longitude,p.coords.accuracy||0)},function(){if(done)return;done=true;send(null,null,0)},{enableHighAccuracy:true,timeout:20000,maximumAge:0});
+  var best=null,wid=null;
+  function fin(){if(done)return;done=true;try{navigator.geolocation.clearWatch(wid)}catch(e){}if(best)send(best.latitude,best.longitude,best.accuracy||0);else send(null,null,0)}
+  wid=navigator.geolocation.watchPosition(function(p){var c=p.coords;if(!best||c.accuracy<best.accuracy)best=c;if(c.accuracy<=40)fin()},function(){fin()},{enableHighAccuracy:true,timeout:20000,maximumAge:0});
+  setTimeout(fin,14000);
  }
  function load(){var pass=getPass();if(!pass){locate();return}
   post({pass:pass}).then(function(d){
