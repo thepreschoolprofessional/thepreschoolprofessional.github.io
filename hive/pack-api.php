@@ -438,4 +438,19 @@ if ($act === 'menu_save'){
   echo json_encode(['ok'=>true, 'n'=>count($recs)]); exit;
 }
 
+/* ---- Child observations (11/17/26) ---- */
+if ($act === 'obs_add'){
+  $who = nm($in['name'] ?? '', 60); $kid = nm($in['child'] ?? '', 80); $dom = nm($in['domain'] ?? '', 40); $ob = nm($in['obs'] ?? '', 600); $nx = nm($in['next'] ?? '', 200); $room = nm($in['room'] ?? '', 60);
+  if ($who === '' || $kid === '') fail('Type your name and pick the child.'); if ($ob === '') fail('Write what you saw.');
+  $res = at('POST', 'Child Observations', null, ['records'=>[['fields'=>['Obs ID'=>strtoupper(substr($sk, 0, 1)).'-OBS-'.date('ymdHis').rand(10, 99), 'School'=>$school, 'Date'=>$today, 'Room'=>$room, 'Child'=>$kid, 'Domain'=>$dom, 'Observation'=>$ob, 'Next Step'=>$nx, 'Observed By'=>$who]]], 'typecast'=>true]);
+  if (empty($res['records'][0]['id'])) fail('Did not save. Try again.', 502); echo json_encode(['ok'=>true]); exit;
+}
+if ($act === 'obs_list'){
+  $kid = nm($in['child'] ?? '', 80); $since = date('Y-m-d', strtotime('-120 days'));
+  $f = "AND({School}='".$school."',IS_AFTER({Date},'$since')"; if ($kid !== '') $f .= ",{Child}='".str_replace("'", "\\'", $kid)."'"; $f .= ')';
+  $q = at('GET', 'Child Observations', ['maxRecords'=>200, 'filterByFormula'=>$f, 'sort[0][field]'=>'Date', 'sort[0][direction]'=>'desc']); $o = [];
+  foreach (($q['records'] ?? []) as $r){ $x = $r['fields']; $o[] = ['date'=>$x['Date'] ?? '', 'child'=>$x['Child'] ?? '', 'domain'=>$x['Domain'] ?? '', 'obs'=>$x['Observation'] ?? '', 'next'=>$x['Next Step'] ?? '', 'by'=>$x['Observed By'] ?? '']; }
+  echo json_encode(['ok'=>true, 'list'=>$o]); exit;
+}
+
 fail('Unknown action');
