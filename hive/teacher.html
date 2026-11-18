@@ -171,6 +171,7 @@ document.getElementById('ages').innerHTML = ages.map((a,i)=>`<div class="pick m$
 }
 function pickMonth(m, el){ selMonth=m; document.querySelectorAll('#months .pick').forEach(p=>p.classList.remove('sel')); el.classList.add('sel'); showResult(); }
 function pickAge(a, el){ selAge=a; document.querySelectorAll('#ages .pick').forEach(p=>p.classList.remove('sel')); el.classList.add('sel'); showResult(); }
+function qppLinks(v){ return String(v||'').split(/\r?\n/).map(l=>{const i=l.indexOf('|'); if(i<0) return null; const n=l.slice(0,i).trim(), u=l.slice(i+1).trim(); return (n && /^https:\/\//i.test(u)) ? {n,u} : null;}).filter(Boolean); }
 function showResult(){
 if(!selMonth || !selAge) return;
 const p = plans.find(x => (x.Month?.name||x.Month)===selMonth && (x['Age Group']?.name||x['Age Group'])===selAge);
@@ -187,6 +188,7 @@ if(p['Student Workbook Link']) b += `<a class="go g3" href="${esc(p['Student Wor
 if(p['Teacher Workbook Link']) b += `<a class="go g4" href="${esc(p['Teacher Workbook Link'])}" target="_blank" rel="noopener">📘 Teacher Supplement${selAge==='School Age'?' (K-3)':''}</a>`;
 if(p['4-6 Student Workbook Link']) b += `<a class="go g3" href="${esc(p['4-6 Student Workbook Link'])}" target="_blank" rel="noopener">📗 Student Workbook (4-6)</a>`;
 if(p['4-6 Teacher Workbook Link']) b += `<a class="go g4" href="${esc(p['4-6 Teacher Workbook Link'])}" target="_blank" rel="noopener">📘 Teacher Supplement (4-6)</a>`;
+if(p['Quick Packet Print']) qppLinks(p['Quick Packet Print']).forEach(q=>{ b += `<a class="go g1" href="${esc(q.u)}" target="_blank" rel="noopener">🖨️ Quick Packet Print · ${esc(q.n)}</a>`; });
 if(folderField && p[folderField]) b += `<a class="go g2" href="${esc(p[folderField])}" target="_blank" rel="noopener">📂 Instructions, Resources & Take-Homes</a>`;
 document.getElementById('rBtns').innerHTML = b || '<div class="note">Links coming soon for this one — ask Mrs. Bear!</div>';
 box.scrollIntoView({behavior:'smooth', block:'nearest'});

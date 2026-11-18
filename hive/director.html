@@ -793,6 +793,7 @@ async function loadWorkbooks(){
 }
 function pickWbMonth(m, el){ wbMonth=m; document.querySelectorAll('#wbMonths .wbpick').forEach(p=>p.classList.remove('sel')); el.classList.add('sel'); showWbResult(); }
 function pickWbAge(a, el){ wbAge=a; document.querySelectorAll('#wbAges .wbpick').forEach(p=>p.classList.remove('sel')); el.classList.add('sel'); showWbResult(); }
+function qppLinks(v){ return String(v||'').split(/\r?\n/).map(l=>{const i=l.indexOf('|'); if(i<0) return null; const n=l.slice(0,i).trim(), u=l.slice(i+1).trim(); return (n && /^https:\/\//i.test(u)) ? {n,u} : null;}).filter(Boolean); }
 function showWbResult(){
   if(!wbMonth || !wbAge) return;
   const p = wbPlans.find(x => sel(x.Month)===wbMonth && sel(x['Age Group'])===wbAge);
@@ -809,6 +810,7 @@ function showWbResult(){
   if(p['Teacher Workbook Link']) b += `<a class="wbbtn" style="background:linear-gradient(90deg,var(--blue),var(--teal))" href="${esc(p['Teacher Workbook Link'])}" target="_blank" rel="noopener">📘 Teacher Supplement${wbAge==='School Age'?' (K-3)':''}</a>`;
   if(p['4-6 Student Workbook Link']) b += `<a class="wbbtn" style="background:linear-gradient(90deg,var(--teal),var(--green))" href="${esc(p['4-6 Student Workbook Link'])}" target="_blank" rel="noopener">📗 Student Workbook (4-6)</a>`;
   if(p['4-6 Teacher Workbook Link']) b += `<a class="wbbtn" style="background:linear-gradient(90deg,var(--blue),var(--teal))" href="${esc(p['4-6 Teacher Workbook Link'])}" target="_blank" rel="noopener">📘 Teacher Supplement (4-6)</a>`;
+  if(p['Quick Packet Print']) qppLinks(p['Quick Packet Print']).forEach(q=>{ b += `<a class="wbbtn" style="background:linear-gradient(90deg,var(--purple),var(--pink))" href="${esc(q.u)}" target="_blank" rel="noopener">🖨️ Quick Packet Print · ${esc(q.n)}</a>`; });
   if(folderField && p[folderField]) b += `<a class="wbbtn" style="background:linear-gradient(90deg,var(--orange),var(--coral))" href="${esc(p[folderField])}" target="_blank" rel="noopener">📂 Resources & Take-Homes</a>`;
   document.getElementById('wbBtns').innerHTML = b || '<div class="empty">Links coming soon for this one — ask Mrs. Bear!</div>';
 }
