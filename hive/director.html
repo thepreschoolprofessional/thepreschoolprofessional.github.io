@@ -99,7 +99,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 .meet-save{display:flex;align-items:center;gap:10px;margin-top:8px;} .meet-save small{color:var(--soft);font-weight:700;}
 </style>
 <script>/* stale-page guard: if this browser is showing an old saved copy, load the fresh one */
-(function(){var V='20261117b';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+'?v='+m[1]);}});}catch(e){}})();</script>
+(function(){var V='20261117c';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+'?v='+m[1]);}});}catch(e){}})();</script>
 <script src="bl-brand.js?v=20261113b" defer></script>
 </head>
 <body>
@@ -371,6 +371,8 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 const PIN = sessionStorage.getItem('hivePin');
 if(!PIN || sessionStorage.getItem('hiveRole')!=='director') location.href='index.html';
 let SCHOOL = null;
+function hiveDay(d){ d=d||new Date(); try{ return d.toLocaleDateString('en-CA',{timeZone:'America/New_York'}); }catch(e){ var z=new Date(d.getTime()-d.getTimezoneOffset()*60000); return z.toISOString().slice(0,10); } }
+function hiveTodayF(){ return "DATETIME_PARSE('"+hiveDay()+"','YYYY-MM-DD')"; }
 const esc = s => (s??'').toString().replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const sel = v => v?.name || v || '';
 async function loadWait(){try{const r=await fetch('reporting-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:PIN,action:'list'})});const j=await r.json();let n=0;try{const r2=await fetch('reporting-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:PIN,action:'weeks'})});const k=await r2.json();(k.weeks||[]).forEach(w=>{if(!w.signed&&((w.rows&&w.rows.length)||(w.missing&&w.missing.length)))n++;});n+=(k.monthly||[]).length;}catch(e){}for(const m in (j.months||{})){const fs=j.months[m].files||[];fs.forEach(f=>{if(f.cat==='dcf'&&/^(Pages to Sign|To Sign)/i.test(f.name)&&!fs.some(x=>x.cat==='dcf'&&x.name==='SIGNED - '+f.name.replace(/\.[^.]+$/,'')+'.pdf'))n++;});}
@@ -428,7 +430,7 @@ async function saveMeet(id){
 
 // ---- DAILY BRIEFING (interactive checklist) ----
 async function loadCheck(){
-  const d = await api({action:'list', table:'Briefing Checklist', filterByFormula:"IS_SAME({Date},TODAY(),'day')", sortField:'Type'});
+  const d = await api({action:'list', table:'Briefing Checklist', filterByFormula:"IS_SAME({Date},"+hiveTodayF()+",'day')", sortField:'Type'});
   const box = document.getElementById('checkList'); const recs = d.records||[];
   if(!recs.length){ box.innerHTML='<div class="empty">Nothing on the list yet — Charles posts your briefing each morning 🌅</div>'; return; }
   box.classList.remove('empty');
@@ -521,11 +523,22 @@ function fpFilterForms(){
   formSel.innerHTML = list.length ? list.map(f=>`<option value="${esc(f['File Link']||'')}">${esc(f.Document)}${f.Sponsor?' ('+esc(sel(f.Sponsor))+')':''}</option>`).join('') : '<option value="">No forms in this category yet</option>';
   fpUpdateOpenBtn();
 }
+// Food program papers that list staff or children open behind the director PIN (dcf-api secdoc), not from the public folder.
+const FP_LOCKED = ['sanford-monthly-entrances.pdf','deland2-monthly-entrances.pdf','deland2-personnel-activity-report.pdf'];
+function fpLockedName(link){ const m = /files\/food-program\/([a-z0-9-]+\.pdf)(?:[?#].*)?$/i.exec(link||''); return (m && FP_LOCKED.indexOf(m[1].toLowerCase())>-1) ? m[1].toLowerCase() : ''; }
+function fpOpenLocked(name){
+  const w = window.open('','_blank');
+  fetch('dcf-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:sessionStorage.getItem('hivePin'),action:'secdoc',name:name})})
+   .then(r=>r.json()).then(j=>{ if(j.error) throw new Error(j.error); const bin=atob(j.b64), a=new Uint8Array(bin.length); for(let k=0;k<bin.length;k++) a[k]=bin.charCodeAt(k); const u=URL.createObjectURL(new Blob([a],{type:'application/pdf'})); if(w) w.location.href=u; else location.href=u; })
+   .catch(e=>{ if(w) w.close(); alert(e.message||'Could not open that form.'); });
+}
 function fpUpdateOpenBtn(){
   const formSel = document.getElementById('fpFormSel');
   const btn = document.getElementById('fpOpenBtn');
   const link = formSel.value;
-  if(link){ btn.href = link; btn.style.opacity = 1; btn.style.pointerEvents = 'auto'; btn.textContent = 'Open Form 🖨️'; }
+  const locked = fpLockedName(link);
+  btn.onclick = locked ? function(e){ e.preventDefault(); fpOpenLocked(locked); } : null;
+  if(link){ btn.href = locked ? '#' : link; btn.style.opacity = 1; btn.style.pointerEvents = 'auto'; btn.textContent = 'Open Form 🖨️'; }
   else { btn.href = '#'; btn.style.opacity = .5; btn.style.pointerEvents = 'none'; btn.textContent = 'No form selected'; }
 }
 
@@ -563,13 +576,13 @@ function renderInv(){
 async function saveInv(id){
   const v = document.getElementById('iq-'+id).value.trim();
   if(v==='' || isNaN(Number(v))){ toast('Type a number first! 🔢'); return; }
-  await api({action:'update', table:'Inventory', recordId:id, fields:{'On-Hand Qty':Number(v), 'Last Updated':new Date().toISOString().slice(0,10)}});
+  await api({action:'update', table:'Inventory', recordId:id, fields:{'On-Hand Qty':Number(v), 'Last Updated':hiveDay()}});
   toast('Counted! 📦'); loadInv();
 }
 async function addInv(e){ e.preventDefault();
   const qty = document.getElementById('iQty').value.trim(), par = document.getElementById('iPar').value.trim();
   const fields = {'Item':document.getElementById('iName').value, 'Category':document.getElementById('iCat').value,
-    'Unit':document.getElementById('iUnit').value, 'Last Updated':new Date().toISOString().slice(0,10)};
+    'Unit':document.getElementById('iUnit').value, 'Last Updated':hiveDay()};
   if(qty!=='' && !isNaN(Number(qty))) fields['On-Hand Qty']=Number(qty);
   if(par!=='' && !isNaN(Number(par))) fields['Par / Reorder Level']=Number(par);
   await api({action:'create', table:'Inventory', fields});
@@ -604,7 +617,7 @@ async function loadRatio(){
 
 // ---- SIGN-IN BOARD ----
 async function loadSignin(){
-  const d = await api({action:'list', table:'Sign-In Log', filterByFormula:"IS_SAME({Date},TODAY(),'day')", sortField:'Staff'});
+  const d = await api({action:'list', table:'Sign-In Log', filterByFormula:"IS_SAME({Date},"+hiveTodayF()+",'day')", sortField:'Staff'});
   const box = document.getElementById('signList'); const recs = d.records||[];
   box.classList.remove('empty');
   if(recs[0]?.fields['As Of']) document.getElementById('signAsOf').textContent = '· as of ' + recs[0].fields['As Of'];
@@ -683,14 +696,15 @@ async function loadTime(){ const d = await api({action:'list', table:'Staff Time
 // ---- ONBOARDING ----
 var ONB_SCH='';
 async function onbFA(action){ var r=await fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:sessionStorage.getItem('hivePin'),action:action})}); var j=await r.json(); if(j.error) throw new Error(j.error); return j; }
-function onbLink(kind){ var k=(ONB_SCH==='Sanford')?'sanford':'deland'; return 'https://thepreschoolprofessional.net/hive/'+(kind==='enroll'?'welcome.html':'onboard.html')+'?school='+k+(kind==='existing'?'&existing=1':''); }
-function onbMail(kind){ var u=onbLink(kind), sch=(ONB_SCH==='Sanford')?'Kid City USA Sanford':'Kid City USA DeLand 2', fam=(kind==='enroll');
+function onbSch(){ return ONB_SCH||((typeof SCHOOL!=='undefined'&&SCHOOL)?SCHOOL:''); }
+function onbLink(kind){ var s=onbSch(); if(!s) return ''; var k=(s==='Sanford')?'sanford':'deland'; return 'https://thepreschoolprofessional.net/hive/'+(kind==='enroll'?'welcome.html':'onboard.html')+'?school='+k+(kind==='existing'?'&existing=1':''); }
+function onbMail(kind){ var u=onbLink(kind); if(!u){ alert('Still loading your school. Tap again in a second.'); return; } var sch=(onbSch()==='Sanford')?'Kid City USA Sanford':'Kid City USA DeLand 2', fam=(kind==='enroll');
   if(kind==='existing'){ var su0='Please sign your '+sch+' employee packet', b0='Hello!\n\nWe are putting everyone\'s employee packet online so we do not have to copy stacks of paper. Please use this link, check your information, and sign one time. Your signature goes on the whole packet, and then I will confirm your hire date and sign my part.\n\n'+u+'\n\nThank you!\n'+sch; window.open('https://mail.google.com/mail/?view=cm&fs=1&su='+encodeURIComponent(su0)+'&body='+encodeURIComponent(b0),'_blank'); return; }
   var su=fam?('Welcome to '+sch+' - your enrollment packet'):('Welcome to the '+sch+' team - your new-hire packet');
   var body=fam?('Hello!\n\nThank you for choosing '+sch+'. Please use this link to fill out and sign your enrollment packet right on your phone or computer:\n\n'+u+'\n\nIf you have any questions, just reply to this email or call us.\n\nThank you!\n'+sch)
               :('Hello!\n\nWe are so happy you are joining '+sch+'. Please use this link to sign up, follow your training checklist, and fill out and sign your Employee Packet:\n\n'+u+'\n\nIf you have any questions, just reply to this email or call us.\n\nThank you!\n'+sch);
   window.open('https://mail.google.com/mail/?view=cm&fs=1&su='+encodeURIComponent(su)+'&body='+encodeURIComponent(body),'_blank'); }
-async function onbCopy(kind){ var u=onbLink(kind); try{ await navigator.clipboard.writeText(u); toast('Link copied 📋'); }catch(e){ prompt('Copy this link:',u); } }
+async function onbCopy(kind){ var u=onbLink(kind); if(!u){ alert('Still loading your school. Tap again in a second.'); return; } try{ await navigator.clipboard.writeText(u); toast('Link copied 📋'); }catch(e){ prompt('Copy this link:',u); } }
 async function loadOnb(){ var box=document.getElementById('onbList'); box.classList.remove('empty');
   try{ var w=await onbFA('whoami'); ONB_SCH=w.school||''; var en=(await onbFA('en_list')).items||[]; var nh=(await onbFA('nh_list')).items||[];
     en=en.filter(function(x){return x.status==='new';}); nh=nh.filter(function(x){return x.status!=='added'&&x.status!=='archived'&&x.status!=='declined';});
@@ -804,7 +818,7 @@ const TAB_LABELS = {brief:'📰 Daily Briefing', auto:'✉️ Automations', hour
 window.loadFacility=async function(){
  var box=document.getElementById('facMonitor'); if(!box) return;
  var sn=localStorage.getItem('hiveName'); if(sn&&document.getElementById('dfName'))document.getElementById('dfName').value=sn;
- var d=await api({action:'list',table:'Facility Submissions',filterByFormula:"IS_SAME({Date},TODAY(),'day')",maxRecords:200});
+ var d=await api({action:'list',table:'Facility Submissions',filterByFormula:"IS_SAME({Date},"+hiveTodayF()+",'day')",maxRecords:200});
  var recs=(d.records||[]);
  recs.sort(function(a,b){return (b.fields['Submitted At']||'').localeCompare(a.fields['Submitted At']||'');});
  var inc=recs.filter(function(r){return (r.fields['Form Type']||'').indexOf('Incident')>-1;});
@@ -842,8 +856,8 @@ window.dfStart=async function(){
  h+='<button class="fbtn fsubmit" onclick="dfSubmit(\''+encodeURIComponent(form)+'\')">Submit ✅</button>';
  body.innerHTML=h;
 };
-window.dfSubmit=async function(formEnc){var form=decodeURIComponent(formEnc);var name=(document.getElementById('dfName').value||'').trim(), room=document.getElementById('dfRoom').value;var rows=[].slice.call(document.querySelectorAll('#dfBody .fitemrow'));var lines=[],flags=[];rows.forEach(function(r){var item=decodeURIComponent(r.getAttribute('data-item'));var ok=r.getAttribute('data-ok')!=='0';var note=(r.querySelector('.fnote').value||'').trim();lines.push((ok?'✅ ':'⚠️ ')+item+(note?' — '+note:''));if(!ok)flags.push(item+(note?' ('+note+')':''));});var status=flags.length?'⚠️ Issues Flagged':'✅ All OK';var now=new Date();var fields={'School':SCHOOL,'Room / Classroom':room,'Form Type':form,'Staff Name':name,'Date':(document.getElementById('dfDate').value||now.toISOString().slice(0,10)),'Submitted At':now.toISOString(),'Items':(((document.getElementById('dfDate').value||'')&&document.getElementById('dfDate').value!==now.toISOString().slice(0,10))?'(Director fill-in for '+document.getElementById('dfDate').value+')\n':'')+lines.join('\n'),'Overall Status':status,'Status':'🟡 Pending','Submission':SCHOOL+' · '+room+' · '+form.replace(/^[^ ]+ /,'')+' · '+now.toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})};if(flags.length)fields['Details']='Needs attention:\n- '+flags.join('\n- ');var res=await api({action:'create',table:'Facility Submissions',fields:fields});var ok=res&&(res.id||(res.records&&res.records[0]&&res.records[0].id));if(ok){document.getElementById('dfBody').innerHTML='<div class="fok">✅ Submitted &amp; logged.</div>';document.getElementById('dfForm').value='';toast('Submitted 🎉');loadFacility();}else toast("Didn't save — "+((res&&res.error)||'try again'));};
-window.dfSubmitIncident=async function(){var name=(document.getElementById('dfName').value||'').trim(), room=document.getElementById('dfRoom').value;var g=function(id){return (document.getElementById(id).value||'').trim();};var details='WHEN: '+g('dincWhen')+'\nCHILD(REN): '+g('dincChild')+'\nSTAFF/WITNESSES: '+g('dincStaff')+'\nWHAT HAPPENED: '+g('dincWhat')+'\nACTION TAKEN: '+g('dincAction')+'\nPARENT NOTIFIED: '+g('dincParent')+'\nFOLLOW-UP: '+g('dincFollow');var now=new Date();var fields={'School':SCHOOL,'Room / Classroom':room,'Form Type':'🚨 Incident Report','Staff Name':name,'Date':now.toISOString().slice(0,10),'Submitted At':now.toISOString(),'Overall Status':'🚨 Incident','Details':details,'Status':'🟡 Pending','Submission':SCHOOL+' · '+room+' · INCIDENT · '+now.toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})};var res=await api({action:'create',table:'Facility Submissions',fields:fields});var ok=res&&(res.id||(res.records&&res.records[0]&&res.records[0].id));if(ok){document.getElementById('dfBody').innerHTML='<div class="fok">🚨 Incident logged. Mrs. Bear is notified.</div>';document.getElementById('dfForm').value='';toast('Incident logged 🚨');loadFacility();}else toast("Didn't save — "+((res&&res.error)||'try again'));};
+window.dfSubmit=async function(formEnc){var form=decodeURIComponent(formEnc);var name=(document.getElementById('dfName').value||'').trim(), room=document.getElementById('dfRoom').value;var rows=[].slice.call(document.querySelectorAll('#dfBody .fitemrow'));var lines=[],flags=[];rows.forEach(function(r){var item=decodeURIComponent(r.getAttribute('data-item'));var ok=r.getAttribute('data-ok')!=='0';var note=(r.querySelector('.fnote').value||'').trim();lines.push((ok?'✅ ':'⚠️ ')+item+(note?' — '+note:''));if(!ok)flags.push(item+(note?' ('+note+')':''));});var status=flags.length?'⚠️ Issues Flagged':'✅ All OK';var now=new Date();var fields={'School':SCHOOL,'Room / Classroom':room,'Form Type':form,'Staff Name':name,'Date':(document.getElementById('dfDate').value||hiveDay(now)),'Submitted At':now.toISOString(),'Items':(((document.getElementById('dfDate').value||'')&&document.getElementById('dfDate').value!==hiveDay(now))?'(Director fill-in for '+document.getElementById('dfDate').value+')\n':'')+lines.join('\n'),'Overall Status':status,'Status':'🟡 Pending','Submission':SCHOOL+' · '+room+' · '+form.replace(/^[^ ]+ /,'')+' · '+now.toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})};if(flags.length)fields['Details']='Needs attention:\n- '+flags.join('\n- ');var res=await api({action:'create',table:'Facility Submissions',fields:fields});var ok=res&&(res.id||(res.records&&res.records[0]&&res.records[0].id));if(ok){document.getElementById('dfBody').innerHTML='<div class="fok">✅ Submitted &amp; logged.</div>';document.getElementById('dfForm').value='';toast('Submitted 🎉');loadFacility();}else toast("Didn't save — "+((res&&res.error)||'try again'));};
+window.dfSubmitIncident=async function(){var name=(document.getElementById('dfName').value||'').trim(), room=document.getElementById('dfRoom').value;var g=function(id){return (document.getElementById(id).value||'').trim();};var details='WHEN: '+g('dincWhen')+'\nCHILD(REN): '+g('dincChild')+'\nSTAFF/WITNESSES: '+g('dincStaff')+'\nWHAT HAPPENED: '+g('dincWhat')+'\nACTION TAKEN: '+g('dincAction')+'\nPARENT NOTIFIED: '+g('dincParent')+'\nFOLLOW-UP: '+g('dincFollow');var now=new Date();var fields={'School':SCHOOL,'Room / Classroom':room,'Form Type':'🚨 Incident Report','Staff Name':name,'Date':hiveDay(now),'Submitted At':now.toISOString(),'Overall Status':'🚨 Incident','Details':details,'Status':'🟡 Pending','Submission':SCHOOL+' · '+room+' · INCIDENT · '+now.toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})};var res=await api({action:'create',table:'Facility Submissions',fields:fields});var ok=res&&(res.id||(res.records&&res.records[0]&&res.records[0].id));if(ok){document.getElementById('dfBody').innerHTML='<div class="fok">🚨 Incident logged. Mrs. Bear is notified.</div>';document.getElementById('dfForm').value='';toast('Incident logged 🚨');loadFacility();}else toast("Didn't save — "+((res&&res.error)||'try again'));};
 
 function injectNoteBoxes(){
   Object.keys(TAB_LABELS).forEach(id=>{
@@ -900,7 +914,7 @@ window.HIVE_CARDS={prompt:'What do you want to work on?',order:[
  {k:'Parent Messages',l:['Messages parents send from the Bear Line sign-in screen','Reply to a family, or start a message to any family','Each family only sees its own conversation','Also: post to the front-screen Board (tuition posting days, holidays, reminders)','Opens Bear Line: tap Director, enter your PIN, then Messages or Board'],s:'Parent messages and the front-screen board',c:'#c2185b'},
  {k:'Staff Sign In/Out',l:['Hours each staff member has worked so far','Missed sign-ins, sign-outs and lunch punches','Change a time (director or owner PIN, every change is logged)','Opens Bear Line: tap Director, then enter your PIN'],s:'Staff hours, missed punches, fixes',c:'#e07b00'},
  {k:'Parent Portal',t:[['Update the parent portal','parent-manage.html'],['Post to the message board','parent-manage.html']],l:['See what parents see (menu, newsletter, lesson plans, board)','Upload a menu, newsletter or flyer, or fill in the newsletter template','Post notes on the message board','See who signed Parent Orientation'],s:'What parents see and update it',c:'#e91e63'},
- {k:'New Staff Onboarding',t:[['Review new hires','newhires.html'],['Open the new-staff page','onboard.html']],l:['New teachers, interns and volunteers sign up on the new-staff page','See what training they finished, as they finish it','They fill in and sign the official Employee Packet; you review it and sign your lines on screen','Add them to Staff Files and the signed packet is filed','Send the link: thepreschoolprofessional.net/hive/onboard.html'],s:'New hires and interns',c:'#1565c0'},
+ {k:'New Hires',t:[['Review new hires','newhires.html'],['Open the new-staff page','onboard.html']],l:['New teachers, interns and volunteers sign up on the new-staff page','See what training they finished, as they finish it','They fill in and sign the official Employee Packet; you review it and sign your lines on screen','Add them to Staff Files and the signed packet is filed','Send the link: thepreschoolprofessional.net/hive/onboard.html'],s:'New hires and interns',c:'#1565c0'},
  {k:'System Check',t:[['Run the check','system.html']],l:['One page that shows every connection is working','Staff list, child roster, PINs and the private vault','Counts of new enrollments, new hires and orientations','Send a test email alert to your school office'],s:'Is everything connected?',c:'#455a64'},
  {k:'New Enrollments',t:[['Review new registrations','enroll.html']],l:['Families fill out and sign the registration on the Welcome page','Review each packet and print it','Approve: adds the child to the roster and Rooms board','Then follow the checklist: Food Program, ProCare, ELC certificate, family welcome'],s:'Registrations from new families',c:'#2e8b57'},
  {k:'FTE Report',l:['Weekly FTE report: fill in and save','Print the filled or blank official form','20-week sheet with changes and charts','Full sheets are filed in the vault'],s:'Weekly FTE, saved here',c:'#00695c'},
@@ -953,7 +967,7 @@ window.HIVE_CARDS={prompt:'What do you want to work on?',order:[
   var pin=sessionStorage.getItem('hivePin');if(!pin)return;
   fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pin,action:'attention'})}).then(function(r){return r.json()}).then(function(j){
    window.alertDone=function(id){fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pin,action:'alert_close',alertId:id})}).then(function(){run();});};
-   if(!j||!j.items)return;try{var pn=j.items.filter(function(i){return i.doc==='pp'}).length;if(pn&&window.HiveCards)HiveCards.badge('Parent Portal',pn+' to update');var en=j.items.filter(function(i){return i.doc==='enroll'}).length;if(en&&window.HiveCards)HiveCards.badge('New Enrollments',en+' new');}catch(e){}try{var up=j.items.filter(function(i){return i.doc==='upload'}).length;if(up&&window.HiveCards)HiveCards.badge('Parent Uploads',up+' to check');}catch(e){}try{var nh=j.items.filter(function(i){return i.doc==='newhire'}).length;if(nh&&window.HiveCards)HiveCards.badge('New Staff Onboarding',nh+' to review');}catch(e){}var red=j.items.filter(function(i){return i.red}),amb=j.items.length-red.length;
+   if(!j||!j.items)return;try{var pn=j.items.filter(function(i){return i.doc==='pp'}).length;if(pn&&window.HiveCards)HiveCards.badge('Parent Portal',pn+' to update');var en=j.items.filter(function(i){return i.doc==='enroll'}).length;if(en&&window.HiveCards)HiveCards.badge('New Enrollments',en+' new');}catch(e){}try{var up=j.items.filter(function(i){return i.doc==='upload'}).length;if(up&&window.HiveCards)HiveCards.badge('Parent Uploads',up+' to check');}catch(e){}try{var nh=j.items.filter(function(i){return i.doc==='newhire'}).length;if(nh&&window.HiveCards)HiveCards.badge('New Hires',nh+' to review');}catch(e){}var red=j.items.filter(function(i){return i.red}),amb=j.items.length-red.length;
    var old=document.getElementById('needs');if(old)old.remove();
    if(!j.items.length)return;
    var nav=document.querySelector('nav');if(!nav)return;

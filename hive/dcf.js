@@ -460,7 +460,7 @@ function packView(){
   if(pk.form==='CHECKLIST') body=chkOv(); else if(pk.form==='ENTRANCES') body=entOv(); else if(pk.form==='TERMS') body=termForm(); else if(pk.form==='PAR') body=parOv(); else if(pk.form==='SITEINFO') body=siteOv(); else if(KF[pk.form]) body=kidOv(pk.form); else if(pk.form==='EXPEND') body=expOv(); else if(pk.form==='LABOR') body=labOv(); else body=reviewForm(st);
   if(pk.form==='REVIEW') return h+'<div class="card" id="paper">'+body+'</div>';
   h+='<div class="card paper'+(/^(SITEINFO|CHECKLIST|ENTRANCES|MEDICAL|DIETARY|INFANTFEED|PAR|LABOR|EXPEND)$/.test(pk.form)?' ovwrap '+(pk.form==='EXPEND'?'land':'port'):'')+'" id="paper">'+body+'</div>';
-  h+='<div class="mrow noprint"><button class="btn sec" data-pf="print">Print / Save PDF</button>'+'<button class="btn grn" data-pf="save">Save now</button>'+'<button class="btn sec" onclick="foodVault()">File this month\'s Food Program papers as PDFs in the vault</button>'+'</div>';
+  h+='<div class="mrow noprint"><button class="btn sec" data-pf="print">Print / Save PDF</button>'+'<button class="btn grn" data-pf="save">Save now</button>'+'<button class="btn sec" data-pf="vault">File this month\'s Food Program papers as PDFs in the vault</button>'+'</div>';
   return h;
 }
 function fld(key,label,req,val,ph){ return '<label class="fl">'+esc(label)+(req?' <span class="rq">*</span>':'')+'<input class="fi'+(req?' rq-in':'')+'" data-f="'+key+'" data-req="'+(req?1:0)+'" value="'+esc(val||'')+'" placeholder="'+esc(ph||'')+'"></label>'; }
@@ -744,10 +744,10 @@ function skipList(){ var sk=skipMap(), nm={SITEINFO:'Site Information',CHECKLIST
 function pfLinks(){
   var items=(pkData('PARENTFORMS')||{items:[]}).items||[], h='';
   items.forEach(function(it,i){ if(it.done) return; h+='<div class="line bad" style="margin:6px 0"><b>'+esc(it.child)+'</b> &middot; '+esc(it.type==='INFANT'?'Infant Feeding Form':'Free & Reduced Meal Application')+(it.why?'<div class="hint">'+esc(it.why)+'</div>':'')+'<div style="margin-top:6px">'+pfOpen(it,i)+' <label style="margin-left:10px"><input type="checkbox" class="pfdone" data-i="'+i+'"> Returned signed</label></div>'+signedBlock(it,i)+'</div>'; });
-  h+='<div class="hint" style="margin-top:6px"><button class="btn sec sm" data-tab="forms">All forms to print</button> <a class="btn sec sm" target="_blank" href="files.html">Student files (applications on file)</a>'+(BLANKS[S.school]||[]).map(function(b){ return ' <a class="btn sec sm" target="_blank" href="'+b[1]+'">'+b[0]+'</a>'; }).join('')+'</div>';
+  h+='<div class="hint" style="margin-top:6px"><button class="btn sec sm" data-tab="forms">All forms to print</button> <a class="btn sec sm" target="_blank" href="files.html?kind=student">Student files (applications on file)</a>'+(BLANKS[S.school]||[]).map(function(b){ return ' <a class="btn sec sm" target="_blank" href="'+b[1]+'">'+b[0]+'</a>'; }).join('')+'</div>';
   return h;
 }
-function rcLinks(){ var RC=(S.school==='DeLand 2'?RECEIPTS[S.pk.month]:RECEIPTS['S|'+S.pk.month])||[]; return RC.length?'<div class="hint">'+RC.map(function(r){ return '<a target="_blank" href="'+r[1]+'">'+r[0]+'</a>'; }).join(' &middot; ')+' <button class="btn sec sm" data-tab="forms">receipts page</button></div>':'<div class="hint" style="color:#c62828">No receipts are loaded yet. They will list here once added. <button class="btn sec sm" data-tab="forms">receipts page</button></div>'; }
+function rcLinks(){ var RC=(S.school==='DeLand 2'?RECEIPTS[S.pk.month]:RECEIPTS['S|'+S.pk.month])||[]; return RC.length?'<div class="hint">'+RC.map(function(r){ return docA(r[1],r[0],''); }).join(' &middot; ')+' <button class="btn sec sm" data-tab="forms">receipts page</button></div>':'<div class="hint" style="color:#c62828">No receipts are loaded yet. They will list here once added. <button class="btn sec sm" data-tab="forms">receipts page</button></div>'; }
 function sendPanel(st){
   var pk=S.pk, c=sendCfg(), ck=c.c, to=c.to||SPONSOR_TO[S.school]||'', wk=monthWeeks(pk.month);
   var kids=entRows().map(function(r){return r.n;}).filter(Boolean), openPF=((pkData('PARENTFORMS')||{}).items||[]).filter(function(i){return !i.done;});
@@ -912,7 +912,7 @@ function parTotals(root){
   });
 }
 /* ---------- FORMS TO PRINT (prefilled, fillable PDFs + month-end forms) ---------- */
-var RECEIPTS={'2026-10':[['Sep 30 order, delivered Oct 1 &middot; $813.01','files/food-program/receipt-2026-10-walmart-sep30-order.pdf'],['Sep 21 order, Oct 2 delivery only (It\'s Delish) &middot; $19.99','files/food-program/receipt-2026-10-walmart-sep21-itsdelish.pdf'],['Oct 15 order, delivered Oct 19 &middot; $564.65','files/food-program/receipt-2026-10-walmart-oct15-order.pdf'],['Oct 30 order, delivery Nov 3 &middot; $1,005.13','files/food-program/receipt-2026-10-walmart-oct30-order.pdf']]};
+var RECEIPTS={'2026-10':[['Sep 30 order, delivered Oct 1 &middot; $813.01','secdoc:receipt-2026-10-walmart-sep30-order.pdf'],['Sep 21 order, Oct 2 delivery only (It\'s Delish) &middot; $19.99','secdoc:receipt-2026-10-walmart-sep21-itsdelish.pdf'],['Oct 15 order, delivered Oct 19 &middot; $564.65','secdoc:receipt-2026-10-walmart-oct15-order.pdf'],['Oct 30 order, delivery Nov 3 &middot; $1,005.13','secdoc:receipt-2026-10-walmart-oct30-order.pdf']]};
 var CNLABELS={};
 var BLANKS={'DeLand 2':[['Free &amp; Reduced-Price Meal Application (blank, DeLand 2)','files/food-program/deland2-free-reduced-application-blank.pdf'],['Infant Feeding Form (blank, DeLand 2)','files/food-program/deland2-infant-feeding-form-blank.pdf']],
  'Sanford':[['Free &amp; Reduced-Price Meal Application (blank, Sanford)','files/food-program/sanford-free-reduced-application-blank.pdf'],['Infant Feeding Form (blank, 4C)','https://4cflorida.org/wp-content/uploads/2023/09/Infant-Feeding-Form-FINAL-fillable-1.pdf'],['Dietary Preference Request Form (blank, 4C)','https://4cflorida.org/wp-content/uploads/2025/07/Dietary-Preference-Request-Form-2025.pdf'],['Parent Request for Milk Substitution (blank, 4C)','https://4cflorida.org/wp-content/uploads/2023/09/Parent-Request-For-Milk-Substitution.pdf'],['Parent Request for Food Substitution (blank, 4C)','https://4cflorida.org/wp-content/uploads/2024/07/Food-Substitution-Request-20190624.pdf'],['Meal Count Summary (blank, 4C)','https://4cflorida.org/wp-content/uploads/2024/07/Meal-Count-Summary-Blank-02242021.pdf']]};
@@ -929,6 +929,11 @@ function pfOpen(it,i){
   if(!it.file) return '';
   if(/^files\/food-program\//.test(it.file)) return '<a class="btn sm" target="_blank" href="'+esc(it.file)+'">Open &amp; print</a> <button class="btn sm sec" data-pfsec="'+i+'">&#128274; Move behind the PIN</button>';
   return '<a class="btn sm" target="_blank" href="'+esc(it.file)+'">Open &amp; print</a>';
+}
+function docA(u,label,cls){ var m=/^secdoc:(.+)$/.exec(u); if(m) return '<a'+(cls?' class="'+cls+'"':'')+' href="#" data-secdoc="'+esc(m[1])+'">'+label+'</a>'; return '<a'+(cls?' class="'+cls+'"':'')+' target="_blank" href="'+u+'">'+label+'</a>'; }
+function secdocOpen(name){
+  var w=window.open('','_blank');
+  api('secdoc','',{name:name}).then(function(r){ var bin=atob(r.b64), a=new Uint8Array(bin.length); for(var k=0;k<bin.length;k++) a[k]=bin.charCodeAt(k); var u=URL.createObjectURL(new Blob([a],{type:'application/pdf'})); if(w) w.location.href=u; else location.href=u; }).catch(function(e){ if(w) w.close(); toast(e.message,true); });
 }
 function pfOpenFile(fid){
   var w=window.open('','_blank');
@@ -997,7 +1002,7 @@ function formsView(){
     var RC=(S.school==='DeLand 2'?RECEIPTS[pk.month]:RECEIPTS['S|'+pk.month])||[];
     h+='<div class="card"><div class="ct">Walmart receipts</div>';
     if(!RC.length) h+='<div class="hint">No receipts loaded for '+mLabel(pk.month)+' yet.</div>';
-    RC.forEach(function(r){ h+='<div class="line"><a class="btn sm" target="_blank" href="'+r[1]+'">Open &amp; print</a> '+r[0]+'</div>'; });
+    RC.forEach(function(r){ h+='<div class="line">'+docA(r[1],'Open &amp; print','btn sm')+' '+r[0]+'</div>'; });
     h+='</div>';
     h+='<div class="card"><div class="ct">CN Labels / Product Formulation Statements</div>';
     var CN=CNLABELS[pk.month]||[];
@@ -1015,12 +1020,13 @@ document.addEventListener('input',function(e){ var t=e.target, ps=t.closest&&t.c
 document.addEventListener('change',function(e){ var t=e.target; if(t.classList&&t.classList.contains('wsflag')){ var w=pkData('WORKSHEETS')||{}; w[t.getAttribute('data-w')]=t.checked; writeRec({form:'WORKSHEETS',emp:'',data:w},false); return; } if(t.id==='kidSel'){ flushSave().then(function(){ S.pk.kid=t.value; render(); }); return; } if(t.closest&&t.closest('#paper')&&(t.type==='checkbox')&&!t.classList.contains('ws')){ postPack(); schedSave(); } });
 document.addEventListener('change',function(e){ if(e.target.classList&&e.target.classList.contains('pfup')){ var fl=e.target.files; uploadSigned(fl,+e.target.getAttribute('data-i')); return; } if(e.target.classList&&e.target.classList.contains('pfdone')){ var dd=pkData('PARENTFORMS')||{items:[]}; var it=dd.items[+e.target.getAttribute('data-i')]; if(it){ it.done=e.target.checked; savePF(dd); } return; } if(e.target.id==='pEmp'){ parPick(e.target.value); } });
 document.addEventListener('click',function(e){
+  var sdo=e.target.closest&&e.target.closest('[data-secdoc]'); if(sdo){ e.preventDefault(); secdocOpen(sdo.getAttribute('data-secdoc')); return; }
   var pfo=e.target.closest&&e.target.closest('[data-pfopen]'); if(pfo){ e.preventDefault(); pfOpenFile(pfo.getAttribute('data-pfopen')); return; }
   var pfs=e.target.closest&&e.target.closest('[data-pfsec]'); if(pfs){ e.preventDefault(); pfSecure(+pfs.getAttribute('data-pfsec')); return; }
   var dl=e.target.closest&&e.target.closest('[data-dl]'); if(dl){ e.preventDefault(); downloadSigned(dl.getAttribute('data-dl'),dl.getAttribute('data-nm')); return; }
   var el=e.target.closest('[data-cell],[data-tab],[data-a],[data-adddrill],[data-pf],[data-goto]'); if(!el) return;
   if(el.hasAttribute('data-goto')){ S.tab='pack'; S.pk.form=el.getAttribute('data-goto'); render(); return; }
-  if(el.hasAttribute('data-pf')){ var a2=el.getAttribute('data-pf'),pk=S.pk; if(a2==='parone'){ parPick(el.getAttribute('data-v')); return; } if(a2==='sendfp'){ sendFoodEmail(); return; } if(a2==='gmailfp'){ sendGmail(); return; } if(a2==='prev'||a2==='next'){ flushSave().then(function(){ pk.parView=''; pk.month=shiftMonth(pk.month,a2==='prev'?-1:1); pk.loaded=''; render(); }); } else if(a2==='form'){ var fv=el.getAttribute('data-v'); flushSave().then(function(){ pk.form=fv; render(); }); } else if(a2==='save') savePacket(); else if(a2==='submit') submitPacket(); else if(a2==='parfill') parFill(); else if(a2==='parmulti') parMulti(); else if(a2==='pmgo') parMultiGo(); else if(a2==='parclear') parClear(); else if(a2==='print'){ var ls=pk.form==='EXPEND', stt=$('pgst'); if(!stt){ stt=document.createElement('style'); stt.id='pgst'; document.head.appendChild(stt); } stt.textContent='@page{size:letter '+(ls?'landscape':'portrait')+';margin:'+(/^(SITEINFO|CHECKLIST|ENTRANCES|MEDICAL|DIETARY|INFANTFEED|PAR|LABOR|EXPEND)$/.test(pk.form)?'0':'0.4in')+'}'; window.print(); } return; }
+  if(el.hasAttribute('data-pf')){ var a2=el.getAttribute('data-pf'),pk=S.pk; if(a2==='parone'){ parPick(el.getAttribute('data-v')); return; } if(a2==='vault'){ flushSave().then(function(){ foodVault(); }); return; } if(a2==='sendfp'){ sendFoodEmail(); return; } if(a2==='gmailfp'){ sendGmail(); return; } if(a2==='prev'||a2==='next'){ flushSave().then(function(){ pk.parView=''; pk.month=shiftMonth(pk.month,a2==='prev'?-1:1); pk.loaded=''; render(); }); } else if(a2==='form'){ var fv=el.getAttribute('data-v'); flushSave().then(function(){ pk.form=fv; render(); }); } else if(a2==='save') savePacket(); else if(a2==='submit') submitPacket(); else if(a2==='parfill') parFill(); else if(a2==='parmulti') parMulti(); else if(a2==='pmgo') parMultiGo(); else if(a2==='parclear') parClear(); else if(a2==='print'){ var ls=pk.form==='EXPEND', stt=$('pgst'); if(!stt){ stt=document.createElement('style'); stt.id='pgst'; document.head.appendChild(stt); } stt.textContent='@page{size:letter '+(ls?'landscape':'portrait')+';margin:'+(/^(SITEINFO|CHECKLIST|ENTRANCES|MEDICAL|DIETARY|INFANTFEED|PAR|LABOR|EXPEND)$/.test(pk.form)?'0':'0.4in')+'}'; window.print(); } return; }
   if(el.getAttribute('data-a')==='mclose' && e.target.closest('[data-stop]') && !e.target.classList.contains('btn')) return;
   if(el.hasAttribute('data-adddrill')){ var ad=el.getAttribute('data-adddrill'); addDrill(ad.length===7?ad+'-'+todayNY().slice(8):ad); return; }
   if(el.hasAttribute('data-cell')){ var p=el.getAttribute('data-cell').split('|'); openCell(p[0],p[1],p[2],p[3]); return; }

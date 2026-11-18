@@ -63,7 +63,7 @@ function render(){
   h+='<div class="msg '+(abs?'abs ':'')+(m.status==='Answered'?'done':'')+'"><div class="mh"><b>'+who+(abs?'<span class="tag abs">Absence</span>':'')+'<span class="tag src">'+esc(m.source||'')+'</span>'+(m.status==='Answered'?'<span class="tag done">Answered</span>':'')+'</b><small>'+esc(m.received)+'</small></div>'
    +(m.subject?'<div class="sub">'+esc(m.subject)+'</div>':'')+'<div class="body">'+esc(m.message)+'</div><div class="acts noprint">'
    +(m.email?'<a class="btn rep sm" target="_blank" rel="noopener" href="'+gm(m.email,(/^re:/i.test(m.subject||'')?m.subject:'Re: '+(m.subject||'Your message to Kid City USA')))+'">Reply from office email</a>':'<span class="sub">No email on file'+(m.source==='ProCare'?' &mdash; answer in ProCare':'')+'</span>')
-   +(m.kind==='inbox'?(m.status==='Answered'?'<button class="btn sec sm" onclick="ans(\''+m.id+'\',true)">Move back</button>':'<button class="btn ok sm" onclick="ans(\''+m.id+'\')">Mark answered</button>'):'')
+   +((m.kind==='inbox'||m.kind==='form')?(m.status==='Answered'?'<button class="btn sec sm" onclick="ans(\''+m.id+'\',true,\''+m.kind+'\')">Move back</button>':'<button class="btn ok sm" onclick="ans(\''+m.id+'\',false,\''+m.kind+'\')">Mark answered</button>'):'')
    +'<button class="btn bc sm" onclick="bcOpen(\''+m.id+'\')">💬 Add to Bear Chat</button>'
    +'</div>'+(BCOPEN===m.id?bcForm(m):'')+(m.status==='Answered'&&m.on?'<div class="sub">Answered '+esc(m.on)+'</div>':'')+'</div>';
  });
@@ -106,7 +106,7 @@ function bcView(){
  });
  return h;
 }
-async function ans(id,undo){try{await api('pi_answer',{id,undo:!!undo});await load();}catch(e){alert(e.message);}}
+async function ans(id,undo,kind){try{await api('pi_answer',{id,undo:!!undo,kind:kind||'inbox'});await load();}catch(e){alert(e.message);}}
 async function load(){try{D=await api('pi_list');bcLoad().then(render);render();}catch(e){document.getElementById('app').innerHTML='<div class="note">'+esc(e.message)+'</div><a class="btn sec" href="index.html">Back to sign in</a>';}}
 load();
 </script></body></html>

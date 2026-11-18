@@ -71,6 +71,21 @@ function valid_date($d){ return is_string($d) && preg_match('/^\d{4}-\d{2}-\d{2}
 
 if (AIRTABLE_TOKEN === 'PASTE_YOUR_AIRTABLE_TOKEN_HERE') fail('The Airtable token has not been added yet.', 503);
 
+/* Food program papers that list staff, children or purchases: kept behind the director PIN (server folder outside the website), not in the public files folder.
+   On any call, a copy still in the public folder is moved into the private folder, then the public copy is deleted. */
+$SECDOCS = ['sanford-monthly-entrances.pdf'=>'Sanford', 'deland2-monthly-entrances.pdf'=>'DeLand 2', 'deland2-personnel-activity-report.pdf'=>'DeLand 2',
+ 'receipt-2026-10-walmart-sep30-order.pdf'=>'DeLand 2', 'receipt-2026-10-walmart-sep21-itsdelish.pdf'=>'DeLand 2', 'receipt-2026-10-walmart-oct15-order.pdf'=>'DeLand 2', 'receipt-2026-10-walmart-oct30-order.pdf'=>'DeLand 2'];
+function secdoc_path($school, $name){ $d = upload_dir($school); if (!$d) return ''; $l = $d.'/locked'; if (!is_dir($l)) @mkdir($l, 0750, true); return is_dir($l) ? $l.'/'.$name : ''; }
+foreach ($SECDOCS as $n => $sch){
+$pub = __DIR__.'/files/food-program/'.$n;
+if (!is_file($pub)) continue;
+$dst = secdoc_path($sch, $n);
+if (!$dst) continue;
+if (!is_file($dst) || filesize($dst) !== filesize($pub)) @copy($pub, $dst);
+clearstatcache();
+if (is_file($dst) && filesize($dst) === filesize($pub)) @unlink($pub);
+}
+
 $input = json_decode(file_get_contents('php://input'), true);
 if (!$input) fail('Bad request');
 
@@ -198,6 +213,14 @@ $f = ['Entry'=>$school.' · '.$m.' · PREFILL · '.$child, 'School'=>$school, 'M
 $out = at_request('POST', ['Monthly Forms'], null, ['records' => [['fields' => $f]], 'typecast' => true]);
 if (empty($out['records'][0]['id'])){ @unlink($dir.'/'.$id); fail('Saved the file but could not record it. Try again.', 502); }
 echo json_encode($out); exit;
+}
+
+if ($action === 'secdoc'){
+$n = basename($input['name'] ?? '');
+if (!isset($SECDOCS[$n]) || $SECDOCS[$n] !== $school) fail('Not found', 404);
+$p = secdoc_path($school, $n);
+if (!$p || !is_file($p)){ $p = __DIR__.'/files/food-program/'.$n; if (!is_file($p)) fail('File missing on the server', 404); }
+echo json_encode(['b64'=>base64_encode(file_get_contents($p)), 'file'=>$n]); exit;
 }
 
 if ($action === 'getfile'){

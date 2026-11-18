@@ -111,7 +111,7 @@ $st = $f['Status'] ?? ''; $sub = $f['Submitted'] ?? $x['createdTime'];
 if (strtotime($sub) < time() - 60*86400) continue;
 $out[] = ['id' => $x['id'], 'kind' => 'form', 'message' => $f['Details'] ?? '', 'parent' => $f['Name'] ?? '', 'child' => '',
 'email' => $f['Email'] ?? '', 'subject' => $f['Type'] ?? 'Parent Portal message', 'source' => 'Parent Portal form', 'type' => 'Other',
-'received' => date('n/j g:ia', strtotime($sub)), 'status' => (stripos($st, 'answer') !== false) ? 'Answered' : 'New', 'by' => '', 'on' => '', 'created' => $sub];
+'received' => date('n/j g:ia', strtotime($sub)), 'status' => (stripos($st, 'answer') !== false || stripos($st, 'handled') !== false) ? 'Answered' : 'New', 'by' => '', 'on' => '', 'created' => $sub];
 }
 usort($out, function($a, $b){ return strcmp($b['created'], $a['created']); });
 echo json_encode(['school' => $school, 'messages' => array_slice($out, 0, 300)]); exit;
@@ -119,9 +119,16 @@ echo json_encode(['school' => $school, 'messages' => array_slice($out, 0, 300)])
 if ($action === 'pi_answer'){
 $id = preg_replace('/[^A-Za-z0-9]/', '', $input['id'] ?? '');
 if (!preg_match('/^rec[A-Za-z0-9]{14}$/', $id)) fail('Bad message id');
+$undo = !empty($input['undo']);
+if (($input['kind'] ?? '') === 'form'){
+$r = at_rec(FORM_TABLE, $id);
+if (empty($r['fields']) || ($r['fields']['School'] ?? '') !== $school) fail('That message is not in your school.', 403);
+$u = at_patch(FORM_TABLE, $id, ['Status' => $undo ? '✅ Routed' : 'Handled']);
+if (empty($u['id'])) fail('Could not save. Try again.', 500);
+echo json_encode(['ok' => true]); exit;
+}
 $r = at_rec(INBOX_TABLE, $id);
 if (empty($r['fields']) || ($r['fields']['School'] ?? '') !== $school) fail('That message is not in your school.', 403);
-$undo = !empty($input['undo']);
 $f = $undo ? ['Status' => 'New', 'Answered By' => '', 'Answered On' => ''] : ['Status' => 'Answered', 'Answered By' => $role === 'director-sanford' ? 'Sanford director' : 'DeLand 2 director', 'Answered On' => date('n/j/Y g:ia')];
 $u = at_patch(INBOX_TABLE, $id, $f);
 if (empty($u['id'])) fail('Could not save. Try again.', 500);

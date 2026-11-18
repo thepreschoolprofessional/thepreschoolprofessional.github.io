@@ -412,7 +412,7 @@ window.DC_LESSONS = {
 },
 "2026-11-18": {
 "theme": "Community Helpers & Thanksgiving",
-"word": "Cook (Spanish: cocienero)",
+"word": "Cook (Spanish: cocinero)",
 "trait": "Be Grateful",
 "topics": [
 "Meeting Daily Routine",
@@ -428,7 +428,7 @@ window.DC_LESSONS = {
 },
 "2026-11-19": {
 "theme": "Community Helpers & Thanksgiving",
-"word": "Cook (Spanish: cocienero)",
+"word": "Cook (Spanish: cocinero)",
 "trait": "Be Grateful",
 "topics": [
 "Meeting Daily Routine",
@@ -448,7 +448,7 @@ window.DC_LESSONS = {
 },
 "2026-11-20": {
 "theme": "Community Helpers & Thanksgiving",
-"word": "Cook (Spanish: cocienero)",
+"word": "Cook (Spanish: cocinero)",
 "trait": "Be Grateful",
 "topics": [
 "Meeting Daily Routine",
@@ -895,7 +895,7 @@ window.DC_LESSONS = {
 },
 "2026-11-18": {
 "theme": "Community Helpers & Thanksgiving",
-"word": "Cook (Spanish: cocienero)",
+"word": "Cook (Spanish: cocinero)",
 "trait": "Be Grateful",
 "topics": [
 "Meeting Daily Routine",
@@ -916,7 +916,7 @@ window.DC_LESSONS = {
 },
 "2026-11-19": {
 "theme": "Community Helpers & Thanksgiving",
-"word": "Cook (Spanish: cocienero)",
+"word": "Cook (Spanish: cocinero)",
 "trait": "Be Grateful",
 "topics": [
 "Meeting Daily Routine",
@@ -937,7 +937,7 @@ window.DC_LESSONS = {
 },
 "2026-11-20": {
 "theme": "Community Helpers & Thanksgiving",
-"word": "Cook (Spanish: cocienero)",
+"word": "Cook (Spanish: cocinero)",
 "trait": "Be Grateful",
 "topics": [
 "Meeting Daily Routine",
