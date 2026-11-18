@@ -159,6 +159,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
   <div class="tab" style="background:#e07b00" onclick="openBL('bearline.html','staff')">⏱ Staff Sign In/Out</div>
   <div class="tab" style="background:#c2185b" onclick="openBL('bearline.html','staff')">💬 Parent Messages</div>
   <div class="tab" style="background:#00838f" onclick="location.href='uploads.html'">📥 Parent Uploads</div>
+  <div class="tab" style="background:#7b1fa2" onclick="location.href='social.html'">📸 Social Media Photos</div>
   <div class="tab" style="background:#ad1457" onclick="location.href='inbox.html'">📬 Parent Replies (email)</div>
   <div class="tab" style="background:#8d5524" onclick="location.href='inbox.html?tab=bc'">💬 Bear Chat Answers</div>
   <div class="tab" style="background:#00695c" onclick="location.href='fte.html'">📊 FTE Report</div>
@@ -910,6 +911,7 @@ function openBL(page,mode){ if(typeof SCHOOL==='undefined'||!SCHOOL){alert('Stil
 window.HIVE_CARDS={prompt:'What do you want to work on?',order:[
  {k:'Bear Phonics Academy Online',l:['Opens every lesson with no PIN or payment','Use it on the classroom screen or let children work through it','In beta: some voices may sound robotic. Send feedback to Mrs. Bear'],s:'Reading lessons for the classroom (beta)',c:'#9b6bff'},
  {k:'Parent Uploads',l:['Families send documents from the Parent Portal (Send Us a Document)','Check each one, pick the child, and file it in their Student File','New child not enrolled yet? Keep it under Pending Enrollment until they are','Nothing goes into a file until you approve it'],s:'Check documents families sent',c:'#00838f'},
+ {k:'Social Media Photos',t:[['Send photos','social.html']],l:['Send photos for the school\'s Facebook and Instagram posts','Each one goes into the Main Social list with no caption','The caption is written that evening','Mrs. Bear approves it before anything posts'],s:'Photos for social media posts',c:'#7b1fa2'},
  {k:'Parent Replies (email)',l:['Parents reply to the Monday and Friday emails and those replies land here too','Tap Reply: Gmail opens from your office address, already addressed to the parent','Mark answered when done; answered ones move to their own list','Absences show in red','Also shows Parent Portal contact-form messages'],s:'See and answer parent replies',c:'#ad1457'},
  {k:'Parent Messages',l:['Messages parents send from the Bear Line sign-in screen','Reply to a family, or start a message to any family','Each family only sees its own conversation','Also: post to the front-screen Board (tuition posting days, holidays, reminders)','Opens Bear Line: tap Director, enter your PIN, then Messages or Board'],s:'Parent messages and the front-screen board',c:'#c2185b'},
  {k:'Staff Sign In/Out',l:['Hours each staff member has worked so far','Missed sign-ins, sign-outs and lunch punches','Change a time (director or owner PIN, every change is logged)','Opens Bear Line: tap Director, then enter your PIN'],s:'Staff hours, missed punches, fixes',c:'#e07b00'},

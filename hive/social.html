@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Social Media Photos - The Hive</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#fbf6ea;color:#222;padding:12px 16px 60px}
+a.back{display:inline-block;margin:4px 0 8px;color:#555;text-decoration:none;font-weight:700}h1{margin:6px 0 2px;font-size:1.5rem}.sub{color:#666;font-size:.9rem;margin-bottom:10px;max-width:640px}
+.badge{display:inline-block;background:#222;color:#fff;border-radius:20px;padding:3px 12px;font-size:.85rem;font-weight:700;margin-left:8px}
+.sec{background:#fff;border:2px solid #e6dcc3;border-radius:16px;margin:12px 0;padding:12px 14px;max-width:720px}.sec h2{margin:0 0 8px;font-size:1.1rem}
+label{display:block;font-weight:800;margin:12px 0 4px}input[type=text]{padding:10px;border-radius:10px;border:1px solid #ccc;font-size:1rem;font-family:inherit;width:100%;max-width:520px}
+.pick{display:inline-block;border:0;border-radius:12px;padding:14px 18px;font-weight:800;cursor:pointer;background:#7b1fa2;color:#fff;font-size:1rem}
+.chk{display:flex;gap:10px;align-items:flex-start;font-weight:700;margin:12px 0}.chk input{width:22px;height:22px;flex:none;margin-top:1px}
+button.act{border:0;border-radius:12px;padding:13px 20px;font-weight:800;cursor:pointer;background:#2e7d32;color:#fff;font-size:1rem;margin-top:6px}button.act:disabled{opacity:.5;cursor:default}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin:10px 0}.thumbs div{position:relative}.thumbs img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;background:#eee}
+.thumbs .st{position:absolute;left:4px;bottom:4px;right:4px;background:rgba(0,0,0,.65);color:#fff;border-radius:8px;font-size:.72rem;font-weight:800;padding:3px 6px;text-align:center}
+.msg{padding:10px;border-radius:10px;background:#e3f4e8;margin:8px 0;display:none;font-weight:700;max-width:720px}.msg.err{background:#fde0e0}
+.empty{color:#888;font-size:.95rem}
+</style><script src="bl-brand.js?v=20261113b" defer></script>
+</head><body>
+<a class="back" href="director.html">← Director Dashboard</a>
+<h1>📸 Social Media Photos <span class="badge" id="sch">…</span></h1>
+<div class="sub">Send photos for the school's Facebook and Instagram posts. Each photo goes into the Main Social list with no caption. The caption is written for it that evening, and Mrs. Bear approves it before anything posts.</div>
+<div class="msg" id="msg"></div>
+<div class="sec">
+  <h2>Send photos</h2>
+  <input type="file" id="files" accept="image/*" multiple style="display:none">
+  <button type="button" class="pick" onclick="document.getElementById('files').click()">Choose photos</button>
+  <div class="thumbs" id="chosen"></div>
+  <label for="note">What's happening? (optional, helps the caption)</label>
+  <input type="text" id="note" maxlength="140" placeholder="Example: Twos painting pumpkins for fall">
+  <div class="chk"><input type="checkbox" id="perm"><span>Every child in these photos has photo permission on file.</span></div>
+  <button type="button" class="act" id="send" disabled onclick="send()">Send photos</button>
+</div>
+<div class="sec">
+  <h2>Recently sent</h2>
+  <div id="recent" class="empty">Loading…</div>
+</div>
+<script>
+const PIN=sessionStorage.getItem('hivePin');if(!PIN||sessionStorage.getItem('hiveRole')!=='director')location.href='index.html';
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const $=i=>document.getElementById(i);
+let picked=[];
+async function api(action,extra){const r=await fetch('social-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({pin:PIN,action},extra||{}))});let j={};try{j=await r.json()}catch(e){j={error:'The server did not answer. Please try again.'}}return j;}
+function say(t,err){const m=$('msg');m.textContent=t;m.className='msg'+(err?' err':'');m.style.display=t?'block':'none';}
+/* Shrink each photo on the phone first (longest side 1600px) so it uploads fast and stays under Airtable's size limit. */
+function shrink(file){return new Promise((res,rej)=>{const fr=new FileReader();fr.onerror=()=>rej();fr.onload=()=>{const im=new Image();im.onerror=()=>rej();im.onload=()=>{const M=1600;let w=im.naturalWidth,h=im.naturalHeight;const k=Math.min(1,M/Math.max(w,h));w=Math.round(w*k);h=Math.round(h*k);const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(im,0,0,w,h);res(c.toDataURL('image/jpeg',0.85));};im.src=fr.result;};fr.readAsDataURL(file);});}
+function ready(){$('send').disabled=!(picked.length&&$('perm').checked);}
+$('perm').addEventListener('change',ready);
+$('files').addEventListener('change',async e=>{const fs=[].slice.call(e.target.files||[]).filter(f=>/^image\//.test(f.type)).slice(0,10);say('');picked=[];$('chosen').innerHTML='';
+ for(const f of fs){try{const d=await shrink(f);picked.push(d);$('chosen').insertAdjacentHTML('beforeend','<div><img src="'+d+'" alt=""></div>');}catch(_){say('One photo could not be read. Try a different one.',true);}}
+ if((e.target.files||[]).length>10)say('You can send up to 10 photos at a time. The first 10 are ready.');
+ ready();e.target.value='';});
+async function send(){const b=$('send');b.disabled=true;let ok=0,err='';
+ for(let i=0;i<picked.length;i++){b.textContent='Sending '+(i+1)+' of '+picked.length+'…';const j=await api('upload',{photo:picked[i],note:$('note').value,permission:$('perm').checked});if(j&&j.ok)ok++;else{err=(j&&j.error)||'Something went wrong.';break;}}
+ b.textContent='Send photos';
+ if(err)say((ok?ok+' sent. ':'')+err,true);else{say(ok+(ok===1?' photo':' photos')+' sent. The caption will be written this evening.');picked=[];$('chosen').innerHTML='';$('note').value='';$('perm').checked=false;}
+ ready();loadRecent();}
+async function loadRecent(){const j=await api('recent');if(j.school)$('sch').textContent=j.school;
+ if(j.error){$('recent').className='empty';$('recent').textContent=j.error;return;}
+ const p=j.photos||[];if(!p.length){$('recent').className='empty';$('recent').textContent='No photos sent from the portal yet.';return;}
+ $('recent').className='thumbs';$('recent').innerHTML=p.map(x=>'<div><img src="'+esc(x.thumb)+'" alt=""><span class="st">'+(x.status?esc(x.status):(x.captioned?'Caption ready for approval':'Caption coming'))+'</span></div>').join('');}
+loadRecent();
+</script>
+</body></html>
