@@ -2,7 +2,8 @@
 Loads after the portal's inline script, so it reuses the page's global api()/esc()/show().
 Teacher portal: one 🐝 tab (both schools). Director portal: 🐝 Team Buzz + 👑 My Buzz Board (school-scoped by api.php).
 v3: adds an All-Time Leaders board (never resets) and a 30-day history dropdown for the weekly chart.
-v4: date keys use LOCAL time (not UTC) - fixes the after-8PM-ET day shift that made the board look empty at night. */
+v4: date keys use LOCAL time (not UTC) - fixes the after-8PM-ET day shift that made the board look empty at night.
+v6: triggers the Bear Line staff punch copy (bearline-staff-sync.php) on load. */
 (function(){
 var path = location.pathname.toLowerCase();
 var isDir = path.indexOf('director.html') > -1;
@@ -154,8 +155,19 @@ document.getElementById('bzdArea').innerHTML=html;
 }
 
 // ---------- BUILD UI ----------
+// v6: staff clock in on the Bear Line now. Each portal load asks the server to copy today's Bear Line punches
+// into the Sign-In Log and tick the clock dots (server limits this to once every 5 minutes per school).
+var bzSynced = false;
+function bzSync(){
+if(bzSynced) return; bzSynced = true;
+try { fetch('bearline-staff-sync.php', {cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+  var n = 0; Object.keys((j&&j.schools)||{}).forEach(function(k){ var x=j.schools[k]; n += (x.created||0)+(x.updated||0)+(x.board_ticked||0); });
+  if(n && isDir && typeof window.loadSignin === 'function') window.loadSignin();
+}).catch(function(){}); } catch(e){}
+}
 function boot(){
 if(!document.querySelector('nav') || !document.querySelector('main')) { return setTimeout(boot, 300); }
+bzSync();
 if(isTeach){
 addPanel('buzz', '<div class="step">🐝 The Buzz Board — see who\'s filling their hive this week! 💛</div><div class="bz-weekbar" id="bztWeekWrap"></div><div class="bz-days" id="bztDays"></div><div id="bztArea" class="empty">Loading the hive… 🐝</div><div class="step" style="margin-top:20px">🏆 This Week\'s Hive Leaders</div><div class="bz-lead" id="bztLead"></div><div class="step" style="margin-top:20px">👑 All-Time Hive Leaders</div><div class="bz-lead" id="bztAllTime"></div>');
 addTab('🐝 The Buzz Board', 'linear-gradient(90deg,#ffb13d,#ff6b6b)', 'buzz', loadTeam);

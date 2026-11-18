@@ -3,6 +3,7 @@
 Staff clock in on the Bear Line, so ProCare no longer has staff punches. This copies the Bear Line time clock
 (clock in, lunch out, lunch in, clock out) for both schools into the Airtable Sign-In Log, one row per staff per day,
 so the Buzz Board, the Director Portal sign-in list and the staff-hours checks can read it.
+It also ticks the Buzz Board clock dots (teacher and director boards) for staff who punched. It only ticks, never unticks.
 Times only. Never pay. Anyone may call it (it only refreshes), at most once every 5 minutes per school and day.
 Call: /hive/bearline-staff-sync.php            -> today, both schools
       /hive/bearline-staff-sync.php?date=YYYY-MM-DD -> that day (up to 21 days back), both schools
@@ -83,6 +84,15 @@ foreach ($BL as $school => $url){
   $ros = roster($school); $byFirst = [];
   foreach ($ros as $n){ $f = first_name($n); $byFirst[$f] = isset($byFirst[$f]) ? false : $n; }
 
+  // today's Buzz Board rows for this school (teacher + director), matched later by first name
+  $boards = [];
+  foreach (['tblf8m2qk4BO8gZnI'=>'Staff', 'tblV4Zd56fy8CNLpI'=>'Director'] as $tb => $nf){
+    list($cb, $rb) = at('GET', $tb.'?pageSize=100&filterByFormula='.rawurlencode("AND({School}='".q($school)."',DATESTR({Date})='".$date."')"));
+    if ($cb !== 200) continue;
+    foreach (($rb['records'] ?? []) as $x){ $boards[] = ['tb'=>$tb, 'id'=>$x['id'], 'first'=>first_name($x['fields'][$nf] ?? ''), 'f'=>$x['fields']]; }
+  }
+  $s['board_ticked'] = 0;
+
   foreach ($log as $sid => $byDay){
     $d = $byDay[$date] ?? null; if (!is_array($d) || empty($d['punches'])) continue;
     $p = []; foreach ((array)$d['punches'] as $x){ if (is_array($x)) $p[$x['type'] ?? ''] = $x['at'] ?? ''; }
@@ -114,13 +124,35 @@ foreach ($BL as $school => $url){
     if ($rec){
       $cur = $rec['fields']; $same = true;
       foreach (['Clock In','Lunch Out','Lunch In','Clock Out'] as $k){ if ((string)($cur[$k] ?? '') !== $fields[$k]) $same = false; }
-      if ($same){ $s['unchanged']++; continue; }
-      unset($fields['Staff'], $fields['School'], $fields['Date']);
-      list($c2,) = at('PATCH', $LOG.'/'.$rec['id'], ['fields'=>$fields, 'typecast'=>true]);
-      if ($c2 === 200) $s['updated']++; else $s['errors']++;
+      if ($same){ $s['unchanged']++; }
+      else {
+        unset($fields['Staff'], $fields['School'], $fields['Date']);
+        list($c2,) = at('PATCH', $LOG.'/'.$rec['id'], ['fields'=>$fields, 'typecast'=>true]);
+        if ($c2 === 200) $s['updated']++; else $s['errors']++;
+      }
     } else {
       list($c3,) = at('POST', $LOG, ['fields'=>$fields, 'typecast'=>true]);
       if ($c3 === 200) $s['created']++; else $s['errors']++;
+    }
+    // Buzz Board dots
+    $f1 = first_name($nm);
+    foreach ($boards as $b){
+      if ($b['first'] !== $f1 && $b['first'] !== $f) continue;
+      $want = [];
+      if ($b['tb'] === 'tblf8m2qk4BO8gZnI'){
+        if ($in !== '') $want['Clock In'] = true;
+        if ($lo !== '') $want['Lunch Out'] = true;
+        if ($li !== '') $want['Lunch In'] = true;
+        if ($ot !== '') $want['Clock Out'] = true;
+        if ($in !== '' && $ot !== '' && $lo === '' && $li === '' && $hToday !== null && $hToday < 6) $want['No Lunch'] = true;
+      } else {
+        if ($in !== '') $want['Clock In'] = true;
+        if ($ot !== '') $want['Clock Out'] = true;
+      }
+      foreach ($want as $k => $v){ if (!empty($b['f'][$k])) unset($want[$k]); }
+      if (!$want) continue;
+      list($c4,) = at('PATCH', $b['tb'].'/'.$b['id'], ['fields'=>$want]);
+      if ($c4 === 200) $s['board_ticked']++; else $s['errors']++;
     }
   }
   if ($s['errors']) $result['ok'] = false;
