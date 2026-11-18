@@ -7,7 +7,7 @@ var API = 'rooms-api.php';
 var APP = document.getElementById('app'), MODAL = document.getElementById('modal'), TOAST = document.getElementById('toast');
 
 /* ---------- state ---------- */
-var S = {pin:null, role:null, school:null, dirPin:null, dirAt:0, date:todayISO(), rooms:[], kids:[], attRows:{}, days:{},
+var S = {pin:null, pass:null, embed:false, role:null, school:null, dirPin:null, dirAt:0, date:todayISO(), rooms:[], kids:[], attRows:{}, days:{},
   view:'login', room:null, tab:'sheet', sel:{}, bulkTime:'', loaded:false, pending:0, tick:0, lastErr:''};
 
 function pad(n){ return (n<10?'0':'')+n; }
@@ -26,10 +26,11 @@ function api(action, table, extra, pinOverride){
     if(S.dirPin && Date.now()-S.dirAt<10*60*1000) pinOverride=S.dirPin;
     else return Promise.reject(new Error('Teachers can only change today. Tell your director to change an earlier day.'));
   }
-  var body = {pin: pinOverride||S.pin, school: S.school, action: action, table: table};
+  var body = {school: S.school, action: action, table: table};
+  if(pinOverride||S.pin) body.pin=pinOverride||S.pin; else if(S.pass) body.pass=S.pass; else body.pin='';
   if(extra) for(var k in extra) body[k]=extra[k];
   return fetch(API, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)})
-    .then(function(r){ return r.json().then(function(j){ if(!r.ok || j.error) throw new Error(j.error||('Error '+r.status)); return j; }); });
+    .then(function(r){ return r.json().then(function(j){ if(!r.ok || j.error){ if(j.error==='need_location'){ try{ parent.postMessage({bearRoomsNeedPass:1},location.origin); }catch(e){} throw new Error('The school location check ran out. One moment, it is renewing. Tap Refresh in a few seconds.'); } throw new Error(j.error||('Error '+r.status)); } return j; }); });
 }
 var chain = Promise.resolve();
 function enqueue(fn){
@@ -194,8 +195,8 @@ function loginHTML(){
    +'<button class="link" data-act="help">How do I put this on my phone like an app?</button></div>';
 }
 function headerHTML(){
-  var h='<div class="hdr"><div class="hl"><b>'+esc(S.school)+'</b><span class="chip">'+(S.role==='director'?'Director':(S.asTeacher?'Teacher view':'Teacher'))+'</span></div>'
-   +'<div class="hr"><span id="sv" class="sv ok">Saved</span><button class="ib" data-act="refresh" title="Refresh">&#8635;</button><button class="ib" data-act="help" title="Help">?</button><button class="ib" data-act="logout" title="Log out">&#9099;</button></div></div>'
+  var h='<div class="hdr"><div class="hl"><b>'+esc(S.school)+'</b><span class="chip">'+(S.embed?'Classroom pack':(S.role==='director'?'Director':(S.asTeacher?'Teacher view':'Teacher')))+'</span></div>'
+   +'<div class="hr"><span id="sv" class="sv ok">Saved</span><button class="ib" data-act="refresh" title="Refresh">&#8635;</button><button class="ib" data-act="help" title="Help">?</button>'+(S.embed?'':'<button class="ib" data-act="logout" title="Log out">&#9099;</button>')+'</div></div>'
    +'<div class="dnav"><button class="ib" data-act="dprev">&lsaquo;</button><div class="dt">'+esc(niceDate(S.date))+(isToday()?' <span class="chip g">Today</span>':' <span class="chip o">Back-fill (director)</span>')+'</div><button class="ib" data-act="dnext">&rsaquo;</button>'+(isToday()?'':'<button class="btn sec sm" data-act="dtoday">Today</button>')+'</div>';
   return h;
 }
@@ -784,7 +785,16 @@ document.addEventListener('change', function(e){ var el=e.target; if(el.getAttri
 document.addEventListener('keydown', function(e){ if(e.key==='Enter'){ var t=e.target; if(t.id==='pin') ACT.login(); if(t.id==='dpin') ACT.dpinok(); } });
 
 /* ---------- boot / timers ---------- */
+function bootEmbed(){
+  var q=new URLSearchParams(location.search), m=/[#&]pass=([^&]+)/.exec(location.hash||'');
+  S.embed=true; S.pass=m?decodeURIComponent(m[1]):''; S.school=q.get('s')==='Sanford'?'Sanford':'DeLand 2'; S.role='teacher'; S.view='board';
+  try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){}
+  window.addEventListener('message',function(e){ if(e.origin!==location.origin) return; var d=e.data||{}; if(d.bearRoomsPass){ S.pass=d.bearRoomsPass; } });
+  document.body.classList.add('embed');
+  return refresh().then(function(){ var rm=q.get('room'); if(rm && roomObj(rm)){ S.room=rm; S.view='room'; render(); } });
+}
 function boot(){
+  if(/[?&]embed=1\b/.test(location.search)){ bootEmbed(); return; }
   var pin=ls('hiveRoomsPin');
   if(pin){ S.pin=pin; S.school=ls('hiveRoomsSchool')||portalSchool();
     api('whoami','').then(function(w){ S.role=w.role; if(w.school) S.school=w.school; if(!S.school){ S.pin=null; S.view='login'; render(); return; } if(S.role==='director' && /[?&]as=teacher\b/.test(location.search)){ S.role='teacher'; S.asTeacher=1; } S.view='board'; return refresh(); }).catch(function(){ S.view='login'; render(); });

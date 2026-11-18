@@ -75,9 +75,19 @@ $input = json_decode(file_get_contents('php://input'), true);
 if (!$input) fail('Bad request');
 
 $pin = strtoupper(trim($input['pin'] ?? ''));
+$passIn = (string)($input['pass'] ?? '');
+if ($pin === '' && $passIn !== ''){
+/* Classroom pack (11/18/26): a 20-minute location pass from room-api.php (phone proved it is AT this school) works as a teacher login for that school only. */
+$sch0 = (string)($input['school'] ?? ''); $sk0 = ($sch0 === 'DeLand 2') ? 'deland' : (($sch0 === 'Sanford') ? 'sanford' : '');
+$px = explode('.', $passIn);
+$pok = $sk0 !== '' && count($px) === 2 && ctype_digit($px[0]) && (int)$px[0] > time() && hash_equals(hash_hmac('sha256', $sk0.'|'.$px[0], hash('sha256', 'roomloc|'.$__t)), $px[1]);
+if (!$pok) fail('need_location', 403);
+$role = 'teacher-'.$sk0;
+} else {
 $pins = get_pins();
 if (!$pin || !isset($pins[$pin])) fail('That PIN isn\'t right. Double-check with Mrs. Bear — PINs change every couple of months.', 401);
 $role = $pins[$pin];
+}
 if (!in_array($role, $STAFF_ROLES)) fail('This PIN does not open the Rooms board.', 403);
 $isDirector = strpos($role, 'director') === 0;
 $action = $input['action'] ?? '';
