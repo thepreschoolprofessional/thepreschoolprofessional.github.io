@@ -474,4 +474,13 @@ if ($act === 'ds_get'){
   echo json_encode(['ok'=>true, 'entries'=>is_array($e) ? $e : [], 'bear'=>$f['Bear Notes'] ?? '', 'parent'=>$f['Parent Note'] ?? '']); exit;
 }
 
+/* ---- Director "not done today" counts (11/17/26) ---- */
+if ($act === 'nd_counts'){
+  $c = ['inc'=>0, 'med'=>0, 'inc_parent'=>0, 'up'=>0];
+  $q = at('GET', 'Incident Reports', ['maxRecords'=>100, 'filterByFormula'=>"AND({School}='".$school."',OR({Status}='Needs Director',{Status}='Needs Final'))", 'fields'=>['Status']]); $c['inc'] = count($q['records'] ?? []);
+  $q = at('GET', 'Incident Reports', ['maxRecords'=>100, 'filterByFormula'=>"AND({School}='".$school."',{Status}='Needs Parent')", 'fields'=>['Status']]); $c['inc_parent'] = count($q['records'] ?? []);
+  $q = at('GET', 'Medication Orders', ['maxRecords'=>100, 'filterByFormula'=>"AND({School}='".$school."',{Status}='Needs Director')", 'fields'=>['Status']]); $c['med'] = count($q['records'] ?? []);
+  echo json_encode(['ok'=>true, 'c'=>$c]); exit;
+}
+
 fail('Unknown action');
