@@ -11,9 +11,9 @@ var ss=function(k){try{return sessionStorage.getItem(k)||''}catch(e){return ''}}
 var sch=(ss('hiveSchool')+' '+ss('hiveRole')+' '+path).toLowerCase();
 var school=/deland/.test(sch)?'deland':(/sanford/.test(sch)?'sanford':'');
 var DIRP=/^(director-pins|dcf|reporting|rooms|fte|payroll|contacts|staff-contacts|staff-items|staff-files|student-files|uploads|inbox|closures|sop|training-status|handbook-training|newhires|onboard|parent-manage|system|files)\.html$/,TEACHP=/^(teacher-training|my-bio|lessons)\.html$/,OWNP=/^(owner|owner-pins)\.html$/;
-var barTitle=DIRP.test(path)?'Director Portal':TEACHP.test(path)?'Teacher Portal':'';
+var barTitle=/[?&]embed=1\b/.test(location.search)?'Classroom Pack':DIRP.test(path)?'Director Portal':TEACHP.test(path)?'Teacher Portal':'';
 var kind=/^parent/.test(path)?'parent':path==='director.html'?'director':path==='teacher.html'?'teacher':path==='index.html'||path===''?'front':'';
-var col=barTitle==='Director Portal'?DIRECTOR:barTitle==='Teacher Portal'?TEACHER:barTitle==='Owner Hub'?'#f26a0f':kind==='director'?DIRECTOR:kind==='teacher'?TEACHER:(school?SCHOOL_COLORS[school]:'#c98a0b');
+var col=barTitle==='Classroom Pack'?TEACHER:barTitle==='Director Portal'?DIRECTOR:barTitle==='Teacher Portal'?TEACHER:barTitle==='Owner Hub'?'#f26a0f':kind==='director'?DIRECTOR:kind==='teacher'?TEACHER:(school?SCHOOL_COLORS[school]:'#c98a0b');
 var houseKey=school==='deland'?'house_d':'house_s';
 var MAP={'🥦':'food','🥗':'food','🍽':'food','📰':'news','📬':'news','🎉':'events','📅':'events','📌':'board','💬':'board','📲':'phone','🧸':'bear','🍎':'lessons','📋':'lessons','🚨':'alert','🗂':'folder','📁':'folder','📥':'folder','⏱':'clock','⏰':'clock','🕒':'clock','🗄':'chart','📊':'chart','👑':'crown','🏠':'H','🏡':'H','🚌':'bus','🏫':'tablet','🎓':'grad','🐝':'bee','📚':'books','📖':'books','📘':'books','🧹':'broom','🚪':'door','📞':'call','👥':'people','🧒':'people','🧑':'people','🤝':'people','🔑':'key','🔐':'key','🧮':'calc','🌟':'star','💵':'money','🎒':'bag','✉':'mail','📤':'mail','📦':'box','🖊':'pen','📝':'pen','📄':'lessons','🐻':'bear','📱':'phone'};
 var f=document.createElement('link');f.rel='stylesheet';f.href='https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap';document.head.appendChild(f);
