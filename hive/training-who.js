@@ -9,9 +9,11 @@ var HW={certs:{},ready:false,
  set:function(w){W=w;HW.certs={};HW.ready=false;try{sessionStorage.setItem('hiveWho',JSON.stringify(w))}catch(e){}},
  clear:function(){W=null;HW.certs={};HW.ready=false;try{sessionStorage.removeItem('hiveWho')}catch(e){}},
  api:api,esc:esc,
- load:function(cb){if(!W){cb&&cb();return}api('cert_status',{school:W.school,id:W.id}).then(function(j){HW.certs={};(j.certs||[]).forEach(function(c){HW.certs[c.lesson]=c});HW.ready=true;if(j.name)W.name=j.name;cb&&cb()}).catch(function(){HW.ready=true;cb&&cb()})},
+ load:function(cb){if(!W){cb&&cb();return}api('cert_status',{school:W.school,id:W.id}).then(function(j){HW.certs={};(j.certs||[]).forEach(function(c){HW.certs[c.lesson]=c});HW.year=j.year||'';HW.ready=true;if(j.name)W.name=j.name;if(window.showWho)try{showWho()}catch(e){}cb&&cb()}).catch(function(){HW.ready=true;cb&&cb()})},
  done:function(id){return !!HW.certs[id]},
- submit:function(id,title,hrs){return api('cert_submit',{school:W.school,id:W.id,lesson:id,title:title,hrs:hrs}).then(function(j){var c=j.cert;c.signed=false;HW.certs[id]=c;return c}).catch(function(e){if(/already/i.test(e.message)){HW.certs[id]=HW.certs[id]||{lesson:id,title:title,hrs:hrs,date:new Date().toISOString().slice(0,10)};return HW.certs[id]}throw e})},
+ /* 2026-11-18: hours logged here this training year (July 1 - June 30) */
+ hours:function(){var t=0;for(var k in HW.certs)t+=parseFloat(HW.certs[k].hrs)||0;return Math.round(t*100)/100},
+ submit:function(id,title,hrs){return api('cert_submit',{school:W.school,id:W.id,lesson:id,title:title,hrs:hrs}).then(function(j){var c=j.cert;c.signed=false;HW.certs[id]=c;if(window.showWho)try{showWho()}catch(e){}return c}).catch(function(e){if(/already/i.test(e.message)){HW.certs[id]=HW.certs[id]||{lesson:id,title:title,hrs:hrs,date:new Date().toISOString().slice(0,10)};return HW.certs[id]}throw e})},
  /* the "who are you" picker; draws into el, calls cb when a person is chosen */
  gate:function(el,cb,why){
   el.innerHTML='<div class="card" style="background:#fffbea;border:2px solid #f0c040;border-radius:16px;padding:16px;margin:12px 0"><h2 style="margin:0 0 4px">Who is taking this training?</h2><div style="color:#9b8576;margin-bottom:8px">'+esc(why||'Pick your name first so your training and certificate go into YOUR staff file. Each person does their own.')+'</div>'
@@ -33,7 +35,7 @@ var HW={certs:{},ready:false,
     api('staff_add_pending',{school:sc,name:nm}).then(function(j){fin(j.id,j.name)}).catch(function(e){M.textContent=e.message||'Could not add the name.'})}
    else fin(N.value,N.options[N.selectedIndex].text)}},
  /* small "Training for: X  (not you? switch)" bar */
- bar:function(sw){if(!W)return'';return'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:#eef6ff;border:1px solid #bcd6f5;border-radius:10px;padding:8px 12px;margin:8px 0"><span>Training for <b>'+esc(W.name)+'</b> · '+esc(W.school)+'</span><button onclick="'+sw+'" style="margin-left:auto;border:1px solid #bcd6f5;background:#fff;border-radius:8px;padding:5px 10px;font-weight:700;cursor:pointer">Not me? Switch person</button></div>'},
+ bar:function(sw){if(!W)return'';return'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:#eef6ff;border:1px solid #bcd6f5;border-radius:10px;padding:8px 12px;margin:8px 0"><span>Training for <b>'+esc(W.name)+'</b> · '+esc(W.school)+(HW.ready?' · <b>'+HW.hours()+' hrs</b> logged here'+(HW.year?' in the '+esc(HW.year)+' training year':''):'')+'</span><button onclick="'+sw+'" style="margin-left:auto;border:1px solid #bcd6f5;background:#fff;border-radius:8px;padding:5px 10px;font-weight:700;cursor:pointer">Not me? Switch person</button></div>'},
  /* pop-up gate used by handbook modules inside other pages */
  modal:function(cb){if(W&&HW.ready){cb(W);return}if(W){HW.load(function(){cb(W)});return}
   var o=document.createElement('div');o.style.cssText='position:fixed;inset:0;background:rgba(40,30,20,.55);z-index:9999;overflow:auto;padding:16px';var b=document.createElement('div');b.style.cssText='max-width:520px;margin:6vh auto;background:#fff;border-radius:16px;padding:6px 12px';o.appendChild(b);document.body.appendChild(o);

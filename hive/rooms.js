@@ -34,11 +34,12 @@ function api(action, table, extra, pinOverride){
 var chain = Promise.resolve();
 function enqueue(fn){
   S.pending++; paintSaving();
-  chain = chain.then(fn).catch(function(e){ toast('Could not save: '+e.message+' — tap Refresh to re-sync.', true); S.lastErr=e.message; })
+  /* 2026-11-18: a failed save keeps showing "Not saved" until a later save works or Refresh is tapped */
+  chain = chain.then(fn).then(function(){ S.saveFailed=false; }, function(e){ S.saveFailed=true; toast('Could not save: '+e.message+' — tap Refresh to re-sync.', true); S.lastErr=e.message; })
     .then(function(){ S.pending--; paintSaving(); });
   return chain;
 }
-function paintSaving(){ var el=document.getElementById('sv'); if(el) el.textContent = S.pending? 'Saving…' : 'Saved'; if(el) el.className='sv '+(S.pending?'busy':'ok'); }
+function paintSaving(){ var el=document.getElementById('sv'); if(!el) return; el.textContent = S.pending? 'Saving…' : (S.saveFailed? '⚠ Not saved, tap ↻' : 'Saved'); el.className='sv '+(S.pending?'busy':(S.saveFailed?'bad':'ok')); }
 
 /* ---------- data load ---------- */
 function parseJSON(s,d){ try{ return s? JSON.parse(s): d; }catch(e){ return d; } }
@@ -59,7 +60,7 @@ function loadDay(){
 }
 function refresh(quiet){
   var p = S.loaded ? Promise.resolve() : loadStatic();
-  return p.then(loadDay).then(function(){ S.loaded=true; render(); autoCatch(); }).catch(function(e){ if(!quiet) toast(e.message,true); });
+  return p.then(loadDay).then(function(){ S.loaded=true; if(!quiet) S.saveFailed=false; render(); autoCatch(); }).catch(function(e){ if(!quiet) toast(e.message,true); });
 }
 /* automatic transportation catch-up for school-age rooms: fills BLANK times from the trip log only (never overwrites) */
 var AUTOC={};
@@ -88,6 +89,7 @@ function attMapFor(list){ var m={}; list.forEach(function(c){ var a=attOf(c.name
 function saFix(m,sa){ if(!sa) return m; Object.keys(m).forEach(function(k){ var a=m[k]; if(a && !a.SO && !a.SI && a.Departure && a.Departure<'09:30'){ m[k]=Object.assign({},a,{SO:a.Departure,Departure:''}); } }); return m; }
 function isSA(roomName){ return /school.?age|worker/i.test(roomName||''); }
 function dayOf(roomName){ return S.days[roomName] || {id:null, staff:{}, transitions:[], counts:[], mgmt:{}, notes:''}; }
+function portalSchool(){ try{ var s=sessionStorage.getItem('hiveSchool')||''; return (s==='Sanford'||s==='DeLand 2')? s : ''; }catch(e){ return ''; } }
 function isPresent(a){ return !!(a.Arrival && !a.Departure); }
 function presentIn(roomName){ return roomKids(roomName).filter(function(c){ return isPresent(attOf(c.name)); }); }
 function openTrans(day){ for(var i=day.transitions.length-1;i>=0;i--){ if(!day.transitions[i].in) return day.transitions[i]; } return null; }
@@ -184,10 +186,10 @@ function render(){
   paintSaving();
 }
 function loginHTML(){
-  var sch=ls('hiveRoomsSchool')||'DeLand 2';
+  var sch=ls('hiveRoomsSchool')||portalSchool(); /* 2026-11-18: no more DeLand 2 default */
   return '<div class="login"><div class="hex">&#11042;</div><h1>Hive Rooms</h1><p class="sub">Fast sign-in / sign-out for every classroom</p>'
    +'<label class="lbl">Your PIN</label><input class="inp" id="pin" type="password" autocomplete="off" autocapitalize="characters" placeholder="Staff or director PIN" value="'+esc(ls('hiveRoomsPin')||'')+'">'
-   +'<label class="lbl">School (teachers pick; directors are set automatically)</label><select class="inp" id="sch"><option'+(sch==='DeLand 2'?' selected':'')+'>DeLand 2</option><option'+(sch==='Sanford'?' selected':'')+'>Sanford</option></select>'
+   +'<label class="lbl">School (teachers pick; directors are set automatically)</label><select class="inp" id="sch"><option value=""'+(sch?'':' selected')+'>Pick your school…</option><option'+(sch==='DeLand 2'?' selected':'')+'>DeLand 2</option><option'+(sch==='Sanford'?' selected':'')+'>Sanford</option></select>'
    +'<button class="btn big" data-act="login">Open my rooms</button><div id="lerr" class="err"></div>'
    +'<button class="link" data-act="help">How do I put this on my phone like an app?</button></div>';
 }
@@ -548,6 +550,7 @@ var ACT = {
   S.pin=pin; S.school=sch; document.getElementById('lerr').textContent='Checking…';
   api('whoami','').then(function(w){
     S.role=w.role; if(w.school) S.school=w.school;
+    if(!S.school){ S.pin=null; var le=document.getElementById('lerr'); if(le) le.textContent='Pick your school first.'; return; }
     ls('hiveRoomsPin',pin); ls('hiveRoomsSchool',S.school);
     S.view='board'; S.loaded=false; return refresh();
   }).catch(function(e){ S.pin=null; var el=document.getElementById('lerr'); if(el) el.textContent=e.message; });
@@ -578,18 +581,20 @@ var ACT = {
    if(!a.Arrival) signIn([n], nowHM()); else if(!a.Departure) signOut([n], nowHM()); else signIn([n], nowHM()); },
  bin: function(){ var t=val('bt')||nowHM(); S.bulkTime=''; var n=selNames(); signIn(n,t); S.sel={}; render(); toast(n.length+' signed IN at '+fmt(t)); },
  bout: function(){ var t=val('bt')||nowHM(); S.bulkTime=''; var n=selNames(); signOut(n,t); S.sel={}; render(); },
- allin: function(){ var n=roomKids(S.room).filter(function(c){ return !attOf(c.name).Arrival; }).map(function(c){return c.name;}); if(!n.length){ toast('Everyone is already signed in.'); return; } if(confirm('Sign in '+n.length+' children who are not in yet, at '+fmt(nowHM())+'?')) signIn(n, nowHM()); },
+ allin: function(){ var n=roomKids(S.room).filter(function(c){ return !attOf(c.name).Arrival; }).map(function(c){return c.name;}); if(!n.length){ toast('Everyone is already signed in.'); return; } /* 2026-11-18: no longer signs in absent children; ticks everyone not in yet so the teacher unticks anyone absent, then taps Sign IN */ S.sel={}; n.forEach(function(x){ S.sel[x]=true; }); render(); toast('Ticked '+n.length+' not in yet. Untick anyone who is absent, then tap Sign IN.'); },
  mealone: function(el){ var n=keyOf(el), m=el.getAttribute('data-m'); if(m==='L' && !attOf(n).L && isSchoolager(n)){ askLunch([n]); return; } toggleMeal([n], m, 'toggle'); },
  lunchyes: function(el){ var hol=el.getAttribute('data-h')==='1', names=S.lunchAsk||[], p={}; var note='Lunch confirmed '+S.date+': here for lunch; '+(hol?'school holiday / no school':'not a holiday')+' ('+(S.role==='director'?'director':'teacher')+')'; names.forEach(function(n){ p[n]={L:true,'Lunch Note':note}; }); closeModal(); patchAtt(p); toast('Lunch added for '+names.length+' school-ager'+(names.length>1?'s':'')); },
  gotoflags: function(){ api('listFlags','').then(function(r){ S.flags=r.records||[]; S.flagN=S.flags.length; S.view='flags'; render(); window.scrollTo(0,0); }).catch(function(e){ toast(e.message,true); }); },
  flagsubmit: function(el){ var id=el.getAttribute('data-id'), v=val('fa'+id).trim(); if(!v){ toast('Type your answer first.', true); return; } flagSave(id,{'Director Answer': v+' ('+S.date+')'},'Answer saved'); },
  flaglunch: function(el){ var id=el.getAttribute('data-id'); flagSave(id,{L:true,'Lunch Note':'Lunch added by director '+S.date+': school holiday, here for lunch','Director Answer':'Holiday: lunch added ('+S.date+')'},'Lunch added'); },
  flagremove: function(el){ var id=el.getAttribute('data-id'); if(!confirm('Remove this child from that day (clears sign-in/out and meals)?')) return; flagSave(id,{Arrival:'',Departure:'',B:false,L:false,P:false,'Director Answer':'Removed from this day by director ('+S.date+')'},'Removed from that day'); },
- meal: function(el){ var m=el.getAttribute('data-m'); var pres=roomKids(S.room).filter(function(c){ return attOf(c.name).Arrival; }).map(function(c){return c.name;});
-   if(!pres.length){ toast('Sign children in first.', true); return; }
+ meal: function(el){ var m=el.getAttribute('data-m'); /* 2026-11-18: only children still here (signed in, not signed out) */ var pres=roomKids(S.room).filter(function(c){ return isPresent(attOf(c.name)); }).map(function(c){return c.name;});
+   var mealName=(m==='B'?'breakfast':m==='L'?'lunch':'PM snack');
+   if(!pres.length){ toast('No children are signed in right now. Tap a child\'s own box for anyone who ate and already went home.', true); return; }
    var all=pres.every(function(n){ return attOf(n)[m]; });
    if(m==='L' && !all){ var sa=pres.filter(function(n){ return isSchoolager(n) && !attOf(n).L; }); if(sa.length){ var rest=pres.filter(function(n){ return sa.indexOf(n)<0; }); if(rest.length) toggleMeal(rest, m, 'set'); askLunch(sa); return; } }
-   toggleMeal(pres, m, all?'clear':'set'); toast((all?'Cleared ':'Marked ')+(m==='B'?'breakfast':m==='L'?'lunch':'PM snack')+' for '+pres.length+' children'); },
+   if(all && !confirm('Everyone here already has '+mealName+'. Take '+mealName+' OFF for all '+pres.length+' children?')) return;
+   toggleMeal(pres, m, all?'clear':'set'); toast((all?'Cleared ':'Marked ')+mealName+' for '+pres.length+' children here now'+(all?'':'. Tap a child\'s own box for anyone who ate and already went home.')); },
  so: function(el){ var n=keyOf(el), a=attOf(n); var p={}; p[n]={'School Out': a['School Out']? '' : nowHM()}; patchAtt(p); },
  si: function(el){ var n=keyOf(el), a=attOf(n); var p={}; p[n]={'School In': a['School In']? '' : nowHM()}; patchAtt(p); },
  soall: function(){ var n=roomKids(S.room).filter(function(c){ var a=attOf(c.name); return a.Arrival && !a.Departure && !a['School Out']; }).length; if(!n){ toast('Nobody left to send to school.'); return; }
@@ -631,7 +636,7 @@ var ACT = {
    saveDay(S.room); closeModal(); render(); toast('Transition saved.'); },
  trdel: function(el){ var i=+el.getAttribute('data-i'); gateDay(function(){ var day=ensureDay(S.room); var x=day.transitions[i]; if(!x) return; if(!confirm('Delete the transition to '+x.dest+' at '+fmt(x.out)+'?')) return; day.transitions.splice(i,1); day.transitions.forEach(function(y,k){ y.n=k+1; }); saveDay(S.room); render(); toast('Transition deleted.'); }); },
  wc: function(el){ var n=keyOf(el), a=attOf(n); var p={}; p[n]={WC: a.WC? '' : 'X'}; patchAtt(p); },
- wcall: function(){ var pres=roomKids(S.room).filter(function(c){ return attOf(c.name).Arrival && !attOf(c.name).WC; }).map(function(c){return c.name;}); if(!pres.length){ toast('Wellness checks already done for everyone in.'); return; } var p={}; pres.forEach(function(n){ p[n]={WC:'X'}; }); patchAtt(p); toast('Wellness check marked for '+pres.length); },
+ wcall: function(){ var pres=roomKids(S.room).filter(function(c){ return isPresent(attOf(c.name)) && !attOf(c.name).WC; }).map(function(c){return c.name;}); if(!pres.length){ toast('Wellness checks already done for everyone in.'); return; } var p={}; pres.forEach(function(n){ p[n]={WC:'X'}; }); patchAtt(p); toast('Wellness check marked for '+pres.length); },
  note: function(el){ var n=keyOf(el), t=el.getAttribute('data-t'), a=attOf(n);
    openModal('<h3>'+(t==='IR'?'Illness report':'Accident report')+' — '+esc(n)+'</h3><p class="sub2">'+(t==='IR'?'What symptoms did you see? Time noticed, temperature, who was told.':'What happened, where, what was done, and who was told. Tell the director right away and fill out the Accident/Incident report.')+'</p><textarea class="inp" id="nt" rows="5" autofocus>'+esc(a[t]||'')+'</textarea><div class="mrow"><button class="btn sec" data-act="mclose2">Cancel</button>'+(a[t]?'<button class="btn sec" data-act="notesave" data-t="'+t+'" data-k="'+encodeURIComponent(n)+'" data-clear="1">Remove report</button>':'')+'<button class="btn" data-act="notesave" data-t="'+t+'" data-k="'+encodeURIComponent(n)+'">Save</button></div>'); },
  notesave: function(el){ var n=keyOf(el), t=el.getAttribute('data-t'); var v=el.getAttribute('data-clear')?'':val('nt').trim(); var p={}; p[n]={}; p[n][t]=v; patchAtt(p); closeModal(); if(v && t==='AR') toast('Saved. Tell the director now.'); },
@@ -781,8 +786,8 @@ document.addEventListener('keydown', function(e){ if(e.key==='Enter'){ var t=e.t
 /* ---------- boot / timers ---------- */
 function boot(){
   var pin=ls('hiveRoomsPin');
-  if(pin){ S.pin=pin; S.school=ls('hiveRoomsSchool')||'DeLand 2';
-    api('whoami','').then(function(w){ S.role=w.role; if(w.school) S.school=w.school; if(S.role==='director' && /[?&]as=teacher\b/.test(location.search)){ S.role='teacher'; S.asTeacher=1; } S.view='board'; return refresh(); }).catch(function(){ S.view='login'; render(); });
+  if(pin){ S.pin=pin; S.school=ls('hiveRoomsSchool')||portalSchool();
+    api('whoami','').then(function(w){ S.role=w.role; if(w.school) S.school=w.school; if(!S.school){ S.pin=null; S.view='login'; render(); return; } if(S.role==='director' && /[?&]as=teacher\b/.test(location.search)){ S.role='teacher'; S.asTeacher=1; } S.view='board'; return refresh(); }).catch(function(){ S.view='login'; render(); });
   } else render();
 }
 setInterval(function(){ if(S.view!=='login' && document.visibilityState==='visible' && !modalOpen() && S.pending===0 && isToday()) refresh(true); }, 20000);

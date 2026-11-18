@@ -85,8 +85,10 @@ function toLoc(dest,run){ return run==='PM' ? kidCity() : dest; }
 var dirSchool = null;
 function mySchool(){
 if(isDir){ var g=null; try{ g = (typeof SCHOOL!=='undefined' && SCHOOL) ? SCHOOL : (window.SCHOOL||null); }catch(e){} return g || dirSchool || null; }
+if(window.HIVE_SCHOOL) return window.HIVE_SCHOOL; /* 2026-11-18: a school PIN locks the school */
 return localStorage.getItem('hiveSchool') || null;
 }
+function lockTeachSchool(){ var s=document.getElementById('trSchool'); if(!s || !window.HIVE_SCHOOL) return; s.value=window.HIVE_SCHOOL; s.disabled=true; s.title='Set by your PIN'; }
 async function ensureDirSchool(){
 if(!isDir || mySchool()) return;
 try{ var w=await api({action:'whoami'}); if(w && w.school) dirSchool=w.school; }catch(e){}
@@ -238,6 +240,7 @@ if(msg) toast(msg); renderTrip();
 
 // ---------- boot ----------
 async function refresh(){
+if(isTeach) lockTeachSchool();
 await ensureDirSchool();
 school=mySchool();
 var area=document.getElementById('trArea'); if(!area) return;

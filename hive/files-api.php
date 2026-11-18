@@ -870,21 +870,24 @@ fail('Unknown parent portal action');
 
 
 /* ---- Teacher-allowed actions (names list + submit a certificate). Nothing else. ---- */
+/* 2026-11-18: training is counted by the handbook's training year, July 1 - June 30 (was calendar year). Undo: git revert this commit. */
+function train_year($d = null){ $t = $d ? strtotime($d) : time(); if (!$t) $t = time(); $y = (int)date('Y', $t); if ((int)date('n', $t) < 7) $y--; return $y.'-'.substr((string)($y + 1), 2); }
+function cert_ty($c){ if (!empty($c['date'])) return train_year($c['date']); return ''; }
 if ($action === 'training_status'){
 if (!$isDir) fail('Directors only.', 403);
-$yr = date('Y'); $r = roster($school, 'staff'); if ($r === null) fail('Could not read the staff list right now.', 502);
+$yr = train_year(); $r = roster($school, 'staff'); if ($r === null) fail('Could not read the staff list right now.', 502);
 $out = []; foreach ($r as $p){ if (strpos($p['id'], 'recTEST') === 0) continue; $cs = [];
-foreach (jread(pdir($school, 'staff', $p['id']).'/certs.json', []) as $c){ if (($c['year'] ?? '') === $yr) $cs[] = ['lesson'=>$c['lesson'],'title'=>$c['title'] ?? '','hrs'=>$c['hrs'] ?? 0,'date'=>$c['date'] ?? '','signed'=>!empty($c['signedAt'])]; }
+foreach (jread(pdir($school, 'staff', $p['id']).'/certs.json', []) as $c){ if (cert_ty($c) === $yr) $cs[] = ['lesson'=>$c['lesson'],'title'=>$c['title'] ?? '','hrs'=>$c['hrs'] ?? 0,'date'=>$c['date'] ?? '','signed'=>!empty($c['signedAt'])]; }
 $out[] = ['id'=>$p['id'],'name'=>$p['name'],'role'=>$p['sub'] ?? '','certs'=>$cs]; }
 $pf = pend_f($school); $pd = $pf ? jread($pf, []) : []; $pn = [];
 foreach ($pd as $q){ $cs = []; foreach (($q['certs'] ?? []) as $c){ $cs[] = ['lesson'=>$c['lesson'],'title'=>$c['title'],'hrs'=>$c['hrs'],'date'=>$c['date'],'signed'=>false]; } $pn[] = ['id'=>$q['pid'],'name'=>$q['name'],'certs'=>$cs]; }
 echo json_encode(['school'=>$school,'year'=>$yr,'staff'=>$out,'pending'=>$pn]); exit;
 }
 if ($action === 'cert_status'){
-$id = (string)($input['id'] ?? ''); $out = []; $nm = ''; $yr = date('Y');
-if (strpos($id, 'pend_') === 0){ $f = pend_f($school); $pd = $f ? jread($f, []) : []; foreach ($pd as $q){ if (($q['pid'] ?? '') === $id){ $nm = $q['name']; foreach ($q['certs'] as $c){ if (($c['year'] ?? '') === $yr) $out[] = ['lesson'=>$c['lesson'],'title'=>$c['title'],'hrs'=>$c['hrs'],'date'=>$c['date'],'signed'=>!empty($c['signedAt'])]; } } } }
-else { $p = find_person($school, 'staff', $id); if (!$p) fail('That name is not on this school\'s staff list.'); $nm = $p['name']; foreach (jread(pdir($school, 'staff', $id).'/certs.json', []) as $c){ if (($c['year'] ?? '') === $yr) $out[] = ['lesson'=>$c['lesson'],'title'=>$c['title'] ?? '','hrs'=>$c['hrs'] ?? 0,'date'=>$c['date'] ?? '','signed'=>!empty($c['signedAt'])]; } }
-echo json_encode(['name'=>$nm,'school'=>$school,'certs'=>$out]); exit;
+$id = (string)($input['id'] ?? ''); $out = []; $nm = ''; $yr = train_year();
+if (strpos($id, 'pend_') === 0){ $f = pend_f($school); $pd = $f ? jread($f, []) : []; foreach ($pd as $q){ if (($q['pid'] ?? '') === $id){ $nm = $q['name']; foreach ($q['certs'] as $c){ if (cert_ty($c) === $yr) $out[] = ['lesson'=>$c['lesson'],'title'=>$c['title'],'hrs'=>$c['hrs'],'date'=>$c['date'],'signed'=>!empty($c['signedAt'])]; } } } }
+else { $p = find_person($school, 'staff', $id); if (!$p) fail('That name is not on this school\'s staff list.'); $nm = $p['name']; foreach (jread(pdir($school, 'staff', $id).'/certs.json', []) as $c){ if (cert_ty($c) === $yr) $out[] = ['lesson'=>$c['lesson'],'title'=>$c['title'] ?? '','hrs'=>$c['hrs'] ?? 0,'date'=>$c['date'] ?? '','signed'=>!empty($c['signedAt'])]; } }
+echo json_encode(['name'=>$nm,'school'=>$school,'year'=>$yr,'certs'=>$out]); exit;
 }
 /* ---- Staff Items card (director.html): things a director sends to ONE staff member, shown on that person's "My items" screen on the Bear Line. Stored on the Bear Line itself. ---- */
 if (in_array($action, ['staff_task_list', 'staff_task_add', 'staff_task_remove', 'staff_task_lang', 'staff_msg_done'], true)){
@@ -916,7 +919,7 @@ $hrs = round((float)($input['hrs'] ?? 0), 2);
 if ($lesson === '' || $title === '' || $hrs <= 0 || $hrs > 8) fail('Missing lesson details');
 if (strpos($id, 'pend_') === 0){
 $f = pend_f($school); $pd = $f ? jread($f, []) : []; $hit = false;
-foreach ($pd as &$q){ if (($q['pid'] ?? '') === $id){ $hit = true; foreach ($q['certs'] as $c0){ if (($c0['lesson'] ?? '') === $lesson && ($c0['year'] ?? '') === date('Y')) fail('This lesson is already recorded for '.date('Y').'.'); }
+foreach ($pd as &$q){ if (($q['pid'] ?? '') === $id){ $hit = true; foreach ($q['certs'] as $c0){ if (($c0['lesson'] ?? '') === $lesson && cert_ty($c0) === train_year()) fail('This lesson is already recorded for the '.train_year().' training year.'); }
 $c = ['cid'=>'c'.date('ymdHis').substr(md5(uniqid('', true)), 0, 4), 'lesson'=>$lesson, 'title'=>$title, 'hrs'=>$hrs, 'date'=>date('Y-m-d'), 'year'=>date('Y'), 'at'=>gmdate('c'), 'by'=>'self', 'signedAt'=>'', 'signer'=>'', 'sig'=>''];
 $q['certs'][] = $c; $nmq = $q['name']; } } unset($q);
 if (!$hit) fail('That name was not found. Add it again.'); jwrite($f, $pd);
@@ -925,7 +928,7 @@ echo json_encode(['ok'=>true, 'cert'=>array_merge($c, ['name'=>$nmq, 'school'=>$
 $p = find_person($school, 'staff', $id); if (!$p) fail('That name is not on this school\'s staff list.');
 $d = pdir($school, 'staff', $id); $f = $d.'/certs.json'; $certs = jread($f, []);
 $year = date('Y');
-foreach ($certs as $c){ if (($c['lesson'] ?? '') === $lesson && ($c['year'] ?? '') === $year) fail('This lesson is already in the file for '.$year.'. Ask your director to open it.'); }
+foreach ($certs as $c){ if (($c['lesson'] ?? '') === $lesson && cert_ty($c) === train_year()) fail('This lesson is already in the file for the '.train_year().' training year. Ask your director to open it.'); }
 $c = ['cid'=>'c'.date('ymdHis').substr(md5(uniqid('', true)), 0, 4), 'lesson'=>$lesson, 'title'=>$title, 'hrs'=>$hrs, 'date'=>date('Y-m-d'), 'year'=>$year, 'at'=>gmdate('c'), 'by'=>'self', 'signedAt'=>'', 'signer'=>'', 'sig'=>''];
 $certs[] = $c; jwrite($f, $certs);
 echo json_encode(['ok'=>true, 'cert'=>array_merge($c, ['name'=>$p['name'], 'school'=>$school])]); exit;

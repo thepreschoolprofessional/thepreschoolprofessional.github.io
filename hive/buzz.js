@@ -72,7 +72,7 @@ var bzWeek=null;      // the week ("Week Of" date) currently selected in the his
 async function loadTeam(){
 bzDay=todayName();
 var mon=monday();
-var d=await api({action:'list', table:'Buzz Board', maxRecords:300, sortField:'Date'});
+var d=await api({action:'list', table:'Buzz Board', maxRecords:500, sortField:'Date', sortDir:'desc'}); /* 2026-11-18: newest first, so this week is never cut off by the 200-row cap */
 teamRecsAll=((d&&d.records)||[]).map(function(r){return {f:r.fields};});
 curWeekRecs=teamRecsAll.filter(function(r){return (sel(r.f['Week Of'])||'').slice(0,10)===mon;});
 bzWeek=mon;

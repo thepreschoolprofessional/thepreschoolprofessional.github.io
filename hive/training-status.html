@@ -12,7 +12,7 @@ function card(p,nw){var t=0,w=0;p.certs.forEach(function(c){t+=Number(c.hrs)||0;
  return '<div class="c"><h3>'+esc(p.name)+(nw?' <span class="p wait">new name - match to staff file</span>':'')+'<span class="tot">'+p.certs.length+' lesson'+(p.certs.length==1?'':'s')+' · '+(Math.round(t*100)/100)+' hrs'+(w?' · '+w+' to sign':'')+'</span></h3>'
  +(p.certs.length?p.certs.map(function(c){return '<span class="p '+(c.signed?'ok':'wait')+'">'+(c.signed?'✓ signed':'⏳ to sign')+' · '+esc(c.title||c.lesson)+' · '+esc(c.date)+'</span>'}).join(''):'<div class="none" style="margin-top:6px">No training recorded this year</div>')+'</div>';}
 fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:PIN,action:'training_status'})}).then(function(r){return r.json()}).then(function(j){if(j.error)throw new Error(j.error);
- document.getElementById('sub').textContent=j.school+' · training recorded in '+j.year;
+ document.getElementById('sub').textContent=j.school+' · '+j.year+' training year (July 1 to June 30)';
  var st=j.staff.slice().sort(function(a,b){return a.certs.length-b.certs.length||a.name.localeCompare(b.name)});
  document.getElementById('m').innerHTML=(j.pending||[]).map(function(p){return card(p,1)}).join('')+st.map(function(p){return card(p)}).join('')}).catch(function(e){document.getElementById('m').textContent=e.message||'Could not load.'});
 </script></body></html>
