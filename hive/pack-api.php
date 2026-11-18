@@ -321,4 +321,28 @@ if (in_array($act, ['inc_get','inc_dir_sign','inc_dir_final','inc_update','inc_e
   }
 }
 
+/* ---- Child photo and allergy card sent from a phone or tablet (11/17/26). Goes to the same private holding area as parent uploads (hive-vault/<school>/uploads/);
+   a director checks it and files it in the child's Student File from Parent Uploads. Nothing is filed by staff. ---- */
+$PH_T = ['face'=>'Child photo (face picture for the file)', 'allg'=>'Allergy / special needs care plan', 'medauth'=>'Medication authorization'];
+if ($act === 'ph_kids'){ $o = []; foreach (roster(room_names((string)($in['r'] ?? ''))) as $k) $o[] = ['n'=>child_fl($k['n']), 'room'=>$k['room']]; echo json_encode(['ok'=>true,'kids'=>$o]); exit; }
+if ($act === 'ph_send'){
+  $who = nm($in['name'] ?? '', 60); if ($who === '') fail('Type your name.');
+  $kind = (string)($in['kind'] ?? ''); if (!isset($PH_T[$kind])) fail('Pick what you are sending.');
+  $c = child_fl($in['child'] ?? ''); $ok = []; foreach (roster(room_names((string)($in['r'] ?? ''))) as $k) $ok[strtolower(child_fl($k['n']))] = 1;
+  if ($c === '' || !isset($ok[strtolower($c)])) fail('Pick the child from the list.');
+  $raw = base64_decode((string)($in['b64'] ?? ''), true); if ($raw === false || strlen($raw) < 500) fail('Take the picture first.');
+  if (strlen($raw) > 6 * 1024 * 1024) fail('That picture is too large. Take it again.');
+  if (substr($raw, 0, 3) !== "\xFF\xD8\xFF") fail('The picture must be a JPG. Try taking it again.');
+  $root = null; foreach ([dirname(__DIR__, 2).'/hive-vault', dirname(__DIR__).'/hive-vault'] as $cd){ if (!is_dir($cd)) @mkdir($cd, 0750, true); if (is_dir($cd) && is_writable($cd)){ $root = $cd; break; } }
+  if (!$root) fail('The server could not save this. Tell the office.', 500);
+  $sd = $root.'/'.preg_replace('/[^a-z0-9]+/', '-', strtolower($school)); if (!is_dir($sd)) @mkdir($sd, 0750, true); $ud = $sd.'/uploads'; if (!is_dir($ud)) @mkdir($ud, 0750, true);
+  if (!is_dir($ud) || !is_writable($ud)) fail('The server could not save this. Tell the office.', 500);
+  $recent = 0; foreach (glob($ud.'/up*.json') ?: [] as $jf){ $x = json_decode(@file_get_contents($jf), true); if (is_array($x) && ($x['via'] ?? '') === 'staff' && strtotime((string)($x['at'] ?? '')) > time() - 3600) $recent++; }
+  if ($recent >= 60) fail('That is a lot of pictures at once. Please wait a little while.', 429);
+  $id = 'up'.substr(md5(uniqid('', true)), 0, 10);
+  if (file_put_contents($ud.'/'.$id.'.jpg', $raw) === false) fail('Could not save the picture', 500);
+  file_put_contents($ud.'/'.$id.'.json', json_encode(['id'=>$id, 'at'=>gmdate('c'), 'parent'=>'Staff: '.$who, 'child'=>$c, 'doc'=>$kind, 'other'=>'', 'file'=>$id.'.jpg', 'ext'=>'jpg', 'size'=>strlen($raw), 'orig'=>'phone-photo.jpg', 'status'=>'new', 'ip'=>md5(($_SERVER['REMOTE_ADDR'] ?? '').'hive'), 'via'=>'staff']), LOCK_EX);
+  echo json_encode(['ok'=>true]); exit;
+}
+
 fail('Unknown action');

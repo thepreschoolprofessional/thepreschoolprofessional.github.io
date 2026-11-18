@@ -474,7 +474,7 @@ if (!in_array($school, $SCHOOLS, true)) fail('Pick your school first.');
 if ($action === 'whoami'){ echo json_encode(['role'=>$isDir ? 'director' : 'teacher', 'school'=>$school]); exit; }
 /* ---- Parent document uploads (built 11/11/26). Parents send a document from the Parent Portal; it waits in a private holding area
    (hive-vault/<school>/uploads/) until a director checks it and files it in the child's Student File (or keeps it under Pending Enrollment). Never public. ---- */
-$UP_TYPES = ['imm'=>'Immunization record (DH 680 / 681)', 'phys'=>'Physical exam (DH 3040)', 'pid'=>'Parent ID copy', 'allg'=>'Allergy / special needs care plan', 'dmed'=>'Medical statement / dietary request', 'medauth'=>'Medication authorization', 'elcpay'=>'ELC / School Readiness payment certificate', 'elc'=>'Other ELC / 4C paperwork', 'fr'=>'Free & reduced meal application', 'cust'=>'Custody / court papers', 'other'=>'Something else'];
+$UP_TYPES = ['imm'=>'Immunization record (DH 680 / 681)', 'phys'=>'Physical exam (DH 3040)', 'pid'=>'Parent ID copy', 'allg'=>'Allergy / special needs care plan', 'face'=>'Child photo (face picture for the file)', 'dmed'=>'Medical statement / dietary request', 'medauth'=>'Medication authorization', 'elcpay'=>'ELC / School Readiness payment certificate', 'elc'=>'Other ELC / 4C paperwork', 'fr'=>'Free & reduced meal application', 'cust'=>'Custody / court papers', 'other'=>'Something else'];
 function up_dir($school){ $d = school_dir($school); if (!$d) return null; $p = $d.'/uploads'; if (!is_dir($p)) @mkdir($p, 0750, true); return is_dir($p) ? $p : null; }
 function up_all($school){ $d = up_dir($school); $o = []; if (!$d) return $o; foreach (glob($d.'/up*.json') ?: [] as $f){ $x = json_decode(file_get_contents($f), true); if (is_array($x) && !empty($x['id'])) $o[] = $x; } usort($o, function($a, $b){ return strcmp((string)$b['at'], (string)$a['at']); }); return $o; }
 function up_find($school, $id){ $id = preg_replace('/[^a-z0-9]/', '', strtolower((string)$id)); if ($id === '') return [null, null]; $d = up_dir($school); if (!$d) return [null, null]; $f = $d.'/'.$id.'.json'; if (!is_file($f)) return [null, null]; $x = json_decode(file_get_contents($f), true); return is_array($x) ? [$x, $f] : [null, null]; }
@@ -538,7 +538,7 @@ $q['status'] = 'cancelled'; $q['on'] = gmdate('c'); jwrite($qf, $q); echo json_e
 if ($action === 'up_children'){
 $r = roster($school, 'student'); if ($r === null) fail('Could not read the roster right now. Try again in a minute.', 502);
 $kids = []; foreach ($r as $p){ $kids[] = ['id'=>$p['id'], 'name'=>$p['name'], 'sub'=>$p['sub']]; }
-$docs = []; foreach ($DEFS['student'] as $k => $df){ $docs[] = ['key'=>$k, 'label'=>$df[0], 'exp'=>$df[1]]; }
+$docs = []; foreach ($DEFS['student'] as $k => $df){ $docs[] = ['key'=>$k, 'label'=>$df[0], 'exp'=>$df[1]]; } $docs[] = ['key'=>'face', 'label'=>'Child photo (face picture for the file)', 'exp'=>false];
 echo json_encode(['kids'=>$kids, 'docs'=>$docs]); exit;
 }
 list($x, $xf) = up_find($school, $input['id'] ?? '');
@@ -558,6 +558,14 @@ $x['status'] = 'pending'; $x['pend'] = $slug; $x['pendName'] = $nm; $x['by'] = '
 echo json_encode(['ok'=>true]); exit;
 }
 $cid = (string)($input['childId'] ?? ''); $dk = (string)($input['docKey'] ?? '');
+if ($dk === 'face'){
+$p = find_person($school, 'student', $cid); if (!$p) fail('Pick the child from the list.');
+$raw = file_get_contents($src); if (up_sniff($raw) !== 'jpg') fail('A child photo must be a JPG picture. Send it back and ask for a new photo.');
+$pd = pdir($school, 'student', $cid); if (file_put_contents($pd.'/face.jpg', $raw) === false) fail('Could not save the photo', 500);
+drive_cache_clear($school); @unlink($src);
+$x['status'] = 'filed'; $x['filedTo'] = $p['name']; $x['filedDoc'] = 'Child photo'; $x['by'] = 'Director'; $x['on'] = gmdate('c'); unset($x['pend']); jwrite($xf, $x); rq_close($school, $x, 'done');
+echo json_encode(['ok'=>true, 'filedTo'=>$p['name']]); exit;
+}
 if (!isset($DEFS['student'][$dk])) fail('Pick which document this is.');
 $p = find_person($school, 'student', $cid); if (!$p) fail('Pick the child from the list.');
 $exp = (string)($input['exp'] ?? ''); if ($exp !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $exp)) fail('That expiration date is not a real date');
