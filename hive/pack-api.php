@@ -453,4 +453,25 @@ if ($act === 'obs_list'){
   echo json_encode(['ok'=>true, 'list'=>$o]); exit;
 }
 
+/* ---- Infant / toddler daily sheet (11/17/26) ---- */
+function ds_find($school, $kid, $date){ $k = $school.'|'.$kid.'|'.$date; $q = at('GET', 'Daily Sheet', ['maxRecords'=>1, 'filterByFormula'=>"{Key}='".str_replace("'", "\\'", $k)."'"]); return [$k, $q['records'][0] ?? null]; }
+if ($act === 'ds_add' || $act === 'ds_note'){
+  $kid = nm($in['child'] ?? '', 80); $who = nm($in['name'] ?? '', 60); $room = nm($in['room'] ?? '', 60);
+  if ($kid === '' || $who === '') fail('Type your name and pick the child.');
+  [$key, $rec] = ds_find($school, $kid, $today); $f = $rec['fields'] ?? []; $ents = json_decode($f['Entries'] ?? '[]', true); if (!is_array($ents)) $ents = [];
+  $fields = ['Key'=>$key, 'School'=>$school, 'Date'=>$today, 'Child'=>$kid, 'Room'=>$room, 'Updated By'=>$who];
+  if ($act === 'ds_add'){
+    $kind = (string)($in['kind'] ?? ''); if (!in_array($kind, ['bottle', 'food', 'nap', 'wake', 'diaper', 'mood', 'activity', 'other'], true)) fail('Pick what happened.');
+    $ents[] = ['t'=>nm($in['time'] ?? '', 20), 'k'=>$kind, 'd'=>nm($in['detail'] ?? '', 160), 'by'=>$who]; if (count($ents) > 60) fail('Too many entries today.');
+    $fields['Entries'] = json_encode($ents, JSON_UNESCAPED_UNICODE);
+  } else { $fields['Bear Notes'] = nm($in['bear'] ?? '', 600); }
+  if ($rec) $u = at('PATCH', 'Daily Sheet/'.$rec['id'], null, ['fields'=>$fields, 'typecast'=>true]); else $u = at('POST', 'Daily Sheet', null, ['records'=>[['fields'=>$fields]], 'typecast'=>true]);
+  if (empty($u['id']) && empty($u['records'][0]['id'])) fail('Did not save. Try again.', 502); echo json_encode(['ok'=>true]); exit;
+}
+if ($act === 'ds_get'){
+  $kid = nm($in['child'] ?? '', 80); if ($kid === '') fail('Pick the child.'); [, $rec] = ds_find($school, $kid, $today); $f = $rec['fields'] ?? [];
+  $e = json_decode($f['Entries'] ?? '[]', true);
+  echo json_encode(['ok'=>true, 'entries'=>is_array($e) ? $e : [], 'bear'=>$f['Bear Notes'] ?? '', 'parent'=>$f['Parent Note'] ?? '']); exit;
+}
+
 fail('Unknown action');

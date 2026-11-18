@@ -82,6 +82,19 @@ if ($op==='med_parent_list' || $op==='med_parent_sign'){
   foreach (array_chunk($recs,10) as $ch){ $u=at('PATCH',TBL_MD,['records'=>$ch,'typecast'=>true]); if(empty($u['records'])) out(['ok'=>false,'error'=>'save_failed'],502); }
   out(['ok'=>true]);
 }
+const TBL_DS='tblfV76JGfQekgOsL';
+if ($op==='ds_parent_list' || $op==='ds_parent_note'){
+  $school=trim($_POST['school'] ?? ''); if(!in_array($school,['Sanford','DeLand 2'],true)) out(['ok'=>false,'error'=>'bad_school'],400);
+  $ks=inc_kidset(); if(!$ks) out(['ok'=>true,'list'=>[]]);
+  $today=(new DateTime('now',new DateTimeZone('America/New_York')))->format('Y-m-d');
+  $r=at('GET',TBL_DS.'?maxRecords=60&filterByFormula='.rawurlencode("AND({School}='".$school."',{Date}='".$today."')"));
+  $mine=[]; foreach (($r['records'] ?? []) as $x){ $f=$x['fields'] ?? []; if(!isset($ks[inc_key($f['Child'] ?? '')])) continue; $e=json_decode($f['Entries'] ?? '[]',true); if(!is_array($e)) $e=[]; $mine[$x['id']]=['id'=>$x['id'],'child'=>$f['Child']??'','entries'=>$e,'bear'=>$f['Bear Notes']??'','parent'=>$f['Parent Note']??'']; }
+  if ($op==='ds_parent_list') out(['ok'=>true,'list'=>array_values(array_filter($mine,function($m){return $m['entries']||$m['bear']!=='';}))]);
+  $id=(string)($_POST['id'] ?? ''); $note=trim(mb_substr((string)($_POST['note'] ?? ''),0,500));
+  if(!isset($mine[$id]) || $note==='') out(['ok'=>false,'error'=>'not_available'],409);
+  $u=at('PATCH',TBL_DS.'/'.$id,['fields'=>['Parent Note'=>$note]]); if(empty($u['id'])) out(['ok'=>false,'error'=>'save_failed'],502);
+  out(['ok'=>true]);
+}
 if ($op==='setprog'){
   $school=$_POST['school'] ?? ''; if (!in_array($school,['sanford','deland'],true)) out(['ok'=>false,'error'=>'bad_school'],400);
   $child=trim($_POST['child'] ?? ''); $pg=($_POST['prog'] ?? '')==='ELC'?'ELC':'PP';
