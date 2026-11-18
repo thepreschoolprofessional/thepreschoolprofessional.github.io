@@ -1,0 +1,70 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Send a Flyer to Parents - Kid City USA</title>
+<style>
+:root{--g:#E0A100;--r:#C62F3A;--ink:#4A2C0A;--bg:#FFF8E1}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+.w{max-width:680px;margin:0 auto;padding:16px}h1{margin:6px 0;color:#7a1f1f;font-size:1.5rem}.sub{color:#7a5a2a;font-size:.92rem}
+.card{background:#fff;border:2px solid #F2C14E;border-radius:16px;padding:14px;margin:12px 0}
+label.q{display:block;font-weight:700;margin:12px 0 4px}input[type=text],textarea{width:100%;font:inherit;padding:10px;border:2px solid #E7D3A0;border-radius:10px;background:#fffdf5}textarea{min-height:70px}
+.btn{display:inline-block;background:var(--r);color:#fff;border:0;border-radius:12px;padding:12px 18px;font-weight:700;font-size:1rem;cursor:pointer;text-decoration:none}.btn.sec{background:#fff;color:var(--r);border:2px solid var(--r)}.btn[disabled]{opacity:.5}
+.pick{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:6px 0}.pick .btn{text-align:center}
+.msg{margin:8px 0;font-weight:700}.bad{color:#b00020}.ok{color:#1b7a3a}
+.row{display:flex;justify-content:space-between;gap:8px;padding:9px 10px;background:#fbf3d9;border-radius:10px;margin:6px 0;font-size:.92rem}
+.pill{font-weight:800;font-size:.8rem;border-radius:20px;padding:3px 10px;white-space:nowrap;align-self:center}.p1{background:#fff0c2;color:#8a5a00}.p2{background:#d9f3e0;color:#1b7a3a}.p3{background:#fde0e0;color:#b00020}
+#prev img{max-width:100%;max-height:260px;border-radius:12px;border:2px solid #E7D3A0;margin-top:8px}
+</style><script src="bl-brand.js?v=20261113b" defer></script>
+</head><body><div class="w">
+<a href="javascript:history.back()" style="text-decoration:none;color:#7a5a2a;font-weight:700">← Back</a>
+<h1>📤 Send a Flyer or Message to Parents</h1>
+<div class="sub" id="who">Your director looks at it first, then it goes on the Parent Portal. Nothing reaches parents until it is approved.</div>
+<div class="card">
+<label class="q" for="subj">Subject</label><input type="text" id="subj" maxlength="100" placeholder="Example: November Reading Newsletter">
+<label class="q" for="kind">What kind of flyer is it?</label><input type="text" id="kind" maxlength="80" placeholder="Example: Monthly tutor flyer, Reminder, Event, Thank-you">
+<label class="q" for="note">Anything the director should know? (optional)</label><textarea id="note" maxlength="600"></textarea>
+<label class="q">Picture or file</label>
+<div class="pick">
+<label class="btn sec" for="cam">📷 Take a picture</label>
+<label class="btn sec" for="fil">📁 Choose a file</label>
+</div>
+<input type="file" id="cam" accept="image/*" capture="environment" style="display:none">
+<input type="file" id="fil" accept="image/jpeg,image/png,image/*,application/pdf" style="display:none">
+<div id="prev" class="sub">No picture or file chosen yet.</div>
+<div class="msg" id="msg"></div>
+<button class="btn" id="go" onclick="send()">Send to my director</button>
+</div>
+<div class="card"><b>My sent flyers</b><div id="mine" class="sub">Loading…</div></div>
+</div>
+<script>
+var PIN=sessionStorage.getItem('hivePin');if(!PIN)location.href='index.html';
+var ME=(sessionStorage.getItem('hiveMe')||'').trim(),FILE=null,$=function(i){return document.getElementById(i);};
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+async function api(action,x){var r=await fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({pin:PIN,action:action,name:ME},x||{}))});var j=await r.json().catch(function(){return {error:'Server error. Try again in a minute.'};});if(j.error)throw new Error(j.error);return j;}
+function say(t,bad){$('msg').textContent=t||'';$('msg').className='msg '+(bad?'bad':'ok');}
+if(ME)$('who').textContent='Hi '+ME.split(/\s+/)[0]+'! Your director looks at it first, then it goes on the Parent Portal. Nothing reaches parents until it is approved.';
+function b64OfBlob(b){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(String(r.result).split(',')[1]);};r.onerror=rej;r.readAsDataURL(b);});}
+/* shrink big phone photos so they send fast: longest side 1800px, JPEG */
+function shrink(f){return new Promise(function(res){
+ if(f.type==='application/pdf'){res(f);return;}
+ var img=new Image(),u=URL.createObjectURL(f);
+ img.onload=function(){var m=1800,w=img.naturalWidth,h=img.naturalHeight,s=Math.min(1,m/Math.max(w,h));
+  if(s===1&&f.size<2500000&&/jpeg|png/.test(f.type)){URL.revokeObjectURL(u);res(f);return;}
+  var c=document.createElement('canvas');c.width=Math.round(w*s);c.height=Math.round(h*s);c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+  c.toBlob(function(b){URL.revokeObjectURL(u);res(b||f);},'image/jpeg',0.85);};
+ img.onerror=function(){URL.revokeObjectURL(u);res(f);};img.src=u;});}
+async function chosen(inp){var f=inp.files&&inp.files[0];inp.value='';if(!f)return;say('');
+ try{FILE=await shrink(f);}catch(e){FILE=f;}
+ var p=$('prev');if(FILE.type==='application/pdf'){p.innerHTML='📄 '+esc(f.name||'PDF')+' ready to send';}else{var u=URL.createObjectURL(FILE);p.innerHTML='Ready to send:<br><img src="'+u+'" alt="Your picture">';}}
+$('cam').onchange=function(){chosen(this);};$('fil').onchange=function(){chosen(this);};
+async function send(){
+ var s=$('subj').value.trim(),k=$('kind').value.trim();
+ if(!s)return say('Please add a subject.',1);if(!k)return say('Please tell us what kind of flyer it is.',1);if(!FILE)return say('Please take a picture or choose a file.',1);
+ $('go').disabled=true;say('Sending… please wait.');
+ try{var b=await b64OfBlob(FILE);await api('sub_send',{subject:s,kind:k,note:$('note').value.trim(),b64:b});
+  say('Sent ✅ Your director will look at it. You can see its status below.');$('subj').value='';$('kind').value='';$('note').value='';FILE=null;$('prev').textContent='No picture or file chosen yet.';loadMine();}
+ catch(e){say(e.message,1);}
+ $('go').disabled=false;}
+async function loadMine(){try{var j=await api('sub_mine');var b=$('mine');
+ b.innerHTML=j.items.length?j.items.map(function(x){var st=x.status==='approved'?'<span class="pill p2">✅ Posted'+(x.card?' · '+esc(x.card):'')+'</span>':x.status==='declined'?'<span class="pill p3">Not posted</span>':'<span class="pill p1">⏳ Waiting for director</span>';
+  return '<div class="row"><span><b>'+esc(x.subject)+'</b><br><small>'+esc(x.kind)+' · '+esc(String(x.at).slice(0,10))+(x.status==='declined'&&x.reason?'<br>Director said: '+esc(x.reason):'')+'</small></span>'+st+'</div>';}).join(''):'Nothing sent yet.';
+ }catch(e){$('mine').textContent=e.message;}}
+loadMine();
+</script></body></html>

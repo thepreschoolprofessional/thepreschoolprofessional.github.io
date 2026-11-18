@@ -427,6 +427,18 @@ if (isset($res[$sid])){ $res[$sid]['files'] = array_merge($res[$sid]['files'], $
 }
 echo json_encode(['ok'=>true, 'staff'=>$res]); exit;
 }
+/* ---- Server-to-server only (from the Bear Line, authorised by the private ELC sync code): flyers staff sent that are waiting for the director. Subject, kind and first name only. ---- */
+if (($input['action'] ?? '') === 'bl_flyers'){
+foreach ([dirname(__DIR__, 2), dirname(__DIR__), __DIR__] as $d0){ if (file_exists($d0.'/elc-sync-code.php')) include_once $d0.'/elc-sync-code.php'; }
+if (!defined('ELC_SYNC_CODE') || !hash_equals(ELC_SYNC_CODE, (string)($input['code'] ?? ''))) fail('Not allowed.', 403);
+$cs = (($input['school'] ?? '') === 'Sanford') ? 'Sanford' : ((($input['school'] ?? '') === 'DeLand 2') ? 'DeLand 2' : ''); if ($cs === '') fail('Bad school.');
+echo json_encode(['ok'=>true, 'pending'=>sub_pending_rows($cs)]); exit;
+}
+/* ---- Staff flyers (built 11/18/26): staff send a flyer or message from the Bear Line, the school's director approves it and picks the Parent Portal card it goes on. ---- */
+$SUB_CARDS = ['tutor'=>'Reading & Math Tutor', 'board'=>'Message Board & Reminders', 'news'=>'Newsletter', 'lessons'=>'Lesson Plans'];
+function sub_dir($school){ $p = pp_dir($school); if (!$p) return null; $d = $p.'/submissions'; if (!is_dir($d)) @mkdir($d, 0750, true); return is_dir($d) ? $d : null; }
+function sub_all($school){ $d = sub_dir($school); $o = []; if (!$d) return $o; foreach (glob($d.'/s*.json') ?: [] as $f){ $x = json_decode(file_get_contents($f), true); if (is_array($x) && !empty($x['id'])) $o[] = $x; } usort($o, function($a, $b){ return strcmp((string)($b['at'] ?? ''), (string)($a['at'] ?? '')); }); return $o; }
+function sub_pending_rows($school){ $o = []; foreach (sub_all($school) as $x){ if (($x['status'] ?? '') === 'pending') $o[] = ['id'=>$x['id'], 'subject'=>$x['subject'], 'kind'=>$x['kindText'], 'by'=>$x['by'], 'at'=>$x['at'], 'tutor'=>!empty($x['tutor'])]; } return $o; }
 /* ---- Server-to-server only (from elc-sync.php, authorised by the private ELC sync code): what a child added on the ELC tablet still needs ---- */
 if (($input['action'] ?? '') === 'elc_catchup'){
 foreach ([dirname(__DIR__, 2), dirname(__DIR__), __DIR__] as $d0){ if (file_exists($d0.'/elc-sync-code.php')) include_once $d0.'/elc-sync-code.php'; }
@@ -741,6 +753,66 @@ if ($action === 'pp_orient_list'){
 if (!$isDir) fail('Directors only.', 403);
 $d = pp_dir($school); if (!$d) fail('Could not open the parent portal storage.', 500);
 echo json_encode(['items'=>array_reverse(jread($d.'/orientation.json', []))]); exit;
+}
+function sub_is_tutor($school, $name){ $first = strtolower(preg_replace('/[^a-z]/i', '', (preg_split('/\s+/', trim((string)$name))[0] ?? ''))); if ($first === '') return false; $r = roster($school, 'staff'); if (!is_array($r)) return ($school === 'DeLand 2' && $first === 'lori');
+foreach ($r as $p){ $w = strtolower(preg_replace('/[^a-z]/i', '', (preg_split('/\s+/', trim((string)($p['name'] ?? '')))[0] ?? ''))); if ($w === $first && preg_match('/tutor/i', (string)($p['sub'] ?? ''))) return true; }
+return ($school === 'DeLand 2' && $first === 'lori'); }
+if (strpos($action, 'sub_') === 0){
+$sd = sub_dir($school); if (!$sd) fail('Could not open the flyer storage.', 500);
+if ($action === 'sub_send'){
+$subject = pp_txt($input['subject'] ?? '', 100); if ($subject === '') fail('Add a subject.');
+$kindText = pp_txt($input['kind'] ?? '', 80); if ($kindText === '') fail('Tell us what kind of flyer it is.');
+$note = pp_txt($input['note'] ?? '', 600);
+$by = pp_txt($input['name'] ?? '', 40); if ($by === '') $by = $isDir ? 'Director' : 'Staff';
+$raw = base64_decode((string)($input['b64'] ?? ''), true); if ($raw === false || strlen($raw) < 100) fail('Add a picture or choose a file.');
+if (strlen($raw) > 10 * 1024 * 1024) fail('That file is too big (10 MB max). Try a smaller picture.');
+$ext = up_sniff($raw); if ($ext === '') fail('Only a picture (JPG or PNG) or a PDF can be sent.');
+$pend = 0; foreach (sub_all($school) as $x0){ if (($x0['status'] ?? '') === 'pending') $pend++; } if ($pend >= 40) fail('There are already a lot waiting for the director. Please ask the director to check them first.');
+$id = 's'.substr(md5(uniqid('', true)), 0, 9); $fn = $id.'.'.$ext;
+if (file_put_contents($sd.'/'.$fn, $raw) === false) fail('Could not save the file.', 500);
+$rec = ['id'=>$id, 'subject'=>$subject, 'kindText'=>$kindText, 'note'=>$note, 'by'=>$by, 'at'=>gmdate('c'), 'status'=>'pending', 'file'=>$fn, 'ext'=>$ext, 'tutor'=>sub_is_tutor($school, $by)];
+jwrite($sd.'/'.$id.'.json', $rec);
+hive_notify($school, 'Staff flyer to approve: '.$subject, [$by.' sent a flyer to go to parents: "'.$subject.'" ('.$kindText.').', 'Open the Parent Portal page, "Staff flyers waiting for you", pick which Parent Portal card it goes on, and approve it.']);
+echo json_encode(['ok'=>true, 'id'=>$id]); exit;
+}
+if ($action === 'sub_mine'){
+$me = strtolower(preg_replace('/[^a-z]/i', '', (preg_split('/\s+/', trim((string)($input['name'] ?? '')))[0] ?? ''))); $out = [];
+foreach (sub_all($school) as $x){ $w = strtolower(preg_replace('/[^a-z]/i', '', (preg_split('/\s+/', trim((string)($x['by'] ?? '')))[0] ?? ''))); if ($me === '' || $w !== $me) continue; if (count($out) >= 15) break;
+$out[] = ['id'=>$x['id'], 'subject'=>$x['subject'], 'kind'=>$x['kindText'], 'at'=>$x['at'], 'status'=>$x['status'], 'card'=>($x['cardLabel'] ?? ''), 'reason'=>($x['reason'] ?? '')]; }
+echo json_encode(['ok'=>true, 'items'=>$out]); exit;
+}
+if (!$isDir) fail('Only the director can review these.', 403);
+if ($action === 'sub_list'){
+$pend = []; $done = []; foreach (sub_all($school) as $x){ $row = ['id'=>$x['id'], 'subject'=>$x['subject'], 'kind'=>$x['kindText'], 'note'=>($x['note'] ?? ''), 'by'=>$x['by'], 'at'=>$x['at'], 'ext'=>$x['ext'], 'tutor'=>!empty($x['tutor']), 'status'=>$x['status'], 'card'=>($x['cardLabel'] ?? ''), 'reason'=>($x['reason'] ?? '')]; if (($x['status'] ?? '') === 'pending') $pend[] = $row; elseif (count($done) < 12) $done[] = $row; }
+echo json_encode(['ok'=>true, 'pending'=>$pend, 'done'=>$done, 'cards'=>$SUB_CARDS]); exit;
+}
+$sid = preg_replace('/[^a-z0-9]/', '', strtolower((string)($input['id'] ?? ''))); $sf = $sid !== '' ? $sd.'/'.$sid.'.json' : ''; $rec = ($sf && is_file($sf)) ? jread($sf, null) : null;
+if (!is_array($rec)) fail('That flyer was not found.', 404);
+if ($action === 'sub_file'){
+$fp = $sd.'/'.basename((string)($rec['file'] ?? '')); if (!is_file($fp)) fail('The file is gone.', 404);
+echo json_encode(['ok'=>true, 'b64'=>base64_encode(file_get_contents($fp)), 'ext'=>$rec['ext']]); exit;
+}
+if ($action === 'sub_decide'){
+if (($rec['status'] ?? '') !== 'pending') fail('This one was already handled.');
+$by = pp_txt($input['by'] ?? 'Director', 40);
+if (($input['decision'] ?? '') === 'decline'){
+$rec['status'] = 'declined'; $rec['reason'] = pp_txt($input['reason'] ?? '', 200); $rec['decidedAt'] = gmdate('c'); $rec['decidedBy'] = $by;
+if (!empty($rec['file'])){ @unlink($sd.'/'.basename($rec['file'])); $rec['file'] = ''; }
+jwrite($sf, $rec); echo json_encode(['ok'=>true, 'status'=>'declined']); exit;
+}
+$card = (string)($input['card'] ?? ''); if (!isset($SUB_CARDS[$card])) fail('Pick which Parent Portal card it goes on.');
+$pd = pp_dir($school); if (!$pd) fail('Could not open the parent portal storage.', 500);
+$src = $sd.'/'.basename((string)($rec['file'] ?? '')); if (!is_file($src)) fail('The file is gone. Ask the sender to send it again.', 404);
+$title = pp_txt($input['title'] ?? '', 80); if ($title === '') $title = $rec['subject'];
+$iid = substr(md5(uniqid('', true)), 0, 10); $fn = 'staff-'.$iid.'.'.$rec['ext'];
+if (!@copy($src, $pd.'/'.$fn)) fail('Could not post the file.', 500);
+$items = jread($pd.'/items.json', []);
+$items[] = ['id'=>$iid, 'kind'=>'staff', 'card'=>$card, 'title'=>$title, 'desc'=>$rec['kindText'], 'note'=>($rec['note'] ?? ''), 'by'=>$rec['by'], 'month'=>date('Y-m'), 'at'=>gmdate('c'), 'file'=>$fn, 'ext'=>$rec['ext'], 'from'=>$rec['id']];
+jwrite($pd.'/items.json', $items);
+@unlink($src); $rec['file'] = ''; $rec['status'] = 'approved'; $rec['card'] = $card; $rec['cardLabel'] = $SUB_CARDS[$card]; $rec['itemId'] = $iid; $rec['decidedAt'] = gmdate('c'); $rec['decidedBy'] = $by; jwrite($sf, $rec);
+echo json_encode(['ok'=>true, 'status'=>'approved', 'card'=>$SUB_CARDS[$card]]); exit;
+}
+fail('Unknown request.');
 }
 if ($action === 'pp_list'){
 $d = pp_dir($school); if (!$d) fail('Could not open the parent portal storage.', 500);
@@ -1234,6 +1306,7 @@ $pa = at_request('GET', ['Portal Alerts'], http_build_query(['filterByFormula'=>
 if (is_array($pa) && !isset($pa['error'])){ foreach (($pa['records'] ?? []) as $r0){ $f0 = $r0['fields'] ?? []; $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'alert', 'href'=>(($f0['Link'] ?? '') ?: ''), 'label'=>($f0['Alert'] ?? 'Needs attention'), 'status'=>'alert', 'red'=>!empty($f0['Red']), 'alertId'=>$r0['id']]; } }
 if ((int)date('N') >= 4){ $tw = fte_target_week(); if (!fte_have_week($school, $tw)) $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'fte', 'href'=>'fte.html', 'label'=>'Weekly FTE report for the week of '.date('n/j', strtotime($tw)).' not filed yet', 'status'=>'missing', 'red'=>((int)date('N') >= 5)]; }
 foreach (nh_list_all($school) as $nh0){ if (($nh0['status'] ?? 'new') !== 'new') continue; $nn = $nh0['name'] ?? ''; $lab = ''; if (!empty($nh0['packet']) && empty($nh0['final'])) $lab = 'New hire '.$nn.' signed their employee packet — review and sign your lines'; elseif (nh_train_done($nh0) >= count($NH_TRAIN)) $lab = 'New hire '.$nn.' finished all onboarding steps — check their certificates'; if ($lab !== '') $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'newhire', 'href'=>'newhires.html', 'label'=>$lab, 'status'=>'missing', 'red'=>false]; }
+{ $spn = sub_pending_rows($school); if (count($spn)) $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'subflyer', 'href'=>'parent-manage.html#staffflyers', 'label'=>count($spn).' flyer'.(count($spn) === 1 ? '' : 's').' from staff waiting for you to approve ("'.mb_substr($spn[0]['subject'], 0, 40).'"'.(count($spn) > 1 ? ' and more' : '').')', 'status'=>'missing', 'red'=>false]; }
 foreach (ori_refile($school) as $uo){ $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'orient', 'href'=>'parent-manage.html', 'label'=>'Parent orientation signed by '.($uo['parent'] ?? '').' for '.short_child($uo['child'] ?? '').' is not in a child\'s file yet (child not on the roster, or the name did not match)', 'status'=>'missing', 'red'=>false]; }
 bl_left_retry($school);
 { $d1 = school_dir($school); $rqf = $d1 ? $d1.'/bl-staffreq-cache.json' : ''; $rqc = $rqf ? jread($rqf, []) : [];

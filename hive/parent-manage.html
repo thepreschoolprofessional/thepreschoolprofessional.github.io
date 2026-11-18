@@ -17,6 +17,8 @@ button{border:0;border-radius:10px;padding:10px 16px;font-weight:800;cursor:poin
 <h1>🏡 Update the Parent Portal <span class="badge" id="sch">…</span></h1>
 <div class="sub">Post the menu, newsletter, lesson plans and message-board notes that parents see. <a href="parent.html">View as parents →</a></div>
 <div class="msg" id="msg"></div>
+<div class="sec" id="staffflyers"><h2>📥 Staff flyers waiting for you <span class="badge" id="sfn">0</span></h2>
+<div class="hint">Staff send flyers and messages from the Bear Line. Look at it, pick which Parent Portal card it goes on, and approve. Parents see nothing until you approve.</div><div id="sfl">Loading…</div></div>
 <div class="sec"><h2>📋 What is posted this month</h2><div id="stat">Loading…</div></div>
 <div class="sec"><h2>⬆️ Upload a file</h2>
 <div class="two"><div><label>What is it?</label><select id="uk"><option value="menu">Menu</option><option value="newsletter">Newsletter</option></select></div><div><label>Month</label><input type="month" id="um"></div></div>
@@ -44,7 +46,7 @@ function addD(a,b){$('nd').insertAdjacentHTML('beforeend','<div class="dr"><inpu
 function addR(a){$('nr').insertAdjacentHTML('beforeend','<input style="margin:4px 0" placeholder="Reminder" value="'+esc(a||'')+'">')}
 function addN(){$('nn').insertAdjacentHTML('beforeend','<div class="na"><input placeholder="Classroom"><input placeholder="What we did"></div>')}
 addD();addD();addR();addR();addN();
-const KN={menu:'Menu',newsletter:'Newsletter',lessons:'Lesson plans',flyer:'Flyer'};
+const KN={menu:'Menu',newsletter:'Newsletter',lessons:'Lesson plans',flyer:'Flyer',staff:'From staff'};
 async function load(){try{const s=await call('pp_status');$('sch').textContent=s.school;
 $('stat').innerHTML=s.status.map(x=>'<div class="st '+(x.ok?'ok':'no')+'"><span>'+esc(x.monthName+' '+x.label)+'</span><span>'+(x.ok?'✅ posted':'🔴 not posted')+'</span></div>').join('')||'All up to date.';
 const l=await call('pp_list');$('il').innerHTML=l.items.length?l.items.map(i=>'<div class="row"><span><b>'+esc(KN[i.kind]||i.kind)+'</b> '+esc(i.month||'')+' · '+esc(i.title)+(i.expires?' (until '+esc(i.expires)+')':'')+'</span><button class="s r" onclick="rm(\''+i.id+'\')">Remove</button></div>').join(''):'<div class="hint">Nothing posted yet.</div>';
@@ -58,5 +60,21 @@ await call('pp_form_save',{kind:'newsletter',month:$('nm').value,title:$('nt').v
 async function post(){try{await call('pp_board_post',{title:$('bt').value,message:$('bm').value,expires:$('be').value,pinned:$('bp').checked});say('Posted to the message board ✅');$('bt').value='';$('bm').value='';load()}catch(e){say(e.message,1)}}
 async function rm(id){if(!confirm('Take this down for parents?'))return;try{await call('pp_remove',{id});load()}catch(e){say(e.message,1)}}
 async function rmb(id){if(!confirm('Remove this note?'))return;try{await call('pp_board_remove',{id});load()}catch(e){say(e.message,1)}}
+let SFC={};
+async function sfLoad(){try{const j=await call('sub_list');SFC=j.cards||{};$('sfn').textContent=j.pending.length;
+const opts=Object.keys(SFC).map(k=>'<option value="'+k+'">'+esc(SFC[k])+'</option>').join('');
+$('sfl').innerHTML=(j.pending.length?j.pending.map(x=>'<div class="row" style="display:block"><div><b>'+esc(x.subject)+'</b> <small>('+esc(x.kind)+') from '+esc(x.by)+' · '+esc(String(x.at).slice(0,10))+'</small>'+(x.note?'<br><small>Note: '+esc(x.note)+'</small>':'')+'</div>'
++'<div id="sv_'+x.id+'" style="margin:6px 0"><button class="s" onclick="sfView(\''+x.id+'\')">👁 Look at it</button></div>'
++'<label>Which Parent Portal card does it go on?</label><select id="sc_'+x.id+'">'+opts+'</select>'
++'<label>Title parents will see</label><input id="st_'+x.id+'" value="'+esc(x.subject)+'">'
++'<button class="g" onclick="sfOk(\''+x.id+'\')">Approve and post</button> <button class="r" onclick="sfNo(\''+x.id+'\')">Don\'t post</button></div>').join(''):'<div class="hint">Nothing waiting. ✅</div>')
++(j.done.length?'<div class="hint" style="margin-top:10px"><b>Recently handled</b></div>'+j.done.map(x=>'<div class="row"><span>'+esc(x.subject)+' · '+esc(x.by)+'</span><span>'+(x.status==='approved'?'✅ '+esc(x.card):'Not posted')+'</span></div>').join(''):'');
+j.pending.forEach(x=>{if(x.tutor&&$('sc_'+x.id))$('sc_'+x.id).value='tutor'});
+}catch(e){$('sfl').textContent=e.message}}
+async function sfView(id){try{const j=await call('sub_file',{id});const u='data:'+(j.ext==='pdf'?'application/pdf':j.ext==='png'?'image/png':'image/jpeg')+';base64,'+j.b64;
+$('sv_'+id).innerHTML=j.ext==='pdf'?'<iframe src="'+u+'" style="width:100%;height:60vh;border:1px solid #ccc;border-radius:10px"></iframe>':'<img src="'+u+'" style="max-width:100%;border-radius:10px;border:1px solid #ccc">'}catch(e){say(e.message,1)}}
+async function sfOk(id){try{await call('sub_decide',{id,decision:'approve',card:$('sc_'+id).value,title:$('st_'+id).value});say('Posted on the Parent Portal ✅');sfLoad();load()}catch(e){say(e.message,1)}}
+async function sfNo(id){const r=prompt('Tell the sender why (optional). They will see this.');if(r===null)return;try{await call('sub_decide',{id,decision:'decline',reason:r});say('Not posted. The sender can see your note.');sfLoad()}catch(e){say(e.message,1)}}
+sfLoad();
 load();
 </script></body></html>

@@ -296,7 +296,36 @@ async function showEmail(kind,boxId){
     open(0);
   }catch(e){box.innerHTML='<div class="empty">Could not load right now. Please try again in a moment.</div>';}
 }
+/* ---------- flyers staff sent and the director approved (each goes on the card the director picked) ---------- */
+function staffList(card){return (PP&&PP.items||[]).filter(function(x){return x.kind==='staff'&&x.card===card;}).sort(function(a,b){return (b.at||'').localeCompare(a.at||'');});}
+function staffHtml(card,head){
+  var L=staffList(card);if(!L.length)return '';
+  return '<div class="section">'+head+'</div>'+L.map(function(x){return '<div class="rescard" style="display:block;cursor:default"><h3>'+esc(x.title)+'</h3><p style="font-size:.88rem;color:#7a5a2a;margin:4px 0 8px">'+esc(x.desc||'')+(x.by?' · From '+esc(String(x.by).split(/\s+/)[0]):'')+(x.at?' · '+esc(String(x.at).slice(0,10)):'')+'</p>'+(x.note?'<p style="font-size:.92rem;margin:4px 0 8px">'+esc(x.note).replace(/\n/g,'<br>')+'</p>':'')+'<div id="sxf_'+esc(x.id)+'"><div class="empty">Opening… 🐝</div></div></div>';}).join('');
+}
+function mountStaff(card){staffList(card).forEach(function(x){mountFile(x,'sxf_'+x.id);});}
+async function showStaffExtra(card,head){
+  var box=document.querySelector('.sx[data-card="'+card+'"]');if(!box)return;
+  if(!school()){box.innerHTML='';return;}
+  try{await load(false);box.innerHTML=staffHtml(card,head);mountStaff(card);}catch(e){box.innerHTML='';}
+}
+async function showTutor(){
+  var box=document.getElementById('tutorBox');if(!box)return;
+  if(!school()){needSchool(box);return;}
+  box.innerHTML='<div class="empty">Loading… 🐝</div>';
+  try{
+    await load(true);var h='<div class="section">📖 Reading &amp; Math Tutor</div>';
+    try{
+      var b=await call('bios_public');var t=((b&&b.staff)||[]).filter(function(x){return /tutor/i.test(x.role||'')||(/^lori\b/i.test(x.name||'')&&school()==='DeLand 2');})[0];
+      if(t&&typeof bioCard==='function'){if(typeof bioStyle==='function')bioStyle();h+='<div class="bcs">'+bioCard(t,school())+'</div>';}
+    }catch(e){}
+    var L=staffList('tutor');
+    h+=L.length?staffHtml('tutor','Updates from our tutor'):'<div class="empty">No tutor updates have been posted yet. Check back soon. 🐝</div>';
+    box.innerHTML=h;mountStaff('tutor');
+  }catch(e){box.innerHTML='<div class="empty">Could not load right now. Please try again in a moment.</div>';}
+}
 window.PPA={learn:function(id){renderLearn(id);var d=document.querySelector('#learnBox details.pl[open]');if(d&&d.scrollIntoView)d.scrollIntoView({behavior:'smooth',block:'start'});},show:function(w){
+  if(w==='tutor'){showTutor();return;}
+  if(w==='news')showStaffExtra('news','More from your teachers');else if(w==='lessons')showStaffExtra('lessons','More from your teachers');else if(w==='board')showStaffExtra('board','Flyers from your teachers');
   if(w==='mon'){showEmail('Monday Overview','monBox');return;}
   if(w==='fri'){showEmail('Friday Briefing','friBox');return;}
   if(w==='menu')showDoc('menu','menuBox','menu',/^Menu/i);

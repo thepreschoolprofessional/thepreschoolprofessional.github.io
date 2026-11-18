@@ -71,6 +71,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 <div class="tab t-bp" data-icon="bp-logo.png" onclick="show('bp',this)">🎓 Bear Phonics Academy Online</div>
 <div class="tab" style="background:#d81b60" onclick="show('fair',this)">📚 Year-Round Book Fair</div>
 <div class="tab" style="background:#E0A100" onclick="show('teach',this);loadTeachers()">🐝 Meet Our Teachers</div>
+<div class="tab" style="background:#00897b" onclick="show('tutor',this);PPA.show('tutor')">📖 Reading &amp; Math Tutor</div>
 <div class="tab" style="background:#00838f" onclick="show('docs',this)">📤 Send Us a Document</div>
 <div class="tab t-msg" onclick="show('msg',this)">💬 Send Us a Message</div>
 <div class="tab t-fund" onclick="show('fund',this)">Fundraiser</div>
@@ -86,20 +87,21 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 </div>
 
 <div class="panel" id="p-menu"><div id="menuBox" class="empty">Loading…</div></div>
-<div class="panel" id="p-news"><div id="newsBox" class="empty">Loading…</div></div>
+<div class="panel" id="p-news"><div id="newsBox" class="empty">Loading…</div><div class="sx" data-card="news"></div></div>
 <div class="panel" id="p-todo"><div id="todoBox" class="empty">Loading…</div></div>
 <div class="panel" id="p-mon"><div id="monBox" class="empty">Loading…</div></div>
 <div class="panel" id="p-fri"><div id="friBox" class="empty">Loading…</div></div>
 <div class="panel" id="p-events"><div id="evBox" class="empty">Loading…</div></div>
 <div class="panel" id="p-tbt"><div id="tbtBox" class="empty">Loading…</div></div>
-<div class="panel" id="p-lessons"><div id="lessonBox" class="empty">Loading…</div></div>
+<div class="panel" id="p-lessons"><div id="lessonBox" class="empty">Loading…</div><div class="sx" data-card="lessons"></div></div>
 <div class="panel" id="p-forms"><div id="formsBox" class="empty">Loading…</div></div>
-<div class="panel" id="p-board"><div id="boardBox" class="empty">Loading…</div></div>
+<div class="panel" id="p-board"><div id="boardBox" class="empty">Loading…</div><div class="sx" data-card="board"></div></div>
 <div class="panel" id="p-bring"><div id="g_bring"></div></div>
 <div class="panel" id="p-fees"><div id="g_fees"></div></div>
 <div class="panel" id="p-sick"><div id="g_sick"></div></div>
 <div class="panel" id="p-pick"><div id="g_pick"></div></div>
 <div class="panel" id="p-learn"><div id="learnBox"></div></div>
+<div class="panel" id="p-tutor"><div id="tutorBox" class="empty">Loading…</div></div>
 <div class="panel" id="p-teach"><h2>🐝 Meet Our Teachers</h2><div id="teachList" style="color:#7a5a2a">Loading…</div></div>
 <div class="panel" id="p-bp">
 <div class="result" style="border-top-color:var(--purple);">
@@ -352,6 +354,7 @@ window.HIVE_CARDS={prompt:'What do you want to see?',order:[
  {k:'Bear Phonics Academy Online',s:'Free reading lessons. In beta, feedback welcome',c:'#9b6bff',l:['Opens Mrs. Bear\'s online reading program','Also has a link to Mrs. Bear\'s free YouTube lessons','Some voices may sound robotic while we finish building','Tell us what you think on the Send Us card']},
  {k:'Year-Round Book Fair',s:'Shop Mrs. Bear\'s books any time',c:'#d81b60',l:['Opens the book fair in a new tab','Pick a section and tap a book to buy it']},
  {k:'Meet Our Teachers',s:'Your teachers',c:'#E0A100'},
+ {k:'Reading & Math Tutor',s:'Updates and flyers from our tutor',c:'#00897b'},
  {k:'Send Us',s:'Praises, concerns, requests',c:'#ff6b9d'},
  {k:'Fundraiser',s:'Shop and support early education',c:'#f0a020'}
 ]};
