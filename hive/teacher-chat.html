@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Teacher Bear Chat</title>
+<link rel="icon" href="chat-logo.png">
+<style>
+:root{--ink:#4a3a30;--soft:#9b8576;--pink:#ff6b9d;--blue:#5aa9ff;--purple:#9b6bff;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',system-ui,sans-serif;}
+body{min-height:100vh;background:linear-gradient(160deg,#fff7ef,#ffe7d4);color:var(--ink);padding:0 0 60px;}
+header{padding:14px 16px 8px;text-align:center;position:relative;}
+header .logo{height:64px;width:auto;display:block;margin:0 auto 4px;}
+header .back{position:absolute;left:14px;top:14px;color:#c2185b;font-weight:800;text-decoration:none;font-size:.9rem;}
+h1{font-size:1.6rem;}
+.sub{color:var(--soft);font-size:.92rem;margin-top:4px;}
+.banner{max-width:760px;margin:10px auto;background:#fff3cd;border:2px dashed #e0a800;border-radius:14px;padding:10px 14px;font-size:.9rem;}
+main{max-width:760px;margin:0 auto;padding:0 16px;}
+.bc-wrap{background:#fff;border-radius:20px;box-shadow:0 6px 18px rgba(74,58,48,.10);padding:14px;}
+.bc-log{height:52vh;min-height:300px;overflow-y:auto;padding:4px;display:flex;flex-direction:column;gap:10px;}
+.bc-msg{max-width:86%;padding:10px 14px;border-radius:16px;line-height:1.4;font-size:.96rem;word-wrap:break-word;}
+.bc-me{align-self:flex-end;background:#1d4e89;color:#fff;border-bottom-right-radius:4px;}
+.bc-bot{align-self:flex-start;background:#fff4ea;border-bottom-left-radius:4px;}
+.bc-bot a{color:#c2185b;font-weight:700;}
+.bc-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.bc-chip{border:2px solid #ffd2b0;background:#fff;border-radius:999px;padding:6px 12px;font-size:.85rem;font-weight:700;color:var(--ink);cursor:pointer;}
+.bc-chip:hover{background:#fff0e3;}
+.bc-bar{display:flex;gap:6px;margin-top:10px;}
+.bc-privacy{font-size:.8rem;color:var(--soft);margin:8px 2px 0;}
+.bc-clear{border:2px solid #ffd2b0;background:#fff;border-radius:999px;padding:3px 10px;font-size:.8rem;font-weight:800;color:var(--ink);cursor:pointer;margin-left:4px;}
+.bc-input{flex:1;padding:12px 14px;border-radius:14px;border:2px solid #ffd2b0;font-size:1rem;}
+.bc-mic,.bc-go{border:0;border-radius:14px;padding:0 16px;font-size:1.05rem;font-weight:800;cursor:pointer;color:#fff;background:var(--purple);}
+.bc-go{background:var(--pink);}
+.bc-mic.on{background:#c62828;animation:pulse 1s infinite;}
+@keyframes pulse{50%{opacity:.6;}}
+.bc-voice-note{font-size:.78rem;color:var(--soft);margin:6px 2px 0;}
+.bc-browse{margin-top:14px;}
+.bc-browse-h{font-weight:900;margin-bottom:6px;}
+.bc-browse-h span{font-weight:400;color:var(--soft);font-size:.85rem;}
+.bc-browse details,.bc-missed details{border-top:1px solid #f3e3d6;padding:8px 2px;}
+.bc-browse summary,.bc-missed summary{cursor:pointer;font-weight:800;}
+.bc-qlist{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.bc-q{border:0;background:#f7eefe;border-radius:10px;padding:6px 10px;font-size:.85rem;cursor:pointer;color:var(--ink);text-align:left;}
+.bc-missed{margin-top:10px;font-size:.9rem;}
+.bc-missed ul{margin:6px 0 0 20px;}
+.bc-form{display:grid;gap:8px;margin-top:8px;}
+.bc-form label{display:grid;gap:3px;font-size:.85rem;font-weight:700;}
+.bc-form input,.bc-form textarea{padding:8px 10px;border-radius:10px;border:2px solid #ffd2b0;font-size:.95rem;font-weight:400;}
+.bc-form textarea{min-height:70px;}
+.bc-panel{margin-top:8px;padding:10px;border:1px solid #eadfd6;border-radius:12px;background:#fffaf6;}.bc-h{font-weight:800;margin:8px 0 4px;font-size:13px;}.bc-sel{width:100%;box-sizing:border-box;padding:8px;border:1px solid #d8c8bb;border-radius:10px;font:inherit;}.bc-kids{display:flex;flex-wrap:wrap;gap:6px 12px;}.bc-kid{display:flex;align-items:center;gap:4px;font-size:14px;margin:4px 0;}.bc-err{color:#c62828;font-size:13px;min-height:4px;margin:6px 0;}
+.bc-send{border:0;border-radius:12px;padding:10px;background:var(--pink);color:#fff;font-weight:800;cursor:pointer;}
+.bc-preview-note{margin-top:8px;background:#fff;border:2px dashed #e0a800;border-radius:12px;padding:10px;font-size:.88rem;}
+.pickbtn{display:block;width:100%;margin:10px 0;border:0;border-radius:14px;padding:14px;font-size:1.05rem;font-weight:800;color:#fff;background:#d81b60;cursor:pointer;}
+.chg{border:0;background:none;color:#c2185b;font-weight:800;cursor:pointer;font-size:.85rem;margin-left:6px;}
+.closed{max-width:520px;margin:60px auto;background:#fff;border-radius:20px;padding:24px;text-align:center;box-shadow:0 6px 18px rgba(74,58,48,.10);}
+</style>
+</head>
+<body>
+<header><a class="back" href="teacher.html">&larr; Teacher Portal</a><img class="logo" src="chat-logo.png" alt=""><h1>Teacher Bear Chat</h1><div class="sub" id="sub"></div></header>
+<div id="app"></div>
+<script src="bear-chat-data.js?v=5"></script>
+<script src="teacher-chat-data.js?v=1"></script>
+<script src="director-chat-lessons.js?v=3"></script>
+<script src="director-chat.js?v=7"></script>
+<script>
+(function(){
+  /* Teacher Bear Chat (Mrs. Bear's ask, 11/17/26). The same engine as Director Bear Chat, with the teacher question bank.
+     The school comes from the PIN; a PIN for both schools picks the school once on this page.
+     Undo: remove the Teacher Bear Chat tab in teacher.html and this page. */
+  var pin = sessionStorage.getItem('hivePin');
+  var app = document.getElementById('app'), sub = document.getElementById('sub');
+  function closed(){ app.innerHTML = '<div class="closed"><h2>Sign in first</h2><p style="margin-top:10px">Open Teacher Bear Chat from your Teacher Portal.</p><p style="margin-top:12px"><a href="index.html">Go to sign in</a></p></div>'; }
+  if (!pin){ closed(); return; }
+  app.innerHTML = '<div class="closed"><p>Opening…</p></div>';
+  function start(school, canChange){
+    sub.innerHTML = ''; sub.appendChild(document.createTextNode(school));
+    if (canChange){ var b = document.createElement('button'); b.className = 'chg'; b.type = 'button'; b.textContent = 'Change school'; b.onclick = function(){ try{ sessionStorage.removeItem('hiveSchool'); }catch(e){} pick(); }; sub.appendChild(b); }
+    app.innerHTML = '<main id="chat"></main>';
+    TeacherChat.mount(document.getElementById('chat'), {school: school, pin: pin, mode: 'live'});
+  }
+  function pick(){
+    sub.textContent = '';
+    app.innerHTML = '<div class="closed"><h2>Which school are you at?</h2><p style="margin-top:6px">Closures and room answers are for your school.</p><button class="pickbtn" data-s="Sanford">Sanford</button><button class="pickbtn" data-s="DeLand 2">DeLand 2</button></div>';
+    app.querySelectorAll('.pickbtn').forEach(function(b){ b.onclick = function(){ var s = b.getAttribute('data-s'); try{ sessionStorage.setItem('hiveSchool', s); }catch(e){} start(s, true); }; });
+  }
+  fetch('api.php', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({pin: pin, action: 'whoami'})})
+    .then(function(r){ return r.json(); })
+    .then(function(w){
+      if (!w || (w.role !== 'teacher' && w.role !== 'director')){ closed(); return; }
+      if (w.school === 'Sanford' || w.school === 'DeLand 2'){ start(w.school, false); return; }
+      var s = ''; try{ s = sessionStorage.getItem('hiveSchool') || ''; }catch(e){}
+      if (s === 'Sanford' || s === 'DeLand 2') start(s, true); else pick();
+    })
+    .catch(closed);
+})();
+</script>
+</body>
+</html>

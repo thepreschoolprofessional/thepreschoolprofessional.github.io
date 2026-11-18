@@ -4,9 +4,12 @@
    Each director sees answers for their own school only. It never shows a PIN, door code or password:
    PIN questions open the Family and Staff PINs card, where every lookup is the director's own.
    DirectorChat.mount(el, {school, pin, mode}) where mode is 'preview' (nothing is sent) or 'live'.
-   Closure dates come from bear-chat-data.js (window.BC_DATA) when that file is loaded too. */
+   Closure dates come from bear-chat-data.js (window.BC_DATA) when that file is loaded too.
+   Teacher Bear Chat uses this same engine: when teacher-chat-data.js (window.TC_DATA) is loaded instead, it answers for the Teacher Portal,
+   skips the director-only live answers (files, counts, room moves) and sends unanswered questions to Teacher Questions. */
 (function(){
-var D = window.DC_DATA, P = window.BC_DATA || {}, OPT = {}, ROOT = null, LOG = [], MISSED = [], IDLE = null, HIDDEN_AT = 0, REC = null;
+var TEACH = !!window.TC_DATA, ROLE = TEACH ? 'Teacher' : 'Director', PORTAL = TEACH ? 'teacher.html' : 'director.html';
+var D = window.TC_DATA || window.DC_DATA, P = window.BC_DATA || {}, OPT = {}, ROOT = null, LOG = [], MISSED = [], IDLE = null, HIDDEN_AT = 0, REC = null;
 var IDLE_MS = 3*60*1000, AWAY_MS = 60*1000; /* clear after 3 minutes without use, or after 1 minute away from the page */
 var esc = function(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); };
 var STOP = ('a an the is are am be been do does did i me my we our you your it its to of in on at for and or can could would will '
@@ -427,8 +430,8 @@ LIVE.addPerson = function(e, text){
 /* one entry per class, first in the browse list, so every class is one tap away */
 PICK_CLASSES.slice().reverse().forEach(function(k){ var x = classByKey(k), w = x.n.split(' ')[0];
   D.QS.unshift({id:'kit-'+k, c:'Lessons and files', live:'classKit', cls:k, q:[x.icon+' '+x.n+': lesson plans and packets', 'Everything for the '+w, w+' lesson plan', w+' packet', w+' workbook'], k:'lesson plan packet workbook supplement take home '+w.toLowerCase(), a:'', go:'Lesson Plan Wizard'}); });
-/* the live answers above, as bank entries so they show in the browse list too */
-D.QS.push(
+/* the live answers above, as bank entries so they show in the browse list too (teachers get the lesson ones only) */
+var LIVE_QS = [
   {id:'live-lesson', c:'Lessons and files', live:'lesson', q:['What is a class doing today?','What are the twos doing today?','What lesson are the threes doing tomorrow?','What is the fours class learning this week?','What are the ones doing on Thursday?','What is the letter of the week for the twos?','What book do the threes read today?'], k:'lesson today tomorrow teaching learning craft letter word week class', a:'', go:'Daily Plans'},
   {id:'live-file', c:'Lessons and files', live:'file', q:['Upload a picture to a child\'s file','Open a child\'s file','Upload a shot record to a child\'s file','Open a staff member\'s file','Upload a teacher\'s CPR card','Take a cubby photo for a child'], k:'open file folder upload picture photo shot record child staff', a:'', go:'Student Files', also:['Staff Files']},
   {id:'live-hubdocs', c:'Lessons and files', live:'hubDocs', q:['Where is a class\'s workbook or packet?','Where is the twos workbook?','Where is the threes teacher supplement?','Where are the fours monthly instructions?'], k:'workbook supplement instructions resource take home monthly lesson plan', a:'', go:'Lesson Plan Wizard'},
@@ -444,7 +447,8 @@ D.QS.push(
   {id:'stat-orientation', c:'Counts: who is done', live:'stats', topic:'orientation', q:['How many families finished Parent Orientation?'], k:'how many count families orientation signed', a:'', go:'Parent Portal'},
   {id:'stat-uploads', c:'Counts: who is done', live:'stats', topic:'uploads', q:['How many parent uploads are waiting?'], k:'how many count parent uploads waiting', a:'', go:'Parent Uploads'},
   {id:'stat-portal', c:'Counts: who is done', live:'stats', topic:'portal', q:['Is the menu and newsletter posted this month?','Which parent portal items are not posted?'], k:'menu newsletter posted portal', a:'', go:'Update the Parent Portal'}
-);
+];
+LIVE_QS.filter(function(e){ return !TEACH || e.id==='live-lesson' || e.id==='live-hubdocs'; }).forEach(function(e){ D.QS.push(e); });
 
 /* ---------- opening a Director Portal card ---------- */
 /* D.cards: name -> {tab:'id'} (a tab inside director.html), {page:'file.html'}, {fn:'openPins'} (a director.html button) or {url:'https://...'} */
@@ -459,7 +463,7 @@ function openCard(name){
   if (c.url){ window.open(c.url, '_blank', 'noopener'); return; }
   if (c.page){ window.open(c.page, '_blank'); return; }
   /* not on the Director Portal page (the owner preview): open the portal at that card */
-  window.open('director.html#open='+encodeURIComponent(name), '_blank');
+  window.open(PORTAL+'#open='+encodeURIComponent(name), '_blank');
 }
 function byId(id){ for (var i=0;i<D.QS.length;i++) if (D.QS[i].id===id) return D.QS[i]; return {}; }
 
@@ -757,7 +761,7 @@ function ask(text, picked){
   text = String(text||'').trim(); if (!text) return;
   say('me', text);
   var e = picked, m = null;
-  if (!e){ if (wantsAct(text)) e = byId('live-act'); else if (wantsStats(text)) e = byId('live-stats'); else if (wantsKit(text)) e = byId('live-hubdocs'); else if (wantsLesson(text)) e = byId('live-lesson'); else if (wantsFile(text)) e = byId('live-file'); }
+  if (!e){ if (!TEACH && wantsAct(text)) e = byId('live-act'); else if (!TEACH && wantsStats(text)) e = byId('live-stats'); else if (wantsKit(text)) e = byId('live-hubdocs'); else if (wantsLesson(text)) e = byId('live-lesson'); else if (!TEACH && wantsFile(text)) e = byId('live-file'); }
   if (!e){ m = match(text); if (confident(m)) e = m[0].x.e; }
   if (!e && classIn(text)){ var m2 = match(plain(text).replace(CLASS_RX, ' ')); if (confident(m2)){ m = m2; e = m2[0].x.e; } }
   if (!e){
@@ -811,6 +815,7 @@ function nameBox(b){
 }
 /* a question it can't answer goes to Mrs. Bear as a Director Portal note (the same notes Charles picks up every hour on weekdays) */
 function handoff(question){
+  if (TEACH) return teacherHandoff(question);
   var f = document.createElement('form'); f.className = 'bc-form';
   f.innerHTML = '<label>Your question<textarea name="m" required maxlength="1500" autocomplete="off"></textarea></label>'
     + '<button type="submit" class="bc-send">'+(OPT.mode==='live' ? 'Send to Mrs. Bear' : 'Preview: show what would be sent')+'</button>';
@@ -829,6 +834,32 @@ function handoff(question){
       .catch(function(){ f.outerHTML = '<div class="bc-preview-note">😕 That didn\'t go through. Please message Mrs. Bear directly.</div>'; });
   };
   say('bot', OPT.mode==='live' ? 'I\'ll send this to Mrs. Bear.' : 'In the live version, the director can send this to Mrs. Bear.', f);
+}
+/* Teacher Bear Chat: a question it can't answer goes to Mrs. Bear and Charles as a Teacher Question (the same list as the Ask Mrs. Bear card).
+   It only says Sent when the save really worked. The name box starts empty, because a classroom tablet is shared. */
+function teacherHandoff(question){
+  var f = document.createElement('form'); f.className = 'bc-form';
+  f.innerHTML = '<label>Your name<input name="n" required maxlength="60" autocomplete="off" autocapitalize="words" placeholder="First and last name"></label>'
+    + '<label>Your question<textarea name="m" required maxlength="1500" autocomplete="off"></textarea></label>'
+    + '<button type="submit" class="bc-send">'+(OPT.mode==='live' ? 'Send to Mrs. Bear and Charles' : 'Preview: show what would be sent')+'</button>';
+  f.querySelector('textarea').value = question;
+  f.onsubmit = function(ev){
+    ev.preventDefault();
+    var msg = f.elements.m.value.trim(), nm = f.elements.n.value.trim(); if (!msg || !nm) return;
+    if (OPT.mode !== 'live'){
+      f.outerHTML = '<div class="bc-preview-note"><b>Preview only. Nothing was sent.</b><br>When Teacher Bear Chat is live, this goes to Mrs. Bear and Charles as a Teacher Question from '+esc(OPT.school)+'.</div>';
+      return;
+    }
+    var btn = f.querySelector('button'); btn.disabled = true; btn.textContent = 'Sending…';
+    var fail = function(){ btn.disabled = false; btn.textContent = 'Try again';
+      var n = f.querySelector('.bc-fail') || f.appendChild(document.createElement('div')); n.className = 'bc-preview-note bc-fail'; n.textContent = 'That didn\'t go through. Tap Try again, or tell your director.'; };
+    fetch('api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:OPT.pin, action:'create', table:'Teacher Questions',
+      fields:{'Question':('Bear Chat: '+msg).slice(0,90), 'Full Question':'[Teacher Bear Chat] '+msg, 'Teacher Name':nm, 'School':OPT.school, 'When':new Date().toISOString(), 'Status':'🟡 New'}})})
+      .then(function(r){ return r.json(); }).then(function(d){ if (!d || d.error || !(d.records && d.records.length)) { fail(); return; }
+        f.outerHTML = '<div class="bc-preview-note">✅ Sent. Watch your Slack: Charles or Mrs. Bear will message you, usually within the hour on weekdays.</div>'; })
+      .catch(fail);
+  };
+  say('bot', OPT.mode==='live' ? 'I\'ll send this to Mrs. Bear and Charles. They answer you on Slack.' : 'In the live version, the teacher can send this to Mrs. Bear and Charles.', f);
 }
 function renderMissed(){
   var el = ROOT.querySelector('.bc-missed'); if (!el) return;
@@ -879,6 +910,8 @@ function mount(el, opt){
   renderBrowse(); renderMissed(); setupVoice(); greet();
 }
 function greet(){
+  if (TEACH){ say('bot', 'Hi! I\'m Teacher Bear Chat for '+OPT.school+'. Ask me how to do anything on the Teacher Portal: the Rooms board, meals, lesson plans, daily plans, checklists, time off, calling out, handbook rules, training and more. I\'ll give you the steps and a button to the right card.',
+    chips((D.starters||[]).map(function(s){ return {label:s}; }), function(it){ ask(it.label); })); return; }
   say('bot', 'Hi! I\'m Director Bear Chat for '+OPT.school+'. Ask me where something is or how to do it in the Director Portal: food program, DCF binder, files, staff hours, schedules, enrollments, new hires, reports and more. I\'ll give you the steps and a button to the right card.',
     chips((D.starters||[]).map(function(s){ return {label:s}; }), function(it){ ask(it.label); }));
 }
@@ -894,5 +927,5 @@ function reset(){
   ROOT.querySelectorAll('.bc-browse details[open]').forEach(function(d){ d.open = false; });
   renderMissed(); greet();
 }
-window.DirectorChat = {mount:mount, reset:reset, match:function(t){ build(); return match(t); }, _test:{wantsAct:wantsAct, actKind:actKind, wantsKit:wantsKit, wantsStats:wantsStats, statTopic:statTopic, wantsLesson:wantsLesson, wantsFile:wantsFile, classIn:classIn, findPeople:findPeople, docIn:docIn, kindIn:kindIn, nameWords:nameWords, norm:norm, toks:toks, confident:confident, setSchool:function(s){ OPT.school = s; build(); }, LIVE:LIVE, byId:byId, answerText:answerText}};
+window.TeacherChat = window.DirectorChat = {mount:mount, reset:reset, match:function(t){ build(); return match(t); }, _test:{wantsAct:wantsAct, actKind:actKind, wantsKit:wantsKit, wantsStats:wantsStats, statTopic:statTopic, wantsLesson:wantsLesson, wantsFile:wantsFile, classIn:classIn, findPeople:findPeople, docIn:docIn, kindIn:kindIn, nameWords:nameWords, norm:norm, toks:toks, confident:confident, setSchool:function(s){ OPT.school = s; build(); }, LIVE:LIVE, byId:byId, answerText:answerText}};
 })();

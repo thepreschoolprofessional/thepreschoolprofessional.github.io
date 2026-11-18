@@ -47,7 +47,7 @@ main{max-width:820px;margin:0 auto;padding:8px 16px;}
 a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800;color:var(--soft);}
 </style>
 <script>/* stale-page guard: if this browser is showing an old saved copy, load the fresh one */
-(function(){var V='20261113a';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+'?v='+m[1]);}});}catch(e){}})();</script>
+(function(){var V='20261118a';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+'?v='+m[1]);}});}catch(e){}})();</script>
 <script src="bl-brand.js?v=20261113b" defer></script>
 </head>
 <body>
@@ -58,6 +58,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 </header>
 <nav>
 <div class="tab t-lesson active" onclick="show('lesson',this)">📚 Lesson Plan Wizard</div>
+<div class="tab" data-icon="chat-logo.png" style="background:#d81b60" onclick="location.href='teacher-chat.html'">💬 Teacher Bear Chat</div>
 <div class="tab" data-icon="bp-logo.png" style="background:#9b6bff" onclick="window.open('https://bearphonicsacademy.com/online/demo.html?teach=bpa-classroom-26','_blank','noopener')">🎓 Bear Phonics Academy Online</div>
 <div class="tab" style="background:#e91e63" onclick="location.href='parent.html'">🏡 Parent Portal</div>
   <div class="tab" style="background:#e8573f" onclick="show('daily',this)">📅 Daily Plans</div>
@@ -264,6 +265,7 @@ loadPlans(); ftInit();
 <script src="transport.js?v=7"></script>
 <script>
 window.HIVE_CARDS={prompt:'What do you want to open?',order:[
+ {k:'Teacher Bear Chat',l:['Ask how to do anything on the Teacher Portal','Rooms board, meals, lesson plans, time off, handbook rules','Type or speak your question'],s:'Ask a question, get the steps',c:'#d81b60'},
  {k:'Bear Phonics Academy Online',l:['Tap a class and it opens with every lesson unlocked','Teach from the screen or let children work through it','In beta: some voices may sound robotic. Tell your director what you think'],s:'Reading lessons for the classroom (beta)',c:'#9b6bff'},
  {k:'Parent Portal',s:'See what parents see (view only)',c:'#e91e63'},
  {k:'Lesson Plan Wizard',s:'Monthly plans, workbooks, take-homes',c:'#2e8b57'},
@@ -283,6 +285,21 @@ window.HIVE_CARDS={prompt:'What do you want to open?',order:[
 ]};
 </script>
 <script src="hive-cards.js?v=7"></script>
+<!-- open-card-link: teacher.html#open=<card name> opens that card (used by Teacher Bear Chat) -->
+<script>
+(function(){
+  var h=decodeURIComponent((location.hash||'').replace(/^#/,''));if(h.indexOf('open=')!==0)return;
+  var name=h.slice(5).trim();if(!name)return;var tries=0,books=(name==='Phonics Books');if(books)name='Lesson Plan Wizard';
+  function lab(t){return (t.textContent||'').replace(/\s+/g,' ').trim().replace(/^[^A-Za-z0-9]+\s/,'');}
+  function go(){
+    var L=[].slice.call(document.querySelectorAll('nav .tab'));var tab=L.filter(function(t){return lab(t)===name;})[0]||L.filter(function(t){return lab(t).indexOf(name)===0;})[0];
+    if(!tab){if(tries++<20)setTimeout(go,250);return;}
+    try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}
+    tab.click();var p=books?document.getElementById('p-books'):document.querySelector('.panel.show');(p||tab).scrollIntoView({behavior:'smooth',block:'start'});
+  }
+  setTimeout(go,300);
+})();
+</script>
 <script>(function(){try{var f=location.hash==='#facil'||localStorage.getItem('hiveNextFacil');if(f&&sessionStorage.getItem('hivePin')){localStorage.removeItem('hiveNextFacil');var t=document.querySelector('.t-facil');if(t&&typeof show==='function')show('facil',t);}}catch(e){}})();</script>
 </body>
 </html>
