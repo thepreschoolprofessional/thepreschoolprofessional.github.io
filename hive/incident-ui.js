@@ -58,7 +58,7 @@ function build(rows,school,opts){
         if(d.contacted==='Yes')T(560,933,'X',10);else if(d.contacted==='No')T(645,933,'X',10);
         if(d.contacted==='Yes'){T(845,933,d.ctime,8.5,70);T(1144,933,d.chow,8.5,150)}
         /* signatures sit just above each signature line, dates to the right of the label */
-        var sigs=[[d.staffSig,64,478,d.staffAt],[d.dirSig,594,1022,d.dirAt],[d.parentSig,1142,1594,d.parentAt]];
+        var sigs=[[d.staffSig,64,478,d.staffAt],[d.finalSig||d.dirSig,594,1022,d.finalAt||d.dirAt],[d.parentSig,1142,1594,d.parentAt]];
         sigs.forEach(function(sg){
           if(sg[3]){var dm=String(sg[3]).split(' ')[0].split('/'),dt=dm.length===3?(dm[0]+'/'+dm[1]+'/'+dm[2].slice(-2)):dm.join('/'),dw=font.widthOfTextAtSize(dt,7);pg.drawText(dt,{x:sg[2]*S-dw,y:Y(988)+2,size:7,font:font,color:blue})}
           if(sg[0]&&String(sg[0]).indexOf('data:image/png;base64,')===0){chain=chain.then(function(){return doc.embedPng(sg[0]).then(function(im){var maxw=(sg[2]-sg[1])*0.6*S,h=15,w2=im.width*(h/im.height);if(w2>maxw){w2=maxw;h=im.height*(maxw/im.width)}pg.drawImage(im,{x:sg[1]*S+4,y:Y(988)+2,width:w2,height:h})}).catch(function(){})})}
@@ -78,7 +78,7 @@ window.IncidentUI.mount=function(el,o){
   var view='list',state={n:1,kids:[],roster:[],msg:''},LIST=[],busy=false;
   function api(a,x){x=x||{};x.act=a;x.r=o.room||'';if(o.dtok&&o.dtok())x.dtok=o.dtok();return o.post(x)}
   function root(h){el.innerHTML='<div class="iu">'+h+'</div>'}
-  function chip(s){var c=s==='Complete'?'c':(s==='Needs Parent'?'b':'a'),t=s==='Needs Parent'?'Waiting for parent':(s==='Needs Director'?'Waiting for director':s||'');return '<span class="st '+c+'">'+esc(t)+'</span>'}
+  function chip(s){var c=s==='Complete'?'c':((s==='Needs Parent'||s==='Needs Final')?'b':'a'),t=s==='Needs Parent'?'Waiting for parent':(s==='Needs Director'?'Waiting for director':(s==='Needs Final'?'Parent signed - needs final signature':(s==='Complete'?'Complete - in child file':s||'')));return '<span class="st '+c+'">'+esc(t)+'</span>'}
   function list(){
     root('<div class="box"><div class="msg" style="padding:14px;text-align:center;color:#6b6252">Loading...</div></div>');
     api('inc_list').then(function(r){LIST=r.list||[];if(r.error){root('<div class="box err">'+esc(r.error)+'</div>');return}drawList()}).catch(function(){root('<div class="box err">Could not load. Check your connection.</div>')});
@@ -95,7 +95,7 @@ window.IncidentUI.mount=function(el,o){
   }
   function startNew(){
     state={n:1,kids:[{},{}],roster:[],msg:''};root('<div class="box" style="text-align:center">Loading children...</div>');
-    api('inc_kids').then(function(r){state.roster=r.kids||[];drawForm()}).catch(function(){root('<div class="box err">Could not load the children. Check your connection.</div>')});
+    api('inc_kids').then(function(r){state.roster=r.kids||[];state.present=!!r.present;if(r.present&&!state.roster.length){return api('inc_kids',{all:1}).then(function(r2){state.roster=r2.kids||[];state.showAll=1;state.noneIn=1;drawForm()})}drawForm()}).catch(function(){root('<div class="box err">Could not load the children. Check your connection.</div>')});
   }
   function kidOpts(sel){return '<option value="">Pick a child</option>'+state.roster.map(function(k){return '<option'+(k.n===sel?' selected':'')+'>'+esc(k.n)+'</option>'}).join('')}
   function kidBlock(i){
@@ -116,6 +116,7 @@ window.IncidentUI.mount=function(el,o){
     var s=state;
     root('<div class="box"><h2>New incident report</h2><div class="sub">'+esc(o.roomLabel||'')+'</div>'
     +'<label>How many children were involved?</label><div class="pick" id="iu-n"><button type="button" data-v="1" class="'+(s.n===1?'on':'')+'">One child</button><button type="button" data-v="2" class="'+(s.n===2?'on':'')+'">Two children</button></div>'
+    +(s.noneIn?'<div class="warn">No children are signed in yet today, so everyone in your room is shown.</div>':(s.present&&!s.showAll?'<div class="sub">Showing children who came in today. <a href="#" id="iu-all">Child not listed? Show everyone in my room</a></div>':''))
     +(s.n===2?'<div class="warn">Two children = <b>two separate reports</b>. Each parent will only ever see their own child, and the other child&rsquo;s name is never shown. Do not type either child&rsquo;s name below. Write &ldquo;another child&rdquo; or &ldquo;a friend&rdquo;.</div>':'')
     +'<div class="row"><div><label>Your name</label><input type="text" id="iu-by" maxlength="60" value="'+esc(s.by||'')+'"></div><div><label>Teacher who was with the children</label><input type="text" id="iu-te" maxlength="60" value="'+esc(s.teacher||'')+'" placeholder="Same as your name if you were"></div></div>'
     +'<div class="row"><div><label>Date</label><input type="date" id="iu-d" value="'+(s.date||o.today)+'" max="'+o.today+'"></div><div><label>Time it happened</label><input type="text" id="iu-t" maxlength="20" value="'+esc(s.time||now12())+'"></div></div>'
@@ -125,6 +126,7 @@ window.IncidentUI.mount=function(el,o){
     +[0,1].slice(0,s.n).map(kidBlock).join('')
     +'<div class="box"><label style="margin-top:0">Staff signature (sign with your finger)</label><canvas class="sg" id="iu-sg"></canvas><div><a href="#" id="iu-clr">Clear</a></div><div id="iu-er" class="err"></div><button class="btn big g" id="iu-go">Save and sign this report</button><p><button class="btn s" id="iu-back">Cancel</button></p></div>');
     var pad=Pad(el.querySelector('#iu-sg'));el.querySelector('#iu-clr').onclick=function(e){e.preventDefault();pad.clear()};
+    var al=el.querySelector('#iu-all');if(al)al.onclick=function(e){e.preventDefault();grab();api('inc_kids',{all:1}).then(function(r){state.roster=r.kids||[];state.showAll=1;drawForm()})};
     function grab(){s.by=val('iu-by');s.teacher=val('iu-te');s.date=val('iu-d');s.time=val('iu-t');s.loc=val('iu-l');s.desc=val('iu-w')}
     function val(id){var e=el.querySelector('#'+id);return e?e.value.trim():''}
     el.querySelectorAll('#iu-n button').forEach(function(b){b.onclick=function(){grab();s.n=+b.getAttribute('data-v');drawForm()}});
@@ -156,7 +158,7 @@ window.IncidentUI.mount=function(el,o){
   }
   function fld(l,id,v,ta,locked){return '<label>'+l+'</label>'+(ta?'<textarea id="'+id+'" maxlength="340"'+(locked?' disabled':'')+'>'+esc(v)+'</textarea>':'<input type="text" id="'+id+'" value="'+esc(v)+'"'+(locked?' disabled':'')+'>')}
   function drawReview(x){
-    var locked=!!x.parentAt;
+    var locked=!!x.parentAt;var stage=x.finalAt?'done':(x.parentAt?'final':'approve');
     root('<div class="box"><h2>'+esc(x.child)+' &middot; '+fdate(x.date)+' '+esc(x.time)+'</h2><div class="sub">'+esc(x.room)+' &middot; Teacher: '+esc(x.teacher)+' &middot; Written by '+esc(x.by)+' &middot; '+chip(x.status)+'</div>'
     +(locked?'<div class="warn">The parent signed this report, so it can no longer be changed.</div>':'')
     +fld('What happened','rv-desc',x.desc,true,locked)+fld('Body parts involved','rv-body',x.body,false,locked)+fld('Where it happened','rv-loc',x.loc,false,locked)+fld('Nature of injury','rv-nat',x.nature,false,locked)+fld('Medical treatment','rv-trt',x.treat,false,locked)+fld('Action taken','rv-act',x.action,false,locked)
@@ -164,23 +166,25 @@ window.IncidentUI.mount=function(el,o){
     +fld('Director notes (not printed)','rv-nt',x.notes,true,false)
     +'<div id="rv-er" class="err"></div><p><button class="btn s" id="rv-save">Save changes</button></p></div>'
     +'<div class="box"><h2>Signatures</h2><div class="sub">Staff: '+(x.staffAt?'signed '+esc(x.staffAt):'not signed')+' &middot; Director: '+(x.dirAt?esc(x.dirName)+' signed '+esc(x.dirAt):'not signed yet')+' &middot; Parent: '+(x.parentAt?esc(x.parentName)+' signed '+esc(x.parentAt):'not signed yet')+'</div>'
-    +'<label>Your name (director)</label><input type="text" id="rv-dn" maxlength="60" value="'+esc(x.dirName||'')+'"><label>Sign here</label><canvas class="sg" id="rv-sg"></canvas><div><a href="#" id="rv-clr">Clear</a></div><div id="rv-er2" class="err"></div><button class="btn big g" id="rv-sign">'+(x.dirAt?'Sign again':'Sign as director')+'</button></div>'
-    +'<div class="box"><h2>Print / email</h2>'+(x.emailReq?'<div class="warn"><b>The parent asked for an emailed copy</b> at '+esc(x.emailAddr)+(x.emailSent?'. Email sent '+esc(x.emailSent)+'.':'. Print or save the PDF, email it, then tap &ldquo;Mark email sent&rdquo;.')+'</div>':'<div class="sub">If a parent asks for an emailed copy, it will show here.</div>')
+    +(stage==='done'?'<div class="warn">Final signature done '+esc(x.finalAt)+'. This report is filed in the child\'s record.</div>':'<div class="sub">'+(stage==='final'?'The parent signed. Sign one last time and it is filed in the child\'s record.':'Approve it and it goes to the parent. The parent will see it at the Bear Line before sign-out.')+'</div><label>Your name (director)</label><input type="text" id="rv-dn" maxlength="60" value="'+esc(x.finalName||x.dirName||'')+'"><label>Sign here</label><canvas class="sg" id="rv-sg"></canvas><div><a href="#" id="rv-clr">Clear</a></div><div id="rv-er2" class="err"></div><button class="btn big g" id="rv-sign">'+(stage==='final'?'Final sign and file it':(x.dirAt?'Sign again':'Approve and send to parent'))+'</button>')+'</div>'
+    +'<div class="box"><h2>Print / email</h2>'+(x.emailReq?'<div class="warn"><b>The parent asked for an emailed copy</b> at '+esc(x.emailAddr)+(x.emailSent?'. Email sent '+esc(x.emailSent)+'.':'. Print or save the PDF, email it, then tap &ldquo;Mark email sent&rdquo;.')+'</div>':'<div class="sub">If a parent asks for an emailed copy, it will show here.</div>')+(x.dirAt?'<label>Parent email address</label><input type="text" id="rv-to" maxlength="120" value="'+esc(x.emailAddr||'')+'" placeholder="parent@email.com"><p><button class="btn g" id="rv-mail">Email to the parent</button></p>':'')
     +'<p><button class="btn" id="rv-pdf">Print the official form (this child only)</button></p>'+(x.group?'<p><button class="btn s" id="rv-pdf2">Print both children on one page (cut in half)</button></p>':'')+(x.emailReq&&!x.emailSent?'<p><button class="btn g" id="rv-em">Mark email sent</button></p>':'')
     +'<div id="rv-er3" class="err"></div><p><button class="btn s" id="rv-back">Back to the list</button></p></div>');
-    var pad=Pad(el.querySelector('#rv-sg'));el.querySelector('#rv-clr').onclick=function(e){e.preventDefault();pad.clear()};
+    var pad=stage==='done'?null:Pad(el.querySelector('#rv-sg'));if(pad)el.querySelector('#rv-clr').onclick=function(e){e.preventDefault();pad.clear()};
     function g(id){return el.querySelector('#'+id).value.trim()}
     el.querySelector('#rv-back').onclick=list;
     el.querySelector('#rv-save').onclick=function(){var er=el.querySelector('#rv-er');er.textContent='';var set={notes:g('rv-nt')};if(!locked){set.desc=g('rv-desc');set.body=g('rv-body');set.loc=g('rv-loc');set.nature=g('rv-nat');set.treat=g('rv-trt');set.action=g('rv-act');set.contacted=(g('rv-con')==='Yes'?'Yes':'No');set.ctime=g('rv-ct');set.chow=g('rv-ch')}
       var changed=!locked&&['desc','body','loc','nature','treat','action','contacted','ctime','chow'].some(function(k){var m={desc:x.desc,body:x.body,loc:x.loc,nature:x.nature,treat:x.treat,action:x.action,contacted:x.contacted,ctime:x.ctime,chow:x.chow};return (m[k]||'')!==set[k]});
       if(changed&&!confirm('Changing the report clears your director signature, so you will sign it again. Save?'))return;
       api('inc_update',{id:x.id,set:set}).then(function(r){if(r.ok)review(x);else er.textContent=r.error||'Did not save.'})};
-    el.querySelector('#rv-sign').onclick=function(){var er=el.querySelector('#rv-er2'),sig=pad.get(),nm=g('rv-dn');er.textContent='';if(!nm||!sig){er.textContent='Type your name and sign in the box.';return}
-      this.disabled=true;api('inc_dir_sign',{id:x.id,name:nm,sig:sig}).then(function(r){if(r.ok)review(x);else{el.querySelector('#rv-sign').disabled=false;er.textContent=r.error||'Did not save.'}})};
+    var sgb=el.querySelector('#rv-sign');if(sgb)sgb.onclick=function(){var er=el.querySelector('#rv-er2'),sig=pad.get(),nm=g('rv-dn');er.textContent='';if(!nm||!sig){er.textContent='Type your name and sign in the box.';return}
+      this.disabled=true;api(stage==='final'?'inc_dir_final':'inc_dir_sign',{id:x.id,name:nm,sig:sig}).then(function(r){if(r.ok)review(x);else{el.querySelector('#rv-sign').disabled=false;er.textContent=r.error||'Did not save.'}})};
     function pdf(group){var er=el.querySelector('#rv-er3');er.textContent='Making the form...';api('inc_get',{id:x.id,group:group}).then(function(r){if(!r.ok)throw new Error(r.error||'Could not load.');
       var rows=r.rows.slice().sort(function(a,b){return a.child===x.child?-1:(b.child===x.child?1:0)});
       return build(rows,o.school,{})}).then(function(bytes){er.textContent='';openPdf(bytes)}).catch(function(e){er.textContent=e.message||'Could not make the form.'})}
     el.querySelector('#rv-pdf').onclick=function(){pdf(false)};var p2=el.querySelector('#rv-pdf2');if(p2)p2.onclick=function(){pdf(true)};
+    var ml=el.querySelector('#rv-mail');if(ml)ml.onclick=function(){var er=el.querySelector('#rv-er3'),to=g('rv-to');if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)){er.textContent='Type the parent email address first.';return}er.textContent='Making the PDF...';ml.disabled=true;
+      api('inc_get',{id:x.id,group:false}).then(function(r){if(!r.ok)throw new Error(r.error||'Could not load.');return build(r.rows,o.school,{})}).then(function(bytes){var s='',ch=0x8000;for(var i=0;i<bytes.length;i+=ch)s+=String.fromCharCode.apply(null,bytes.subarray(i,i+ch));er.textContent='Sending...';return api('inc_email',{id:x.id,to:to,pdf:btoa(s)})}).then(function(r){if(!r.ok)throw new Error(r.error||'Not sent.');er.style.color='#1b7a3d';er.textContent='Email sent to '+to+'.';ml.disabled=false}).catch(function(e){er.style.color='';er.textContent=e.message||'Could not send.';ml.disabled=false})};
     var em=el.querySelector('#rv-em');if(em)em.onclick=function(){api('inc_emailed',{id:x.id}).then(function(r){if(r.ok)review(x)})};
   }
   list();

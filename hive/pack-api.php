@@ -239,10 +239,13 @@ function first_tok($c){ $p = preg_split('/[\s.\(\)]+/', trim((string)$c)); retur
 function mentions($text, $firsts){ foreach ($firsts as $f){ if (mb_strlen($f) >= 2 && preg_match('/\b'.preg_quote($f, '/').'\b/iu', (string)$text)) return $f; } return ''; }
 function age_gender($dob, $g){ $a = age_str($dob, date('Y-m-d')); $ag = ''; if ($a !== ''){ preg_match('/^(\d+)y (\d+)m$/', $a, $m); $ag = ((int)$m[1] > 0) ? ((int)$m[1].' yrs') : ((int)$m[2].' mos'); } $g = in_array($g, ['F','M'], true) ? $g : ''; return trim($ag.($g !== '' ? ' / '.$g : '')); }
 function inc_row($r, $full = false){ $f = $r['fields'] ?? [];
-  $o = ['id'=>$r['id'], 'rid'=>$f['Report ID'] ?? '', 'group'=>$f['Group ID'] ?? '', 'child'=>$f['Child'] ?? '', 'room'=>$f['Room'] ?? '', 'teacher'=>$f['Teacher'] ?? '', 'age'=>$f['Age / Gender'] ?? '', 'date'=>$f['Incident Date'] ?? '', 'time'=>$f['Incident Time'] ?? '', 'desc'=>$f['Description'] ?? '', 'body'=>$f['Body Parts'] ?? '', 'loc'=>$f['Location'] ?? '', 'nature'=>$f['Nature of Injury'] ?? '', 'treat'=>$f['Medical Treatment'] ?? '', 'action'=>$f['Action Taken'] ?? '', 'contacted'=>$f['Parent Contacted'] ?? '', 'ctime'=>$f['Contact Time'] ?? '', 'chow'=>$f['Contact How'] ?? '', 'status'=>$f['Status'] ?? '', 'by'=>$f['Entered By'] ?? '', 'staffAt'=>$f['Staff Signed At'] ?? '', 'dirName'=>$f['Director Name'] ?? '', 'dirAt'=>$f['Director Signed At'] ?? '', 'parentName'=>$f['Parent Name'] ?? '', 'parentAt'=>$f['Parent Signed At'] ?? '', 'emailReq'=>!empty($f['Email Copy Requested']), 'emailAddr'=>$f['Email Address'] ?? '', 'emailSent'=>$f['Email Sent'] ?? '', 'notes'=>$f['Director Notes'] ?? ''];
-  if ($full){ $o['staffSig'] = $f['Staff Signature'] ?? ''; $o['dirSig'] = $f['Director Signature'] ?? ''; $o['parentSig'] = $f['Parent Signature'] ?? ''; }
+  $o = ['id'=>$r['id'], 'rid'=>$f['Report ID'] ?? '', 'group'=>$f['Group ID'] ?? '', 'child'=>$f['Child'] ?? '', 'room'=>$f['Room'] ?? '', 'teacher'=>$f['Teacher'] ?? '', 'age'=>$f['Age / Gender'] ?? '', 'date'=>$f['Incident Date'] ?? '', 'time'=>$f['Incident Time'] ?? '', 'desc'=>$f['Description'] ?? '', 'body'=>$f['Body Parts'] ?? '', 'loc'=>$f['Location'] ?? '', 'nature'=>$f['Nature of Injury'] ?? '', 'treat'=>$f['Medical Treatment'] ?? '', 'action'=>$f['Action Taken'] ?? '', 'contacted'=>$f['Parent Contacted'] ?? '', 'ctime'=>$f['Contact Time'] ?? '', 'chow'=>$f['Contact How'] ?? '', 'status'=>$f['Status'] ?? '', 'by'=>$f['Entered By'] ?? '', 'staffAt'=>$f['Staff Signed At'] ?? '', 'dirName'=>$f['Director Name'] ?? '', 'dirAt'=>$f['Director Signed At'] ?? '', 'parentName'=>$f['Parent Name'] ?? '', 'parentAt'=>$f['Parent Signed At'] ?? '', 'finalName'=>$f['Director Final Name'] ?? '', 'finalAt'=>$f['Director Final Signed At'] ?? '', 'emailAddr'=>$f['Email Address'] ?? '', 'emailReq'=>!empty($f['Email Copy Requested']), 'emailAddr'=>$f['Email Address'] ?? '', 'emailSent'=>$f['Email Sent'] ?? '', 'notes'=>$f['Director Notes'] ?? ''];
+  if ($full){ $o['staffSig'] = $f['Staff Signature'] ?? ''; $o['dirSig'] = $f['Director Signature'] ?? ''; $o['parentSig'] = $f['Parent Signature'] ?? ''; $o['finalSig'] = $f['Director Final Signature'] ?? ''; }
   return $o; }
-if ($act === 'inc_kids'){ $o = []; foreach (roster(room_names((string)($in['r'] ?? ''))) as $k) $o[] = ['n'=>child_fl($k['n']), 'age'=>age_gender($k['dob'], ''), 'room'=>$k['room']]; echo json_encode(['ok'=>true,'kids'=>$o]); exit; }
+if ($act === 'inc_kids'){ $all = !empty($in['all']); $pres = [];
+  if (!$all){ $ar = at('GET', 'Room Attendance', ['maxRecords'=>500, 'filterByFormula'=>"AND({School}='".$school."',IS_SAME({Date},'$today','day'))"]); foreach (($ar['records'] ?? []) as $x){ $f = $x['fields']; if (!empty($f['Arrival'])) $pres[strtolower(child_fl($f['Child'] ?? ''))] = 1; } }
+  $o = []; foreach (roster(room_names((string)($in['r'] ?? ''))) as $k){ if (!$all && !isset($pres[strtolower(child_fl($k['n']))])) continue; $o[] = ['n'=>child_fl($k['n']), 'age'=>age_gender($k['dob'], ''), 'room'=>$k['room']]; }
+  echo json_encode(['ok'=>true,'kids'=>$o,'present'=>!$all]); exit; }
 if ($act === 'inc_add'){
   $who = nm($in['name'] ?? '', 60); $teacher = nm($in['teacher'] ?? '', 60); if ($who === '' || $teacher === '') fail('Type your name and the teacher who was with the children.');
   $date = (string)($in['date'] ?? $today); if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || $date > $today || $date < date('Y-m-d', strtotime('-30 days'))) fail('Pick today or a recent date.');
@@ -271,7 +274,7 @@ if ($act === 'inc_list'){
   foreach (($q['records'] ?? []) as $r){ if ($keep !== null && !isset($keep[strtolower(child_fl($r['fields']['Child'] ?? ''))])) continue; $o[] = inc_row($r); }
   echo json_encode(['ok'=>true, 'list'=>$o, 'dir'=>$dir]); exit;
 }
-if (in_array($act, ['inc_get','inc_dir_sign','inc_update','inc_emailed'], true)){
+if (in_array($act, ['inc_get','inc_dir_sign','inc_dir_final','inc_update','inc_emailed','inc_email'], true)){
   if (!okdtok($sk, $in['dtok'] ?? '')) fail('Directors only. Sign in with your director code.', 403);
   $id = (string)($in['id'] ?? ''); if (!preg_match('/^rec[A-Za-z0-9]{14}$/', $id)) fail('Bad request');
   $r = at('GET', $INC_T.'/'.$id); if (($r['fields']['School'] ?? '') !== $school) fail('Not found', 404); $f = $r['fields'];
@@ -281,10 +284,28 @@ if (in_array($act, ['inc_get','inc_dir_sign','inc_update','inc_emailed'], true))
     echo json_encode(['ok'=>true, 'rows'=>$all]); exit;
   }
   if ($act === 'inc_dir_sign'){
+    if (($f['Parent Signed At'] ?? '') !== '') fail('The parent already signed this report.');
     $sig = (string)($in['sig'] ?? ''); $nmx = nm($in['name'] ?? '', 60); if ($nmx === '' || !sigok($sig)) fail('Type your name and sign in the box.');
-    $st = ($f['Parent Signed At'] ?? '') !== '' ? 'Complete' : 'Needs Parent';
-    $u = at('PATCH', $INC_T.'/'.$id, null, ['fields'=>['Director Name'=>$nmx, 'Director Signature'=>$sig, 'Director Signed At'=>$now->format('n/j/Y g:i A'), 'Status'=>$st], 'typecast'=>true]);
-    if (empty($u['id'])) fail('Did not save.', 502); echo json_encode(['ok'=>true, 'status'=>$st]); exit;
+    $u = at('PATCH', $INC_T.'/'.$id, null, ['fields'=>['Director Name'=>$nmx, 'Director Signature'=>$sig, 'Director Signed At'=>$now->format('n/j/Y g:i A'), 'Status'=>'Needs Parent'], 'typecast'=>true]);
+    if (empty($u['id'])) fail('Did not save.', 502); echo json_encode(['ok'=>true, 'status'=>'Needs Parent']); exit;
+  }
+  if ($act === 'inc_dir_final'){
+    if (($f['Parent Signed At'] ?? '') === '') fail('The parent has not signed yet.');
+    $sig = (string)($in['sig'] ?? ''); $nmx = nm($in['name'] ?? '', 60); if ($nmx === '' || !sigok($sig)) fail('Type your name and sign in the box.');
+    $u = at('PATCH', $INC_T.'/'.$id, null, ['fields'=>['Director Final Name'=>$nmx, 'Director Final Signature'=>$sig, 'Director Final Signed At'=>$now->format('n/j/Y g:i A'), 'Status'=>'Complete'], 'typecast'=>true]);
+    if (empty($u['id'])) fail('Did not save.', 502); echo json_encode(['ok'=>true, 'status'=>'Complete']); exit;
+  }
+  if ($act === 'inc_email'){
+    $to = trim((string)($in['to'] ?? '')); if (!filter_var($to, FILTER_VALIDATE_EMAIL) || strlen($to) > 120) fail('Type the parent email address.');
+    if (($f['Director Signed At'] ?? '') === '') fail('Sign and approve the report before emailing it.');
+    $b64 = (string)($in['pdf'] ?? ''); $pdf = base64_decode($b64, true); if ($pdf === false || strlen($pdf) < 500 || strlen($pdf) > 3000000 || substr($pdf, 0, 4) !== '%PDF') fail('Could not make the PDF. Try again.');
+    $sn = ($school === 'Sanford') ? 'Kid City USA Sanford' : 'Kid City USA DeLand 2'; $bd = 'b'.md5(uniqid('', true)); $fn = 'Accident-Incident-Report.pdf';
+    $hdr = "From: ".$sn." <noreply@thepreschoolprofessional.net>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"$bd\"";
+    $txt = "Hello,\r\n\r\nAttached is the Accident/Incident Report for your child from ".$sn.". Please keep it for your records. If you have any questions, call the school.\r\n\r\nThank you,\r\n".$sn."\r\n";
+    $body = "--$bd\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n".$txt."\r\n--$bd\r\nContent-Type: application/pdf; name=\"$fn\"\r\nContent-Transfer-Encoding: base64\r\nContent-Disposition: attachment; filename=\"$fn\"\r\n\r\n".chunk_split(base64_encode($pdf))."\r\n--$bd--";
+    if (!@mail($to, 'Accident/Incident Report - '.$sn, $body, $hdr)) fail('The email could not be sent. Try again.', 502);
+    at('PATCH', $INC_T.'/'.$id, null, ['fields'=>['Email Address'=>$to, 'Email Sent'=>$now->format('n/j/Y g:i A')], 'typecast'=>true]);
+    echo json_encode(['ok'=>true]); exit;
   }
   if ($act === 'inc_update'){
     if (($f['Parent Signed At'] ?? '') !== '') fail('The parent already signed this report, so it can no longer be changed.');

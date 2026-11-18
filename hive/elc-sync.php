@@ -35,6 +35,37 @@ function who_by_pin($pin,$school){
   }
   return false;
 }
+/* ---------- Incident reports for parents at the Bear Line (added 11/17/26) ---------- */
+const TBL_INC='tblx3OUvClLgiipzg';
+function inc_key($s){ $p=preg_split('/\s+/',trim((string)$s)); if(!$p||$p[0]==='') return ''; return mb_strtolower(preg_replace('/[^\p{L}]/u','',$p[0])).(count($p)>1?' '.mb_strtolower(mb_substr(end($p),0,1)):''); }
+function inc_kidset(){ $o=[]; foreach ((array)($_POST['kids'] ?? []) as $k){ $x=inc_key($k); if($x!=='') $o[$x]=1; } return $o; }
+function inc_pub($r){ $f=$r['fields']??[]; return ['id'=>$r['id'],'rid'=>$f['Report ID']??'','child'=>$f['Child']??'','room'=>$f['Room']??'','teacher'=>$f['Teacher']??'','age'=>$f['Age / Gender']??'','date'=>$f['Incident Date']??'','time'=>$f['Incident Time']??'','desc'=>$f['Description']??'','body'=>$f['Body Parts']??'','loc'=>$f['Location']??'','nature'=>$f['Nature of Injury']??'','treat'=>$f['Medical Treatment']??'','action'=>$f['Action Taken']??'','contacted'=>$f['Parent Contacted']??'','ctime'=>$f['Contact Time']??'','chow'=>$f['Contact How']??'','staffAt'=>$f['Staff Signed At']??'','dirName'=>$f['Director Name']??'','dirAt'=>$f['Director Signed At']??'','staffSig'=>$f['Staff Signature']??'','dirSig'=>$f['Director Signature']??'','parentAt'=>$f['Parent Signed At']??'']; }
+if ($op==='inc_parent_list' || $op==='inc_parent_sign'){
+  $school=trim($_POST['school'] ?? ''); if(!in_array($school,['Sanford','DeLand 2'],true)) out(['ok'=>false,'error'=>'bad_school'],400);
+  $ks=inc_kidset(); if(!$ks) out(['ok'=>true,'list'=>[]]);
+  if ($op==='inc_parent_list'){
+    $r=at('GET',TBL_INC.'?maxRecords=50&filterByFormula='.rawurlencode("AND({School}='".$school."',{Status}='Needs Parent')"));
+    $o=[]; foreach (($r['records'] ?? []) as $x){ if(isset($ks[inc_key($x['fields']['Child'] ?? '')]) && empty($x['fields']['Parent Signed At'])) $o[]=inc_pub($x); }
+    out(['ok'=>true,'list'=>$o]);
+  }
+  $id=(string)($_POST['id'] ?? ''); if(!preg_match('/^rec[A-Za-z0-9]{14}$/',$id)) out(['ok'=>false,'error'=>'bad_id'],400);
+  $x=at('GET',TBL_INC.'/'.$id); $f=$x['fields'] ?? [];
+  if(($f['School'] ?? '')!==$school || !isset($ks[inc_key($f['Child'] ?? '')]) || ($f['Status'] ?? '')!=='Needs Parent' || !empty($f['Parent Signed At'])) out(['ok'=>false,'error'=>'not_available'],409);
+  $sig=(string)($_POST['sig'] ?? ''); $nm=trim(mb_substr((string)($_POST['name'] ?? ''),0,60));
+  if($nm==='' || strpos($sig,'data:image/png;base64,')!==0 || strlen($sig)<600 || strlen($sig)>60000) out(['ok'=>false,'error'=>'need_signature'],400);
+  $em=trim((string)($_POST['email'] ?? '')); $set=['Parent Name'=>$nm,'Parent Signature'=>$sig,'Parent Signed At'=>(new DateTime('now',new DateTimeZone('America/New_York')))->format('n/j/Y g:i A'),'Status'=>'Needs Final'];
+  if($em!=='' && filter_var($em,FILTER_VALIDATE_EMAIL)){ $set['Email Copy Requested']=true; $set['Email Address']=$em; }
+  $u=at('PATCH',TBL_INC.'/'.$id,['fields'=>$set,'typecast'=>true]); if(empty($u['id'])) out(['ok'=>false,'error'=>'save_failed'],502);
+  out(['ok'=>true]);
+}
+if ($op==='inc_parent_email'){
+  $school=trim($_POST['school'] ?? ''); $ks=inc_kidset(); $id=(string)($_POST['id'] ?? ''); $em=trim((string)($_POST['email'] ?? ''));
+  if(!in_array($school,['Sanford','DeLand 2'],true) || !preg_match('/^rec[A-Za-z0-9]{14}$/',$id) || !filter_var($em,FILTER_VALIDATE_EMAIL)) out(['ok'=>false,'error'=>'bad_request'],400);
+  $x=at('GET',TBL_INC.'/'.$id); $f=$x['fields'] ?? [];
+  if(($f['School'] ?? '')!==$school || !isset($ks[inc_key($f['Child'] ?? '')]) || empty($f['Parent Signed At'])) out(['ok'=>false,'error'=>'not_available'],409);
+  $u=at('PATCH',TBL_INC.'/'.$id,['fields'=>['Email Copy Requested'=>true,'Email Address'=>$em],'typecast'=>true]); if(empty($u['id'])) out(['ok'=>false,'error'=>'save_failed'],502);
+  out(['ok'=>true]);
+}
 if ($op==='setprog'){
   $school=$_POST['school'] ?? ''; if (!in_array($school,['sanford','deland'],true)) out(['ok'=>false,'error'=>'bad_school'],400);
   $child=trim($_POST['child'] ?? ''); $pg=($_POST['prog'] ?? '')==='ELC'?'ELC':'PP';
