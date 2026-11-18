@@ -345,4 +345,58 @@ if ($act === 'ph_send'){
   echo json_encode(['ok'=>true]); exit;
 }
 
+/* ---- Medication orders and doses (11/17/26). Office or director enters an order from the parent's signed form; a director approves it; the classroom records each dose and signs;
+   the parent signs the day's doses at the Bear Line before sign-out; everything stays in Airtable (12 months or more). ---- */
+$MO_T = 'Medication Orders'; $MD_T = 'Medication Doses';
+function mo_row($r){ $f = $r['fields'] ?? []; return ['id'=>$r['id'], 'child'=>$f['Child'] ?? '', 'room'=>$f['Room'] ?? '', 'med'=>$f['Medication'] ?? '', 'dose'=>$f['Dose'] ?? '', 'how'=>$f['How Given'] ?? '', 'times'=>$f['Times'] ?? '', 'reason'=>$f['Reason'] ?? '', 'notes'=>$f['Notes'] ?? '', 'start'=>$f['Start Date'] ?? '', 'end'=>$f['End Date'] ?? '', 'auth'=>$f['Parent Authorized By'] ?? '', 'status'=>$f['Status'] ?? '', 'by'=>$f['Entered By'] ?? '', 'appBy'=>$f['Approved By'] ?? '', 'appAt'=>$f['Approved At'] ?? '']; }
+function md_row($r, $full = false){ $f = $r['fields'] ?? []; $o = ['id'=>$r['id'], 'order'=>$f['Order'] ?? '', 'child'=>$f['Child'] ?? '', 'room'=>$f['Room'] ?? '', 'med'=>$f['Medication'] ?? '', 'dose'=>$f['Dose Given'] ?? '', 'date'=>$f['Date'] ?? '', 'time'=>$f['Time'] ?? '', 'by'=>$f['Given By'] ?? '', 'note'=>$f['Note'] ?? '', 'status'=>$f['Status'] ?? '', 'parent'=>$f['Parent Name'] ?? '', 'parentAt'=>$f['Parent Signed At'] ?? '']; if ($full){ $o['staffSig'] = $f['Staff Signature'] ?? ''; $o['parentSig'] = $f['Parent Signature'] ?? ''; } return $o; }
+if ($act === 'med_list'){
+  $dir = okdtok($sk, $in['dtok'] ?? ''); $slug = (string)($in['r'] ?? '');
+  $keep = null; if ($slug !== ''){ $keep = []; foreach (roster(room_names($slug)) as $k) $keep[strtolower(child_fl($k['n']))] = 1; }
+  $q = at('GET', $MO_T, ['maxRecords'=>300, 'filterByFormula'=>"AND({School}='".$school."',{Status}!='Stopped')"]); $os = [];
+  foreach (($q['records'] ?? []) as $r){ $c = strtolower(child_fl($r['fields']['Child'] ?? '')); if ($keep !== null && !isset($keep[$c])) continue; $o = mo_row($r); if ($keep !== null && $o['status'] !== 'Active') continue; if ($keep !== null && (($o['start'] && $o['start'] > $today) || ($o['end'] && $o['end'] < $today))) continue; $os[] = $o; }
+  $d = at('GET', $MD_T, ['maxRecords'=>400, 'filterByFormula'=>"AND({School}='".$school."',IS_SAME({Date},'$today','day'))"]); $ds = [];
+  foreach (($d['records'] ?? []) as $r){ $c = strtolower(child_fl($r['fields']['Child'] ?? '')); if ($keep !== null && !isset($keep[$c])) continue; $ds[] = md_row($r); }
+  echo json_encode(['ok'=>true, 'orders'=>$os, 'doses'=>$ds, 'dir'=>$dir]); exit;
+}
+if ($act === 'med_order_add'){
+  $dir = okdtok($sk, $in['dtok'] ?? ''); $who = nm($in['name'] ?? '', 60); if ($who === '') fail('Type your name.');
+  $c = child_fl($in['child'] ?? ''); $rk = null; foreach (roster(room_names('')) as $k){ if (strtolower(child_fl($k['n'])) === strtolower($c)) $rk = $k; }
+  if ($c === '' || !$rk) fail('Pick the child from the list.');
+  $med = nm($in['med'] ?? '', 100); $dose = nm($in['dose'] ?? '', 80); $how = nm($in['how'] ?? '', 80); $times = nm($in['times'] ?? '', 120); $reason = nm($in['reason'] ?? '', 120); $notes = nm($in['notes'] ?? '', 400); $auth = nm($in['auth'] ?? '', 80);
+  if ($med === '' || $dose === '' || $times === '') fail('Type the medicine, the dose and when it is given.');
+  if ($auth === '' || empty($in['form'])) fail('The parent must sign the medication form first. Type who signed it and tick that the form is on file.');
+  $sd = (string)($in['start'] ?? $today); $ed = (string)($in['end'] ?? ''); if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $sd) || ($ed !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $ed))) fail('Check the dates.');
+  $f = ['Order ID'=>strtoupper(substr($sk, 0, 1)).'-MED-'.date('ymdHis').rand(10, 99), 'School'=>$school, 'Child'=>$c, 'Room'=>$rk['room'], 'Medication'=>$med, 'Dose'=>$dose, 'How Given'=>$how, 'Times'=>$times, 'Reason'=>$reason, 'Notes'=>$notes, 'Start Date'=>$sd, 'Parent Authorized By'=>$auth, 'Form On File'=>true, 'Status'=>$dir ? 'Active' : 'Needs Director', 'Entered By'=>$who];
+  if ($ed !== '') $f['End Date'] = $ed; if ($dir){ $f['Approved By'] = $who; $f['Approved At'] = $now->format('n/j/Y g:i A'); }
+  $res = at('POST', $MO_T, null, ['records'=>[['fields'=>$f]], 'typecast'=>true]); if (empty($res['records'][0]['id'])) fail('Did not save. Try again.', 502);
+  echo json_encode(['ok'=>true, 'status'=>$f['Status']]); exit;
+}
+if ($act === 'med_order_decide'){
+  if (!okdtok($sk, $in['dtok'] ?? '')) fail('Directors only. Sign in with your director code.', 403);
+  $id = (string)($in['id'] ?? ''); if (!preg_match('/^rec[A-Za-z0-9]{14}$/', $id)) fail('Bad request');
+  $r = at('GET', $MO_T.'/'.$id); if (($r['fields']['School'] ?? '') !== $school) fail('Not found', 404);
+  $d = ($in['decision'] ?? '') === 'stop' ? 'Stopped' : 'Active'; $by = nm($in['name'] ?? 'Director', 60);
+  $f = ['Status'=>$d]; if ($d === 'Active'){ $f['Approved By'] = $by; $f['Approved At'] = $now->format('n/j/Y g:i A'); }
+  $u = at('PATCH', $MO_T.'/'.$id, null, ['fields'=>$f, 'typecast'=>true]); if (empty($u['id'])) fail('Did not save.', 502); echo json_encode(['ok'=>true]); exit;
+}
+if ($act === 'med_give'){
+  $id = (string)($in['id'] ?? ''); if (!preg_match('/^rec[A-Za-z0-9]{14}$/', $id)) fail('Bad request');
+  $who = nm($in['name'] ?? '', 60); $tm = nm($in['time'] ?? '', 20); $dose = nm($in['dose'] ?? '', 80); $note = nm($in['note'] ?? '', 160); $sig = (string)($in['sig'] ?? '');
+  if ($who === '' || $tm === '' || $dose === '') fail('Type your name, the time and the dose given.'); if (!sigok($sig)) fail('Please sign in the box.');
+  $r = at('GET', $MO_T.'/'.$id); $f = $r['fields'] ?? []; if (($f['School'] ?? '') !== $school || ($f['Status'] ?? '') !== 'Active') fail('That medicine is not active.');
+  if (!empty($f['Start Date']) && $f['Start Date'] > $today) fail('This medicine has not started yet.'); if (!empty($f['End Date']) && $f['End Date'] < $today) fail('This medicine order has ended.');
+  $ok = []; foreach (roster(room_names((string)($in['r'] ?? ''))) as $k) $ok[strtolower(child_fl($k['n']))] = $k; $c = child_fl($f['Child'] ?? ''); if (!isset($ok[strtolower($c)])) fail('This child is not in this room.');
+  $res = at('POST', $MD_T, null, ['records'=>[['fields'=>['Dose ID'=>strtoupper(substr($sk, 0, 1)).'-DOSE-'.date('ymdHis').rand(10, 99), 'School'=>$school, 'Order'=>$f['Order ID'] ?? '', 'Child'=>$c, 'Room'=>$f['Room'] ?? '', 'Medication'=>$f['Medication'] ?? '', 'Dose Given'=>$dose, 'Date'=>$today, 'Time'=>$tm, 'Given By'=>$who, 'Staff Signature'=>$sig, 'Note'=>$note, 'Status'=>'Needs Parent']]], 'typecast'=>true]);
+  if (empty($res['records'][0]['id'])) fail('Did not save. Try again.', 502); echo json_encode(['ok'=>true]); exit;
+}
+if ($act === 'med_history'){
+  if (!okdtok($sk, $in['dtok'] ?? '')) fail('Directors only. Sign in with your director code.', 403);
+  $c = child_fl($in['child'] ?? ''); if ($c === '') fail('Pick the child.');
+  $since = date('Y-m-d', strtotime('-366 days'));
+  $d = at('GET', $MD_T, ['maxRecords'=>400, 'filterByFormula'=>"AND({School}='".$school."',{Child}='".esc_q($c)."',IS_AFTER({Date},'$since'))", 'sort[0][field]'=>'Date', 'sort[0][direction]'=>'asc']); $ds = [];
+  foreach (($d['records'] ?? []) as $r) $ds[] = md_row($r, true);
+  echo json_encode(['ok'=>true, 'doses'=>$ds]); exit;
+}
+
 fail('Unknown action');

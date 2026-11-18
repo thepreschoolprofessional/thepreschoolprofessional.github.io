@@ -66,6 +66,22 @@ if ($op==='inc_parent_email'){
   $u=at('PATCH',TBL_INC.'/'.$id,['fields'=>['Email Copy Requested'=>true,'Email Address'=>$em],'typecast'=>true]); if(empty($u['id'])) out(['ok'=>false,'error'=>'save_failed'],502);
   out(['ok'=>true]);
 }
+/* ---------- Medication doses for parents at the Bear Line (added 11/17/26) ---------- */
+const TBL_MD='tbl6opqlCs031gZC5';
+if ($op==='med_parent_list' || $op==='med_parent_sign'){
+  $school=trim($_POST['school'] ?? ''); if(!in_array($school,['Sanford','DeLand 2'],true)) out(['ok'=>false,'error'=>'bad_school'],400);
+  $ks=inc_kidset(); if(!$ks) out(['ok'=>true,'list'=>[]]);
+  $r=at('GET',TBL_MD.'?maxRecords=60&filterByFormula='.rawurlencode("AND({School}='".$school."',{Status}='Needs Parent')"));
+  $mine=[]; foreach (($r['records'] ?? []) as $x){ $f=$x['fields'] ?? []; if(isset($ks[inc_key($f['Child'] ?? '')])) $mine[$x['id']]=['id'=>$x['id'],'child'=>$f['Child']??'','med'=>$f['Medication']??'','dose'=>$f['Dose Given']??'','date'=>$f['Date']??'','time'=>$f['Time']??'','by'=>$f['Given By']??'','note'=>$f['Note']??'']; }
+  if ($op==='med_parent_list') out(['ok'=>true,'list'=>array_values($mine)]);
+  $ids=array_values(array_unique(array_filter((array)($_POST['ids'] ?? []),function($i){return preg_match('/^rec[A-Za-z0-9]{14}$/',(string)$i);})));
+  $sig=(string)($_POST['sig'] ?? ''); $nm=trim(mb_substr((string)($_POST['name'] ?? ''),0,60));
+  if(!$ids || $nm==='' || strpos($sig,'data:image/png;base64,')!==0 || strlen($sig)<600 || strlen($sig)>60000) out(['ok'=>false,'error'=>'need_signature'],400);
+  $when=(new DateTime('now',new DateTimeZone('America/New_York')))->format('n/j/Y g:i A'); $recs=[];
+  foreach ($ids as $i){ if(!isset($mine[$i])) out(['ok'=>false,'error'=>'not_available'],409); $recs[]=['id'=>$i,'fields'=>['Status'=>'Signed','Parent Name'=>$nm,'Parent Signature'=>$sig,'Parent Signed At'=>$when]]; }
+  foreach (array_chunk($recs,10) as $ch){ $u=at('PATCH',TBL_MD,['records'=>$ch,'typecast'=>true]); if(empty($u['records'])) out(['ok'=>false,'error'=>'save_failed'],502); }
+  out(['ok'=>true]);
+}
 if ($op==='setprog'){
   $school=$_POST['school'] ?? ''; if (!in_array($school,['sanford','deland'],true)) out(['ok'=>false,'error'=>'bad_school'],400);
   $child=trim($_POST['child'] ?? ''); $pg=($_POST['prog'] ?? '')==='ELC'?'ELC':'PP';
