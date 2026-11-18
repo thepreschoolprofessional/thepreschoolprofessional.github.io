@@ -42,7 +42,7 @@ h2{margin:0 0 4px;font-family:var(--f-display);font-size:21px;font-weight:600;co
 <script>
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 var q=new URLSearchParams(location.search),S=q.get('s')||'',R=q.get('r')||'',D=null,cur=(q.get('t')&&['signin','classroom','bathroom','indoor','schedule','forms','bios','food','allergy'].indexOf(q.get('t'))>=0)?q.get('t'):'signin',selDate={};
-var SEC={signin:['✅','Attendance - All Classrooms','Sign in, out, move'],classroom:['🧹','Classroom Cleaning Chart','Every day, last 2 months'],bathroom:['🚽','Bathroom Cleaning Chart','Every day, last 2 months'],indoor:['🏠','Daily Indoor Inspection','Every day, last 2 months'],schedule:['🗓','Daily Schedule','Today\'s classroom routine'],food:['🍎','Food Program Attendance','Weekly form, print'],allergy:['⚠️','Allergies','See and add'],incident:['🩹','Incident Reports','Write and see reports'],photo:['📷','Photo & Allergy Card','Send from the phone'],med:['💊','Medication','Give and sign'],obs:['📝','Observations','Notes on each child'],daily:['🍼','Daily Sheet','Meals, naps, diapers'],forms:['🖨️','Official Forms','Pick dates and print'],bios:['👩‍🏫','Meet Our Teachers','Staff bios and photos']};
+var SEC={signin:['✅','Attendance - All Classrooms','Sign in, out, move'],classroom:['🧹','Classroom Cleaning Chart','Every day, last 2 months'],bathroom:['🚽','Bathroom Cleaning Chart','Every day, last 2 months'],indoor:['🏠','Daily Indoor Inspection','Every day, last 2 months'],schedule:['🗓','Daily Schedule','Today\'s classroom routine'],food:['🍎','Food Program Attendance','Weekly form, print'],allergy:['⚠️','Allergies','See and add'],incident:['🩹','Incident Reports','Write and see reports'],photo:['📷','Photo & Allergy Card','Send from the phone'],med:['💊','Medication','Give and sign'],obs:['📝','Observations','Notes on each child'],daily:['🍼','Daily Sheet','Meals, naps, diapers'],lesson:['📖','Lesson Plan','View on screen, Quick Packet'],forms:['🖨️','Official Forms','Pick dates and print'],bios:['👩‍🏫','Meet Our Teachers','Staff bios and photos']};
 function fd(s){var p=s.split('-');return (+p[1])+'/'+(+p[2])}
 function dow(s){return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(s+'T12:00:00').getDay()]}
 function days(){var o=[],t=new Date(D.today+'T12:00:00');for(var i=0;i<62;i++){var d=new Date(t-i*864e5);if(d.getDay()===0||d.getDay()===6)continue;o.push(d.toISOString().slice(0,10))}return o}
@@ -119,9 +119,24 @@ function mountIncident(){var el=document.getElementById('mnt');if(!el)return;Inc
 function mountFood(){var el=document.getElementById('mnt');if(!el)return;el.innerHTML='<div class="sec"><div class="msg">Loading...</div></div>';
  pk({act:'rooms'}).then(function(r){var l=(r.rooms||[]).filter(function(x){return x.slug===R}).map(function(x){return x.name});if(!l.length){el.innerHTML='<div class="sec"><div class="msg">'+esc(r.error||'Room not found.')+'</div></div>';return}
   FoodForm.mount(el,{school:D.school,today:D.today,rooms:l,allowAll:l.length>1,post:pk})})}
+
+function lpView(u){var m=/\/file\/d\/([\w-]+)/.exec(u||'');return m?'https://drive.google.com/file/d/'+m[1]+'/preview':''}
+function lessonHtml(){
+ if(!D.lp){post({act:'lessonplan'}).then(function(r){D.lp=r&&r.plans?r:{plans:[],month:''};draw()}).catch(function(){D.lp={plans:[],month:''};draw()});return'<div class="sec"><div class="msg">Loading the lesson plan...</div></div>'}
+ var L=D.lp.plans||[];
+ if(!L.length)return'<div class="sec"><h2>📖 Lesson Plan</h2><div class="msg">No lesson plan is posted for this classroom yet. Ask your director.</div></div>';
+ return L.map(function(p,i){
+  var v=lpView(p.link);
+  var h='<div class="sec"><h2>📖 '+esc(p.plan)+'</h2><div class="sub">'+esc(D.room)+'. Shown on screen so ELC and visitors can see the lesson plan. No printing needed.</div>';
+  if(p.link){h+='<button class="big" style="background:var(--ok)" onclick="lpToggle('+i+')">'+(lpShown[i]?'Hide the lesson plan':'View the lesson plan on the screen')+'</button>';
+   if(lpShown[i]){h+=(v?'<iframe src="'+esc(v)+'" style="width:100%;height:72vh;border:1px solid var(--line);border-radius:12px;background:#fff" allow="autoplay"></iframe>':'')+'<div style="margin-top:8px"><a href="'+esc(p.link)+'" target="_blank" rel="noopener" style="font-weight:800">Open it in a new tab</a></div>'}}
+  else h+='<div class="msg">The lesson plan link is not posted yet.</div>';
+  (p.qpp||[]).forEach(function(q){h+='<a class="big" style="text-align:center;text-decoration:none;background:var(--brand,#e8730c)" href="'+esc(q.u)+'" target="_blank" rel="noopener">🖨️ Quick Packet Print · '+esc(q.n)+'<br><small style="font-weight:600">Monday, Tuesday, Wednesday, Thursday and Friday. Open, then print.</small></a>'});
+  return h+'</div>'}).join('')}
+var lpShown={};function lpToggle(i){lpShown[i]=!lpShown[i];draw()}
 function draw(){
  var h='<div class="tiles">'+Object.keys(SEC).map(function(k){return'<div class="tile'+(k===cur?' on':'')+'" onclick="cur=\''+k+'\';draw()"><span class="e">'+SEC[k][0]+'</span>'+SEC[k][1]+'<small>'+SEC[k][2]+'</small>'+(missing(k)?'<span class="miss">NOT DONE TODAY</span>':'')+'</div>'}).join('')+'</div>';
- if(cur==='food'||cur==='allergy'||cur==='incident'||cur==='photo'||cur==='med'||cur==='obs'||cur==='daily'||cur==='signsheet'){h+='<div id="mnt"></div>'}else if(cur==='schedule'){h+=schedHtml()}else if(cur==='signin'){h+=signHtml()}else if(cur==='forms'){h+=formsHtml()}else if(cur==='bios'){
+ if(cur==='food'||cur==='allergy'||cur==='incident'||cur==='photo'||cur==='med'||cur==='obs'||cur==='daily'||cur==='signsheet'){h+='<div id="mnt"></div>'}else if(cur==='schedule'){h+=schedHtml()}else if(cur==='signin'){h+=signHtml()}else if(cur==='lesson'){h+=lessonHtml()}else if(cur==='forms'){h+=formsHtml()}else if(cur==='bios'){
   bioStyle();h+='<div class="sec"><h2>👩‍🏫 Meet Our Teachers</h2><div class="sub">Teachers at '+esc(D.school)+'</div>'+(D.bios.length?'<div class="bcs">'+D.bios.map(function(b){return bioCard(b,D.school)}).join('')+'</div>':'<div class="msg">Teacher bios are being added. Check back soon.</div>')+'</div>';
  }else{
   var L=D.charts[cur]||[],by={};L.forEach(function(c){(by[c.date]=by[c.date]||[]).push(c)});

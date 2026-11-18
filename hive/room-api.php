@@ -46,6 +46,33 @@ if (($in['act'] ?? '') === 'loc'){
   http_response_code(403); echo json_encode(['error'=>in_array($er, ['too_far','slow_down','no_location'], true) ? $er : 'check_failed']); exit;
 }
 if (!okpass($sk, $in['pass'] ?? '')) fail('need_location', 403);
+/* LESSON PLAN TILE (11/18/26): this month's lesson plan (shown on screen for ELC) + the Quick Packet Print PDFs for the age groups that use THIS room. Links only (https), from Lesson Plan Index. */
+if (($in['act'] ?? '') === 'lessonplan'){
+  date_default_timezone_set('America/New_York');
+  $AGES = [
+   'deland'=>['honeybees'=>['Ones','Twos'], 'honeycombs'=>['Threes','Fours','School Age'], 'infant'=>['Infant']],
+   'sanford'=>['honeybees'=>['Infant','Ones','Twos'], 'vpk'=>['Threes','Fours'], 'schoolagers'=>['School Age']],
+  ];
+  $ages = $AGES[$sk][$rk] ?? [];
+  $month = date('F');
+  $o = ['http'=>['method'=>'GET','header'=>"Authorization: Bearer $__t\r\n",'ignore_errors'=>true,'timeout'=>25]];
+  $q = http_build_query(['filterByFormula'=>"{Month}='".$month."'", 'maxRecords'=>20]);
+  $d = json_decode(@file_get_contents('https://api.airtable.com/v0/app2HNkUSJqx9IkYZ/'.rawurlencode('Lesson Plan Index').'?'.$q, false, stream_context_create($o)) ?: '', true);
+  $https = function($u){ $u = trim((string)$u); return preg_match('~^https://~i', $u) ? $u : ''; };
+  $out = [];
+  foreach (($d['records'] ?? []) as $r){
+    $f = $r['fields'] ?? []; $ag = $f['Age Group'] ?? ''; if (is_array($ag)) $ag = $ag['name'] ?? '';
+    if (!in_array($ag, $ages, true)) continue;
+    $qpp = [];
+    foreach (preg_split('/\r?\n/', (string)($f['Quick Packet Print'] ?? '')) as $ln){
+      $i = strpos($ln, '|'); if ($i === false) continue;
+      $n = trim(substr($ln, 0, $i)); $u = $https(substr($ln, $i + 1)); if ($n !== '' && $u !== '') $qpp[] = ['n'=>$n, 'u'=>$u];
+    }
+    $out[] = ['age'=>$ag, 'plan'=>(string)($f['Plan'] ?? ($month.' - '.$ag)), 'link'=>$https($f['File Link'] ?? ''), 'qpp'=>$qpp];
+  }
+  usort($out, function($a, $b) use ($ages){ return array_search($a['age'], $ages) <=> array_search($b['age'], $ages); });
+  echo json_encode(['month'=>$month, 'plans'=>$out]); exit;
+}
 /* CLASSROOM SIGN-IN / OUT (11/17/26): children of THIS room only, first name + last initial, written to the same Room Attendance board the Rooms page and Bear Line use. */
 if (in_array(($in['act'] ?? ''), ['kids','sign'], true)){
   date_default_timezone_set('America/New_York');
