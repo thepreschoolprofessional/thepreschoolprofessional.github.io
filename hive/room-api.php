@@ -94,6 +94,58 @@ if (in_array(($in['act'] ?? ''), ['kids','sign'], true)){
   usort($out, function($a, $b){ return [$a['order'], $a['name']] <=> [$b['order'], $b['name']]; });
   echo json_encode(['ok'=>true, 'kids'=>$out, 'now'=>$hm]); exit;
 }
+/* ALL-ROOMS ATTENDANCE BOARD (11/18/26): every classroom of THIS school at once, sign in/out any child, move a child to another room. Same Room Attendance data as the Rooms board; no PIN, location pass only. */
+if (in_array(($in['act'] ?? ''), ['board','bsign','bmove'], true)){
+  date_default_timezone_set('America/New_York');
+  $today = date('Y-m-d'); $hm = date('H:i');
+  $atx = function($m, $path, $q = null, $b = null){ global $__t;
+    $u = 'https://api.airtable.com/v0/app2HNkUSJqx9IkYZ/'.$path.($q ? '?'.http_build_query($q) : '');
+    $o = ['http'=>['method'=>$m,'header'=>"Authorization: Bearer $__t\r\nContent-Type: application/json\r\n",'ignore_errors'=>true,'timeout'=>25]]; if ($b !== null) $o['http']['content'] = json_encode($b);
+    return json_decode(@file_get_contents($u, false, stream_context_create($o)) ?: '', true); };
+  $rooms = []; $d = $atx('GET', rawurlencode('Rooms'), ['pageSize'=>50, 'filterByFormula'=>"AND({School}='$school',{Active})"]);
+  foreach (($d['records'] ?? []) as $r){ $rooms[] = ['name'=>(string)($r['fields']['Room'] ?? ''), 'order'=>(int)($r['fields']['Order'] ?? 99)]; }
+  usort($rooms, function($a, $b){ return $a['order'] <=> $b['order']; });
+  $names = array_column($rooms, 'name');
+  $kids = []; $off = null; $pg = 0;
+  do { $q = ['pageSize'=>100, 'filterByFormula'=>"AND({School}='$school',{Status}='Active')"]; if ($off) $q['offset'] = $off;
+    $d = $atx('GET', rawurlencode('Room Children'), $q);
+    foreach (($d['records'] ?? []) as $r){ $n = trim((string)($r['fields']['Child'] ?? '')); if ($n !== '') $kids[$n] = ['name'=>$n, 'home'=>(string)($r['fields']['Room'] ?? ''), 'order'=>(int)($r['fields']['Order'] ?? 99)]; }
+    $off = $d['offset'] ?? null; $pg++; } while ($off && $pg < 4);
+  $att = []; $off = null; $pg = 0;
+  do { $q = ['pageSize'=>100, 'filterByFormula'=>"AND({School}='$school',IS_SAME({Date},'$today','day'))"]; if ($off) $q['offset'] = $off;
+    $d = $atx('GET', rawurlencode('Room Attendance'), $q);
+    foreach (($d['records'] ?? []) as $r){ $n = trim((string)($r['fields']['Child'] ?? '')); if ($n !== '' && !isset($att[$n])) $att[$n] = ['id'=>$r['id'], 'f'=>$r['fields']]; }
+    $off = $d['offset'] ?? null; $pg++; } while ($off && $pg < 4);
+  $act = (string)($in['act'] ?? '');
+  if ($act !== 'board'){
+    $child = (string)($in['child'] ?? ''); $by = mb_substr(trim(preg_replace('/\s+/', ' ', (string)($in['by'] ?? ''))), 0, 60);
+    if (!isset($kids[$child])) fail('Child not found.', 404);
+    if ($by === '') fail('Type your name first.', 400);
+    $rec = $att[$child] ?? null; $f = $rec['f'] ?? []; $set = [];
+    if ($act === 'bsign'){
+      $dir = (string)($in['dir'] ?? '');
+      if (!in_array($dir, ['in','out','undoin','undoout'], true)) fail('Bad request');
+      if ($dir === 'in'){ if (empty($f['Arrival'])){ $set['Arrival'] = $hm; $set['Arrival By'] = 'Classroom QR: '.$by; } else { $set['Departure'] = ''; } }
+      if ($dir === 'out'){ if (empty($f['Arrival'])) fail('Sign this child in first.', 400); $set['Departure'] = $hm; $set['Departure By'] = 'Classroom QR: '.$by; }
+      if ($dir === 'undoin'){ $set = ['Arrival'=>'','Arrival By'=>'','Departure'=>'','Departure By'=>'']; }
+      if ($dir === 'undoout'){ $set = ['Departure'=>'','Departure By'=>'']; }
+    } else {
+      $to = (string)($in['to'] ?? ''); if (!in_array($to, $names, true)) fail('Unknown room.', 400);
+      $set['Current Room'] = $to;
+    }
+    if ($rec){ $res = $atx('PATCH', rawurlencode('Room Attendance').'/'.$rec['id'], null, ['fields'=>$set, 'typecast'=>true]); $ok = !empty($res['id']); }
+    else { $home = $kids[$child]['home'];
+      $res = $atx('POST', rawurlencode('Room Attendance'), null, ['records'=>[['fields'=>array_merge(['Key'=>$school.'|'.$today.'|'.$child, 'Date'=>$today, 'School'=>$school, 'Child'=>$child, 'Home Room'=>$home, 'Current Room'=>$home], $set)]], 'typecast'=>true]); $ok = !empty($res['records'][0]['id']); }
+    if (!$ok) fail('Did not save. Try again.', 502);
+    $att[$child] = ['id'=>$rec['id'] ?? '', 'f'=>array_merge($f, $set)];
+  }
+  $out = []; foreach ($rooms as $r) $out[$r['name']] = [];
+  foreach ($kids as $n => $k){ $f = $att[$n]['f'] ?? []; $cr = (string)($f['Current Room'] ?? '') ?: $k['home'];
+    if (!isset($out[$cr])) $cr = isset($out[$k['home']]) ? $k['home'] : ''; if ($cr === '') continue;
+    $out[$cr][] = ['name'=>$n, 'in'=>(string)($f['Arrival'] ?? ''), 'out'=>(string)($f['Departure'] ?? ''), 'home'=>$k['home'], 'visiting'=>$cr !== $k['home'], 'order'=>$k['order']]; }
+  $res = []; foreach ($rooms as $r){ $l = $out[$r['name']]; usort($l, function($a, $b){ return [(int)$a['visiting'], $a['order'], $a['name']] <=> [(int)$b['visiting'], $b['order'], $b['name']]; }); $res[] = ['name'=>$r['name'], 'kids'=>$l]; }
+  echo json_encode(['ok'=>true, 'rooms'=>$res, 'now'=>$hm]); exit;
+}
 function at($path, $query){
   global $__t;
   $o = ['http'=>['method'=>'GET','header'=>"Authorization: Bearer $__t\r\n",'ignore_errors'=>true,'timeout'=>25]];

@@ -42,32 +42,49 @@ h2{margin:0 0 4px;font-family:var(--f-display);font-size:21px;font-weight:600;co
 <script>
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 var q=new URLSearchParams(location.search),S=q.get('s')||'',R=q.get('r')||'',D=null,cur=(q.get('t')&&['signin','classroom','bathroom','indoor','schedule','forms','bios','food','allergy'].indexOf(q.get('t'))>=0)?q.get('t'):'signin',selDate={};
-var SEC={signin:['✅','Sign Children In / Out','Tap a child'],classroom:['🧹','Classroom Cleaning Chart','Every day, last 2 months'],bathroom:['🚽','Bathroom Cleaning Chart','Every day, last 2 months'],indoor:['🏠','Daily Indoor Inspection','Every day, last 2 months'],schedule:['🗓','Daily Schedule','Today\'s classroom routine'],food:['🍎','Food Program Attendance','Weekly form, print'],allergy:['⚠️','Allergies','See and add'],incident:['🩹','Incident Reports','Write and see reports'],photo:['📷','Photo & Allergy Card','Send from the phone'],med:['💊','Medication','Give and sign'],obs:['📝','Observations','Notes on each child'],daily:['🍼','Daily Sheet','Meals, naps, diapers'],forms:['🖨️','Official Forms','Pick dates and print'],bios:['👩‍🏫','Meet Our Teachers','Staff bios and photos']};
+var SEC={signin:['✅','Attendance - All Classrooms','Sign in, out, move'],classroom:['🧹','Classroom Cleaning Chart','Every day, last 2 months'],bathroom:['🚽','Bathroom Cleaning Chart','Every day, last 2 months'],indoor:['🏠','Daily Indoor Inspection','Every day, last 2 months'],schedule:['🗓','Daily Schedule','Today\'s classroom routine'],food:['🍎','Food Program Attendance','Weekly form, print'],allergy:['⚠️','Allergies','See and add'],incident:['🩹','Incident Reports','Write and see reports'],photo:['📷','Photo & Allergy Card','Send from the phone'],med:['💊','Medication','Give and sign'],obs:['📝','Observations','Notes on each child'],daily:['🍼','Daily Sheet','Meals, naps, diapers'],forms:['🖨️','Official Forms','Pick dates and print'],bios:['👩‍🏫','Meet Our Teachers','Staff bios and photos']};
 function fd(s){var p=s.split('-');return (+p[1])+'/'+(+p[2])}
 function dow(s){return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(s+'T12:00:00').getDay()]}
 function days(){var o=[],t=new Date(D.today+'T12:00:00');for(var i=0;i<62;i++){var d=new Date(t-i*864e5);if(d.getDay()===0||d.getDay()===6)continue;o.push(d.toISOString().slice(0,10))}return o}
 function wk(s){var g=new Date(s+'T12:00:00').getDay();return g>0&&g<6}
 
-var SI={list:null,msg:'',busy:false,by:''};try{SI.by=localStorage.getItem('bearRoomBy')||''}catch(e){}
+var SI={rooms:null,open:{},mv:null,msg:'',busy:false,by:''};try{SI.by=localStorage.getItem('bearRoomBy')||''}catch(e){}
 function t12(x){if(!x)return'';var m=/^(\d{1,2}):(\d{2})/.exec(x);if(!m)return x;var h=+m[1],p=h>=12?'PM':'AM';h=h%12||12;return h+':'+m[2]+' '+p}
 function signHtml(){
- if(SI.list===null&&!SI.busy){siLoad()}
- var h='<div class="sec"><h2>✅ Sign Children In / Out</h2><div class="sub">'+esc(D.room)+'. Only the children in this classroom. Type your name once, then tap IN or OUT. It updates the Rooms board and attendance right away.</div>'
+ if(SI.rooms===null&&!SI.busy){siLoad()}
+ var h='<div class="sec"><h2>✅ Attendance — All Classrooms</h2><div class="sub">Every classroom at the same time. Type your name once, then tap IN or OUT, or Move a child to another room. It updates the Rooms board and attendance right away.</div>'
   +'<label class="sub" style="display:block;margin:6px 0 2px;font-weight:700">Your name</label><input id="siBy" value="'+esc(SI.by)+'" oninput="SI.by=this.value;try{localStorage.setItem(\'bearRoomBy\',this.value)}catch(e){}" placeholder="Type your name" autocomplete="off" style="width:100%;font:inherit;padding:12px;border-radius:12px;border:2px solid var(--line);margin-bottom:10px">'
   +(SI.msg?'<div class="alert" style="margin-bottom:10px">'+esc(SI.msg)+'</div>':'');
- if(SI.list===null)return h+'<div class="msg">Loading the class list...</div></div>';
- if(!SI.list.length)return h+'<div class="msg">No children are on this classroom\'s list.</div></div>';
- var inN=SI.list.filter(function(k){return k.in&&!k.out}).length;
- h+='<div class="sub"><b>'+inN+'</b> here now &middot; '+SI.list.length+' on the list</div>';
- h+=SI.list.map(function(k){var st=k.in&&!k.out?'in':(k.in&&k.out?'out':'none'),nm=encodeURIComponent(k.name);
-  var tag=st==='in'?'<span class="badge ok">In '+t12(k.in)+'</span>':(st==='out'?'<span class="badge flag" style="background:var(--sunk);color:var(--muted)">Out '+t12(k.out)+'</span>':'<span class="badge" style="background:var(--sunk);color:var(--muted)">Not here yet</span>');
-  var bt=function(d,l,c){return'<button onclick="siGo(\''+nm+'\',\''+d+'\')" style="font:inherit;font-weight:700;border:0;border-radius:10px;padding:10px 16px;margin-left:6px;cursor:pointer;'+c+'">'+l+'</button>'};
-  var btns=st==='in'?bt('out','Sign OUT','background:var(--honey);color:#2a1b00')+bt('undoin','Undo','background:#fff;border:2px solid var(--line);color:var(--muted)'):(st==='out'?bt('in','Back IN','background:var(--ok);color:#fff')+bt('undoout','Undo','background:#fff;border:2px solid var(--line);color:var(--muted)'):bt('in','Sign IN','background:var(--ok);color:#fff'));
-  return'<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;justify-content:space-between;border-top:1px solid var(--sunk);padding:10px 0"><div><b>'+esc(k.name)+'</b>'+(k.visiting?' <small>(visiting)</small>':'')+'<br>'+tag+'</div><div>'+btns+'</div></div>'}).join('');
+ if(SI.rooms===null)return h+'<div class="msg">Loading all classrooms...</div></div>';
+ if(!SI.rooms.length)return h+'<div class="msg">No classrooms are set up yet.</div></div>';
+ var mine=(SOPR[S]||{})[R]||[],tot=0,here=0;SI.rooms.forEach(function(r){tot+=r.kids.length;here+=r.kids.filter(function(k){return k.in&&!k.out}).length});
+ h+='<div class="sub" style="margin-bottom:8px"><b>'+here+'</b> children here now &middot; '+tot+' enrolled in the school</div>';
+ var rs=SI.rooms.slice().sort(function(a,b){return (mine.indexOf(a.name)>=0?0:1)-(mine.indexOf(b.name)>=0?0:1)});
+ var bt=function(nm,d,l,c){return'<button onclick="siGo(\''+nm+'\',\''+d+'\')" style="font:inherit;font-weight:700;border:0;border-radius:10px;padding:10px 14px;margin-left:6px;cursor:pointer;'+c+'">'+l+'</button>'};
+ var und='background:#fff;border:2px solid var(--line);color:var(--muted)';
+ rs.forEach(function(r){
+  var n=r.kids.filter(function(k){return k.in&&!k.out}).length,isMine=mine.indexOf(r.name)>=0,open=SI.open[r.name]!==undefined?SI.open[r.name]:isMine;
+  h+='<div style="border:2px solid '+(isMine?'var(--honey)':'var(--line)')+';border-radius:14px;margin:10px 0;padding:0 12px;background:#fff"><div onclick="siTog(\''+encodeURIComponent(r.name)+'\')" style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;cursor:pointer"><b style="font-size:17px">'+(open?'▾ ':'▸ ')+esc(r.name)+(isMine?' <small>(your room)</small>':'')+'</b><span class="badge ok">'+n+' here / '+r.kids.length+'</span></div>';
+  if(open){
+   if(!r.kids.length)h+='<div class="msg" style="margin-bottom:10px">No children are in this room today.</div>';
+   r.kids.forEach(function(k){var st=k.in&&!k.out?'in':(k.in&&k.out?'out':'none'),nm=encodeURIComponent(k.name);
+    var tag=st==='in'?'<span class="badge ok">In '+t12(k.in)+'</span>':(st==='out'?'<span class="badge flag" style="background:var(--sunk);color:var(--muted)">Out '+t12(k.out)+'</span>':'<span class="badge" style="background:var(--sunk);color:var(--muted)">Not here yet</span>');
+    var btns=st==='in'?bt(nm,'out','Sign OUT','background:var(--honey);color:#2a1b00')+bt(nm,'undoin','Undo',und):(st==='out'?bt(nm,'in','Back IN','background:var(--ok);color:#fff')+bt(nm,'undoout','Undo',und):bt(nm,'in','Sign IN','background:var(--ok);color:#fff'));
+    btns+='<button onclick="siMv(\''+nm+'\')" style="font:inherit;font-weight:700;border:2px solid var(--line);background:#fff;border-radius:10px;padding:10px 14px;margin-left:6px;cursor:pointer">Move</button>';
+    h+='<div style="border-top:1px solid var(--sunk);padding:10px 0"><div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;justify-content:space-between"><div><b>'+esc(k.name)+'</b>'+(k.visiting?' <small>(from '+esc(k.home)+')</small>':'')+'<br>'+tag+'</div><div>'+btns+'</div></div>';
+    if(SI.mv===k.name){h+='<div style="margin-top:8px"><div class="sub" style="font-weight:700;margin-bottom:4px">Move '+esc(k.name)+' to:</div>'+SI.rooms.filter(function(z){return z.name!==r.name}).map(function(z){return'<button onclick="siMove(\''+nm+'\',\''+encodeURIComponent(z.name)+'\')" style="font:inherit;font-weight:700;border:0;border-radius:10px;padding:10px 14px;margin:0 6px 6px 0;cursor:pointer;background:#355c9a;color:#fff">'+esc(z.name)+'</button>'}).join('')+'<button onclick="SI.mv=null;draw()" style="font:inherit;border:2px solid var(--line);background:#fff;border-radius:10px;padding:10px 14px;margin-bottom:6px;cursor:pointer">Cancel</button></div>'}
+    h+='</div>'});
+  }
+  h+='</div>'});
  return h+'</div>'}
-function siLoad(){SI.busy=true;post({pass:getPass(),act:'kids'}).then(function(r){SI.busy=false;if(r.error==='need_location'){try{localStorage.removeItem('roomPass_'+S)}catch(e){}locate();return}if(r.error){SI.msg=r.error;SI.list=SI.list||[]}else{SI.list=r.kids||[];SI.msg=''}draw()}).catch(function(){SI.busy=false;SI.list=SI.list||[];SI.msg='Could not load. Check the connection and try again.';draw()})}
+function siTog(en){var n=decodeURIComponent(en),mine=((SOPR[S]||{})[R]||[]).indexOf(n)>=0,o=SI.open[n]!==undefined?SI.open[n]:mine;SI.open[n]=!o;draw()}
+function siMv(nm){var n=decodeURIComponent(nm);SI.mv=(SI.mv===n)?null:n;draw()}
+function siPost(o){return post(Object.assign({pass:getPass()},o)).then(function(r){SI.busy=false;if(r.error==='need_location'){try{localStorage.removeItem('roomPass_'+S)}catch(e){}locate();return}if(r.error){SI.msg=r.error}else{SI.rooms=r.rooms||SI.rooms;SI.msg='';SI.mv=null}draw()}).catch(function(){SI.busy=false;SI.msg='Did not save. Check the connection and try again.';draw()})}
+function siLoad(){SI.busy=true;siPost({act:'board'})}
 function siGo(nm,d){var by=(SI.by||'').trim();if(!by){SI.msg='Type your name first.';draw();document.getElementById('siBy')&&document.getElementById('siBy').focus();return}
- if(SI.busy)return;SI.busy=true;SI.msg='';post({pass:getPass(),act:'sign',child:decodeURIComponent(nm),dir:d,by:by}).then(function(r){SI.busy=false;if(r.error==='need_location'){try{localStorage.removeItem('roomPass_'+S)}catch(e){}locate();return}if(r.error){SI.msg=r.error}else{SI.list=r.kids||SI.list}draw()}).catch(function(){SI.busy=false;SI.msg='Did not save. Check the connection and try again.';draw()})}
+ if(SI.busy)return;SI.busy=true;SI.msg='';siPost({act:'bsign',child:decodeURIComponent(nm),dir:d,by:by})}
+function siMove(nm,rm){var by=(SI.by||'').trim();if(!by){SI.msg='Type your name first.';draw();document.getElementById('siBy')&&document.getElementById('siBy').focus();return}
+ if(SI.busy)return;SI.busy=true;SI.msg='';siPost({act:'bmove',child:decodeURIComponent(nm),to:decodeURIComponent(rm),by:by})}
 function doChart(d){var p=getPass();if(!p){locate();return}location.href='clean.html#r='+encodeURIComponent(p)+'&s='+encodeURIComponent(S)+'&k='+encodeURIComponent(R)+'&t='+encodeURIComponent(cur)+(d?'&d='+d:'')}
 var CLOSED=['2026-07-03','2026-07-31','2026-09-07','2026-11-11','2026-11-26','2026-11-27','2026-12-23','2026-12-24','2026-12-25','2027-01-01','2027-01-18','2027-03-26','2027-05-31','2027-06-18'];
 function missing(k){if(k==='signin'||k==='bios'||k==='schedule'||k==='forms'||!D||!wk(D.today))return false;return !(D.charts[k]||[]).some(function(c){return c.date===D.today})}
