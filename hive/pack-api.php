@@ -399,4 +399,43 @@ if ($act === 'med_history'){
   echo json_encode(['ok'=>true, 'doses'=>$ds]); exit;
 }
 
+/* ---- Sanitizer log and monthly menu chart (11/17/26) ---- */
+$SZ_T = 'Sanitizer Log'; $MN_T = 'Menu Chart';
+$SZ_RANGE = ['Quat (quaternary ammonium)'=>[200, 400], 'Chlorine (bleach)'=>[50, 100]];
+if ($act === 'san_add'){
+  $who = nm($in['name'] ?? '', 60); $area = nm($in['area'] ?? '', 100); $type = (string)($in['type'] ?? ''); $tm = nm($in['time'] ?? '', 20);
+  if ($who === '' || $area === '' || $tm === '') fail('Type your name, the time and where you tested.');
+  if (!isset($SZ_RANGE[$type]) && $type !== 'Other') fail('Pick the sanitizer.');
+  if (!isset($in['ppm']) || !is_numeric($in['ppm']) || $in['ppm'] < 0 || $in['ppm'] > 5000) fail('Type the number from the test strip.');
+  $ppm = (int)$in['ppm']; $act2 = nm($in['action'] ?? '', 160); $rng = ''; $okr = true;
+  if (isset($SZ_RANGE[$type])){ $rng = $SZ_RANGE[$type][0].' to '.$SZ_RANGE[$type][1].' ppm'; $okr = $ppm >= $SZ_RANGE[$type][0] && $ppm <= $SZ_RANGE[$type][1]; }
+  else { $rng = nm($in['range'] ?? '', 40); $okr = !empty($in['inrange']); }
+  if (!$okr && $act2 === '') fail('The reading is outside the safe range. Write what you did (remix, remake, test again).');
+  $res = at('POST', $SZ_T, null, ['records'=>[['fields'=>['Log ID'=>strtoupper(substr($sk, 0, 1)).'-SAN-'.date('ymdHis').rand(10, 99), 'School'=>$school, 'Date'=>$today, 'Time'=>$tm, 'Area'=>$area, 'Sanitizer'=>$type, 'Reading ppm'=>$ppm, 'Target Range'=>$rng, 'In Range'=>$okr, 'Action Taken'=>$act2, 'Logged By'=>$who]]], 'typecast'=>true]);
+  if (empty($res['records'][0]['id'])) fail('Did not save. Try again.', 502); echo json_encode(['ok'=>true, 'inrange'=>$okr]); exit;
+}
+if ($act === 'san_list'){
+  $since = date('Y-m-d', strtotime('-32 days'));
+  $q = at('GET', $SZ_T, ['maxRecords'=>300, 'filterByFormula'=>"AND({School}='".$school."',IS_AFTER({Date},'$since'))", 'sort[0][field]'=>'Date', 'sort[0][direction]'=>'desc']); $o = [];
+  foreach (($q['records'] ?? []) as $r){ $f = $r['fields']; $o[] = ['date'=>$f['Date'] ?? '', 'time'=>$f['Time'] ?? '', 'area'=>$f['Area'] ?? '', 'type'=>$f['Sanitizer'] ?? '', 'ppm'=>$f['Reading ppm'] ?? '', 'range'=>$f['Target Range'] ?? '', 'ok'=>!empty($f['In Range']), 'action'=>$f['Action Taken'] ?? '', 'by'=>$f['Logged By'] ?? '']; }
+  echo json_encode(['ok'=>true, 'list'=>$o, 'ranges'=>$SZ_RANGE]); exit;
+}
+if ($act === 'menu_get'){
+  $m = (string)($in['month'] ?? $now->format('Y-m')); if (!preg_match('/^\d{4}-\d{2}$/', $m)) fail('Bad month');
+  $a = date('Y-m-d', strtotime($m.'-01 -1 day')); $b = date('Y-m-d', strtotime($m.'-01 +1 month'));
+  $q = at('GET', $MN_T, ['maxRecords'=>100, 'filterByFormula'=>"AND({School}='".$school."',IS_AFTER({Date},'$a'),IS_BEFORE({Date},'$b'))"]); $o = [];
+  foreach (($q['records'] ?? []) as $r){ $f = $r['fields']; $o[$f['Date'] ?? ''] = ['b'=>$f['Breakfast'] ?? '', 'l'=>$f['Lunch'] ?? '', 's'=>$f['Snack'] ?? '', 'served'=>!empty($f['Served As Planned']), 'chg'=>$f['Changes'] ?? '', 'by'=>$f['Entered By'] ?? '']; }
+  echo json_encode(['ok'=>true, 'month'=>$m, 'days'=>(object)$o]); exit;
+}
+if ($act === 'menu_save'){
+  $m = (string)($in['month'] ?? ''); if (!preg_match('/^\d{4}-\d{2}$/', $m)) fail('Bad month'); $who = nm($in['name'] ?? '', 60); if ($who === '') fail('Type your name.');
+  $recs = []; foreach ((array)($in['days'] ?? []) as $d){ $dt = (string)($d['date'] ?? ''); if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dt) || substr($dt, 0, 7) !== $m) continue;
+    $b = nm($d['b'] ?? '', 120); $l = nm($d['l'] ?? '', 160); $s = nm($d['s'] ?? '', 120); $chg = nm($d['chg'] ?? '', 160); $sv = !empty($d['served']);
+    if ($b === '' && $l === '' && $s === '' && !$sv && $chg === '') continue;
+    $recs[] = ['fields'=>['Key'=>$school.'|'.$dt, 'School'=>$school, 'Date'=>$dt, 'Breakfast'=>$b, 'Lunch'=>$l, 'Snack'=>$s, 'Served As Planned'=>$sv, 'Changes'=>$chg, 'Entered By'=>$who]]; }
+  if (!$recs) fail('Nothing to save yet.'); if (count($recs) > 40) fail('Too many days.');
+  foreach (array_chunk($recs, 10) as $ch){ $u = at('PATCH', $MN_T, null, ['performUpsert'=>['fieldsToMergeOn'=>['Key']], 'records'=>$ch, 'typecast'=>true]); if (empty($u['records'])) fail('Did not save. Try again.', 502); }
+  echo json_encode(['ok'=>true, 'n'=>count($recs)]); exit;
+}
+
 fail('Unknown action');
