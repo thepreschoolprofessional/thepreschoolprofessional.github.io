@@ -1,0 +1,21 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Due Dates - The Hive</title>
+<style>*{box-sizing:border-box;font-family:'Segoe UI',system-ui,sans-serif}body{margin:0;background:linear-gradient(160deg,#fff7ef,#ffe7d4);color:#4a3a30;padding:14px 14px 60px}main{max-width:900px;margin:0 auto}h1{margin:8px 0}a.b{display:inline-block;background:#fff;border:1px solid #eadfce;border-radius:10px;padding:8px 14px;font-weight:800;color:#4a3a30;text-decoration:none;margin-right:6px}
+h2{margin:18px 0 4px;font-size:1.1rem}.r{display:flex;gap:10px;align-items:center;background:#fff;border-radius:12px;padding:10px 12px;margin:6px 0;box-shadow:0 2px 8px rgba(74,58,48,.1);text-decoration:none;color:#4a3a30}.r .d{min-width:92px;font-weight:800}.r .w{flex:1}.r small{display:block;color:#9b8576}.red{border-left:6px solid #c62828}.amb{border-left:6px solid #f2a100}.grn{border-left:6px solid #2e7d4f}.pill{font-weight:800;font-size:.85rem}.note{background:#fff4e0;border-radius:12px;padding:10px 12px;margin:10px 0;font-weight:700;color:#8a5a00}</style><script src="bl-brand.js?v=20261113b" defer></script>
+</head><body><main>
+<a class="b" href="director.html">&larr; Back</a><a class="b" href="#" onclick="window.print();return false">Print</a>
+<h1>📅 Due Dates</h1><div id="sub" style="color:#9b8576;font-weight:600"></div><div id="m">Loading…</div></main>
+<script>
+var PIN=sessionStorage.getItem('hivePin');if(!PIN)location.href='index.html';
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function nd(d){var p=d.split('-');return (+p[1])+'/'+(+p[2])+'/'+p[0]}
+var ICON={staff:'🧑‍🏫',student:'🧒',school:'🏫',drill:'🧯'};
+fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:PIN,action:'due_dates'})}).then(function(r){return r.json()}).then(function(j){if(j.error)throw new Error(j.error);
+ document.getElementById('sub').textContent=j.school+' · next 180 days, past-due first';
+ var t=new Date(j.today+'T12:00:00'),G={over:[],m1:[],m3:[],m6:[]};
+ j.rows.forEach(function(x){var n=Math.round((new Date(x.date+'T12:00:00')-t)/86400000);x.n=n;(n<0?G.over:n<=30?G.m1:n<=90?G.m3:G.m6).push(x)});
+ function sec(title,l,c){if(!l.length)return '';return '<h2>'+title+' ('+l.length+')</h2>'+l.map(function(x){var d=x.n<0?(-x.n)+' days past due':x.n===0?'due today':'in '+x.n+' days';return '<a class="r '+c+'" href="'+esc(x.href)+'"><span class="d">'+nd(x.date)+'</span><span class="w"><b>'+(ICON[x.kind]||'')+' '+esc(x.who)+'</b> &middot; '+esc(x.label)+'<small class="pill">'+d+'</small></span></a>'}).join('')}
+ var h=(j.nodate||[]).length?'<div class="note">Dates not entered yet: '+j.nodate.map(esc).join(', ')+'. Enter them on the Director Portal under School dates.</div>':'';
+ h+=sec('Past due',G.over,'red')+sec('Next 30 days',G.m1,'amb')+sec('31 to 90 days',G.m3,'grn')+sec('91 to 180 days',G.m6,'grn');
+ if(!j.rows.length)h+='<div class="note" style="background:#e3f4e8;color:#1b6b3a">Nothing is due in the next 180 days.</div>';
+ document.getElementById('m').innerHTML=h}).catch(function(e){document.getElementById('m').textContent=e.message||'Could not load.'});
+</script></body></html>

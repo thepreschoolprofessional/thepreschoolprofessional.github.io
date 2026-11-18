@@ -1258,6 +1258,32 @@ $sd = jread(school_dir($school).'/_school_dates.json', []); if (!is_array($sd)) 
 foreach (['license', 'fireinsp', 'healthinsp'] as $k0){ if (array_key_exists($k0, $input)){ $v0 = $input[$k0]; if ($v0 !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $v0)) fail('That date is not a real date'); $sd[$k0] = $v0; } }
 jwrite(school_dir($school).'/_school_dates.json', $sd); echo json_encode(['ok'=>true]); exit;
 }
+if ($action === 'due_dates'){
+/* Read-only: every date that runs out, sorted. Built 11/18/26. Staff and student documents with an expiration date, school license and inspection dates, drills due. */
+$rows = []; $today0 = date('Y-m-d'); $lim = date('Y-m-d', strtotime('+180 days'));
+foreach ($KINDS as $k){
+$r = roster($school, $k); if ($r === null) continue;
+foreach ($r as $p){ if (strpos($p['id'], 'recTEST') === 0) continue; $v = person_view($school, $k, $p['id'], $p);
+foreach (($v['docs'] ?? []) as $d){ $ex = $d['exp'] ?? ''; if ($ex === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $ex) || $ex > $lim) continue;
+$rows[] = ['date'=>$ex, 'kind'=>$k, 'who'=>$p['name'], 'label'=>$d['label'], 'href'=>'files.html?kind='.$k.'&open='.$p['id'].'&doc='.$d['key']]; }
+}
+}
+$sd = jread(school_dir($school).'/_school_dates.json', []);
+$nodate = [];
+foreach (['license'=>'DCF child care license renewal', 'fireinsp'=>'Fire marshal inspection', 'healthinsp'=>'Health department inspection'] as $k0 => $lb0){
+$dt0 = $sd[$k0] ?? ''; if ($dt0 === ''){ $nodate[] = $lb0; continue; } if ($dt0 <= $lim) $rows[] = ['date'=>$dt0, 'kind'=>'school', 'who'=>$school, 'label'=>$lb0, 'href'=>'director.html#schooldates'];
+}
+$sc0 = str_replace("'", "", $school);
+$dr = at_request('GET', ['Facility Submissions'], http_build_query(['filterByFormula'=>"AND({School}='".$sc0."',FIND('DRILL:',{Details})>0)", 'pageSize'=>100]));
+if (is_array($dr) && !isset($dr['error'])){
+$last = []; foreach (($dr['records'] ?? []) as $r0){ $f0 = $r0['fields'] ?? []; $dj = json_decode(substr($f0['Details'] ?? '', 6), true); $dd0 = $f0['Date'] ?? ''; if ($dd0 === '' || !is_array($dj)) continue; $ty = $dj['type'] ?? 'Fire'; if (!isset($last[$ty]) || $dd0 > $last[$ty]) $last[$ty] = $dd0; }
+$fm = date('Y-m'); $fl = $last['Fire'] ?? '';
+if (substr($fl, 0, 7) !== $fm) $rows[] = ['date'=>date('Y-m-t'), 'kind'=>'drill', 'who'=>$school, 'label'=>'Fire drill for '.date('F').' (last one: '.($fl ?: 'none on file').')', 'href'=>'dcf.html?tab=drill'];
+foreach (['Alternate route', 'Nap-time', 'Lockdown', 'Inclement weather'] as $ty){ $l0 = $last[$ty] ?? ''; $due = $l0 ? date('Y-m-d', strtotime($l0.' +365 days')) : $today0; if ($due <= $lim) $rows[] = ['date'=>$due, 'kind'=>'drill', 'who'=>$school, 'label'=>'Yearly '.strtolower($ty).' drill (last one: '.($l0 ?: 'none on file').')', 'href'=>'dcf.html?tab=drill']; }
+}
+usort($rows, function($a, $b){ return strcmp($a['date'], $b['date']); });
+echo json_encode(['school'=>$school, 'today'=>$today0, 'rows'=>$rows, 'nodate'=>$nodate]); exit;
+}
 if ($action === 'alert_close'){
 $aid = preg_replace('/[^A-Za-z0-9]/', '', $input['alertId'] ?? ''); if (strpos($aid, 'rec') !== 0) fail('Bad alert');
 $res = at_request('PATCH', ['Portal Alerts', $aid], null, ['fields'=>['Status'=>'Resolved']]);
