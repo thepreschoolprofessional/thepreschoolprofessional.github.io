@@ -502,4 +502,37 @@ if ($act === 'ss_get'){
   echo json_encode(['ok'=>true, 'school'=>$school, 'kids'=>array_values($kids), 'days'=>$days]); exit;
 }
 
+/* ---- The real Kid City "ATTENDANCE ROSTER" form for one classroom and one day (11/18/26) ---- */
+if ($act === 'roster_get'){
+  $d = (string)($in['date'] ?? '');
+  if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $d)) fail('Pick a date.');
+  if ($d > $today) $d = $today; if ($d < date('Y-m-d', strtotime('-62 days'))) fail('Only the last 2 months are available here. Please ask your director for older forms.');
+  $rn = room_names((string)($in['r'] ?? ''));
+  $teach = []; $rr = at('GET', 'Rooms', ['pageSize'=>50, 'filterByFormula'=>"AND({School}='".$school."',{Active})"]);
+  foreach (($rr['records'] ?? []) as $x){ $teach[(string)($x['fields']['Room'] ?? '')] = array_values(array_filter(array_map('trim', explode(',', (string)($x['fields']['Teachers'] ?? ''))))); }
+  $all = []; $off = '';
+  for ($pg = 0; $pg < 4; $pg++){ $q = ['pageSize'=>100, 'filterByFormula'=>"AND({School}='".$school."',{Status}='Active')"]; if ($off !== '') $q['offset'] = $off;
+    $r = at('GET', 'Room Children', $q);
+    foreach (($r['records'] ?? []) as $x){ $f = $x['fields']; $n = child_fl($f['Child'] ?? ''); if ($n !== '') $all[$n] = ['dob'=>(string)($f['DOB'] ?? ''), 'room'=>(string)($f['Room'] ?? ''), 'o'=>(int)($f['Order'] ?? 99)]; }
+    $off = (string)($r['offset'] ?? ''); if ($off === '') break; }
+  $att = []; $off = '';
+  for ($pg = 0; $pg < 4; $pg++){ $q = ['pageSize'=>100, 'filterByFormula'=>"AND({School}='".$school."',IS_SAME({Date},'$d','day'))"]; if ($off !== '') $q['offset'] = $off;
+    $r = at('GET', 'Room Attendance', $q);
+    foreach (($r['records'] ?? []) as $x){ $n = child_fl($x['fields']['Child'] ?? ''); if ($n !== '' && !isset($att[$n])) $att[$n] = $x['fields']; }
+    $off = (string)($r['offset'] ?? ''); if ($off === '') break; }
+  $days = []; $r = at('GET', 'Room Day', ['pageSize'=>50, 'filterByFormula'=>"AND({School}='".$school."',IS_SAME({Date},'$d','day'))"]);
+  foreach (($r['records'] ?? []) as $x){ $rm = (string)($x['fields']['Room'] ?? ''); if ($rm !== '' && !isset($days[$rm])) $days[$rm] = $x['fields']; }
+  $pj = function($s, $def){ $v = json_decode((string)$s, true); return is_array($v) ? $v : $def; };
+  $out = [];
+  foreach ($rn as $name){
+    $kids = []; foreach ($all as $n => $k){ $cr = (string)($att[$n]['Current Room'] ?? '') ?: $k['room']; if ($cr === $name) $kids[] = ['name'=>$n, 'dob'=>$k['dob'], 'visiting'=>($k['room'] !== $name ? 'from '.$k['room'] : ''), 'order'=>($k['room'] === $name ? 0 : 1000) + $k['o']]; }
+    usort($kids, function($a, $b){ return [$a['order'], $a['name']] <=> [$b['order'], $b['name']]; });
+    $am = []; foreach ($kids as $k){ $a = $att[$k['name']] ?? null; if (!$a) continue; $am[$k['name']] = ['Arrival'=>(string)($a['Arrival'] ?? ''), 'Departure'=>(string)($a['Departure'] ?? ''), 'B'=>!empty($a['B']), 'L'=>!empty($a['L']), 'P'=>!empty($a['P']), 'WC'=>(string)($a['WC'] ?? ''), 'IR'=>(string)($a['IR'] ?? ''), 'AR'=>(string)($a['AR'] ?? ''), 'SO'=>(string)($a['School Out'] ?? ''), 'SI'=>(string)($a['School In'] ?? '')]; }
+    $dy = $days[$name] ?? [];
+    $out[] = ['name'=>$name, 'schoolAge'=>(bool)preg_match('/school.?age|worker/i', $name), 'teachers'=>$teach[$name] ?? [], 'children'=>$kids, 'att'=>(object)$am,
+      'day'=>['staff'=>(object)$pj($dy['Staff'] ?? '', []), 'transitions'=>$pj($dy['Transitions'] ?? '', []), 'counts'=>$pj($dy['Counts'] ?? '', []), 'mgmt'=>(object)$pj($dy['Mgmt'] ?? '', []), 'notes'=>(string)($dy['Notes'] ?? '')]];
+  }
+  echo json_encode(['ok'=>true, 'school'=>$school, 'date'=>$d, 'rooms'=>$out]); exit;
+}
+
 fail('Unknown action');
