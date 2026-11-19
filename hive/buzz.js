@@ -158,12 +158,23 @@ document.getElementById('bzdArea').innerHTML=html;
 // v6: staff clock in on the Bear Line now. Each portal load asks the server to copy today's Bear Line punches
 // into the Sign-In Log and tick the clock dots (server limits this to once every 5 minutes per school).
 var bzSynced = false;
+function bzYmd(d){ return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
 function bzSync(){
 if(bzSynced) return; bzSynced = true;
-try { fetch('bearline-staff-sync.php', {cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
-  var n = 0; Object.keys((j&&j.schools)||{}).forEach(function(k){ var x=j.schools[k]; n += (x.created||0)+(x.updated||0)+(x.board_ticked||0); });
-  if(n && isDir && typeof window.loadSignin === 'function') window.loadSignin();
-}).catch(function(){}); } catch(e){}
+// today on every load; on the director page also the last 3 days, once per browser per day (catches late fixes on Bear Line)
+var dates = [''];
+if(isDir){ for(var i=1;i<=3;i++){ var d=new Date(); d.setDate(d.getDate()-i); var k=bzYmd(d), seen=false;
+  try { seen = localStorage.getItem('blss2_'+k) === bzYmd(new Date()); } catch(e){}
+  if(!seen) dates.push(k); } }
+var n = 0;
+(function next(){
+  if(!dates.length){ if(n && isDir && typeof window.loadSignin === 'function') window.loadSignin(); return; }
+  var dt = dates.shift();
+  try { fetch('bearline-staff-sync.php'+(dt?'?date='+dt:''), {cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+    Object.keys((j&&j.schools)||{}).forEach(function(k){ var x=j.schools[k]; n += (x.created||0)+(x.updated||0)+(x.board_ticked||0); });
+    if(dt && j && j.ok){ try { localStorage.setItem('blss2_'+dt, bzYmd(new Date())); } catch(e){} }
+  }).catch(function(){}).then(next); } catch(e){ next(); }
+})();
 }
 function boot(){
 if(!document.querySelector('nav') || !document.querySelector('main')) { return setTimeout(boot, 300); }

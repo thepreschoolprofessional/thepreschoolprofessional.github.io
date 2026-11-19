@@ -50,10 +50,29 @@ function first_name($s){
 }
 function mins($s){ return preg_match('/^(\d{1,2}):(\d{2})/', (string)$s, $m) ? ((int)$m[1] * 60 + (int)$m[2]) : null; }
 function ampm($s){ $m = mins($s); if ($m === null) return ''; $h = intdiv($m, 60); $i = $m % 60; return sprintf('%d:%02d %s', ($h % 12) ?: 12, $i, $h < 12 ? 'AM' : 'PM'); }
-function day_hours($in, $lo, $li, $ot){
-  $a = mins($in); $b = mins($ot); if ($a === null || $b === null || $b <= $a) return null;
-  $t = $b - $a; $x = mins($lo); $y = mins($li); if ($x !== null && $y !== null && $y > $x) $t -= ($y - $x);
-  return round($t / 60, 2);
+/* One day's punches -> what the Sign-In Log shows. Staff can punch the same button more than once
+   (back from an errand, a second shift, a mis-tap), so punches are put in time order and worked as segments:
+   in / lunch in start time on the floor, lunch out / out end it. Hours = sum of closed segments (never negative).
+   Clock In = first in. Lunch Out / Lunch In = first lunch out after it and the lunch in after that.
+   Clock Out = last out, shown only when the day ends on an out (otherwise she is still on, or the punch is stuck). */
+function parse_day($punches){
+  $ps = [];
+  foreach ((array)$punches as $x){ if (!is_array($x)) continue; $m = mins($x['at'] ?? ''); $t = (string)($x['type'] ?? '');
+    if ($m === null || !in_array($t, ['in','lunchOut','lunchIn','out'], true)) continue; $ps[] = [$m, $t, (string)$x['at']]; }
+  usort($ps, function($a, $b){ return $a[0] <=> $b[0]; });
+  $r = ['in'=>'', 'lo'=>'', 'li'=>'', 'out'=>'', 'hours'=>null, 'last'=>'', 'n'=>count($ps)];
+  $start = null; $tot = 0; $closed = false;
+  foreach ($ps as $p){ list($m, $t, $at) = $p;
+    if ($t === 'in' && $r['in'] === '') $r['in'] = $at;
+    if ($t === 'lunchOut' && $r['in'] !== '' && $r['lo'] === '') $r['lo'] = $at;
+    if ($t === 'lunchIn' && $r['lo'] !== '' && $r['li'] === '') $r['li'] = $at;
+    if ($t === 'in' || $t === 'lunchIn'){ if ($start === null) $start = $m; }
+    else { if ($start !== null){ $tot += max(0, $m - $start); $closed = true; } $start = null; }
+    $r['last'] = $t;
+  }
+  if ($r['last'] === 'out'){ for ($i = count($ps) - 1; $i >= 0; $i--){ if ($ps[$i][1] === 'out'){ $r['out'] = $ps[$i][2]; break; } } }
+  if ($closed) $r['hours'] = round($tot / 60, 2);
+  return $r;
 }
 function roster($school){
   global $ROSTER; $list = []; $off = null; $g = 0;
@@ -95,8 +114,8 @@ foreach ($BL as $school => $url){
 
   foreach ($log as $sid => $byDay){
     $d = $byDay[$date] ?? null; if (!is_array($d) || empty($d['punches'])) continue;
-    $p = []; foreach ((array)$d['punches'] as $x){ if (is_array($x)) $p[$x['type'] ?? ''] = $x['at'] ?? ''; }
-    $in = $p['in'] ?? ''; $lo = $p['lunchOut'] ?? ''; $li = $p['lunchIn'] ?? ''; $ot = $p['out'] ?? '';
+    $P = parse_day($d['punches']);
+    $in = $P['in']; $lo = $P['lo']; $li = $P['li']; $ot = $P['out'];
     // staff name: roster full name when the first name is unique at this school, else the Bear Line name
     $f = first_name($sid); $nm = '';
     foreach ($blNames as $n){ if (first_name($n) === $f){ $nm = $n; break; } }
@@ -104,10 +123,9 @@ foreach ($BL as $school => $url){
     if ($nm === '') $nm = ucwords((string)$sid);
     // hours this week up to and including this day
     $week = 0.0;
-    foreach ($days as $k){ if ($k > $date) continue; $m = [];
-      foreach ((array)($byDay[$k]['punches'] ?? []) as $x){ if (is_array($x)) $m[$x['type'] ?? ''] = $x['at'] ?? ''; }
-      $h = day_hours($m['in'] ?? '', $m['lunchOut'] ?? '', $m['lunchIn'] ?? '', $m['out'] ?? ''); if ($h !== null) $week += $h; }
-    $hToday = day_hours($in, $lo, $li, $ot);
+    foreach ($days as $k){ if ($k > $date) continue;
+      $h = parse_day($byDay[$k]['punches'] ?? [])['hours']; if ($h !== null) $week += $h; }
+    $hToday = $P['hours'];
     if ($in === '') $flag = '🚨 No clock-in';
     elseif ($ot !== '') $flag = '🏁 Done for the day';
     elseif ($date < $today) $flag = '⚠️ Stuck punch';
@@ -115,7 +133,7 @@ foreach ($BL as $school => $url){
     $fields = ['Staff'=>$nm, 'School'=>$school, 'Date'=>$date,
       'Clock In'=>ampm($in), 'Lunch Out'=>ampm($lo), 'Lunch In'=>ampm($li), 'Clock Out'=>ampm($ot),
       'Hours This Week'=>round($week, 2), 'Flag'=>$flag, 'As Of'=>'Bear Line sync '.date('g:i A')];
-    if ($hToday !== null) $fields['Hours Today'] = $hToday;
+    $fields['Hours Today'] = $hToday;   // null clears an old wrong number
 
     $flt = "AND({Staff}='".q($nm)."',{School}='".q($school)."',DATESTR({Date})='".$date."')";
     list($c, $r) = at('GET', $LOG.'?maxRecords=1&filterByFormula='.rawurlencode($flt));
@@ -123,7 +141,8 @@ foreach ($BL as $school => $url){
     $rec = $r['records'][0] ?? null;
     if ($rec){
       $cur = $rec['fields']; $same = true;
-      foreach (['Clock In','Lunch Out','Lunch In','Clock Out'] as $k){ if ((string)($cur[$k] ?? '') !== $fields[$k]) $same = false; }
+      foreach (['Clock In','Lunch Out','Lunch In','Clock Out','Flag'] as $k){ $cv = $cur[$k] ?? ''; if (is_array($cv)) $cv = $cv['name'] ?? ''; if ((string)$cv !== (string)$fields[$k]) $same = false; }
+      $ch = $cur['Hours Today'] ?? null; if (($ch === null) !== ($hToday === null) || ($ch !== null && abs((float)$ch - (float)$hToday) > 0.005)) $same = false;
       if ($same){ $s['unchanged']++; }
       else {
         unset($fields['Staff'], $fields['School'], $fields['Date']);
