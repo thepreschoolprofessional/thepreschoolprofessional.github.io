@@ -295,7 +295,7 @@ $tools = $reads ? [['name' => 'portal_read', 'description' => 'Look something up
 $msgs = [['role' => 'user', 'content' => $user]]; $looked = 0; $res = [];
 for ($round = 0; $round < 6; $round++){
 $req = ['model' => MODEL, 'max_tokens' => 2000,
-'system' => [['type' => 'text', 'text' => $system, 'cache_control' => ['type' => 'ephemeral']], ['type' => 'text', 'text' => $dynamic]],
+'system' => [['type' => 'text', 'text' => $system, 'cache_control' => ['type' => 'ephemeral', 'ttl' => '1h']], ['type' => 'text', 'text' => $dynamic]],
 'output_config' => ['effort' => 'low', 'format' => ['type' => 'json_schema', 'schema' => $schema]],
 'messages' => $msgs];
 if ($tools){ $req['tools'] = $tools; if ($round >= 5 || $looked >= 8) $req['tool_choice'] = ['type' => 'none']; }
