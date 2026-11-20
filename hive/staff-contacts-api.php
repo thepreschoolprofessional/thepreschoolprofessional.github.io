@@ -89,7 +89,20 @@ foreach (($r['records'] ?? []) as $x){
   $roster[strtolower($n)] = ['name'=>$n, 'role'=>$f['Role'] ?? ''];
 }
 $out = [];
-foreach ($roster as $k => $p){ $s = $people[$k] ?? []; $out[] = ['name'=>$p['name'], 'role'=>$s['role'] ?? $p['role'], 'phone'=>$s['phone'] ?? '', 'email'=>$s['email'] ?? '', 'notes'=>$s['notes'] ?? '']; }
+/* Contact info staff typed on the Bear Line ("Add your email and phone"). A director's own entry always wins; the Bear Line fills in only what is blank. */
+function bl_contacts($school){
+  foreach ([dirname(__DIR__, 2), dirname(__DIR__), __DIR__] as $d0){ if (file_exists($d0.'/elc-sync-code.php')) include_once $d0.'/elc-sync-code.php'; }
+  if (!defined('ELC_SYNC_CODE')) return [];
+  $bl = ($school === 'Sanford') ? 'https://bearphonicsacademy.com/elc-94f077be04/bearline-api.php' : (($school === 'DeLand 2') ? 'https://bearphonicsacademy.com/elc-1ce53ee46c/bearline-api.php' : '');
+  if ($bl === '') return [];
+  $ctx = stream_context_create(['http'=>['method'=>'POST', 'header'=>"Content-Type: application/json\r\n", 'content'=>json_encode(['action'=>'hive_task_list', 'code'=>ELC_SYNC_CODE, 'by'=>'Staff Contacts']), 'timeout'=>12, 'ignore_errors'=>true]]);
+  $j = json_decode((string)@file_get_contents($bl, false, $ctx), true);
+  return (is_array($j) && !empty($j['ok']) && is_array($j['contacts'] ?? null)) ? $j['contacts'] : [];
+}
+$blc = bl_contacts($school);
+function bl_sid($name){ $w = explode(' ', trim($name)); return strtolower(preg_replace('/[^a-z]/i', '', $w[0] ?? '')); }
+foreach ($roster as $k => $p){ $s = $people[$k] ?? []; $bc = $blc[bl_sid($p['name'])] ?? [];
+  $out[] = ['name'=>$p['name'], 'role'=>$s['role'] ?? $p['role'], 'phone'=>(($s['phone'] ?? '') !== '' ? $s['phone'] : clean($bc['phone'] ?? '', 40)), 'email'=>(($s['email'] ?? '') !== '' ? $s['email'] : clean($bc['email'] ?? '', 120)), 'notes'=>$s['notes'] ?? '', 'from_bearline'=>((($s['phone'] ?? '') === '' && !empty($bc['phone'])) || (($s['email'] ?? '') === '' && !empty($bc['email'])))]; }
 foreach ($people as $k => $s){ if (!isset($roster[$k])) $out[] = ['name'=>$s['name'], 'role'=>$s['role'] ?? '', 'phone'=>$s['phone'] ?? '', 'email'=>$s['email'] ?? '', 'notes'=>$s['notes'] ?? '']; }
 usort($out, function($a, $b){ $ra = $a['role']==='Director' ? 0 : 1; $rb = $b['role']==='Director' ? 0 : 1; return $ra <=> $rb ?: strcasecmp($a['name'], $b['name']); });
 echo json_encode(['school'=>$school, 'updated'=>$store['updated'] ?? '', 'staff'=>$out]);
