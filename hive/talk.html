@@ -89,7 +89,7 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
   function start(){
     app.innerHTML = '<div class="closed"><p>Opening…</p></div>';
     post({action:'whoami'}).then(function(w){
-      SCHOOL = w.school; LIVE = !!w.live; sessionStorage.setItem('hivePin', PIN);
+      SCHOOL = w.school; LIVE = !!w.live; sessionStorage.setItem('hivePin', PIN); sessionStorage.setItem('hiveRole', 'director'); sessionStorage.setItem('hiveSchool', w.school || '');   /* same sign-in the portal uses, so cards open with no second PIN */
       document.getElementById('sub').textContent = SCHOOL + (LIVE ? '' : ' · Test version');
       build(w.keyReady);
     }).catch(function(e){ PIN = ''; signIn(e.message); });
@@ -156,7 +156,7 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
       .catch(function(e){ wait.remove(); bot(e.message); })
       .then(function(){ BUSY = false; });
   }
-  function remember(words, reply){ HIST.push({you: words, me: reply}); if (HIST.length > 4) HIST.shift(); }
+  function remember(words, reply){ HIST.push({you: words, me: reply}); if (HIST.length > 8) HIST.shift(); }
 
   /* One request can hold several things. Each change gets its own Yes; questions and Rooms board panels go to the chatbot one at a time. */
   function showAll(plans, words){
@@ -176,6 +176,15 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
       if (only){ var mine = logEl().lastElementChild; if (mine && mine.classList.contains('bc-me')) mine.remove(); }   // the chatbot shows the question itself
       bi.value = (k === 'rooms_board' ? p.command : p.question) || words; bf.requestSubmit ? bf.requestSubmit() : bf.dispatchEvent(new Event('submit', {cancelable:true}));
       return;
+    }
+    if (k === 'compose'){
+      remember(words, 'Prepared an email for ' + p.to_email);
+      var cm = bot(p.say), box = document.createElement('div'); box.className = 'tb-mail';
+      box.innerHTML = '<b>To:</b> ' + esc(p.to_email) + '\n<b>Subject:</b> ' + esc(p.subject) + '\n\n' + esc(p.body); cm.appendChild(box);
+      var crow = document.createElement('div'); crow.className = 'bc-chips';
+      var gb = document.createElement('button'); gb.type = 'button'; gb.className = 'bc-chip yes'; gb.textContent = 'Open Gmail with this ready';
+      gb.onclick = function(){ window.open('https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(p.to_email) + '&su=' + encodeURIComponent(p.subject) + '&body=' + encodeURIComponent(p.body), '_blank'); };
+      crow.appendChild(gb); cm.appendChild(crow); return;
     }
     if (k === 'open_card'){
       remember(words, 'Opened ' + p.card);
@@ -246,6 +255,7 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
 
   function openCard(name){
     var c = (D.cards || {})[name] || {};
+    if (c.url && /^https?:\/\/(www\.)?thepreschoolprofessional\.net\//i.test(c.url)){ window.open(c.url, '_blank'); return; }   // our own pages keep your sign-in
     if (c.url){ window.open(c.url, '_blank', 'noopener'); return; }
     if (c.page){ window.open(c.page, '_blank'); return; }
     window.open('director.html#open=' + encodeURIComponent(name), '_blank');

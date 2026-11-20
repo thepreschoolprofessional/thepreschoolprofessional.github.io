@@ -14,7 +14,7 @@ Safety:
 ============================================================ */
 define('TALK_LIVE', false);
 define('DAILY_CAP', 300);               // most Haiku calls per school per day (spending guard)
-define('MODEL', 'claude-haiku-5-5');
+define('MODEL', 'claude-sonnet-5-5');   // was Haiku: Sonnet thinks the request through and asks for missing details
 define('TALK_HOST', 'thepreschoolprofessional.net');   // where the portal's own endpoints live (lookups run as the director)
 @set_time_limit(120);
 
@@ -352,7 +352,7 @@ $ctx = school_context($school);
 $cards = array_slice(array_values(array_filter(array_map(function($c){ return trim(mb_substr((string)$c, 0, 60)); }, (array)($input['cards'] ?? [])))), 0, 160);
 $now = now_et();
 $hist = [];
-foreach (array_slice((array)($input['history'] ?? []), -4) as $h){ $u = trim(mb_substr((string)($h['you'] ?? ''), 0, 300)); $b = trim(mb_substr((string)($h['me'] ?? ''), 0, 300)); if ($u !== '') $hist[] = "Director: $u\nYou: $b"; }
+foreach (array_slice((array)($input['history'] ?? []), -8) as $h){ $u = trim(mb_substr((string)($h['you'] ?? ''), 0, 300)); $b = trim(mb_substr((string)($h['me'] ?? ''), 0, 300)); if ($u !== '') $hist[] = "Director: $u\nYou: $b"; }
 
 $system = "You are Talk to Bear Line, the voice helper for the director of Kid City USA $school, a preschool. "
 ."The director says or types a request. It may ask for several things in one sentence (for example \"the toddlers are going to the playground and sign Ms. Ana out at 2\"). Return one action for each thing, in the order they said them, at most 5. You never make changes yourself: the director sees each proposal and taps Yes or No on each one.\n\n"
@@ -366,13 +366,14 @@ $system = "You are Talk to Bear Line, the voice helper for the director of Kid C
 ."- tablet: put up, change, take down or list notices on the front sign-in tablet's Family Corner, which every family sees (for example \"Happy Birthday Gabriella\" or \"Picture day is Friday\"). The tablet has no greeting, so a greeting or a message for the tablet is a notice. notice_op = add, update, remove, or list (they ask what's on the front tablet). body = the notice in English exactly as it should show (plain text, at most 300 characters). es = the same notice in Spanish. title = a short title only if they give one, else empty. from = first day it shows and to_date = last day, as YYYY-MM-DD; leave from empty for today and to_date empty for until it's taken down. For update or remove, notice_match = a few words from the notice they mean. To sign a child in or out use room_sign_in / room_sign_out; to fix a staff clock time use staff_time_fix.\n"
 ."- parent_note: a note on ONE child for that child's own parent. It pops up on the Bear Line tablet right after the parent enters their PIN and stays until they tap OK. children = [exact child name]. note_type = note (a reminder or message, for example \"please bring a change of clothes\") or observation (how the child did in class, a good day, anything to share; it also goes in the child's file later). Parents see both kinds. notice_op = add, remove (take a note down), list (what's waiting for that child), or file (put that child's notes the parent already read into the Student File). body = the note in English as the parent will read it, kind and short, written as the school (plain text, at most 300 characters). es = the same note in Spanish. from = first day it can show and to_date = last day, as YYYY-MM-DD; leave from empty for today and to_date empty for until the parent taps OK. For remove, notice_match = a few words from the note. For something every family sees, use tablet.\n"
 ."- tablet_event: put up, change or take down an EVENT on the front tablet screen (for example \"Friendsgiving Lunch on Nov 25 at 11:30\"). notice_op = add, update or remove. body = the event name in English, es = in Spanish, from = the event day (YYYY-MM-DD), to_date = last day only for a several-day event, else empty, time = start time HH:MM 24-hour or empty. For update or remove, notice_match = a few words from the event. Closed days come from the Closures card, not here.\n"
-."- clarify: you are not sure who or what they mean, a name matches nobody or more than one person, or a needed time is missing for staff. question = one short question back.\n"
+."- clarify: you are not sure who or what they mean, a name matches nobody or more than one person, or ANY detail needed to finish the request is missing (who, which child, which date or time, which email address, how long, what the wording should be). Ask for ALL the missing details in ONE short question, and offer likely answers when you can. Never tell the director to say it another way or ask in another form; say exactly what is missing. question = that one short question.\n"
+."- compose: they want the onboarding or enrollment LINK emailed to one person (for example \"send an onboarding email to Maria at maria@example.com\" or \"email Mr. Lee the new staff link\"). link_kind = staff (a new staff member), existing (a staff member who already works here and signs the packet once) or enroll (a family). email_to = the email address exactly as the director typed it in their words; if they gave no address leave it empty and use clarify to ask for it. recipient = the person's name if given. You never send this: it opens Gmail with the message ready and the director taps Send there.\n"
 ."- file_to_person: put the ATTACHED file in a staff member's or child's file. staff = exact staff name OR children = [exact child name]. doc = the key of the best document type from that person's Documents list.\n"
 ."- file_to_vault: put the ATTACHED file in the Audit Vault in Reporting. month = YYYY-MM (this month unless they say). section = elc, food, dcf or other.\n"
 ."- email: send an email for the director. to = office (the director's own school office, ".$OFFICE[$school]."; always use office when they say email it to me, send it to me or email myself), food_program (the food program sponsor)".(OWNER_ADDR ? ", or owner (Mrs. Bear, only when they name Mrs. Bear or the owner)" : "").". Never write an email address yourself. subject = short subject. body = the email text, written as the director in first person, polite and short, signed \"Kid City USA $school\". attach = yes when the attached file should go with it, otherwise no.\n"
 ."- portal: any other change a director can make by hand on a Director Portal card (time off, new hires, enrollments, parent uploads and requests, the parent portal board, room notes, staff and child files, facility checklists, weekly checks, DCF forms, transportation, supplies, messages to send through ProCare, the briefing checklist, staff meeting, and everything else in the Portal changes list below). op = the id from the Portal changes list. args_json = a JSON object with that change's args, built exactly as described (ids come from a portal_read lookup first). say = one sentence describing the change in plain words with names and dates.\n"
 ."- answer: after you looked something up with portal_read, answer the director's question in say (one to three short sentences with the real names, numbers and dates). Use this for questions about what is in the portal right now (who is off tomorrow, how many enrollments are waiting, which checks aren't done).\n"
-."- cant: anything about PINs, passwords, codes, money or payroll amounts, or something no card can do. Say so in one kind sentence.\n\n"
+."- cant: anything about PINs, passwords, codes, money or payroll amounts, or something no card can do. Say WHY in one kind sentence, and when a Director Portal card does something close, also use open_card for it in the same answer.\n\n"
 ."Looking things up: use the portal_read tool whenever you need real data, to answer a question or to find the id a change needs (for example list the time off requests before approving one). Lookups change nothing. Do not guess ids. If a lookup shows more than one possible match, use clarify.\n\n"
 ."Portal changes list (op ids for kind portal):\n".cat_lines('write')."\n\n"
 ."Portal lookups (op ids for the portal_read tool):\n".cat_lines('read')."\n".implode("\n", array_map(function($k, $v){ return "$k: $v"; }, array_keys($TABLET_READS), $TABLET_READS));
@@ -391,7 +392,7 @@ $dynamic = "Today is ".$now->format('l, Y-m-d')." and the time is ".$now->format
 
 $one = ['type' => 'object', 'additionalProperties' => false,
 'properties' => [
-'kind' => ['type' => 'string', 'enum' => ['portal','answer','file_to_person','file_to_vault','email','rooms_board','room_sign_in','room_sign_out','staff_time_fix','inventory_count','open_card','question','tablet','tablet_event','parent_note','clarify','cant']],
+'kind' => ['type' => 'string', 'enum' => ['portal','answer','compose','file_to_person','file_to_vault','email','rooms_board','room_sign_in','room_sign_out','staff_time_fix','inventory_count','open_card','question','tablet','tablet_event','parent_note','clarify','cant']],
 'say' => ['type' => 'string'], 'children' => ['type' => 'array', 'items' => ['type' => 'string']],
 'time' => ['type' => 'string'], 'staff' => ['type' => 'string'], 'date' => ['type' => 'string'],
 'time_in' => ['type' => 'string'], 'time_out' => ['type' => 'string'], 'lunch_out' => ['type' => 'string'], 'lunch_in' => ['type' => 'string'], 'reason' => ['type' => 'string'],
@@ -400,8 +401,9 @@ $one = ['type' => 'object', 'additionalProperties' => false,
 'board_action' => ['type' => 'string', 'enum' => ['out','back','move','meal','']], 'room' => ['type' => 'string'], 'room_to' => ['type' => 'string'],
 'doc' => ['type' => 'string'], 'month' => ['type' => 'string'], 'section' => ['type' => 'string', 'enum' => ['elc','food','dcf','other','']],
 'to' => ['type' => 'string', 'enum' => array_merge(['office','food_program'], OWNER_ADDR ? ['owner'] : [], [''])], 'subject' => ['type' => 'string'], 'body' => ['type' => 'string'], 'attach' => ['type' => 'string', 'enum' => ['yes','no']],
-'op' => ['type' => 'string', 'enum' => array_merge(cat_ids('write'), [''])], 'args_json' => ['type' => 'string']],
-'required' => ['op','args_json','kind','say','children','time','staff','date','time_in','time_out','lunch_out','lunch_in','reason','notice_op','es','title','from','to_date','notice_match','note_type','item','qty','card','question','board_action','room','room_to','doc','month','section','to','subject','body','attach']];
+'op' => ['type' => 'string', 'enum' => array_merge(cat_ids('write'), [''])], 'args_json' => ['type' => 'string'],
+'link_kind' => ['type' => 'string', 'enum' => ['staff','existing','enroll','']], 'email_to' => ['type' => 'string'], 'recipient' => ['type' => 'string']],
+'required' => ['op','args_json','link_kind','email_to','recipient','kind','say','children','time','staff','date','time_in','time_out','lunch_out','lunch_in','reason','notice_op','es','title','from','to_date','notice_match','note_type','item','qty','card','question','board_action','room','room_to','doc','month','section','to','subject','body','attach']];
 $schema = ['type' => 'object', 'additionalProperties' => false, 'properties' => ['actions' => ['type' => 'array', 'items' => $one]], 'required' => ['actions']];
 
 $user = ($hist ? "Earlier in this conversation:\n".implode("\n", $hist)."\n\n" : '')."Director's request: ".$words;
@@ -414,14 +416,22 @@ $msgs = [['role' => 'user', 'content' => $user]]; $looked = 0; $res = [];
 for ($round = 0; $round < 6; $round++){
 $req = ['model' => MODEL, 'max_tokens' => 2000,
 'system' => [['type' => 'text', 'text' => $system, 'cache_control' => ['type' => 'ephemeral', 'ttl' => '1h']], ['type' => 'text', 'text' => $dynamic]],
-'output_config' => ['effort' => 'low', 'format' => ['type' => 'json_schema', 'schema' => $schema]],
+'output_config' => ['effort' => 'medium', 'format' => ['type' => 'json_schema', 'schema' => $schema]],
 'messages' => $msgs];
 if ($tools){ $req['tools'] = $tools; if ($round >= 5 || $looked >= 8) $req['tool_choice'] = ['type' => 'none']; }
+$ch = curl_init('https://api.anthropic.com/v1/messages');
+curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 60,
+CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'x-api-key: '.CLAUDE_API_KEY, 'anthropic-version: 2026-10-21'],
+CURLOPT_POSTFIELDS => json_encode($req)]);
+$raw = curl_exec($ch); $code = curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
+if ($code !== 200 && $req['model'] !== 'claude-haiku-5-5'){   /* the better model wasn't available just now: use the small one so the director still gets an answer */
+$req['model'] = 'claude-haiku-5-5'; $req['output_config']['effort'] = 'low';
 $ch = curl_init('https://api.anthropic.com/v1/messages');
 curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 40,
 CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'x-api-key: '.CLAUDE_API_KEY, 'anthropic-version: 2026-10-21'],
 CURLOPT_POSTFIELDS => json_encode($req)]);
 $raw = curl_exec($ch); $code = curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
+}
 $res = json_decode($raw ?: '{}', true);
 if ($code !== 200){ log_line(['school'=>$school,'role'=>$role,'words'=>$words,'result'=>'Claude error '.$code]); fail('Talk to Bear Line couldn\'t reach Claude just now ('.$code.'). Try again in a minute.', 502); }
 if (($res['stop_reason'] ?? '') !== 'tool_use') break;
@@ -528,6 +538,18 @@ $sub = trim(mb_substr(strip_tags((string)$p['subject']), 0, 120)); $bod = trim(m
 if ($sub === '' || $bod === ''){ $ask('What should the email say?'); break; }
 $out += ['to' => (string)$p['to'], 'to_label' => $label, 'to_addr' => $addr, 'subject' => $sub, 'body' => $bod, 'attach' => $att];
 $out['say'] = 'Send this email to '.$label.($att ? ' with "'.$att.'" attached' : '').'?';
+break;
+case 'compose':
+$to = trim((string)($p['email_to'] ?? ''));
+if (!filter_var($to, FILTER_VALIDATE_EMAIL) || stripos($words, $to) === false){ $ask('What email address should I put in the To box? Type it out and I will get it ready.'); break; }
+$lk = in_array($p['link_kind'], ['staff','existing','enroll'], true) ? $p['link_kind'] : 'staff';
+$sk = ($school === 'Sanford') ? 'sanford' : 'deland'; $sch = ($school === 'Sanford') ? 'Kid City USA Sanford' : 'Kid City USA DeLand 2';
+$link = 'https://thepreschoolprofessional.net/hive/'.($lk === 'enroll' ? 'welcome.html' : 'onboard.html').'?school='.$sk.($lk === 'existing' ? '&existing=1' : '');
+if ($lk === 'existing'){ $csub = 'Please sign your '.$sch.' employee packet'; $cbod = "Hello!\n\nWe are putting everyone's employee packet online so we do not have to copy stacks of paper. Please use this link, check your information, and sign one time. Your signature goes on the whole packet, and then I will confirm your hire date and sign my part.\n\n".$link."\n\nThank you!\n".$sch; }
+elseif ($lk === 'enroll'){ $csub = 'Welcome to '.$sch.' - your enrollment packet'; $cbod = "Hello!\n\nThank you for choosing ".$sch.". Please use this link to fill out and sign your enrollment packet right on your phone or computer:\n\n".$link."\n\nIf you have any questions, just reply to this email or call us.\n\nThank you!\n".$sch; }
+else { $csub = 'Welcome to the '.$sch.' team - your new-hire packet'; $cbod = "Hello!\n\nWe are so happy you are joining ".$sch.". Please use this link to sign up, follow your training checklist, and fill out and sign your Employee Packet:\n\n".$link."\n\nIf you have any questions, just reply to this email or call us.\n\nThank you!\n".$sch; }
+$out += ['to_email' => $to, 'subject' => $csub, 'body' => $cbod, 'link' => $link];
+$out['say'] = 'Here is the '.($lk === 'enroll' ? 'family enrollment' : ($lk === 'existing' ? 'current-staff' : 'new-staff')).' email for '.$to.'. Tap the button and Gmail opens with it ready; you press Send there.';
 break;
 case 'portal':
 $a = json_decode((string)$p['args_json'], true);
