@@ -168,15 +168,28 @@ $put($k, $v); $vals[$k] = $v;
 }
 return [$body, $vals, ''];
 }
-function portal_call($id, $body, $pin){
-$c = catalogue(); if (!isset($c[$id])) return ['error' => 'Not allowed'];
-$e = $c[$id]; if (!preg_match('/^[a-z0-9-]+\.php$/', $e['endpoint'])) return ['error' => 'Not allowed'];
-$body['pin'] = $pin; if (!empty($e['dirpin'])) $body['dirpin'] = $pin;
-$ch = curl_init('https://'.TALK_HOST.'/hive/'.$e['endpoint']);
+function post_json($endpoint, $body){
+$ch = curl_init('https://'.TALK_HOST.'/hive/'.$endpoint);
 curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 25, CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_POSTFIELDS => json_encode($body)]);
 $raw = curl_exec($ch); $code = curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
 $j = json_decode($raw ?: '', true);
-if (!is_array($j)) return ['error' => 'The '.($e['card'] ?? 'portal').' card didn\'t answer ('.$code.').'];
+return is_array($j) ? $j : ['error' => 'no answer ('.$code.')'];
+}
+function portal_call($id, $body, $pin){
+global $school; static $pass = null;
+$c = catalogue(); if (!isset($c[$id])) return ['error' => 'Not allowed'];
+$e = $c[$id]; if (!preg_match('/^[a-z0-9-]+\.php$/', $e['endpoint'])) return ['error' => 'Not allowed'];
+if ($e['endpoint'] === 'pack-api.php' || $e['endpoint'] === 'clean-api.php'){
+/* The classroom packet pages use a director sign-in made from the same director PIN (good for 4 hours). */
+$sk = $school === 'Sanford' ? 'sanford' : 'deland';
+if ($pass === null) $pass = post_json('pack-api.php', ['act' => 'dirlogin', 's' => $sk, 'p' => 'director', 'pin' => $pin]);
+if (empty($pass['pass'])) return ['error' => 'The classroom packet sign-in didn\'t work'.(!empty($pass['error']) ? ' ('.$pass['error'].')' : '').'.'];
+if ($e['endpoint'] === 'pack-api.php'){ if (!isset($e['params']['action'])) unset($body['action']); $body += ['p' => 'director']; $body['s'] = $sk; $body['pass'] = $pass['pass']; $body['dtok'] = $pass['dtok'] ?? ''; }
+else { $body['rpass'] = $pass['pass']; $body['sk'] = $sk; }
+}
+else { $body['pin'] = $pin; if (!empty($e['dirpin'])) $body['dirpin'] = $pin; }
+$j = post_json($e['endpoint'], $body);
+if (isset($j['error']) && strpos((string)$j['error'], 'no answer') === 0) return ['error' => 'The '.($e['card'] ?? 'portal').' card didn\'t answer.'];
 return $j;
 }
 /* Keeps lookups small for Claude: no file contents, signatures or pictures, long lists cut short. */
