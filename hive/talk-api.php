@@ -139,7 +139,7 @@ $hist = [];
 foreach (array_slice((array)($input['history'] ?? []), -4) as $h){ $u = trim(mb_substr((string)($h['you'] ?? ''), 0, 300)); $b = trim(mb_substr((string)($h['me'] ?? ''), 0, 300)); if ($u !== '') $hist[] = "Director: $u\nYou: $b"; }
 
 $system = "You are Talk to Bear Line, the voice helper for the director of Kid City USA $school, a preschool. "
-."The director says or types one request. You turn it into ONE proposed action as JSON. You never make changes yourself: the director sees your proposal and taps Yes or No.\n\n"
+."The director says or types a request. It may ask for several things in one sentence (for example \"the toddlers are going to the playground and sign Ms. Ana out at 2\"). Return one action for each thing, in the order they said them, at most 5. You never make changes yourself: the director sees each proposal and taps Yes or No on each one.\n\n"
 ."Today is ".$now->format('l, Y-m-d')." and the time is ".$now->format('H:i')." (Eastern).\n\n"
 ."Pick kind:\n"
 ."- room_sign_in / room_sign_out: sign one or more CHILDREN in or out on the Rooms board for TODAY. children = exact names from the Children list. time = HH:MM 24-hour; use the current time when they say now or give no time.\n"
@@ -148,7 +148,7 @@ $system = "You are Talk to Bear Line, the voice helper for the director of Kid C
 ."- rooms_board: a whole CLASS or ROOM on the Rooms board. board_action = out (the room is leaving for the playground, outside, the playroom or the office; also called a transition), back (the room is coming back inside), move (move children or a whole room into another room), or meal (mark breakfast, lunch or PM snack). room = exact name from the Rooms list. room_to = for out: Playground, Outside, Playroom or Office; for move: the exact room they go to. For meal, item = breakfast, lunch or snack. For move of only some children, children = their exact names.\n"
 ."- open_card: they want to open, bring up or go to a page, form, card or tool (for example \"bring up the food program forms\"). card = exact name from the Cards list that fits best.\n"
 ."- question: they ask how, where, when or how many about the Director Portal or the school. question = their question, cleaned up. The director chatbot answers it.\n"
-."- tablet: they want something done on the front tablet itself: a staff member clocking in or out on the tablet right now, signing a child in on the tablet, or the greeting message on the tablet. Talk to Bear Line can't do those yet.\n"
+."- tablet: they want something done on the front tablet itself: the greeting message on the tablet, or they say to do it ON the tablet. Talk to Bear Line can't do those yet. When they just say to sign a staff member in or out at a time, use staff_time_fix instead.\n"
 ."- clarify: you are not sure who or what they mean, a name matches nobody or more than one person, or a needed time is missing for staff. question = one short question back.\n"
 ."- cant: anything else, or anything about PINs, passwords, codes, money, or contacting parents or staff.\n\n"
 ."Rules: Only use names that are in the lists below, spelled exactly as listed. Never guess between two people. A staff member is never a child. "
@@ -159,7 +159,7 @@ $system = "You are Talk to Bear Line, the voice helper for the director of Kid C
 ."Inventory list: ".implode('; ', array_keys($ctx['items']))."\n\n"
 ."Cards list: ".implode('; ', $cards);
 
-$schema = ['type' => 'object', 'additionalProperties' => false,
+$one = ['type' => 'object', 'additionalProperties' => false,
 'properties' => [
 'kind' => ['type' => 'string', 'enum' => ['rooms_board','room_sign_in','room_sign_out','staff_time_fix','inventory_count','open_card','question','tablet','clarify','cant']],
 'say' => ['type' => 'string'], 'children' => ['type' => 'array', 'items' => ['type' => 'string']],
@@ -168,6 +168,7 @@ $schema = ['type' => 'object', 'additionalProperties' => false,
 'item' => ['type' => 'string'], 'qty' => ['type' => 'string'], 'card' => ['type' => 'string'], 'question' => ['type' => 'string'],
 'board_action' => ['type' => 'string', 'enum' => ['out','back','move','meal','']], 'room' => ['type' => 'string'], 'room_to' => ['type' => 'string']],
 'required' => ['kind','say','children','time','staff','date','time_in','time_out','reason','item','qty','card','question','board_action','room','room_to']];
+$schema = ['type' => 'object', 'additionalProperties' => false, 'properties' => ['actions' => ['type' => 'array', 'items' => $one]], 'required' => ['actions']];
 
 $user = ($hist ? "Earlier in this conversation:\n".implode("\n", $hist)."\n\n" : '')."Director's request: ".$words;
 $req = ['model' => MODEL, 'max_tokens' => 1500,
@@ -184,8 +185,11 @@ $res = json_decode($raw ?: '{}', true);
 if ($code !== 200){ log_line(['school'=>$school,'role'=>$role,'words'=>$words,'result'=>'Claude error '.$code]); fail('Talk to Bear Line couldn\'t reach Claude just now ('.$code.'). Try again in a minute.', 502); }
 if (($res['stop_reason'] ?? '') === 'refusal') fail('I can\'t help with that one.', 422);
 $text = ''; foreach (($res['content'] ?? []) as $b) if (($b['type'] ?? '') === 'text') $text .= $b['text'];
-$p = json_decode($text, true);
-if (!is_array($p) || empty($p['kind'])) fail('I didn\'t catch that. Try saying it another way.', 502);
+$P = json_decode($text, true);
+if (!is_array($P) || empty($P['actions']) || !is_array($P['actions'])) fail('I didn\'t catch that. Try saying it another way.', 502);
+$plans = [];
+foreach (array_slice($P['actions'], 0, 5) as $p){
+if (!is_array($p) || empty($p['kind'])) continue;
 
 /* Re-check every name against this school's own lists. Anything unsure becomes a question back. */
 $out = ['kind' => $p['kind'], 'say' => (string)$p['say']];
@@ -239,7 +243,10 @@ break;
 case 'question': $out['question'] = trim($p['question']) ?: $words; break;
 case 'tablet': $out['say'] = 'Things on the front tablet itself (staff clock in or out, child sign-in on the tablet, the tablet greeting) aren\'t connected to Talk to Bear Line yet. Mrs. Bear is adding them next.'; break;
 }
-echo json_encode(['plan' => $out, 'live' => TALK_LIVE]); exit;
+$plans[] = $out;
+}
+if (!$plans) fail('I didn\'t catch that. Try saying it another way.', 502);
+echo json_encode(['plans' => $plans, 'live' => TALK_LIVE]); exit;
 }
 
 /* ---------- DO: the director tapped Yes (or No) ---------- */
