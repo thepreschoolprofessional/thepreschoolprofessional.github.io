@@ -319,17 +319,23 @@ $f = (array)($r['fields'] ?? []); $n0 = trim((string)($f[$src[2]] ?? '')); if ($
 $cat = $f[$src[3]] ?? ''; if (is_array($cat)) $cat = $cat['name'] ?? ''; $ag = $f['Age Group'] ?? ''; if (is_array($ag)) $ag = $ag['name'] ?? '';
 $sc = $f['School'] ?? ''; if (is_array($sc)) $sc = $sc['name'] ?? '';
 if ($sc !== '' && $sc !== 'Both' && stripos((string)$sc, $school === 'Sanford' ? 'Sanford' : 'DeLand') === false) continue;
-foreach ($src[4] as $lab => $fld){
-$l = trim((string)($f[$fld] ?? '')); if ($l === '' || !preg_match('~^https://~', $l)) continue;
+$links = [];
+foreach ($src[4] as $lab => $fld) $links[] = [$lab, trim((string)($f[$fld] ?? ''))];
+if ($src[1] === 'Lesson Plan Index'){
+foreach (array_keys($f) as $fk){ if (stripos($fk, 'Month Folder') !== false) $links[] = ['Month Folder (plan, instructions, resources and take-homes)', trim((string)$f[$fk])]; }
+foreach (preg_split('/\r?\n/', (string)($f['Quick Packet Print'] ?? '')) as $ql){ $qi = strpos($ql, '|'); if ($qi !== false) $links[] = ['Quick Packet Print - '.trim(substr($ql, 0, $qi)), trim(substr($ql, $qi + 1))]; }
+}
+foreach ($links as $lk){ $lab = $lk[0]; $l = $lk[1]; if ($l === '' || !preg_match('~^https://~', $l)) continue;
+$qtx = $src[1] === 'Lesson Plan Index' ? array_values(array_diff($qt, ['lesson', 'plan'])) : $qt; if (!$qtx) $qtx = $qt;
 $n = $lab === '' ? $n0 : $n0.' - '.$lab; if ($src[1] === 'Lesson Plan Index' && $ag !== '' && stripos($n0, (string)$ag) === false) $n = $n0.' ('.$ag.') - '.$lab;
-$nt = $tok($n.' '.$cat.' '.$ag); $hit = 0; foreach ($qt as $w){ foreach ($nt as $x){ if ($x === $w || (strlen($w) > 3 && (strpos($x, $w) === 0 || strpos($w, $x) === 0))){ $hit++; break; } } }
+$nt = $tok($n.' '.$cat.' '.$ag); $hit = 0; foreach ($qtx as $w){ foreach ($nt as $x){ if ($x === $w || (strlen($w) > 3 && (strpos($x, $w) === 0 || strpos($w, $x) === 0))){ $hit++; break; } } }
 if ($hit === 0) continue;
-$extra = max(0, count($tok($n)) - count($qt));
-$score = $hit / count($qt) - 0.02 * $extra + ($sc !== '' && $sc !== 'Both' ? 0.03 : 0);
-$rows[] = ['name' => $n, 'cat' => (string)$cat, 'url' => $l, 'score' => $score, 'full' => $hit === count($qt)];
+$extra = max(0, count($tok($n)) - count($qtx));
+$score = $hit / count($qtx) - 0.02 * $extra + ($sc !== '' && $sc !== 'Both' ? 0.03 : 0);
+$rows[] = ['name' => $n, 'cat' => (string)$cat, 'url' => $l, 'score' => $score, 'full' => $hit === count($qtx), 'group' => $src[1] === 'Lesson Plan Index' ? $n0 : '', 'age' => (string)$ag];
 }}}
 usort($rows, function($a, $b){ return $b['score'] <=> $a['score']; });
-return array_slice($rows, 0, 6);
+return array_slice($rows, 0, 80);
 }
 /* ONE-SCHOOL RULE: a director only ever gets their own school. The school comes from the PIN (never from the words). Anything a lookup returns that is marked with the other school is dropped before Claude sees it,
    and anything Claude sends with a School field is forced to the director's own school. */
@@ -597,11 +603,23 @@ elseif ($ba === 'meal'){ $ml = preg_match('/lunch/i', $p['item']) ? 'lunch' : (p
 else $ask('What should happen on the Rooms board?');
 break;
 case 'open_form':
-$fq = trim((string)($p['form_query'] ?? '')); $hits = $fq === '' ? [] : find_forms($fq, $pin);
+$fq = trim((string)($p['form_query'] ?? ''));
+if ($fq !== '' && preg_match('/lesson|plan|packet|workbook|supplement/i', $fq) && !preg_match('/jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/i', $fq)) $fq .= ' '.(new DateTime('now', new DateTimeZone('America/New_York')))->format('F');
+$hits = $fq === '' ? [] : find_forms($fq, $pin);
 $locked = function($u){ return (bool)preg_match('~files/food-program/(sanford-monthly-entrances|deland2-monthly-entrances|deland2-personnel-activity-report)\.pdf~i', $u); };
-$hits = array_values(array_filter($hits, function($h){ return $h['full']; })) ?: [];
+$all = $hits; $hits = array_values(array_filter($hits, function($h){ return $h['full']; })) ?: [];
 if (!$hits){ $c = pick_name('Forms Wizard', $cards) ?: pick_name('Food Forms', $cards); if ($c) $out = ['kind' => 'open_card', 'say' => 'I could not find a form by that name, so here is the forms area.', 'card' => $c]; else $out = ['kind' => 'question', 'say' => (string)$p['say'], 'question' => $words]; break; }
-$top = $hits[0]; $close = array_values(array_filter($hits, function($h) use ($top){ return $h['score'] >= $top['score'] - 0.04; }));
+$top = $hits[0];
+if ($top['group'] !== ''){
+$gs = []; foreach ($hits as $h){ if ($h['group'] !== '' && $h['score'] >= $top['score'] - 0.04) $gs[$h['group']] = 1; }
+if (count($gs) > 1){ $out = ['kind' => 'clarify', 'say' => 'Which plan do you want? '.implode('; ', array_slice(array_keys($gs), 0, 6)).'.']; break; }
+$list = []; foreach ($all as $h){ if ($h['group'] === $top['group']) $list[] = ['name' => $h['name'], 'url' => $h['url']]; }
+$HUB = ['Ones' => 'ones', 'Twos' => 'twos', 'Threes' => 'threes', 'Fours' => 'fours'];
+if (isset($HUB[$top['age']])) $list[] = ['name' => 'Bear Phonics Academy Teacher Hub: '.$top['age'].' (daily plans, songs, shows, books, circle time)', 'url' => 'https://bearphonicsacademy.com/teachers/'.$HUB[$top['age']].'.html'];
+$out += ['form_name' => $top['group'], 'form_list' => $list, 'say' => 'Here is everything for '.$top['group'].':'];
+break;
+}
+$close = array_values(array_filter($hits, function($h) use ($top){ return $h['score'] >= $top['score'] - 0.04; }));
 if (count($close) > 1){ $out = ['kind' => 'clarify', 'say' => 'Which one do you want? '.implode('; ', array_map(function($h){ return $h['name']; }, array_slice($close, 0, 5))).'.']; break; }
 if ($locked($top['url'])){ $c = pick_name('Food Forms', $cards); $out = $c ? ['kind' => 'open_card', 'say' => $top['name'].' lists staff or children, so it opens inside the Food Forms card.', 'card' => $c] : ['kind' => 'cant', 'say' => $top['name'].' lists staff or children, so it only opens inside the Director Portal.']; break; }
 $out += ['form_name' => $top['name'], 'form_url' => $top['url'], 'say' => 'Opening '.$top['name'].'.'];
