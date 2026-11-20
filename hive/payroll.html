@@ -34,7 +34,7 @@ function first(n){return String(n||'').toLowerCase().replace(/\([^)]*\)/g,'').re
 var ALIAS={honey:'madhumita'};var SALARIED={sanchita:1};function fk(n){var m=first(n);var k=m?m[0].replace(/'/g,''):'';return ALIAS[k]||k}
 var LIVE=null,LIVEP=null;
 function load(){
- if(!PIN){document.getElementById('app').textContent='Please open this from your Hive director portal.';return}
+ if(!PIN){document.getElementById('app').textContent='Please open this from your Bear’s Den director portal.';return}
  call({action:'pay_list'}).then(function(d){if(d.error){document.getElementById('app').textContent=d.error;return}D=d;document.getElementById('ttl').textContent='Bi-weekly Staff Pay — '+d.school;
   var today=ymd(new Date()),n=0;while(addDays(d.anchor,14*(n+1))<=today)n++;
   PI=n;

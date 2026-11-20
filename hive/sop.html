@@ -288,7 +288,7 @@ function openPrint(html){var w=window.open('','_blank');if(!w){say('Allow pop-up
 function monday(){var p=DATE.split('-'),d=new Date(+p[0],+p[1]-1,+p[2],12);d.setDate(d.getDate()-((d.getDay()+6)%7));return d.toLocaleDateString('en-US');}
 function staffHtml(){var h='<h1>Kid City USA '+esc(SCHOOL)+'</h1><h2>Staff Schedule (posted) &middot; week of '+monday()+'</h2><table><tr><th>Name</th><th>Position</th><th>Room</th>'+[1,2,3,4,5].map(function(d){return '<th>'+SOP.DAYS[d]+'</th>';}).join('')+'<th>Break</th></tr>';
  D.staff.forEach(function(s){h+='<tr><td>'+esc(s.name)+'</td><td>'+esc(s.role||'')+'</td><td>'+esc(s.room||'')+'</td>'+[1,2,3,4,5].map(function(d){var w=(s.week||{})[d];return '<td>'+(w?esc(SOP.fmt(w.in)+' - '+SOP.fmt(w.out)):'off')+'</td>';}).join('')+'<td>'+(s.brk?esc(rng(s.brk.s,s.brk.e)):'')+'</td></tr>';});
- return h+'</table><div class="f">Schedules may change when a staff member is out. Changes are recorded in the Hive. Director signature: ______________________ Date: __________</div>';}
+ return h+'</table><div class="f">Schedules may change when a staff member is out. Changes are recorded in the Bear’s Den. Director signature: ______________________ Date: __________</div>';}
 function roomHtml(r){var o=D.rooms[r],age=SOP.AGE[o.tpl]||{label:''},tch=D.staff.filter(function(s){return s.room===r;}).map(function(s){return s.name;}).join(', ');
  var h='<h1>Kid City USA '+esc(SCHOOL)+'</h1><h2>Classroom Daily Schedule &middot; '+esc(r)+' &middot; '+esc(age.label)+'</h2><div style="font-size:12px;margin-bottom:8px">Teachers: '+esc(tch||'')+'</div><table><tr><th style="width:150px">Time</th><th>Activity</th></tr>';
  o.blocks.forEach(function(b){h+='<tr><td>'+esc(rng(b.s,b.e))+'</td><td>'+esc(b.t)+'</td></tr>';});

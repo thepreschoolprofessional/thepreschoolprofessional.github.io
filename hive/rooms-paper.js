@@ -154,7 +154,7 @@ function render(o){
     h+='<div class="hc"><b>More transitions:</b> '+trans.slice(5).map(function(t,i){ return '#'+(i+6)+' '+esc(t.dest)+' out '+esc(fmt12(t.out))+(t.in?' in '+esc(fmt12(t.in)):''); }).join(' | ')+'</div>';
   }
   h+='<div class="notes"><b>NOTES:</b> <span class="hl">'+esc(NOTE_TEXT)+'</span><br><span class="hl">CALL FOR A "SWEEP" AFTER YOU LEAVE CLASSROOM AND AFTER YOU RETURN TO CLASSROOM</span><br><span class="hl">ALWAYS DO A HEAD COUNT EVERY 10 MINUTES TO MAKE SURE ALL CHILDREN ARE ACCOUNTED FOR.</span></div>';
-  h+='<div class="ft">'+esc(o.school||'')+' &middot; Generated from The Hive Rooms board. Names shown as first name + last initial.</div>';
+  h+='<div class="ft">'+esc(o.school||'')+' &middot; Generated from Bear’s Den Rooms board. Names shown as first name + last initial.</div>';
   h+='</div>';
   return h;
 }

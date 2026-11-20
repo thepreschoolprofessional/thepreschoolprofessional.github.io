@@ -1,4 +1,4 @@
-/* The Hive — Rooms board (fast sign-in/out, meals, wellness, transitions, DCF paper view, roster).
+/* Bear’s Den — Rooms board (fast sign-in/out, meals, wellness, transitions, DCF paper view, roster).
    Built 11/2/26. Talks only to rooms-api.php (separate from the live portal api.php). */
 (function(){
 'use strict';
@@ -188,7 +188,7 @@ function render(){
 }
 function loginHTML(){
   var sch=ls('hiveRoomsSchool')||portalSchool(); /* 2026-11-18: no more DeLand 2 default */
-  return '<div class="login"><div class="hex">&#11042;</div><h1>Hive Rooms</h1><p class="sub">Fast sign-in / sign-out for every classroom</p>'
+  return '<div class="login"><div class="hex">&#11042;</div><h1>Bear’s Den Rooms</h1><p class="sub">Fast sign-in / sign-out for every classroom</p>'
    +'<label class="lbl">Your PIN</label><input class="inp" id="pin" type="password" autocomplete="off" autocapitalize="characters" placeholder="Staff or director PIN" value="'+esc(ls('hiveRoomsPin')||'')+'">'
    +'<label class="lbl">School (teachers pick; directors are set automatically)</label><select class="inp" id="sch"><option value=""'+(sch?'':' selected')+'>Pick your school…</option><option'+(sch==='DeLand 2'?' selected':'')+'>DeLand 2</option><option'+(sch==='Sanford'?' selected':'')+'>Sanford</option></select>'
    +'<button class="btn big" data-act="login">Open my rooms</button><div id="lerr" class="err"></div>'

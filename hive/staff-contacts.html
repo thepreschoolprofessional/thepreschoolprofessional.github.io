@@ -26,7 +26,7 @@ try{PIN=sessionStorage.getItem('hivePin')}catch(e){}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 function call(b){b.pin=PIN;return fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).then(function(r){return r.json()})}
 function load(){
- if(!PIN){document.getElementById('app').textContent='Please open this from your Hive director portal.';return}
+ if(!PIN){document.getElementById('app').textContent='Please open this from your Bear’s Den director portal.';return}
  call({action:'sc_get'}).then(function(d){if(d.error){document.getElementById('app').textContent=d.error;return}DATA=d;document.getElementById('ttl').textContent='Staff Contacts — '+d.school;document.getElementById('imp').style.display='';draw()}).catch(function(){document.getElementById('app').textContent='Could not load. Please try again.'})
 }
 function tel(p){return String(p).replace(/[^0-9+]/g,'')}

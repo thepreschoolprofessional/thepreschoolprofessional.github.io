@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex,nofollow"><title>My PINs - The Hive</title>
+<meta name="robots" content="noindex,nofollow"><title>My PINs - Bear’s Den</title>
 <style>
 :root{--bg:#fff6fa;--ink:#2b2118;--card:#fff;--line:#ecd3df;--acc:#5a4cc9;--mut:#7a6a75}
 *{box-sizing:border-box}body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
@@ -22,7 +22,7 @@ var app=document.getElementById('app');
 if(!pin){app.innerHTML='<div class="msg">Please open this from the Owner Portal.</div>'}else{
 fetch('owner-pins-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pin})}).then(function(r){return r.json()}).then(function(d){
  pin=null;if(d.error){app.innerHTML='<div class="msg">'+esc(d.error)+'</div>';return}
- var h='<div class="sec"><h2>Hive portals</h2>'+d.hive.map(function(x){return'<div class="row"><span>'+esc(x.label)+'</span><span class="pin">'+esc(x.pin)+'</span></div>'}).join('')+'</div>';
+ var h='<div class="sec"><h2>Bear’s Den portals</h2>'+d.hive.map(function(x){return'<div class="row"><span>'+esc(x.label)+'</span><span class="pin">'+esc(x.pin)+'</span></div>'}).join('')+'</div>';
  d.bearline.forEach(function(b){
   h+='<div class="sec"><h2>Bear Line - '+esc(b.school)+'</h2>';
   if(b.error){h+='<div class="sub">'+esc(b.error)+'</div></div>';return}

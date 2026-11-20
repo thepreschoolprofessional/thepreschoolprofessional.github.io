@@ -1,4 +1,4 @@
-/* Hive SOP: default content (from Mrs. Bear's SOP-26 DeLand 2 / SOP-27 Sanford) + shared helpers.
+/* Bear’s Den SOP: default content (from Mrs. Bear's SOP-26 DeLand 2 / SOP-27 Sanford) + shared helpers.
    Saved edits live in the private vault (files-api.php sop_get / sop_save) and replace these defaults piece by piece. */
 (function(){
 var DAYS=['','Mon','Tue','Wed','Thu','Fri'];

@@ -1,5 +1,5 @@
 <?php
-/* THE HIVE — Owner PIN card API, built 11/12/26. OWNER PIN ONLY. Shows the owner every Hive PIN and the Bear Line owner/director/test PINs.
+/* THE HIVE — Owner PIN card API, built 11/12/26. OWNER PIN ONLY. Shows the owner every Bear’s Den PIN and the Bear Line owner/director/test PINs.
 Nothing is stored; PINs are read live from Airtable Portal Access and from each school's Bear Line server. */
 $__t = 'PASTE_YOUR_AIRTABLE_TOKEN_HERE'; $__code = '';
 foreach ([dirname(__DIR__, 2), dirname(__DIR__), __DIR__] as $__d){

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex,nofollow"><title>Reporting & Audit Vault - The Hive</title>
+<meta name="robots" content="noindex,nofollow"><title>Reporting & Audit Vault - Bear’s Den</title>
 <style>
 :root{--ink:#222;--bg:#fbf6ea;--card:#fff;--line:#e6dcc3;--elc:#6a1b9a;--food:#2e7d32;--dcf:#c62828;--vault:#37474f}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--ink);padding:12px 16px 60px}
@@ -155,7 +155,7 @@ async function combine(m,c,quiet){if(!window.PDFLib){say('The PDF tool did not l
  try{let part=1,doc=null,est=0,items=[];const outs=[];
   const finish=async()=>{if(!doc)return;const font=await doc.embedFont(StandardFonts.HelveticaBold),reg=await doc.embedFont(StandardFonts.Helvetica);
    const cover=doc.insertPage(0,[612,792]);let y=730;cover.drawText(wa('Kid City USA '+sc),{x:50,y,size:22,font});y-=30;cover.drawText(wa(sec+' - '+lbl(m)+(part>1||outs.length?' (part '+(outs.length+1)+')':'')),{x:50,y,size:16,font});y-=24;
-   cover.drawText('Compiled '+new Date().toLocaleDateString()+' from the Hive vault. Keep 5 years.',{x:50,y,size:10,font:reg,color:rgb(.4,.4,.4)});y-=26;
+   cover.drawText('Compiled '+new Date().toLocaleDateString()+' from the Bear’s Den vault. Keep 5 years.',{x:50,y,size:10,font:reg,color:rgb(.4,.4,.4)});y-=26;
    items.forEach((it,i)=>{if(y<60)return;cover.drawText(wa((i+1)+'.  '+it.name).slice(0,95)+'   (p. '+it.page+')',{x:50,y,size:10,font:reg});y-=15;});
    const b64=await doc.saveAsBase64();outs.push(b64);doc=null;est=0;items=[];};
   for(const f of fl){say('Combining '+sec+' '+lbl(m)+': '+f.name+'…');
@@ -237,7 +237,7 @@ async function wkSave(i){const w=WK[i],c=document.getElementById('wkp'),nm=docum
  if(!c._ink){say('Please sign in the box first.',true);return;}if(!nm){say('Please type your name.',true);return;}
  try{say('Filing the signed sign-off…');localStorage.setItem('hiveName',nm);const {PDFDocument,StandardFonts,rgb}=PDFLib;const doc=await PDFDocument.create();const f=await doc.embedFont(StandardFonts.Helvetica),fb=await doc.embedFont(StandardFonts.HelveticaBold);
   const g=wkGroup(w),dn=['Mon','Tue','Wed','Thu','Fri'];const W=612,H=792;let pg=doc.addPage([W,H]),y=H-50;const sch=DATA.school||'';
-  const head=()=>{pg.drawText(wa('Kid City USA '+sch+' - Weekly Facility Sign-off'),{x:40,y:H-45,size:16,font:fb});pg.drawText(wa('Week of '+wkLbl(w)+'   (checklists submitted through the Hive)'),{x:40,y:H-64,size:10,font:f,color:rgb(.3,.3,.3)});
+  const head=()=>{pg.drawText(wa('Kid City USA '+sch+' - Weekly Facility Sign-off'),{x:40,y:H-45,size:16,font:fb});pg.drawText(wa('Week of '+wkLbl(w)+'   (checklists submitted through the Bear’s Den)'),{x:40,y:H-64,size:10,font:f,color:rgb(.3,.3,.3)});
    let x=300;dn.forEach((d,k)=>{const dd=new Date(w.monday+'T12:00');dd.setDate(dd.getDate()+k);pg.drawText(d+' '+(dd.getMonth()+1)+'/'+dd.getDate(),{x:x+k*52,y:H-88,size:8,font:fb});});pg.drawText('Form / room',{x:40,y:H-88,size:8,font:fb});y=H-102;};
   head();
   for(const r of g){if(y<150){pg=doc.addPage([W,H]);head();}

@@ -1,4 +1,4 @@
-/* 🚌 Transportation Log — self-injecting add-on for The Hive teacher & director portals (built 10/6/26).
+/* 🚌 Transportation Log — self-injecting add-on for Bear’s Den teacher & director portals (built 10/6/26).
 Same pattern as buzz.js: loads after the page's inline script and reuses api()/esc()/show().
 One shared tab on BOTH portals. Data lives in Airtable "Transportation Trips" + "Transportation Riders".
 Flow per trip: Start (departure location + time) → riders IN → Arrive (arrival time) → riders OUT →

@@ -15,7 +15,7 @@ if ($__t === 'PASTE_YOUR_AIRTABLE_TOKEN_HERE') fail('The Airtable token has not 
 
 $in = json_decode(file_get_contents('php://input'), true) ?: [];
 $pin = strtoupper(trim($in['pin'] ?? ''));
-if (!$pin){ usleep(300000); fail('Please open this from your Hive portal.', 401); }
+if (!$pin){ usleep(300000); fail('Please open this from your Bear’s Den portal.', 401); }
 
 $o = ['http'=>['method'=>'GET','header'=>"Authorization: Bearer $__t\r\n",'ignore_errors'=>true,'timeout'=>20]];
 $res = json_decode(@file_get_contents('https://api.airtable.com/v0/app2HNkUSJqx9IkYZ/'.rawurlencode('Portal Access').'?maxRecords=20', false, stream_context_create($o)), true);

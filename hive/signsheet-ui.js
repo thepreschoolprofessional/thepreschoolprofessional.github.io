@@ -1,4 +1,4 @@
-/* The real Kid City "ATTENDANCE ROSTER" form for one classroom, filled in, to view on screen and print (11/18/26). Uses the same form layout as the Hive Rooms board paper form. */
+/* The real Kid City "ATTENDANCE ROSTER" form for one classroom, filled in, to view on screen and print (11/18/26). Uses the same form layout as the Bear’s Den Rooms board paper form. */
 (function(){
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 function add(s,n){var d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
