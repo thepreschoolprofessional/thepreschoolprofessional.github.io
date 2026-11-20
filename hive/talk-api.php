@@ -555,6 +555,11 @@ if (!is_array($P) || empty($P['actions']) || !is_array($P['actions'])) fail('I d
 $plans = [];
 foreach (array_slice($P['actions'], 0, 5) as $p){
 if (!is_array($p) || empty($p['kind'])) continue;
+/* SHORTCUT: 'send an onboard email to Shanika at name@gmail.com' (any order, any extra words) is the Automations card. The template word and the email address are picked up from what was said, and the card fills in the rest. */
+if (count($P['actions']) === 1 && in_array($p['kind'], ['email', 'compose', 'clarify', 'question', 'answer', 'cant', 'open_card', 'portal'], true) && ($p['kind'] !== 'portal' || (string)($p['op'] ?? '') !== 'api_create_email_automation_requests') && preg_match('/send|email|automation|template/i', $words) && preg_match_all('/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/', $words, $sm) && preg_match('/\b(teacher hub|management hub|onboard\w*|inquiry|tour|registration|enrolled|enrollment|sams)\b/i', $words, $tm)){
+$tw = strtolower($tm[1]); $tw = strpos($tw, 'onboard') === 0 ? 'onboard' : ($tw === 'enrollment' ? 'enrolled' : $tw);
+$p = ['kind' => 'portal', 'op' => 'api_create_email_automation_requests', 'args_json' => json_encode(['fields.Template' => $tw, 'fields.Parent Emails' => implode(', ', array_unique($sm[0]))]), 'say' => 'Send the '.$tw.' email to '.implode(', ', array_unique($sm[0])).'?', 'card' => 'Automations'];
+}
 
 /* Re-check every name against this school's own lists. Anything unsure becomes a question back. */
 $out = ['kind' => $p['kind'], 'say' => (string)$p['say']];
