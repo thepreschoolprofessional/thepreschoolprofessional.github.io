@@ -292,9 +292,30 @@ if ($e['endpoint'] === 'pack-api.php'){ if (!isset($e['params']['action'])) unse
 else { $body['rpass'] = $pass['pass']; $body['sk'] = $sk; }
 }
 else { $body['pin'] = $pin; if (!empty($e['dirpin'])) $body['dirpin'] = $pin; }
+$body = iso_force($body);
 $j = post_json($e['endpoint'], $body);
 if (isset($j['error']) && strpos((string)$j['error'], 'no answer') === 0) return ['error' => 'The '.($e['card'] ?? 'portal').' card didn\'t answer.'];
-return $j;
+return iso_filter($j) ?? [];
+}
+/* ONE-SCHOOL RULE: a director only ever gets their own school. The school comes from the PIN (never from the words). Anything a lookup returns that is marked with the other school is dropped before Claude sees it,
+   and anything Claude sends with a School field is forced to the director's own school. */
+function iso_names(){ global $school; return $school === 'Sanford' ? ['Sanford', 'DeLand'] : ['DeLand', 'Sanford']; }
+function iso_other_hit($val){ list($mine, $other) = iso_names(); $v = (string)$val; return stripos($v, $other) !== false && stripos($v, $mine) === false; }
+function iso_filter($v){
+if (!is_array($v)) return $v;
+foreach (['School', 'school', 'Location', 'sk', 'fields.School'] as $k){ if (isset($v[$k]) && is_string($v[$k]) && iso_other_hit($v[$k])) return null; }
+if (isset($v['fields']) && is_array($v['fields']) && isset($v['fields']['School']) && is_string($v['fields']['School']) && iso_other_hit($v['fields']['School'])) return null;
+$o = []; $list = array_keys($v) === range(0, count($v) - 1);
+foreach ($v as $k => $x){ $y = iso_filter($x); if ($y === null && is_array($x)) continue; if ($list) $o[] = $y; else $o[$k] = $y; }
+return $o;
+}
+function iso_force($b){
+global $school; if (!is_array($b)) return $b;
+foreach ($b as $k => $x){
+if (is_array($x)) { $b[$k] = iso_force($x); continue; }
+if (is_string($k) && preg_match('/(^|\.)school$/i', $k) && is_string($x) && $x !== '' && (stripos($x, 'sanford') !== false || stripos($x, 'deland') !== false)) $b[$k] = ($school === 'Sanford') ? 'Sanford' : 'DeLand 2';
+}
+return $b;
 }
 /* Keeps lookups small for Claude: no file contents, signatures or pictures, long lists cut short. */
 function shrink($v, $depth = 0){
@@ -366,6 +387,7 @@ foreach (array_slice((array)($input['history'] ?? []), -8) as $h){ $u = trim(mb_
 
 $system = "You are Talk to Bear Line, the voice helper for the director of Kid City USA $school, a preschool. "
 ."The director says or types a request. It may ask for several things in one sentence (for example \"the toddlers are going to the playground and sign Ms. Ana out at 2\"). Return one action for each thing, in the order they said them, at most 5. You never make changes yourself: the director sees each proposal and taps Yes or No on each one. Yes and No buttons appear ONLY on a proposed change. In a clarify or an answer, NEVER say tap, press or click Yes; there is no button there. If you need a go-ahead or a missing detail, ask it as a plain question the director can answer by typing (for example: Want me to send it? Type yes or tell me what to change).\n\n"
+."ONE SCHOOL ONLY: you work for the director of Kid City USA $school and nobody else. Never ask which school, never answer about, look up, send to or change anything at the other school, even if asked or if a result seems to include it. If asked about the other school, say kindly that you can only help with $school. "
 ."What you can see and do: in the Director Portal you can look up almost every card (briefing, staff hours, buzz board, ratios, enrollment, new hires, parent portal, parent uploads and replies, staff and student files, training, reporting, DCF binder, transportation, inventory, food program, the Director Pack tiles) and propose changes to most of them. On the Bear Line tablet you can look up: who is signed in or out on a day, ELC children missing parent signatures, absences and their reasons, staff clock punches, open time-fix requests, front-screen notices and events, and a child's parent notes; and you can propose signing a child in or out, fixing a staff punch, and adding or changing notices, events and parent notes. You never handle PINs, passwords or pay amounts. If the director asks what you can do, tell them this in plain words with a couple of example questions. If something is not on that list, say so plainly and name the closest thing you can do.\n\nThink the request through before you answer: work out which card or action fits, what it needs, and what the director already gave you. When they ask to send a template email to parents (inquiry, enrolled, onboard, tour, registration, sams, teacher hub, management hub), use the portal op api_create_email_automation_requests with Template and Parent Emails; the card fills in the rest. If a detail is missing, use clarify and name the card and every missing detail with the choices, in one message.\n\nWhenever you ask a question (clarify), say you cannot do something (cant), or need something said a certain way, ALWAYS finish with one short example of exactly how the director can say it, in quotes, using real names from the lists when you can (for example: Try saying: \"send the tour email to mom@example.com\"). Never just tell them to say it another way.\n\nPick kind:\n"
 ."- room_sign_in / room_sign_out: sign one or more CHILDREN in or out for TODAY, on the Rooms board and on the Bear Line tablet record (the parent sign-in). children = exact names from the Children list. time = HH:MM 24-hour; use the current time when they say now or give no time.\n"
 ."- staff_time_fix: fix a STAFF member's clock-in or clock-out time (for example \"sign Ms. Ana out at 2 PM yesterday\"). This changes their punch on the Bear Line time clock right away. staff = exact name from the Staff list. date = YYYY-MM-DD (today if not said). time_in, lunch_out, lunch_in and/or time_out as HH:MM 24-hour (lunch_out = left for lunch, lunch_in = back from lunch); leave the ones they didn't mention empty. reason = their reason, or \"Entered by the director with Talk to Bear Line\".\n"
