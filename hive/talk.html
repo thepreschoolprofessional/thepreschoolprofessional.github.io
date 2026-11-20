@@ -237,6 +237,11 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
       no.onclick = function(){ yes.disabled = no.disabled = true; post({action:'do', plan: p, words: words, declined: 1}).catch(function(){}); bot('OK, I didn\'t change anything.'); };
       r2.appendChild(yes); r2.appendChild(no); c.appendChild(r2); return;
     }
+    if (k === 'clarify' && p.card){   // a question about a card: show what is missing and a button to see the card itself
+      remember(words, p.say); var qm = bot(p.say), qr = document.createElement('div'); qr.className = 'bc-chips';
+      var qb = document.createElement('button'); qb.type = 'button'; qb.className = 'bc-chip'; qb.textContent = 'Open ' + p.card; qb.onclick = function(){ openCard(p.card); };
+      qr.appendChild(qb); qm.appendChild(qr); return;
+    }
     /* Questions and answers have no Yes button. If the helper's words mention one, turn it into "type yes". */
     var plain = String(p.say || '').replace(/\b(tap|press|click|hit|select)\s+(the\s+)?["']?yes["']?(\s+button)?/gi, 'reply "yes" here').replace(/\bwait(ing)? for your yes\b/gi, 'wait for your answer');
     remember(words, plain);

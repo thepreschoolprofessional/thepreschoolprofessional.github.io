@@ -249,9 +249,10 @@ $e = $c[$id]; if (!is_array($args)) $args = [];
 $body = ['action' => $e['action']]; $vals = [];
 $put = function($k, $v) use (&$body){ if (strpos($k, '.') !== false){ list($a, $b) = explode('.', $k, 2); if (!isset($body[$a]) || !is_array($body[$a])) $body[$a] = []; $body[$a][$b] = $v; } else $body[$k] = $v; };
 foreach ((array)($e['fixed'] ?? []) as $k => $v) $put($k, $v);
+$miss = [];
 foreach ((array)($e['params'] ?? []) as $k => $d){
 if (($d['type'] ?? '') === 'signature') continue;   // the director signs on the screen; never made up
-if (!array_key_exists($k, $args) || $args[$k] === '' || $args[$k] === null){ if (!empty($d['required'])) return [null, [], 'it needs '.$k]; continue; }
+if (!array_key_exists($k, $args) || $args[$k] === '' || $args[$k] === null){ if (!empty($d['required'])) $miss[] = $k; continue; }
 $v = $args[$k]; $t = $d['type'] ?? 'string';
 if ($t === 'number'){ if (!is_numeric($v)) return [null, [], $k.' must be a number']; $v = $v + 0; }
 elseif ($t === 'boolean'){ if (!is_bool($v)){ $v = filter_var($v, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE); if ($v === null) return [null, [], $k.' must be yes or no']; } }
@@ -260,6 +261,7 @@ else { if (!is_scalar($v)) return [null, [], $k.' must be text']; $v = mb_substr
 if (!empty($d['enum']) && !in_array($v, $d['enum'], true)) return [null, [], $k.' must be one of '.implode(', ', $d['enum'])];
 $put($k, $v); $vals[$k] = $v;
 }
+if ($miss) return [null, $miss, 'missing'];
 return [$body, $vals, ''];
 }
 function post_json($endpoint, $body){
@@ -356,7 +358,7 @@ foreach (array_slice((array)($input['history'] ?? []), -8) as $h){ $u = trim(mb_
 
 $system = "You are Talk to Bear Line, the voice helper for the director of Kid City USA $school, a preschool. "
 ."The director says or types a request. It may ask for several things in one sentence (for example \"the toddlers are going to the playground and sign Ms. Ana out at 2\"). Return one action for each thing, in the order they said them, at most 5. You never make changes yourself: the director sees each proposal and taps Yes or No on each one. Yes and No buttons appear ONLY on a proposed change. In a clarify or an answer, NEVER say tap, press or click Yes; there is no button there. If you need a go-ahead or a missing detail, ask it as a plain question the director can answer by typing (for example: Want me to send it? Type yes or tell me what to change).\n\n"
-."Pick kind:\n"
+."Think the request through before you answer: work out which card or action fits, what it needs, and what the director already gave you. When they ask to send a template email to parents (inquiry, enrolled, onboard, tour, registration, sams, teacher hub, management hub), use the portal op api_create_email_automation_requests with Template and Parent Emails; the card fills in the rest. If a detail is missing, use clarify and name the card and every missing detail with the choices, in one message.\n\nPick kind:\n"
 ."- room_sign_in / room_sign_out: sign one or more CHILDREN in or out for TODAY, on the Rooms board and on the Bear Line tablet record (the parent sign-in). children = exact names from the Children list. time = HH:MM 24-hour; use the current time when they say now or give no time.\n"
 ."- staff_time_fix: fix a STAFF member's clock-in or clock-out time (for example \"sign Ms. Ana out at 2 PM yesterday\"). This changes their punch on the Bear Line time clock right away. staff = exact name from the Staff list. date = YYYY-MM-DD (today if not said). time_in, lunch_out, lunch_in and/or time_out as HH:MM 24-hour (lunch_out = left for lunch, lunch_in = back from lunch); leave the ones they didn't mention empty. reason = their reason, or \"Entered by the director with Talk to Bear Line\".\n"
 ."- inventory_count: set the on-hand count of a supply. item = exact name from the Inventory list. qty = whole number as text.\n"
@@ -416,11 +418,11 @@ $msgs = [['role' => 'user', 'content' => $user]]; $looked = 0; $res = [];
 for ($round = 0; $round < 6; $round++){
 $req = ['model' => MODEL, 'max_tokens' => 2000,
 'system' => [['type' => 'text', 'text' => $system, 'cache_control' => ['type' => 'ephemeral', 'ttl' => '1h']], ['type' => 'text', 'text' => $dynamic]],
-'output_config' => ['effort' => 'medium', 'format' => ['type' => 'json_schema', 'schema' => $schema]],
+'output_config' => ['effort' => 'high', 'format' => ['type' => 'json_schema', 'schema' => $schema]],
 'messages' => $msgs];
 if ($tools){ $req['tools'] = $tools; if ($round >= 5 || $looked >= 8) $req['tool_choice'] = ['type' => 'none']; }
 $ch = curl_init('https://api.anthropic.com/v1/messages');
-curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 60,
+curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 90,
 CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'x-api-key: '.CLAUDE_API_KEY, 'anthropic-version: 2026-10-21'],
 CURLOPT_POSTFIELDS => json_encode($req)]);
 $raw = curl_exec($ch); $code = curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
@@ -553,7 +555,18 @@ $out['say'] = 'Here is the '.($lk === 'enroll' ? 'family enrollment' : ($lk === 
 break;
 case 'portal':
 $a = json_decode((string)$p['args_json'], true);
+if (!is_array($a)) $a = [];
+if ((string)$p['op'] === 'api_create_email_automation_requests'){   // the portal card fills these itself, so the director never has to
+ $em = trim((string)($a['fields.Parent Emails'] ?? '')); $first = preg_split('/[\s,;]+/', $em, -1, PREG_SPLIT_NO_EMPTY); $cnt = count($first);
+ if (empty($a['fields.Requested By'])) $a['fields.Requested By'] = 'Director, Kid City USA '.$school.' (Talk to Bear Line)';
+ if (empty($a['fields.Requested At'])) $a['fields.Requested At'] = gmdate('c');
+ if (empty($a['fields.Request']) && $cnt && !empty($a['fields.Template'])) $a['fields.Request'] = $a['fields.Template'].' → '.$first[0].($cnt > 1 ? ' +'.($cnt - 1).' more' : '');
+}
 list($body, $vals, $err) = cat_args((string)$p['op'], $a, 'write');
+if ($err === 'missing'){   // say exactly what is missing and which card it is, with the choices
+ $ce = catalogue()[$p['op']] ?? []; $parts = [];
+ foreach ($vals as $k){ $d = $ce['params'][$k] ?? []; $lbl = nice_key($k); $parts[] = $lbl.(!empty($d['enum']) ? ' (pick one: '.implode(', ', $d['enum']).')' : (!empty($d['desc']) ? ' ('.$d['desc'].')' : '')); }
+ $out = ['kind' => 'clarify', 'say' => 'This is the '.($ce['card'] ?? 'portal').' card. To finish it I still need: '.implode('; ', $parts).'. Tell me those and I will set it up for your Yes.', 'card' => ($ce['card'] ?? '')]; break; }
 if ($err){ $ask('I couldn\'t line that up with the portal card ('.$err.'). Can you say it another way?'); break; }
 $e = catalogue()[$p['op']]; $det = [];
 foreach ($vals as $k => $v){ if (preg_match('/(^id$|Id$|_id$|^recordId$|^records?$)/', $k)) continue; $det[nice_key($k)] = is_array($v) ? json_encode($v, JSON_UNESCAPED_UNICODE) : (is_bool($v) ? ($v ? 'Yes' : 'No') : (string)$v); }
