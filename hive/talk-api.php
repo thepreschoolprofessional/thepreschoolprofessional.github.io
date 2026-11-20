@@ -370,6 +370,17 @@ echo json_encode(['ok' => true, 'say' => implode("\n", $lines)]); exit;
 }
 
 /* ---------- PLAN: words -> one proposed change ---------- */
+if ($action === 'getdoc'){
+$ds = (string)($input['doc_source'] ?? ''); $df = basename((string)($input['doc_file'] ?? ''));
+if ($df === '' || !preg_match('/^[A-Za-z0-9._() &,\'-]+$/', $df)) fail('That document name does not look right.', 400);
+if ($ds === 'report'){ $m = (string)($input['doc_month'] ?? ''); $c = (string)($input['doc_cat'] ?? ''); if (!preg_match('/^\d{4}-\d{2}$/', $m) || $c === '') fail('Which month and section?', 400);
+$j = post_json('reporting-api.php', ['pin' => $pin, 'action' => 'getfile', 'month' => $m, 'cat' => $c, 'name' => $df]); }
+else { $k = (string)($input['doc_kind'] ?? '') === 'student' ? 'student' : 'staff'; $i = (string)($input['doc_id'] ?? ''); if ($i === '' || !preg_match('/^[A-Za-z0-9_-]+$/', $i)) fail('Whose file?', 400);
+$j = post_json('files-api.php', ['pin' => $pin, 'action' => 'getfile', 'kind' => $k, 'id' => $i, 'name' => $df]); }
+if (empty($j['b64'])) fail(!empty($j['error']) ? (string)$j['error'] : 'I could not find that document.', 404);
+log_line(['school' => $school, 'role' => $role, 'words' => 'Opened document '.$df, 'kind' => 'open_doc', 'result' => 'Opened '.$df]);
+echo json_encode(['ok' => true, 'b64' => $j['b64'], 'name' => $df]); exit;
+}
 if ($action === 'plan'){
 $words = trim(mb_substr((string)($input['words'] ?? ''), 0, 400));
 if ($words === '') fail('Say or type what you want done.');
@@ -387,6 +398,7 @@ foreach (array_slice((array)($input['history'] ?? []), -8) as $h){ $u = trim(mb_
 
 $system = "You are Talk to Bear Line, the voice helper for the director of Kid City USA $school, a preschool. "
 ."The director says or types a request. It may ask for several things in one sentence (for example \"the toddlers are going to the playground and sign Ms. Ana out at 2\"). Return one action for each thing, in the order they said them, at most 5. You never make changes yourself: the director sees each proposal and taps Yes or No on each one. Yes and No buttons appear ONLY on a proposed change. In a clarify or an answer, NEVER say tap, press or click Yes; there is no button there. If you need a go-ahead or a missing detail, ask it as a plain question the director can answer by typing (for example: Want me to send it? Type yes or tell me what to change).\n\n"
+."DOCUMENTS: when the director asks you to open, show or pull up a document, use kind open_doc (it needs no Yes). First look it up: files_person for a staff or student paper (use its person id as doc_id and the file name as doc_file, doc_source person, doc_kind staff or student), or reporting_list for a monthly report (doc_source report, doc_file = the name, doc_month = YYYY-MM, doc_cat = its cat). Only use names that really appear in a lookup result. If more than one file could match, use clarify and list the choices. Say the document name in say. "
 ."ONE SCHOOL ONLY: you work for the director of Kid City USA $school and nobody else. Never ask which school, never answer about, look up, send to or change anything at the other school, even if asked or if a result seems to include it. If asked about the other school, say kindly that you can only help with $school. "
 ."What you can see and do: in the Director Portal you can look up almost every card (briefing, staff hours, buzz board, ratios, enrollment, new hires, parent portal, parent uploads and replies, staff and student files, training, reporting, DCF binder, transportation, inventory, food program, the Director Pack tiles) and propose changes to most of them. On the Bear Line tablet you can look up: who is signed in or out on a day, ELC children missing parent signatures, absences and their reasons, staff clock punches, open time-fix requests, front-screen notices and events, and a child's parent notes; and you can propose signing a child in or out, fixing a staff punch, and adding or changing notices, events and parent notes. You never handle PINs, passwords or pay amounts. If the director asks what you can do, tell them this in plain words with a couple of example questions. If something is not on that list, say so plainly and name the closest thing you can do.\n\nThink the request through before you answer: work out which card or action fits, what it needs, and what the director already gave you. When they ask to send a template email to parents (inquiry, enrolled, onboard, tour, registration, sams, teacher hub, management hub), use the portal op api_create_email_automation_requests with Template and Parent Emails; the card fills in the rest. If a detail is missing, use clarify and name the card and every missing detail with the choices, in one message.\n\nWhenever you ask a question (clarify), say you cannot do something (cant), or need something said a certain way, ALWAYS finish with one short example of exactly how the director can say it, in quotes, using real names from the lists when you can (for example: Try saying: \"send the tour email to mom@example.com\"). Never just tell them to say it another way.\n\nPick kind:\n"
 ."- room_sign_in / room_sign_out: sign one or more CHILDREN in or out for TODAY, on the Rooms board and on the Bear Line tablet record (the parent sign-in). children = exact names from the Children list. time = HH:MM 24-hour; use the current time when they say now or give no time.\n"
@@ -424,7 +436,7 @@ $dynamic = "Today is ".$now->format('l, Y-m-d')." and the time is ".$now->format
 
 $one = ['type' => 'object', 'additionalProperties' => false,
 'properties' => [
-'kind' => ['type' => 'string', 'enum' => ['portal','answer','compose','file_to_person','file_to_vault','email','rooms_board','room_sign_in','room_sign_out','staff_time_fix','inventory_count','open_card','question','tablet','tablet_event','parent_note','clarify','cant']],
+'kind' => ['type' => 'string', 'enum' => ['portal','answer','compose','file_to_person','file_to_vault','email','rooms_board','room_sign_in','room_sign_out','staff_time_fix','inventory_count','open_card','open_doc','question','tablet','tablet_event','parent_note','clarify','cant']],
 'say' => ['type' => 'string'], 'children' => ['type' => 'array', 'items' => ['type' => 'string']],
 'time' => ['type' => 'string'], 'staff' => ['type' => 'string'], 'date' => ['type' => 'string'],
 'time_in' => ['type' => 'string'], 'time_out' => ['type' => 'string'], 'lunch_out' => ['type' => 'string'], 'lunch_in' => ['type' => 'string'], 'reason' => ['type' => 'string'],
@@ -434,7 +446,8 @@ $one = ['type' => 'object', 'additionalProperties' => false,
 'doc' => ['type' => 'string'], 'month' => ['type' => 'string'], 'section' => ['type' => 'string', 'enum' => ['elc','food','dcf','other','']],
 'to' => ['type' => 'string', 'enum' => array_merge(['office','food_program'], OWNER_ADDR ? ['owner'] : [], [''])], 'subject' => ['type' => 'string'], 'body' => ['type' => 'string'], 'attach' => ['type' => 'string', 'enum' => ['yes','no']],
 'op' => ['type' => 'string', 'enum' => array_merge(cat_ids('write'), [''])], 'args_json' => ['type' => 'string'],
-'link_kind' => ['type' => 'string', 'enum' => ['staff','existing','enroll','']], 'email_to' => ['type' => 'string'], 'recipient' => ['type' => 'string']],
+'link_kind' => ['type' => 'string', 'enum' => ['staff','existing','enroll','']], 'email_to' => ['type' => 'string'], 'recipient' => ['type' => 'string'],
+'doc_source' => ['type' => 'string', 'enum' => ['person','report','']], 'doc_kind' => ['type' => 'string', 'enum' => ['staff','student','']], 'doc_id' => ['type' => 'string'], 'doc_file' => ['type' => 'string'], 'doc_month' => ['type' => 'string'], 'doc_cat' => ['type' => 'string']],
 'required' => ['op','args_json','link_kind','email_to','recipient','kind','say','children','time','staff','date','time_in','time_out','lunch_out','lunch_in','reason','notice_op','es','title','from','to_date','notice_match','note_type','item','qty','card','question','board_action','room','room_to','doc','month','section','to','subject','body','attach']];
 $schema = ['type' => 'object', 'additionalProperties' => false, 'properties' => ['actions' => ['type' => 'array', 'items' => $one]], 'required' => ['actions']];
 
@@ -541,6 +554,12 @@ break;
 case 'open_card':
 $c = pick_name($p['card'], $cards);
 if (!$c){ $out = ['kind' => 'question', 'say' => (string)$p['say'], 'question' => $words]; } else $out['card'] = $c;
+break;
+case 'open_doc':
+$ds = (string)($p['doc_source'] ?? ''); $df = basename((string)($p['doc_file'] ?? ''));
+if ($df === '' || !preg_match('/^[A-Za-z0-9._() &,\'-]+$/', $df)){ $out = ['kind' => 'clarify', 'say' => 'I couldn\'t tell which document you mean. Tell me whose paper or which monthly report, for example: "open Mia\'s immunization record" or "open the October food program report".']; break; }
+if ($ds === 'report'){ $dm = (string)($p['doc_month'] ?? ''); $dc = (string)($p['doc_cat'] ?? ''); if (!preg_match('/^\d{4}-\d{2}$/', $dm) || $dc === ''){ $out = ['kind' => 'clarify', 'say' => 'Which month and section is that report in? Example: "open the October 2026 food program report".']; break; } $out += ['doc_source' => 'report', 'doc_file' => $df, 'doc_month' => $dm, 'doc_cat' => $dc]; }
+else { $dk = (string)($p['doc_kind'] ?? 'staff') === 'student' ? 'student' : 'staff'; $di = (string)($p['doc_id'] ?? ''); if ($di === '' || !preg_match('/^[A-Za-z0-9_-]+$/', $di)){ $out = ['kind' => 'clarify', 'say' => 'Whose file is it in? Example: "open Mia\'s immunization record".']; break; } $out += ['doc_source' => 'person', 'doc_kind' => $dk, 'doc_id' => $di, 'doc_file' => $df]; }
 break;
 case 'question': $out['question'] = trim($p['question']) ?: $words; break;
 case 'file_to_person':

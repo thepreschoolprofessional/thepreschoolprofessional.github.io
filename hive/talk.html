@@ -191,6 +191,22 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
       gb.onclick = function(){ openNew('https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(p.to_email) + '&su=' + encodeURIComponent(p.subject) + '&body=' + encodeURIComponent(p.body)); };
       crow.appendChild(gb); cm.appendChild(crow); return;
     }
+    if (k === 'open_doc'){
+      remember(words, 'Opened document ' + p.doc_file);
+      var dm = bot(p.say || ('Here is ' + p.doc_file + '.')), drow = document.createElement('div'); drow.className = 'bc-chips';
+      var db = document.createElement('button'); db.type = 'button'; db.className = 'bc-chip yes'; db.textContent = '📄 Open ' + p.doc_file;
+      db.onclick = function(){
+        var tab = window.open('', '_blank'); db.disabled = true; var old = db.textContent; db.textContent = 'Getting it…';
+        post({action:'getdoc', doc_source: p.doc_source, doc_kind: p.doc_kind, doc_id: p.doc_id, doc_file: p.doc_file, doc_month: p.doc_month, doc_cat: p.doc_cat}).then(function(r){
+          var bin = atob(r.b64), arr = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+          var ext = (r.name.split('.').pop() || '').toLowerCase(), mt = {pdf:'application/pdf', png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', gif:'image/gif', webp:'image/webp', txt:'text/plain', csv:'text/csv'}[ext] || 'application/octet-stream';
+          var url = URL.createObjectURL(new Blob([arr], {type: mt}));
+          if (tab && !tab.closed) tab.location.href = url; else { var a = document.createElement('a'); a.href = url; a.target = '_blank'; a.download = r.name; document.body.appendChild(a); a.click(); a.remove(); }
+          setTimeout(function(){ URL.revokeObjectURL(url); }, 120000);
+        }).catch(function(e){ if (tab) try { tab.close(); } catch (x) {} bot(e.message || 'I could not open that document.'); }).then(function(){ db.disabled = false; db.textContent = old; });
+      };
+      drow.appendChild(db); dm.appendChild(drow); return;
+    }
     if (k === 'open_card'){
       remember(words, 'Opened ' + p.card);
       var m = bot(p.say || ('Opening ' + p.card + '.')), row = document.createElement('div'); row.className = 'bc-chips';
