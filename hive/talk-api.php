@@ -12,7 +12,7 @@ Safety:
 - TALK_LIVE = false means PRACTICE MODE: a Yes is logged, but nothing in Bear Line
   changes. Mrs. Bear flips this to true only after she has tried it.
 ============================================================ */
-define('TALK_LIVE', false);
+define('TALK_LIVE', true);
 define('DAILY_CAP', 300);               // most Haiku calls per school per day (spending guard)
 define('MODEL', 'claude-sonnet-5-5');   // was Haiku: Sonnet thinks the request through and asks for missing details
 define('TALK_HOST', 'thepreschoolprofessional.net');   // where the portal's own endpoints live (lookups run as the director)
@@ -340,9 +340,19 @@ $pin = strtoupper(trim($input['pin'] ?? ''));
 $pins = get_pins();
 if (!$pin || !isset($pins[$pin])) fail('That PIN isn\'t right.', 401);
 $role = $pins[$pin];
-if (!isset($ROLE_SCHOOL[$role])) fail('Talk to Bear Line is for directors only.', 403);
-$school = $ROLE_SCHOOL[$role];
 $action = $input['action'] ?? '';
+/* OWNER MODE: the owner PIN picks one school per request (the page asks each school in turn for "both"). Everything then runs as that school's director, using that school's own director PIN. */
+if ($role === 'owner'){
+$want = (string)($input['school'] ?? '');
+if (!in_array($want, ['Sanford', 'DeLand 2'], true)) fail('Pick Sanford or DeLand 2.', 400);
+$school = $want; $dpin = '';
+foreach ($pins as $pp => $rr){ if (($ROLE_SCHOOL[$rr] ?? '') === $school){ $dpin = $pp; break; } }
+if ($dpin === '') fail('I could not find that school\'s director sign-in.', 500);
+$pin = $dpin;
+} else {
+if (!isset($ROLE_SCHOOL[$role])) fail('Bear Line Director Talk is for directors only.', 403);
+$school = $ROLE_SCHOOL[$role];
+}
 
 if ($action === 'whoami'){
 echo json_encode(['school' => $school, 'live' => TALK_LIVE, 'keyReady' => CLAUDE_API_KEY !== '']); exit;

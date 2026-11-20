@@ -118,7 +118,8 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
   <div class="tab t-auto" onclick="show('auto',this)">✉️ Automations</div>
   <div class="tab t-hours" onclick="show('hours',this)">⏱ Staff Hours</div>
   <div class="tab t-food" onclick="show('food',this)">🍽 Food Program</div>
-<div class="tab" data-icon="chat-logo.png" style="background:#d81b60" onclick="location.href='director-chat.html'">💬 Director Bear Chat</div>
+<div class="tab" data-icon="chat-logo.png" style="background:#d81b60" onclick="location.href='director-chat.html'">💬 Bear Line Director Chat</div>
+<div class="tab" data-icon="chat-logo.png" style="background:#7b1fa2" onclick="location.href='talk.html'">🐻 Bear Line Director Talk</div>
 <div class="tab" style="background:#3f8f5c" onclick="show('foodforms',this)">📋 Food Forms</div>
   <div class="tab" style="background:#b0722e" onclick="show('inv',this)">📦 Inventory</div>
 <div class="tab t-facility" onclick="show('facility',this)">🧹 Facility Checklists</div>
@@ -1048,7 +1049,7 @@ setTimeout(chk,1500);setInterval(chk,300000);})();
 </script>
 <script>try{if(sessionStorage.getItem('hiveOwner')){document.querySelectorAll('a.back').forEach(function(a){a.href='owner.html';a.textContent='← Owner Portal';});}}catch(e){}</script>
 
-<!-- open-card-link: director.html#open=<card name> opens that card (used by Director Bear Chat) -->
+<!-- open-card-link: director.html#open=<card name> opens that card (used by Bear Line Director Chat) -->
 <script>
 (function(){
   var h=decodeURIComponent((location.hash||'').replace(/^#/,''));if(h.indexOf('open=')!==0)return;

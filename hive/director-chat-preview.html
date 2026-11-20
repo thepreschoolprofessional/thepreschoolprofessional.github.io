@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
-<title>Director Bear Chat</title>
+<title>Bear Line Director Chat</title>
 <style>
 :root{--ink:#4a3a30;--soft:#9b8576;--pink:#ff6b9d;--blue:#5aa9ff;--purple:#9b6bff;}
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',system-ui,sans-serif;}
@@ -51,18 +51,18 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
 </style>
 </head>
 <body>
-<header><h1>Director Bear Chat</h1><div class="sub" id="sub"></div></header>
+<header><h1>Bear Line Director Chat</h1><div class="sub" id="sub"></div></header>
 <div id="app"></div>
 <script src="bear-chat-data.js?v=5"></script>
 <script src="director-chat-data.js?v=6"></script>
 <script src="director-chat-lessons.js?v=3"></script>
-<script src="director-chat.js?v=7"></script>
+<script src="director-chat.js?v=10"></script>
 <script>location.replace('director-chat.html');</script>
 <script>
 (function(){
   var pin = sessionStorage.getItem('hivePin'), owner = sessionStorage.getItem('hiveOwner')==='1', role = sessionStorage.getItem('hiveRole') || '';
   var app = document.getElementById('app');
-  function closed(){ app.innerHTML = '<div class="closed"><h2>Director Bear Chat isn\'t open yet</h2><p style="margin-top:10px">It\'s coming soon to the Director Portal.</p></div>'; }
+  function closed(){ app.innerHTML = '<div class="closed"><h2>Bear Line Director Chat isn\'t open yet</h2><p style="margin-top:10px">It\'s coming soon to the Director Portal.</p></div>'; }
   function openChat(school){
     document.getElementById('sub').textContent = 'Preview for the ' + school + ' director · directors can\'t see this yet';
     app.innerHTML = '<div class="banner"><b>Owner preview.</b> This answers the way it would for the ' + school + ' director. Card buttons open that card in the ' + school + ' Director Portal in a new tab. Nothing is sent to anyone from here.</div><main id="chat"></main>';

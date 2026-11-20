@@ -827,7 +827,7 @@ function handoff(question){
     ev.preventDefault();
     var msg = f.elements.m.value.trim(); if (!msg) return;
     if (OPT.mode !== 'live'){
-      f.outerHTML = '<div class="bc-preview-note"><b>Preview only. Nothing was sent.</b><br>When Director Bear Chat is live, this goes to Mrs. Bear as a Director Portal note from '+esc(OPT.school)+', marked Director Bear Chat.</div>';
+      f.outerHTML = '<div class="bc-preview-note"><b>Preview only. Nothing was sent.</b><br>When Bear Line Director Chat is live, this goes to Mrs. Bear as a Director Portal note from '+esc(OPT.school)+', marked Director Bear Chat.</div>';
       return;
     }
     f.querySelector('button').disabled = true;
@@ -915,7 +915,7 @@ function mount(el, opt){
 function greet(){
   if (TEACH){ say('bot', 'Hi! I\'m Teacher Bear Chat for '+OPT.school+'. Ask me how to do anything on the Teacher Portal: the Rooms board, meals, lesson plans, daily plans, checklists, time off, calling out, handbook rules, training and more. I\'ll give you the steps and a button to the right card.',
     chips((D.starters||[]).map(function(s){ return {label:s}; }), function(it){ ask(it.label); })); return; }
-  say('bot', 'Hi! I\'m '+(OPT.name||'Director Bear Chat')+' for '+OPT.school+'. Ask me where something is or how to do it in the Director Portal: food program, DCF binder, files, staff hours, schedules, enrollments, new hires, reports and more. I\'ll give you the steps and a button to the right card.',
+  say('bot', 'Hi! I\'m '+(OPT.name||'Bear Line Director Chat')+' for '+OPT.school+'. Ask me where something is or how to do it in the Director Portal: food program, DCF binder, files, staff hours, schedules, enrollments, new hires, reports and more. I\'ll give you the steps and a button to the right card.',
     chips((D.starters||[]).map(function(s){ return {label:s}; }), function(it){ ask(it.label); }));
 }
 function poke(){ clearTimeout(IDLE); IDLE = setTimeout(function(){ if (LOG.length || MISSED.length || ROOT.querySelector('.bc-me')) reset(); }, IDLE_MS); }

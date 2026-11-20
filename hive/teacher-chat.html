@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
-<title>Teacher Bear Chat</title>
+<title>Bear Line Teacher Chat</title>
 <link rel="icon" href="chat-logo.png">
 <style>
 :root{--ink:#4a3a30;--soft:#9b8576;--pink:#ff6b9d;--blue:#5aa9ff;--purple:#9b6bff;}
@@ -56,20 +56,20 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
 </style>
 </head>
 <body>
-<header><a class="back" href="teacher.html">&larr; Teacher Portal</a><img class="logo" src="chat-logo.png" alt=""><h1>Teacher Bear Chat</h1><div class="sub" id="sub"></div></header>
+<header><a class="back" href="teacher.html">&larr; Teacher Portal</a><img class="logo" src="chat-logo.png" alt=""><h1>Bear Line Teacher Chat</h1><div class="sub" id="sub"></div></header>
 <div id="app"></div>
 <script src="bear-chat-data.js?v=5"></script>
 <script src="teacher-chat-data.js?v=2"></script>
 <script src="director-chat-lessons.js?v=3"></script>
-<script src="director-chat.js?v=7"></script>
+<script src="director-chat.js?v=10"></script>
 <script>
 (function(){
-  /* Teacher Bear Chat (Mrs. Bear's ask, 11/17/26). The same engine as Director Bear Chat, with the teacher question bank.
+  /* Bear Line Teacher Chat (Mrs. Bear's ask, 11/17/26). The same engine as Director Bear Chat, with the teacher question bank.
      The school comes from the PIN; a PIN for both schools picks the school once on this page.
-     Undo: remove the Teacher Bear Chat tab in teacher.html and this page. */
+     Undo: remove the Bear Line Teacher Chat tab in teacher.html and this page. */
   var pin = sessionStorage.getItem('hivePin');
   var app = document.getElementById('app'), sub = document.getElementById('sub');
-  function closed(){ app.innerHTML = '<div class="closed"><h2>Sign in first</h2><p style="margin-top:10px">Open Teacher Bear Chat from your Teacher Portal.</p><p style="margin-top:12px"><a href="index.html">Go to sign in</a></p></div>'; }
+  function closed(){ app.innerHTML = '<div class="closed"><h2>Sign in first</h2><p style="margin-top:10px">Open Bear Line Teacher Chat from your Teacher Portal.</p><p style="margin-top:12px"><a href="index.html">Go to sign in</a></p></div>'; }
   if (!pin){ closed(); return; }
   app.innerHTML = '<div class="closed"><p>Opening…</p></div>';
   function start(school, canChange){

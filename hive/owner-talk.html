@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Bear Line Owner Talk</title>
+<link rel="icon" href="chat-logo.png">
+<style>
+:root{--ink:#4a3a30;--soft:#9b8576;--pink:#ff6b9d;--blue:#5aa9ff;--purple:#9b6bff;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',system-ui,sans-serif;}
+body{min-height:100vh;background:linear-gradient(160deg,#fff7ef,#ffe7d4);color:var(--ink);padding:0 0 60px;}
+header{padding:14px 16px 8px;text-align:center;position:relative;}
+header .logo{height:64px;width:auto;display:block;margin:0 auto 4px;}
+header .back{position:absolute;left:14px;top:14px;color:#c2185b;font-weight:800;text-decoration:none;font-size:.9rem;}
+h1{font-size:1.6rem;}
+.sub{color:var(--soft);font-size:.92rem;margin-top:4px;}
+.banner{max-width:760px;margin:10px auto;background:#fff3cd;border:2px dashed #e0a800;border-radius:14px;padding:10px 14px;font-size:.9rem;}
+.banner.live{background:#e8f5e9;border-color:#43a047;}
+main{max-width:760px;margin:0 auto;padding:0 16px;}
+.bc-wrap{background:#fff;border-radius:20px;box-shadow:0 6px 18px rgba(74,58,48,.10);padding:14px;}
+.bc-log{height:52vh;min-height:300px;overflow-y:auto;padding:4px;display:flex;flex-direction:column;gap:10px;}
+.bc-msg{max-width:86%;padding:10px 14px;border-radius:16px;line-height:1.4;font-size:.96rem;word-wrap:break-word;}
+.bc-me{align-self:flex-end;background:#1d4e89;color:#fff;border-bottom-right-radius:4px;}
+.bc-bot{align-self:flex-start;background:#fff4ea;border-bottom-left-radius:4px;}
+.bc-bot a{color:#c2185b;font-weight:700;}
+.bc-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.bc-chip{border:2px solid #ffd2b0;background:#fff;border-radius:999px;padding:6px 12px;font-size:.85rem;font-weight:700;color:var(--ink);cursor:pointer;}
+.bc-chip:hover{background:#fff0e3;}
+.bc-chip.yes{background:var(--pink);border-color:var(--pink);color:#fff;}
+.bc-chip:disabled{opacity:.5;cursor:default;}
+.bc-panel{margin-top:8px;padding:10px;border:1px solid #eadfd6;border-radius:12px;background:#fffaf6;}.bc-h{font-weight:800;margin:8px 0 4px;font-size:13px;}.bc-sel{width:100%;padding:8px;border:1px solid #d8c8bb;border-radius:10px;font:inherit;}.bc-kids{display:flex;flex-wrap:wrap;gap:6px 12px;}.bc-kid{display:flex;align-items:center;gap:4px;font-size:14px;margin:4px 0;}
+.bc-form{display:grid;gap:8px;margin-top:8px;}.bc-form label{display:grid;gap:3px;font-size:.85rem;font-weight:700;}.bc-form input,.bc-form textarea{padding:8px 10px;border-radius:10px;border:2px solid #ffd2b0;font-size:.95rem;font-weight:400;}
+.bc-send{border:0;border-radius:12px;padding:10px;background:var(--pink);color:#fff;font-weight:800;cursor:pointer;}
+/* The director chatbot runs inside this page for questions; its own bar and lists are hidden. */
+#bot .bc-bar,#bot .bc-browse,#bot .bc-missed,#bot .bc-voice-note,#bot .bc-privacy{display:none;}
+#bot .bc-wrap{box-shadow:none;padding:0;}
+.tb-bar{display:flex;gap:6px;margin-top:10px;}
+.tb-input{flex:1;padding:12px 14px;border-radius:14px;border:2px solid #ffd2b0;font-size:1rem;}
+.tb-clip{border:2px solid #ffd2b0;background:#fff;border-radius:14px;padding:0 12px;font-size:1.1rem;cursor:pointer;}
+.tb-file{display:none;margin-top:8px;font-size:.88rem;background:#f7eefe;border-radius:10px;padding:6px 10px;}
+.tb-file button{border:0;background:none;color:#c2185b;font-weight:800;cursor:pointer;margin-left:6px;}
+.tb-mail{margin-top:8px;background:#fff;border:1px solid #eadfd6;border-radius:12px;padding:10px;font-size:.9rem;white-space:pre-wrap;}
+.tb-mail b{display:inline-block;min-width:62px;}
+.tb-sign{margin-top:8px;font-size:.85rem;}
+.tb-sign canvas{display:block;width:100%;max-width:300px;border:1px dashed #c9b6a8;border-radius:10px;background:#fff;touch-action:none;margin:4px 0;}
+.tb-sign button{border:0;background:none;color:#c2185b;font-weight:700;cursor:pointer;padding:0;}
+.tb-mic,.tb-go{border:0;border-radius:14px;padding:0 16px;font-size:1.05rem;font-weight:800;cursor:pointer;color:#fff;background:var(--purple);}
+.tb-go{background:var(--pink);}
+.tb-mic.on{background:#c62828;animation:pulse 1s infinite;}
+@keyframes pulse{50%{opacity:.6;}}
+.tb-note{font-size:.8rem;color:var(--soft);margin:8px 2px 0;}
+.tb-try{margin-top:12px;font-size:.9rem;}
+.tb-try b{display:block;margin-bottom:4px;}
+.tb-log{margin-top:14px;font-size:.88rem;}
+.tb-log summary{cursor:pointer;font-weight:800;}
+.tb-log table{width:100%;border-collapse:collapse;margin-top:6px;}
+.tb-log td{border-top:1px solid #f3e3d6;padding:5px 4px;vertical-align:top;}
+.thinking{opacity:.7;font-style:italic;}
+.closed{max-width:520px;margin:60px auto;background:#fff;border-radius:20px;padding:24px;text-align:center;box-shadow:0 6px 18px rgba(74,58,48,.10);}
+.closed input{padding:10px 12px;border-radius:12px;border:2px solid #ffd2b0;font-size:1rem;margin-top:12px;width:200px;text-align:center;}
+.closed button{border:0;border-radius:12px;padding:10px 16px;background:var(--pink);color:#fff;font-weight:800;cursor:pointer;margin-top:10px;}
+</style>
+</head>
+<body>
+<header><a class="back" href="owner.html">&larr; Owner Portal</a><img class="logo" src="chat-logo.png" alt=""><h1>Bear Line Owner Talk</h1><div class="sub" id="sub">Test version</div></header>
+<div id="app"></div>
+<script src="bear-chat-data.js?v=5"></script>
+<script src="director-chat-data.js?v=6"></script>
+<script src="director-chat-lessons.js?v=3"></script>
+<script src="director-chat.js?v=10"></script>
+<script>
+(function(){
+  /* Talk to Bear Line, TEST VERSION (built 11/20/26, not linked from any portal yet).
+     Words go to talk-api.php, Claude Haiku proposes ONE change, the director taps Yes or No.
+     Questions are handed to Director Bear Chat on this page. Practice mode is set in talk-api.php (TALK_LIVE). */
+  var API = 'talk-api.php';
+  var app = document.getElementById('app');
+  function ownerPin(){ var p = ''; try { var now = Date.now(); for (var i = localStorage.length - 1; i >= 0; i--){ var kk = localStorage.key(i); if (kk && kk.indexOf('hiveOwnerPinHandoff_') === 0){ var ts = +kk.split('_')[1]; if (now - ts < 60000 && !p) p = localStorage.getItem(kk); localStorage.removeItem(kk); } } } catch(e){} return p || sessionStorage.getItem('hiveOwnerPin') || ''; }
+  var PIN = ownerPin(), SEL = 'Both', CLICK = '', WRAP = '', SCHOOL = '', LIVE = false, HIST = [], BUSY = false, LASTWORDS = '', FILE = null, VOICE = false;
+  var D = window.DC_DATA || {cards:{}};
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function post(body){ body.pin = PIN; body.school = body.school || CLICK || (SEL === 'Both' ? 'Sanford' : SEL); return fetch(API, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)}).then(function(r){ return r.json().then(function(j){ if (!r.ok || j.error) throw new Error(j.error || 'Something went wrong.'); return j; }); }); }
+
+  function signIn(msg){
+    app.innerHTML = '<div class="closed"><h2>Owner PIN</h2><p style="margin-top:10px">'+esc(msg || 'Enter your owner PIN to use Bear Line Owner Talk.')+'</p><input id="pinIn" type="password" autocomplete="off" inputmode="text"><br><button id="pinGo">Open</button></div>';
+    var go = function(){ PIN = document.getElementById('pinIn').value.trim(); if (PIN) start(); };
+    document.getElementById('pinGo').onclick = go;
+    document.getElementById('pinIn').onkeydown = function(e){ if (e.key === 'Enter') go(); };
+  }
+  function start(){
+    app.innerHTML = '<div class="closed"><p>Opening…</p></div>';
+    post({action:'whoami'}).then(function(w){
+      SCHOOL = w.school || 'Sanford'; LIVE = !!w.live; sessionStorage.setItem('hiveOwnerPin', PIN);   /* same sign-in the portal uses, so cards open with no second PIN */
+      document.getElementById('sub').textContent = 'Owner · Sanford, DeLand 2 or both' + (LIVE ? '' : ' · Test version');
+      build(w.keyReady);
+    }).catch(function(e){ PIN = ''; signIn(e.message); });
+  }
+
+  function build(keyReady){
+    app.innerHTML = '<div class="banner'+(LIVE?' live':'')+'">'+(LIVE
+        ? '<b>Live.</b> When you tap Yes, the change is made in Bear Line and logged with your school.'
+        : '<b>TEST VERSION, practice mode.</b> Talk to it like you would to a person. When you tap Yes, it shows what it <i>would</i> do and logs it. Nothing in Bear Line or the Director Portal changes, nothing is filed and no email is sent yet.')
+      + (keyReady ? '' : '<br><b>Not connected to Claude yet:</b> the Claude key still needs to be added on the server.')
+      + '</div><main><div class="bc-wrap"><div id="tbsch" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 10px"><b>Ask about:</b></div><div id="tbissue" style="background:#eaf6ff;border:2px solid #9ccbf0;border-radius:14px;padding:10px 12px;margin:0 0 10px"><b>Testing Bear Line or the Teacher Portal?</b> If you see anything that is wrong, confusing or missing, type it here. Mrs. Bear sees it, and Charles uses it to update the system.<textarea id="tbissuetxt" maxlength="1500" placeholder="Example: The front tablet still says Hive on the sign-in screen." style="width:100%;box-sizing:border-box;min-height:56px;margin-top:6px;padding:8px;border-radius:10px;border:1px solid #9ccbf0;font:inherit"></textarea><button type="button" id="tbissuego" style="margin-top:6px;border:0;border-radius:10px;padding:8px 14px;font-weight:800;background:#1976d2;color:#fff;cursor:pointer">Send to Mrs. Bear and Charles</button> <span id="tbissuem" style="font-weight:700"></span></div><div id="bot"></div>'
+      + '<form class="tb-bar"><button type="button" class="tb-clip" title="Attach a photo or file">📎</button><input type="file" class="tb-pick" accept="image/jpeg,image/png,application/pdf,image/*" style="display:none"><input class="tb-input" placeholder="Say or type: sign Mia in at 8:15…" autocomplete="off" maxlength="400"><button type="button" class="tb-mic" title="Speak">🎤</button><button class="tb-go" type="submit">Send</button></form>'
+      + '<div class="tb-file" id="tbfile"></div>'
+      + '<div class="tb-note">📎 attaches a photo or PDF to file or email. 🎤 uses your browser\'s free voice typing. Every change waits for your Yes. Never say PINs or passwords out loud.</div>'
+      + '<details class="tb-try" style="margin:8px 0;background:#fff;border:1px solid #e6d9cf;border-radius:12px;padding:8px 12px"><summary style="cursor:pointer;font-weight:800">💡 Try saying… (tap to open)</summary><div class="bc-chips" id="tries" style="margin-top:8px;max-height:220px;overflow:auto"></div></details>'
+      + '<div class="tb-note"><button type="button" class="bc-chip" id="tbcheck">Check the Bear Line tablet link</button> (changes nothing)</div>'
+      + '<details class="tb-log" id="tblog"><summary>What was asked and done today ('+esc(SCHOOL)+')</summary><div id="logbox">Loading…</div></details>'
+      + '</div></main>';
+    DirectorChat.mount(document.getElementById('bot'), {name: 'Bear Line Owner Talk', school: SCHOOL, pin: PIN, mode: LIVE ? 'live' : 'preview', practice: !LIVE,
+      onDone: function(label, done){ post({action:'do', plan:{kind:'rooms_board'}, words: LASTWORDS, details: done}).catch(function(){}); }});
+    logEl().innerHTML = '';
+    (function(){ var box = document.getElementById('tbsch'); ['Sanford','DeLand 2','Both'].forEach(function(n){ var b = document.createElement('button'); b.type = 'button'; b.className = 'bc-chip'; b.textContent = n === 'Both' ? 'Both schools' : n; b.dataset.n = n; b.onclick = function(){ SEL = n; var want = n === 'Both' ? SCHOOL : n; if (want !== SCHOOL){ SCHOOL = want; try { DirectorChat.mount(document.getElementById('bot'), {name: 'Bear Line Owner Talk', school: SCHOOL, pin: PIN, mode: LIVE ? 'live' : 'preview', practice: !LIVE, onDone: function(){}}); logEl().innerHTML = ''; } catch(e){} } paint(); bot(n === 'Both' ? 'OK. I will answer for both schools, one after the other, each labeled.' : 'OK. Now talking about ' + n + '.'); }; box.appendChild(b); }); function paint(){ [].forEach.call(box.querySelectorAll('button'), function(b){ var on = b.dataset.n === SEL; b.style.background = on ? '#7b1fa2' : ''; b.style.color = on ? '#fff' : ''; }); } paint(); document.addEventListener('click', function(e){ var m = e.target.closest ? e.target.closest('.bc-msg[data-school]') : null; CLICK = m && m.dataset.school ? m.dataset.school : ''; }, true); })();
+    document.getElementById('tbissuego').onclick = function(){ var t = document.getElementById('tbissuetxt'), m = document.getElementById('tbissuem'), v = t.value.trim(), btn = this; if (!v) { m.style.color = '#c62828'; m.textContent = 'Type what you saw first.'; return; } btn.disabled = true; m.style.color = '#555'; m.textContent = 'Sending…';
+      fetch('api.php', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({pin: PIN, action:'create', table:'Tab Notes', fields:{'Note': ('Bear Line / Teacher Portal issue: ' + v).slice(0, 90), 'Full Note': '[Bear Line Director Talk, testing note] ' + v, 'Tab': 'Bear Line Director Talk', 'By': SCHOOL + ' director', 'When': new Date().toISOString(), 'Status': '🟡 New'}})})
+      .then(function(r){ return r.json(); }).then(function(d){ if (d && !d.error) { t.value = ''; m.style.color = '#2e8b57'; m.textContent = '✅ Sent. Thank you!'; } else { m.style.color = '#c62828'; m.textContent = 'That did not go through. Please message Mrs. Bear directly.'; } })
+      .catch(function(){ m.style.color = '#c62828'; m.textContent = 'That did not go through. Please message Mrs. Bear directly.'; }).then(function(){ btn.disabled = false; }); };
+    (function(){ var d = add('bc-bot', '<button type="button" class="tb-cando" style="display:block;width:100%;text-align:left;background:#fff3a8;border:2px solid #f0c040;border-radius:12px;padding:10px 12px;font:inherit;font-weight:800;color:#5a3d00;cursor:pointer;margin-bottom:8px">👉 Ask me: What can I do? <span style="font-weight:600">(tap here to see everything I can help with)</span></button>' + esc('Hi! Tell me anything you would do by hand on a Director Portal card or in Bear Line, or ask me anything about what\'s in them. You can attach a photo or file with 📎 and tell me where it goes or who to email it to. I\'ll show you exactly what I\'m going to do, and nothing happens until you tap Yes.')); d.querySelector('.tb-cando').onclick = function(){ if (!BUSY) send('What can I do? Tell me everything you can help me with.'); }; })();
+    var tries = ['Whose time off is waiting for me?', 'Any enrollments waiting?', 'Put Happy Thanksgiving on the front tablet until Friday', 'Tell Mia\'s mom she had a great day painting', 'Put Pajama Day on the front tablet for next Friday', 'The toddlers are going to the playground', 'File this in a child\'s immunization record', 'Email this to the office', 'Sign in a child now', 'Fix a staff clock-out time', 'Bring up the food program forms', 'Update a supply count', 'How do I add a new hire?'];
+    var tb = document.getElementById('tries');
+    tries.forEach(function(t){ var b = document.createElement('button'); b.type = 'button'; b.className = 'bc-chip'; b.textContent = t; b.onclick = function(){ var i = input(); i.value = t; i.focus(); }; tb.appendChild(b); });
+    app.querySelector('.tb-bar').onsubmit = function(ev){ ev.preventDefault(); var i = input(); var v = i.value.trim(); if (!v || BUSY) return; i.value = ''; VOICE = false; send(v); };
+    setupMic(); setupFile();
+    document.getElementById('tbcheck').onclick = function(){ var b = this; b.disabled = true; var w = add('bc-bot thinking', 'Checking…');
+      post({action:'selftest'}).then(function(r){ w.remove(); bot(r.say); }).catch(function(e){ w.remove(); bot(e.message); }).then(function(){ b.disabled = false; }); };
+    document.getElementById('tblog').addEventListener('toggle', function(){ if (this.open) loadLog(); });
+  }
+  function openNew(u){ var a = document.createElement('a'); a.href = u; a.target = '_blank'; if (!/^https?:\/\/(www\.)?thepreschoolprofessional\.net\//i.test(u) && !/^[a-z0-9._-]+\.(html|php)/i.test(u)) a.rel = 'noopener'; a.style.display = 'none'; document.body.appendChild(a); a.click(); setTimeout(function(){ a.remove(); }, 500); }
+  function input(){ return app.querySelector('.tb-input'); }
+  function logEl(){ return document.querySelector('#bot .bc-log'); }
+  function add(cls, html){ var box = logEl(), d = document.createElement('div'); d.className = 'bc-msg ' + cls; d.innerHTML = html; if (WRAP) d.dataset.school = WRAP; box.appendChild(d); box.scrollTop = box.scrollHeight; return d; }
+  function me(t){ return add('bc-me', esc(t)); }
+  function bot(t){ speak(t); return add('bc-bot', esc(t).replace(/\n/g,'<br>')); }
+  /* When the director spoke, the answer is read back out loud (the browser's own free voice). */
+  function speak(t){ try { if (!VOICE || !window.speechSynthesis) return; var u = new SpeechSynthesisUtterance(String(t).replace(/["“”]/g, '')); u.lang = 'en-US'; speechSynthesis.speak(u); } catch(e){} }
+
+  function setupFile(){
+    var pick = app.querySelector('.tb-pick');
+    app.querySelector('.tb-clip').onclick = function(){ pick.value = ''; pick.click(); };
+    pick.onchange = function(){
+      var f = pick.files && pick.files[0]; if (!f) return;
+      if (!/^(image\/(jpeg|png)|application\/pdf)$/.test(f.type)){ bot('I can take photos (JPG or PNG) and PDFs. If this is an iPhone photo, take it with the camera from the 📎 button instead.'); return; }
+      if (f.size > 10 * 1024 * 1024){ bot('That file is over 10 MB. Take the picture again or use a smaller PDF.'); return; }
+      var rd = new FileReader();
+      rd.onload = function(){ FILE = {name: f.name || 'photo', type: f.type, size: f.size, b64: String(rd.result).split(',')[1] || ''}; showFile(); input().focus(); };
+      rd.readAsDataURL(f);
+    };
+  }
+  function showFile(){
+    var el = document.getElementById('tbfile');
+    if (!FILE){ el.style.display = 'none'; el.innerHTML = ''; return; }
+    el.style.display = 'block'; el.innerHTML = '📎 <b>' + esc(FILE.name) + '</b> is attached. Now tell me where it goes or who to send it to.<button type="button">Remove</button>';
+    el.querySelector('button').onclick = function(){ FILE = null; showFile(); };
+  }
+
+  function send(words){
+    me(words); BUSY = true; LASTWORDS = words;
+    var targets = SEL === 'Both' ? ['Sanford', 'DeLand 2'] : [SEL], pending = targets.length;
+    targets.forEach(function(sc){
+      var wait = add('bc-bot thinking', 'Thinking…' + (targets.length > 1 ? ' (' + sc + ')' : ''));
+      post({school: sc, action:'plan', words: words, history: HIST, cards: Object.keys(D.cards || {}), file: FILE ? {name: FILE.name, type: FILE.type} : null})
+        .then(function(r){ wait.remove(); if (targets.length > 1){ WRAP = sc; bot('— ' + sc + ' —'); WRAP = ''; } showAll(r.plans || (r.plan ? [r.plan] : []), words, sc); })
+        .catch(function(e){ wait.remove(); WRAP = sc; bot((targets.length > 1 ? sc + ': ' : '') + e.message); WRAP = ''; })
+        .then(function(){ if (--pending === 0) BUSY = false; });
+    });
+  }
+  function remember(words, reply){ HIST.push({you: words, me: reply}); if (HIST.length > 8) HIST.shift(); }
+
+  /* One request can hold several things. Each change gets its own Yes; questions and Rooms board panels go to the chatbot one at a time. */
+  function showAll(plans, words, sc){
+    if (plans.length > 1) bot('I heard ' + plans.length + ' things. Each one has its own Yes.');
+    var gap = 0;
+    plans.forEach(function(p){
+      var fwd = p.kind === 'question' || p.kind === 'rooms_board';
+      setTimeout(function(){ WRAP = sc || ''; try { show(p, words, plans.length === 1); } finally { WRAP = ''; } }, fwd ? gap : 0);
+      if (fwd) gap += 1500;
+    });
+  }
+  function show(p, words, only){
+    var k = p.kind;
+    if (k === 'question' || k === 'rooms_board'){
+      remember(words, k === 'question' ? 'Answered with Bear Line Director Talk' : 'Opened the Rooms board panel: ' + p.command);
+      var bi = document.querySelector('#bot .bc-input'), bf = document.querySelector('#bot .bc-bar');
+      if (only){ var mine = logEl().lastElementChild; if (mine && mine.classList.contains('bc-me')) mine.remove(); }   // the chatbot shows the question itself
+      bi.value = (k === 'rooms_board' ? p.command : p.question) || words; bf.requestSubmit ? bf.requestSubmit() : bf.dispatchEvent(new Event('submit', {cancelable:true}));
+      return;
+    }
+    if (k === 'compose'){
+      remember(words, 'Prepared an email for ' + p.to_email);
+      var cm = bot(p.say), box = document.createElement('div'); box.className = 'tb-mail';
+      box.innerHTML = '<b>To:</b> ' + esc(p.to_email) + '\n<b>Subject:</b> ' + esc(p.subject) + '\n\n' + esc(p.body); cm.appendChild(box);
+      var crow = document.createElement('div'); crow.className = 'bc-chips';
+      var gb = document.createElement('button'); gb.type = 'button'; gb.className = 'bc-chip yes'; gb.textContent = 'Open Gmail with this ready';
+      gb.onclick = function(){ openNew('https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(p.to_email) + '&su=' + encodeURIComponent(p.subject) + '&body=' + encodeURIComponent(p.body)); };
+      crow.appendChild(gb); cm.appendChild(crow); return;
+    }
+    if (k === 'open_doc'){
+      remember(words, 'Opened document ' + p.doc_file);
+      var dm = bot(p.say || ('Here is ' + p.doc_file + '.')), drow = document.createElement('div'); drow.className = 'bc-chips';
+      var db = document.createElement('button'); db.type = 'button'; db.className = 'bc-chip yes'; db.textContent = '📄 Open ' + p.doc_file;
+      db.onclick = function(){
+        var tab = window.open('', '_blank'); db.disabled = true; var old = db.textContent; db.textContent = 'Getting it…';
+        post({action:'getdoc', doc_source: p.doc_source, doc_kind: p.doc_kind, doc_id: p.doc_id, doc_file: p.doc_file, doc_month: p.doc_month, doc_cat: p.doc_cat}).then(function(r){
+          var bin = atob(r.b64), arr = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+          var ext = (r.name.split('.').pop() || '').toLowerCase(), mt = {pdf:'application/pdf', png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', gif:'image/gif', webp:'image/webp', txt:'text/plain', csv:'text/csv'}[ext] || 'application/octet-stream';
+          var url = URL.createObjectURL(new Blob([arr], {type: mt}));
+          if (tab && !tab.closed) tab.location.href = url; else { var a = document.createElement('a'); a.href = url; a.target = '_blank'; a.download = r.name; document.body.appendChild(a); a.click(); a.remove(); }
+          setTimeout(function(){ URL.revokeObjectURL(url); }, 120000);
+        }).catch(function(e){ if (tab) try { tab.close(); } catch (x) {} bot(e.message || 'I could not open that document.'); }).then(function(){ db.disabled = false; db.textContent = old; });
+      };
+      drow.appendChild(db); dm.appendChild(drow); return;
+    }
+    if (k === 'open_card'){
+      remember(words, 'Opened ' + p.card);
+      var m = bot(p.say || ('Opening ' + p.card + '.')), row = document.createElement('div'); row.className = 'bc-chips';
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'bc-chip yes'; b.textContent = 'Open ' + p.card; b.onclick = function(){ openCard(p.card); };
+      row.appendChild(b); m.appendChild(row); return;
+    }
+    if (k === 'room_sign_in' || k === 'room_sign_out' || k === 'staff_time_fix' || k === 'inventory_count' || k === 'file_to_person' || k === 'file_to_vault' || k === 'email' || k === 'portal' || k === 'tablet' || k === 'parent_note' || k === 'tablet_event'){
+      remember(words, 'Proposed: ' + p.say);
+      var c = bot(p.say), r2 = document.createElement('div'); r2.className = 'bc-chips';
+      var yes = document.createElement('button'), no = document.createElement('button');
+      yes.type = no.type = 'button'; yes.className = 'bc-chip yes'; no.className = 'bc-chip';
+      if (k === 'portal'){   // every detail that goes into the card, plus anything that leaves the portal
+        var dl = document.createElement('div'); dl.className = 'tb-mail'; var t = '<b>Card:</b> ' + esc(p.card);
+        Object.keys(p.details || {}).forEach(function(key){ t += '\n<b>' + esc(key) + ':</b> ' + esc(p.details[key]); });
+        if (p.effect) t += '\n\n⚠️ ' + esc(p.effect);
+        dl.innerHTML = t; c.appendChild(dl);
+        if (p.sign){   // the card needs the director's own signature, drawn here
+          var pad = document.createElement('div'); pad.className = 'tb-sign';
+          pad.innerHTML = '<div>Sign here with your finger:</div><canvas width="300" height="110"></canvas><button type="button">Clear</button>';
+          c.appendChild(pad); var cv = pad.querySelector('canvas'), cx = cv.getContext('2d'), down = false; cv.drawn = false;
+          cx.lineWidth = 2.5; cx.lineCap = 'round'; cx.strokeStyle = '#222';
+          var at = function(ev){ var r = cv.getBoundingClientRect(), t0 = ev.touches ? ev.touches[0] : ev; return [(t0.clientX - r.left) * cv.width / r.width, (t0.clientY - r.top) * cv.height / r.height]; };
+          var st = function(ev){ ev.preventDefault(); down = true; var q = at(ev); cx.beginPath(); cx.moveTo(q[0], q[1]); };
+          var mv = function(ev){ if (!down) return; ev.preventDefault(); var q = at(ev); cx.lineTo(q[0], q[1]); cx.stroke(); cv.drawn = true; };
+          var up = function(){ down = false; };
+          cv.addEventListener('mousedown', st); cv.addEventListener('mousemove', mv); window.addEventListener('mouseup', up);
+          cv.addEventListener('touchstart', st, {passive:false}); cv.addEventListener('touchmove', mv, {passive:false}); cv.addEventListener('touchend', up);
+          pad.querySelector('button').onclick = function(){ cx.clearRect(0, 0, cv.width, cv.height); cv.drawn = false; };
+          p._pad = cv;
+        }
+      }
+      if ((k === 'tablet' || k === 'parent_note' || k === 'tablet_event') && p.preview){   // the notice exactly as families will see it
+        var nt = document.createElement('div'); nt.className = 'tb-mail'; nt.textContent = p.preview; c.appendChild(nt);
+      }
+      if (k === 'email'){   // the whole email, exactly as it would go out
+        var mail = document.createElement('div'); mail.className = 'tb-mail';
+        mail.innerHTML = '<b>To:</b> ' + esc(p.to_label) + '\n<b>Subject:</b> ' + esc(p.subject) + (p.attach ? '\n<b>Attached:</b> ' + esc(p.attach) : '') + '\n\n' + esc(p.body);
+        c.appendChild(mail);
+      }
+      yes.textContent = LIVE ? (k === 'email' ? 'Yes, send it' : 'Yes, do it') : 'Yes (practice)'; no.textContent = 'No';
+      yes.onclick = function(){ yes.disabled = no.disabled = true; var w = add('bc-bot thinking', 'Working…');
+        var body = {action:'do', plan: p, words: words};
+        if (p.sign){ if (!p._pad || !p._pad.drawn){ w.remove(); yes.disabled = no.disabled = false; bot('Please sign in the box first, then tap Yes.'); return; } body.sig = p._pad.toDataURL('image/png'); }
+        if (k === 'email' && p.attach){ if (!FILE){ w.remove(); bot('The attached file is gone. Attach it again and ask me once more.'); return; } body.b64 = FILE.b64; }
+        post(body).then(function(r){
+          if (r.go) return saveFile(p).then(function(){ return post({action:'do', plan: p, words: words, done: 1}); });
+          return r;
+        }).then(function(r){ w.remove(); bot(r.say); }).catch(function(e){ w.remove(); bot(e.message); }); };
+      no.onclick = function(){ yes.disabled = no.disabled = true; post({action:'do', plan: p, words: words, declined: 1}).catch(function(){}); bot('OK, I didn\'t change anything.'); };
+      r2.appendChild(yes); r2.appendChild(no); c.appendChild(r2); return;
+    }
+    if (k === 'clarify' && p.card){   // a question about a card: show what is missing and a button to see the card itself
+      remember(words, p.say); var qm = bot(p.say), qr = document.createElement('div'); qr.className = 'bc-chips';
+      var qb = document.createElement('button'); qb.type = 'button'; qb.className = 'bc-chip'; qb.textContent = 'Open ' + p.card; qb.onclick = function(){ openCard(p.card); };
+      qr.appendChild(qb); qm.appendChild(qr); return;
+    }
+    /* Questions and answers have no Yes button. If the helper's words mention one, turn it into "type yes". */
+    var plain = String(p.say || '').replace(/\b(tap|press|click|hit|select)\s+(the\s+)?["']?yes["']?(\s+button)?/gi, 'reply "yes" here').replace(/\bwait(ing)? for your yes\b/gi, 'wait for your answer');
+    remember(words, plain);
+    bot(plain || 'I didn\'t catch that. Try saying it another way.');
+  }
+
+  /* Live only: files go in through the same calls the Staff Files, Student Files and Audit Vault cards use. */
+  function saveFile(p){
+    if (!FILE) return Promise.reject(new Error('The attached file is gone. Attach it again and ask me once more.'));
+    var call = function(url, b){ b.pin = PIN; return fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(b)}).then(function(r){ return r.json(); }).then(function(j){ if (!j || j.error) throw new Error((j && j.error) || 'It didn\'t save.'); return j; }); };
+    if (p.kind === 'file_to_vault') return call('reporting-api.php', {action:'upload', month: p.month, cat: p.section, name: FILE.name, b64: FILE.b64});
+    return call('files-api.php', {action:'roster', kind: p.person_kind}).then(function(r){
+      var hit = (r.people || []).filter(function(x){ return x.name === p.person; });
+      if (hit.length !== 1) throw new Error('I couldn\'t find ' + p.person + '\'s file. Nothing was filed.');
+      return call('files-api.php', {action:'upload', kind: p.person_kind, id: hit[0].id, doc: p.doc, name: FILE.name, b64: FILE.b64});
+    });
+  }
+
+  function openCard(name){
+    var c = (D.cards || {})[name] || {};
+    if (c.url && /^https?:\/\/(www\.)?thepreschoolprofessional\.net\//i.test(c.url)){ openNew(c.url); return; }   // our own pages keep your sign-in
+    if (c.url){ openNew(c.url); return; }
+    if (c.page){ openNew(c.page); return; }
+    openNew('director.html#open=' + encodeURIComponent(name));
+  }
+
+  function loadLog(){
+    var box = document.getElementById('logbox'); box.textContent = 'Loading…';
+    post({action:'log'}).then(function(r){
+      var L = r.log || []; if (!L.length){ box.textContent = 'Nothing yet this month.'; return; }
+      box.innerHTML = '<table>' + L.map(function(x){ return '<tr><td>'+esc(x.when.slice(5,16))+'</td><td>'+esc(x.details || x.words)+'</td><td><b>'+esc(x.result)+'</b></td></tr>'; }).join('') + '</table>';
+    }).catch(function(e){ box.textContent = e.message; });
+  }
+
+  function setupMic(){
+    var btn = app.querySelector('.tb-mic'), SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR){ btn.style.display = 'none'; return; }
+    var rec = null;
+    btn.onclick = function(){
+      if (rec){ rec.stop(); return; }
+      try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch(e){}
+      rec = new SR(); rec.lang = 'en-US'; rec.interimResults = true; rec.maxAlternatives = 1;
+      var finalText = '';
+      rec.onresult = function(e){ var t = ''; for (var i = 0; i < e.results.length; i++){ t += e.results[i][0].transcript; if (e.results[i].isFinal) finalText = t; } input().value = t; };
+      rec.onend = function(){ btn.classList.remove('on'); rec = null; var v = input().value.trim(); if (v && finalText && !BUSY){ input().value = ''; VOICE = true; send(v); } };
+      rec.onerror = function(){ btn.classList.remove('on'); };
+      btn.classList.add('on'); rec.start();
+    };
+  }
+
+  if (PIN) start(); else signIn();
+})();
+</script>
+</body>
+</html>
