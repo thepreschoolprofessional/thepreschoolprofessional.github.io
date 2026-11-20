@@ -98,6 +98,36 @@ $p = sys_get_temp_dir().'/talk-to-bearline'; if (!is_dir($p)) @mkdir($p, 0700); 
 function log_line($row){
 $row['when'] = now_et()->format('Y-m-d H:i:s');
 @file_put_contents(private_dir().'/log-'.now_et()->format('Y-m').'.jsonl', json_encode($row)."\n", FILE_APPEND | LOCK_EX);
+if (isset($row['result']) && strpos((string)$row['result'], 'Failed') === 0) issue_log('Error', (string)($row['words'] ?? ''), (string)$row['result'].' '.(string)($row['details'] ?? ''));
+}
+
+/* ---------- SELF-MONITORING: everything that did not go right is written to the Talk Issues table (Airtable) so it can be read each day and fixed.
+   Lessons marked Active in the Talk Lessons table are added to Talk's instructions, so many fixes need no code change. ---------- */
+function issue_log($problem, $said, $did){
+global $school, $role;
+try {
+if (AIRTABLE_TOKEN === 'PASTE_YOUR_AIRTABLE_TOKEN_HERE') return;
+$said = mb_substr(trim((string)$said), 0, 600); $did = mb_substr(trim((string)$did), 0, 800);
+at_request('POST', ['Talk Issues'], null, ['typecast' => true, 'fields' => ['Issue' => mb_substr($problem.': '.$said, 0, 120), 'Day' => now_et()->format('Y-m-d H:i'), 'School' => $school, 'Who' => (string)$role, 'Problem' => $problem, 'Said' => $said, 'Talk Did' => $did, 'Times' => 1, 'Status' => 'New']]);
+} catch (Throwable $e) {}
+}
+function note_ask($words){   /* true when this school asked nearly the same thing in the last 15 minutes (the director had to ask again) */
+global $school;
+$f = private_dir().'/recent-'.preg_replace('/[^a-z0-9]/i', '', $school).'.json';
+$tok = function($t){ $o = []; foreach (preg_split('/[^a-z0-9@.]+/i', strtolower($t), -1, PREG_SPLIT_NO_EMPTY) as $w) if (strlen($w) > 2) $o[$w] = 1; return array_keys($o); };
+$now = time(); $cur = $tok($words); $list = json_decode((string)@file_get_contents($f), true); if (!is_array($list)) $list = [];
+$list = array_values(array_filter($list, function($r) use ($now){ return $now - ($r['t'] ?? 0) < 900; }));
+$rep = false;
+foreach ($list as $r){ $a = (array)($r['w'] ?? []); if (!$a || !$cur) continue; $i = count(array_intersect($a, $cur)); if ($i / max(1, min(count($a), count($cur))) >= 0.6 && $i >= 2){ $rep = true; break; } }
+$list[] = ['t' => $now, 'w' => $cur]; @file_put_contents($f, json_encode(array_slice($list, -20)), LOCK_EX);
+return $rep;
+}
+function lessons_block(){
+$f = sys_get_temp_dir().'/talk_lessons.json';
+if (file_exists($f) && time() - filemtime($f) < 600) $L = json_decode((string)file_get_contents($f), true);
+else { $L = []; try { foreach (at_all('Talk Lessons', '{Active}') as $r){ $t = trim((string)($r['fields']['Lesson'] ?? '')); if ($t !== '') $L[] = mb_substr($t, 0, 300); } } catch (Throwable $e) {} @file_put_contents($f, json_encode($L)); }
+if (!is_array($L) || !$L) return '';
+return "LESSONS LEARNED from real mistakes (follow these first):\n- ".implode("\n- ", array_slice($L, 0, 40))."\n";
 }
 function bump_cap($school){
 $f = private_dir().'/count-'.preg_replace('/[^a-z0-9]/i', '', $school).'-'.now_et()->format('Y-m-d').'.txt';
@@ -439,6 +469,7 @@ if (!empty($fi['name'])) $file = ['name' => mb_substr(preg_replace('/[^\w .()\-]
 $docs = doc_types();
 if (CLAUDE_API_KEY === '') fail('The Claude key hasn\'t been added to the server yet. Mrs. Bear adds it in Hostinger, then this starts working.', 503);
 if (!bump_cap($school)) fail('Talk to Bear Line has reached today\'s limit for '.$school.'. It resets at midnight.', 429);
+if (note_ask($words)) issue_log('Asked again', $words, 'The same school asked nearly the same thing within 15 minutes.');
 
 $ctx = school_context($school);
 $cards = array_slice(array_values(array_filter(array_map(function($c){ return trim(mb_substr((string)$c, 0, 60)); }, (array)($input['cards'] ?? [])))), 0, 160);
@@ -450,7 +481,7 @@ $system = "You are Talk to Bear Line, the voice helper for the director of Kid C
 ."The director says or types a request. It may ask for several things in one sentence (for example \"the toddlers are going to the playground and sign Ms. Ana out at 2\"). Return one action for each thing, in the order they said them, at most 5. You never make changes yourself: the director sees each proposal and taps Yes or No on each one. Yes and No buttons appear ONLY on a proposed change. In a clarify or an answer, NEVER say tap, press or click Yes; there is no button there. If you need a go-ahead or a missing detail, ask it as a plain question the director can answer by typing (for example: Want me to send it? Type yes or tell me what to change).\n\n"
 ."DOCUMENTS: when the director asks you to open, show or pull up a document, use kind open_doc (it needs no Yes). First look it up: files_person for a staff or student paper (use its person id as doc_id and the file name as doc_file, doc_source person, doc_kind staff or student), or reporting_list for a monthly report (doc_source report, doc_file = the name, doc_month = YYYY-MM, doc_cat = its cat). Only use names that really appear in a lookup result. If more than one file could match, use clarify and list the choices. Say the document name in say. "
 ."FORMS AND LESSON PLANS: when the director asks for a SPECIFIC form, paper, lesson plan, workbook or teacher guide by name (for example the infant feeding form, an application for employment, the field trip permission form, the medical statement, the October threes lesson plan, the November twos student workbook), use kind open_form with form_query = its name in their own words, including the month and age group for a lesson plan (it needs no Yes; the server finds the exact form and its link). Use open_card for forms only when they ask for the forms area in general. "
-."WORDING: the director does not have to use exact words. Match similar wording to the closest option (for example \"the registration one\" or \"card template registration\" means the registration template) and pick up any email address they say as the parent email. Never ask for something the card fills in itself (the request line, who requested it, the time). Only ask for what is truly missing.\n"
+."".lessons_block()."WORDING: the director does not have to use exact words. Match similar wording to the closest option (for example \"the registration one\" or \"card template registration\" means the registration template) and pick up any email address they say as the parent email. Never ask for something the card fills in itself (the request line, who requested it, the time). Only ask for what is truly missing.\n"
 ."ONE SCHOOL ONLY: you work for the director of Kid City USA $school and nobody else. Never ask which school, never answer about, look up, send to or change anything at the other school, even if asked or if a result seems to include it. If asked about the other school, say kindly that you can only help with $school. "
 ."What you can see and do: in the Director Portal you can look up almost every card (briefing, staff hours, buzz board, ratios, enrollment, new hires, parent portal, parent uploads and replies, staff and student files, training, reporting, DCF binder, transportation, inventory, food program, the Director Pack tiles) and propose changes to most of them. On the Bear Line tablet you can look up: who is signed in or out on a day, ELC children missing parent signatures, absences and their reasons, staff clock punches, open time-fix requests, front-screen notices and events, and a child's parent notes; and you can propose signing a child in or out, fixing a staff punch, and adding or changing notices, events and parent notes. You never handle PINs, passwords or pay amounts. If the director asks what you can do, tell them this in plain words with a couple of example questions. If something is not on that list, say so plainly and name the closest thing you can do.\n\nThink the request through before you answer: work out which card or action fits, what it needs, and what the director already gave you. When they ask to send a template email to parents (inquiry, enrolled, onboard, tour, registration, sams, teacher hub, management hub), use the portal op api_create_email_automation_requests with Template and Parent Emails; the card fills in the rest. If a detail is missing, use clarify and name the card and every missing detail with the choices, in one message.\n\nWhenever you ask a question (clarify), say you cannot do something (cant), or need something said a certain way, ALWAYS finish with one short example of exactly how the director can say it, in quotes, using real names from the lists when you can (for example: Try saying: \"send the tour email to mom@example.com\"). Never just tell them to say it another way.\n\nPick kind:\n"
 ."- room_sign_in / room_sign_out: sign one or more CHILDREN in or out for TODAY, on the Rooms board and on the Bear Line tablet record (the parent sign-in). children = exact names from the Children list. time = HH:MM 24-hour; use the current time when they say now or give no time.\n"
@@ -530,7 +561,7 @@ CURLOPT_POSTFIELDS => json_encode($req)]);
 $raw = curl_exec($ch); $code = curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
 }
 $res = json_decode($raw ?: '{}', true);
-if ($code !== 200){ log_line(['school'=>$school,'role'=>$role,'words'=>$words,'result'=>'Claude error '.$code]); fail('Talk to Bear Line couldn\'t reach Claude just now ('.$code.'). Try again in a minute.', 502); }
+if ($code !== 200){ log_line(['school'=>$school,'role'=>$role,'words'=>$words,'result'=>'Claude error '.$code]); issue_log('Error', $words, 'Claude error '.$code); fail('Talk to Bear Line couldn\'t reach Claude just now ('.$code.'). Try again in a minute.', 502); }
 if (($res['stop_reason'] ?? '') !== 'tool_use') break;
 $results = [];
 foreach (($res['content'] ?? []) as $b){
@@ -793,9 +824,14 @@ $out['preview'] = "Title: $ti\nEnglish: $en\nSpanish: $es\nShows: ".day_span($fr
 $out['say'] = $old ? 'Change this notice on the '.$school.' front tablet?' : 'Put this notice on the '.$school.' front tablet?';
 break;
 }
+$ik = (string)($out['kind'] ?? '');
+if ($ik === 'clarify') issue_log('Needed more info', $words, (string)($out['say'] ?? ''));
+elseif ($ik === 'cant') issue_log('Could not do', $words, (string)($out['say'] ?? ''));
+elseif ($ik === 'question') issue_log('Not found', $words, (string)($out['say'] ?? ''));
+elseif ($ik === 'open_card' && strpos((string)($out['say'] ?? ''), 'could not find a form') !== false) issue_log('Not found', $words, (string)$out['say']);
 $plans[] = $out;
 }
-if (!$plans) fail('I didn\'t catch that. Try saying it another way.', 502);
+if (!$plans){ issue_log('Error', $words, 'No plan came back.'); fail('I didn\'t catch that. Try saying it another way.', 502); }
 echo json_encode(['plans' => $plans, 'live' => TALK_LIVE]); exit;
 }
 
@@ -1016,6 +1052,10 @@ log_line($base + ['details' => $what, 'result' => 'Done']); echo json_encode(['o
 }
 }
 
+if ($action === 'flag'){
+issue_log('Director said not right', (string)($input['words'] ?? ''), 'Talk answered: '.mb_substr((string)($input['said'] ?? ''), 0, 400));
+echo json_encode(['ok' => true]); exit;
+}
 /* ---------- LOG: this school's last 30 Yes/No taps ---------- */
 if ($action === 'log'){
 $lines = @file(private_dir().'/log-'.now_et()->format('Y-m').'.jsonl', FILE_IGNORE_NEW_LINES) ?: [];

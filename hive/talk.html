@@ -126,6 +126,7 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
     document.getElementById('tblog').addEventListener('toggle', function(){ if (this.open) loadLog(); });
   }
   function openNew(u){ var a = document.createElement('a'); a.href = u; a.target = '_blank'; if (!/^https?:\/\/(www\.)?thepreschoolprofessional\.net\//i.test(u) && !/^[a-z0-9._-]+\.(html|php)/i.test(u)) a.rel = 'noopener'; a.style.display = 'none'; document.body.appendChild(a); a.click(); setTimeout(function(){ a.remove(); }, 500); }
+  function flagBtn(row, words, said){ var f = document.createElement('button'); f.type = 'button'; f.className = 'bc-chip'; f.textContent = 'Not what I wanted'; f.onclick = function(){ f.disabled = true; post({action:'flag', words: words, said: said}).then(function(){ f.textContent = 'Thanks, logged so it gets fixed'; }).catch(function(){ f.textContent = 'Could not log that'; }); }; row.appendChild(f); }
   function input(){ return app.querySelector('.tb-input'); }
   function logEl(){ return document.querySelector('#bot .bc-log'); }
   function add(cls, html){ var box = logEl(), d = document.createElement('div'); d.className = 'bc-msg ' + cls; d.innerHTML = html; box.appendChild(d); box.scrollTop = box.scrollHeight; return d; }
@@ -212,13 +213,13 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
       var fm = bot(p.say || ('Opening ' + p.form_name + '.')), frow = document.createElement('div'); frow.className = 'bc-chips';
       var fl = (p.form_list && p.form_list.length) ? p.form_list : [{name: p.form_name, url: p.form_url}];
       fl.forEach(function(it){ var fb = document.createElement('button'); fb.type = 'button'; fb.className = 'bc-chip yes'; fb.textContent = 'Open ' + it.name; fb.onclick = function(){ openNew(it.url); }; frow.appendChild(fb); });
-      fm.appendChild(frow); return;
+      flagBtn(frow, words, p.say || ''); fm.appendChild(frow); return;
     }
     if (k === 'open_card'){
       remember(words, 'Opened ' + p.card);
       var m = bot(p.say || ('Opening ' + p.card + '.')), row = document.createElement('div'); row.className = 'bc-chips';
       var b = document.createElement('button'); b.type = 'button'; b.className = 'bc-chip yes'; b.textContent = 'Open ' + p.card; b.onclick = function(){ openCard(p.card); };
-      row.appendChild(b); m.appendChild(row); return;
+      row.appendChild(b); flagBtn(row, words, p.say || ''); m.appendChild(row); return;
     }
     if (k === 'room_sign_in' || k === 'room_sign_out' || k === 'staff_time_fix' || k === 'inventory_count' || k === 'file_to_person' || k === 'file_to_vault' || k === 'email' || k === 'portal' || k === 'tablet' || k === 'parent_note' || k === 'tablet_event'){
       remember(words, 'Proposed: ' + p.say);
