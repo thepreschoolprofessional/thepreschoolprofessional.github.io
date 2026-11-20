@@ -87,9 +87,10 @@ if (file_exists($f) && time() - filemtime($f) < 300) return json_decode(file_get
 $sq = str_replace("'", "\\'", $school);
 $staff = []; foreach (at_all('Staff Roster', "AND({Active}=TRUE(),OR({School}='$sq',{School}='Both'))") as $r){ $n = trim($r['fields']['Name'] ?? ''); if ($n) $staff[] = $n; }
 $kids = []; foreach (at_all('Room Children', "AND({School}='$sq',{Status}='Active')") as $r){ $n = trim($r['fields']['Child'] ?? ''); if ($n) $kids[$n] = trim($r['fields']['Room'] ?? ''); }
+$rooms = []; foreach (at_all('Rooms', "{School}='$sq'") as $r){ $n = trim($r['fields']['Room'] ?? ''); if ($n && !empty($r['fields']['Active'])) $rooms[] = $n; }
 $items = []; foreach (at_all('Inventory', "OR({School}='$sq',{School}='Both')") as $r){ $n = trim($r['fields']['Item'] ?? ''); if ($n) $items[$n] = $r['id']; }
 sort($staff); ksort($kids); ksort($items);
-$ctx = ['staff' => array_values(array_unique($staff)), 'kids' => $kids, 'items' => $items];
+$ctx = ['staff' => array_values(array_unique($staff)), 'kids' => $kids, 'items' => $items, 'rooms' => $rooms];
 if ($staff || $kids) file_put_contents($f, json_encode($ctx));
 return $ctx;
 }
@@ -144,6 +145,7 @@ $system = "You are Talk to Bear Line, the voice helper for the director of Kid C
 ."- room_sign_in / room_sign_out: sign one or more CHILDREN in or out on the Rooms board for TODAY. children = exact names from the Children list. time = HH:MM 24-hour; use the current time when they say now or give no time.\n"
 ."- staff_time_fix: fix a STAFF member's clock-in or clock-out time (for example \"sign Ms. Ana out at 2 PM yesterday\"). This files a time correction for payroll. staff = exact name from the Staff list. date = YYYY-MM-DD (today if not said). time_in and/or time_out as HH:MM 24-hour; leave the one they didn't mention empty. reason = their reason, or \"Entered by the director with Talk to Bear Line\".\n"
 ."- inventory_count: set the on-hand count of a supply. item = exact name from the Inventory list. qty = whole number as text.\n"
+."- rooms_board: a whole CLASS or ROOM on the Rooms board. board_action = out (the room is leaving for the playground, outside, the playroom or the office; also called a transition), back (the room is coming back inside), move (move children or a whole room into another room), or meal (mark breakfast, lunch or PM snack). room = exact name from the Rooms list. room_to = for out: Playground, Outside, Playroom or Office; for move: the exact room they go to. For meal, item = breakfast, lunch or snack. For move of only some children, children = their exact names.\n"
 ."- open_card: they want to open, bring up or go to a page, form, card or tool (for example \"bring up the food program forms\"). card = exact name from the Cards list that fits best.\n"
 ."- question: they ask how, where, when or how many about the Director Portal or the school. question = their question, cleaned up. The director chatbot answers it.\n"
 ."- tablet: they want something done on the front tablet itself: a staff member clocking in or out on the tablet right now, signing a child in on the tablet, or the greeting message on the tablet. Talk to Bear Line can't do those yet.\n"
@@ -153,17 +155,19 @@ $system = "You are Talk to Bear Line, the voice helper for the director of Kid C
 ."say = one short, friendly sentence to the director describing exactly what you propose, with names, day and 12-hour time, or your question. Leave every field you don't use as an empty string.\n\n"
 ."Staff list: ".implode('; ', $ctx['staff'])."\n\n"
 ."Children list: ".implode('; ', array_keys($ctx['kids']))."\n\n"
+."Rooms list: ".implode('; ', $ctx['rooms'] ?? [])."\n\n"
 ."Inventory list: ".implode('; ', array_keys($ctx['items']))."\n\n"
 ."Cards list: ".implode('; ', $cards);
 
 $schema = ['type' => 'object', 'additionalProperties' => false,
 'properties' => [
-'kind' => ['type' => 'string', 'enum' => ['room_sign_in','room_sign_out','staff_time_fix','inventory_count','open_card','question','tablet','clarify','cant']],
+'kind' => ['type' => 'string', 'enum' => ['rooms_board','room_sign_in','room_sign_out','staff_time_fix','inventory_count','open_card','question','tablet','clarify','cant']],
 'say' => ['type' => 'string'], 'children' => ['type' => 'array', 'items' => ['type' => 'string']],
 'time' => ['type' => 'string'], 'staff' => ['type' => 'string'], 'date' => ['type' => 'string'],
 'time_in' => ['type' => 'string'], 'time_out' => ['type' => 'string'], 'reason' => ['type' => 'string'],
-'item' => ['type' => 'string'], 'qty' => ['type' => 'string'], 'card' => ['type' => 'string'], 'question' => ['type' => 'string']],
-'required' => ['kind','say','children','time','staff','date','time_in','time_out','reason','item','qty','card','question']];
+'item' => ['type' => 'string'], 'qty' => ['type' => 'string'], 'card' => ['type' => 'string'], 'question' => ['type' => 'string'],
+'board_action' => ['type' => 'string', 'enum' => ['out','back','move','meal','']], 'room' => ['type' => 'string'], 'room_to' => ['type' => 'string']],
+'required' => ['kind','say','children','time','staff','date','time_in','time_out','reason','item','qty','card','question','board_action','room','room_to']];
 
 $user = ($hist ? "Earlier in this conversation:\n".implode("\n", $hist)."\n\n" : '')."Director's request: ".$words;
 $req = ['model' => MODEL, 'max_tokens' => 1500,
@@ -213,6 +217,21 @@ if (!$it) $ask('Which supply? I couldn\'t match "'.$p['item'].'" to the '.$schoo
 elseif ($q < 0) $ask('How many '.$it.' are on hand?');
 else { $out += ['item' => $it, 'qty' => $q]; $out['say'] = 'Set '.$it.' to '.$q.' on hand?'; }
 break;
+case 'rooms_board':
+/* Handed to Director Bear Chat's Rooms board panel, which shows the count, who counted and the sweep before Confirm. */
+$rl = $ctx['rooms'] ?? []; $rm = pick_name($p['room'], $rl); $ba = (string)$p['board_action'];
+$names = []; foreach ((array)$p['children'] as $c){ $m = pick_name($c, array_keys($ctx['kids'])); if ($m) $names[] = $m; }
+if ($ba === 'out'){ $pl = pick_name($p['room_to'], ['Playground','Outside','Playroom','Office']) ?: 'Playground';
+if (!$rm) $ask('Which room is going out to the '.$pl.'?'); else $out['command'] = $rm.' going out to the '.$pl; }
+elseif ($ba === 'back'){ $out['command'] = $rm ? $rm.' back inside' : 'back inside'; }
+elseif ($ba === 'move'){ $to = pick_name($p['room_to'], $rl);
+if (!$to) $ask('Which room should they move to?');
+elseif ($names) $out['command'] = 'move '.implode(' and ', $names).' to '.$to;
+elseif ($rm) $out['command'] = 'move everyone in '.$rm.' to '.$to;
+else $ask('Who should move to '.$to.'?'); }
+elseif ($ba === 'meal'){ $ml = preg_match('/lunch/i', $p['item']) ? 'lunch' : (preg_match('/snack/i', $p['item']) ? 'PM snack' : 'breakfast'); $out['command'] = 'Mark '.$ml.($rm ? ' for '.$rm : ''); }
+else $ask('What should happen on the Rooms board?');
+break;
 case 'open_card':
 $c = pick_name($p['card'], $cards);
 if (!$c){ $out = ['kind' => 'question', 'say' => (string)$p['say'], 'question' => $words]; } else $out['card'] = $c;
@@ -230,6 +249,7 @@ $words = trim(mb_substr((string)($input['words'] ?? ''), 0, 400));
 $kind = (string)($p['kind'] ?? '');
 $base = ['school' => $school, 'role' => $role, 'words' => $words, 'kind' => $kind];
 if (!empty($input['declined'])){ log_line($base + ['result' => 'Declined']); echo json_encode(['ok' => true]); exit; }
+if ($kind === 'rooms_board'){ log_line($base + ['details' => mb_substr((string)($input['details'] ?? ''), 0, 300), 'result' => TALK_LIVE ? 'Done' : 'Practice']); echo json_encode(['ok' => true]); exit; }
 if (!in_array($kind, ['room_sign_in','room_sign_out','staff_time_fix','inventory_count'])) fail('Nothing to change.');
 $ctx = school_context($school);
 $now = now_et(); $today = $now->format('Y-m-d');

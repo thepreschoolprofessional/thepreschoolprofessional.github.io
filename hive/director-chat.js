@@ -607,7 +607,10 @@ var MEALS = {B:{n:'breakfast', from:'00:00', to:'09:00'}, L:{n:'lunch', from:'11
 var OUT_PLACES = ['Playground','Outside','Playroom','Office'];
 function nowET(){ try { var p = new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York', hour:'2-digit', minute:'2-digit', hour12:false}).formatToParts(new Date()), h = '', m = ''; p.forEach(function(x){ if (x.type==='hour') h = x.value; if (x.type==='minute') m = x.value; }); if (h === '24') h = '00'; return h+':'+m; } catch(e){ var d = new Date(); return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); } }
 function hm12(t){ var h = +t.slice(0,2), m = t.slice(3,5); return ((h%12)||12)+':'+m+' '+(h<12?'AM':'PM'); }
-function rq(action, table, x){ return postJ('rooms-api.php', Object.assign({pin:OPT.pin, action:action, table:table}, x||{})); }
+function rq(action, table, x){
+  /* OPT.practice (Talk to Bear Line test page only): reads are real, saves are skipped. */
+  if (OPT.practice && action !== 'list') return Promise.resolve({records:[]});
+  return postJ('rooms-api.php', Object.assign({pin:OPT.pin, action:action, table:table}, x||{})); }
 function dayData(){
   var d = todayET();
   return Promise.all([rq('list','Rooms'), rq('list','Room Children'), rq('list','Room Attendance',{date:d}), rq('list','Room Day',{date:d})]).then(function(r){
@@ -633,7 +636,7 @@ function confirmRow(panel, label, run){
   var msg = el('div', {'class':'bc-err'}), b = el('button', {type:'button', 'class':'bc-chip bc-go'}, esc(label)), x = el('button', {type:'button', 'class':'bc-chip'}, 'Cancel');
   x.onclick = function(){ panel.innerHTML = '<div class="bc-preview-note">Cancelled. Nothing was saved.</div>'; };
   b.onclick = function(){ msg.textContent = ''; var p; try { p = run(msg); } catch(e){ msg.textContent = e.message; return; } if (!p) return; b.disabled = true; b.textContent = 'Saving…';
-    p.then(function(done){ panel.innerHTML = '<div class="bc-preview-note">✅ '+esc(done)+'</div>'; }, function(e){ b.disabled = false; b.textContent = label; msg.textContent = 'That didn\'t save: '+(e && e.message || 'try again')+'. Nothing was changed.'; }); };
+    p.then(function(done){ panel.innerHTML = '<div class="bc-preview-note">'+(OPT.practice ? 'Practice mode: nothing was saved. Live, this would be: ' : '✅ ')+esc(done)+'</div>'; if (OPT.onDone) OPT.onDone(label, done); }, function(e){ b.disabled = false; b.textContent = label; msg.textContent = 'That didn\'t save: '+(e && e.message || 'try again')+'. Nothing was changed.'; }); };
   var r = el('div', {'class':'bc-chips'}); r.appendChild(b); r.appendChild(x); panel.appendChild(msg); panel.appendChild(r);
 }
 function inChunks(action, table, recs){ var p = Promise.resolve(); for (var i=0;i<recs.length;i+=10){ (function(c){ p = p.then(function(){ return rq(action, table, {records:c}); }); })(recs.slice(i,i+10)); } return p; }

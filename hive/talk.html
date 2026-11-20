@@ -59,7 +59,7 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
 <script src="bear-chat-data.js?v=5"></script>
 <script src="director-chat-data.js?v=6"></script>
 <script src="director-chat-lessons.js?v=3"></script>
-<script src="director-chat.js?v=7"></script>
+<script src="director-chat.js?v=8"></script>
 <script>
 (function(){
   /* Talk to Bear Line, TEST VERSION (built 11/20/26, not linked from any portal yet).
@@ -67,7 +67,7 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
      Questions are handed to Director Bear Chat on this page. Practice mode is set in talk-api.php (TALK_LIVE). */
   var API = 'talk-api.php';
   var app = document.getElementById('app');
-  var PIN = sessionStorage.getItem('hivePin') || '', SCHOOL = '', LIVE = false, HIST = [], BUSY = false;
+  var PIN = sessionStorage.getItem('hivePin') || '', SCHOOL = '', LIVE = false, HIST = [], BUSY = false, LASTWORDS = '';
   var D = window.DC_DATA || {cards:{}};
   function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
   function post(body){ body.pin = PIN; return fetch(API, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)}).then(function(r){ return r.json().then(function(j){ if (!r.ok || j.error) throw new Error(j.error || 'Something went wrong.'); return j; }); }); }
@@ -98,10 +98,11 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
       + '<div class="tb-try"><b>Try:</b><div class="bc-chips" id="tries"></div></div>'
       + '<details class="tb-log" id="tblog"><summary>What was asked and done today ('+esc(SCHOOL)+')</summary><div id="logbox">Loading…</div></details>'
       + '</div></main>';
-    DirectorChat.mount(document.getElementById('bot'), {school: SCHOOL, pin: PIN, mode: 'live'});
+    DirectorChat.mount(document.getElementById('bot'), {school: SCHOOL, pin: PIN, mode: LIVE ? 'live' : 'preview', practice: !LIVE,
+      onDone: function(label, done){ post({action:'do', plan:{kind:'rooms_board'}, words: LASTWORDS, details: done}).catch(function(){}); }});
     logEl().innerHTML = '';
     bot('Hi! Tell me what you want done in Bear Line, or ask me anything about the Director Portal. I\'ll show you exactly what I\'m going to do, and nothing changes until you tap Yes.');
-    var tries = ['Sign in a child now', 'Fix a staff clock-out time', 'Bring up the food program forms', 'Update a supply count', 'How do I add a new hire?'];
+    var tries = ['The toddlers are going to the playground', 'Sign in a child now', 'Fix a staff clock-out time', 'Bring up the food program forms', 'Update a supply count', 'How do I add a new hire?'];
     var tb = document.getElementById('tries');
     tries.forEach(function(t){ var b = document.createElement('button'); b.type = 'button'; b.className = 'bc-chip'; b.textContent = t; b.onclick = function(){ var i = input(); i.value = t; i.focus(); }; tb.appendChild(b); });
     app.querySelector('.tb-bar').onsubmit = function(ev){ ev.preventDefault(); var i = input(); var v = i.value.trim(); if (!v || BUSY) return; i.value = ''; send(v); };
@@ -115,7 +116,7 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
   function bot(t){ return add('bc-bot', esc(t).replace(/\n/g,'<br>')); }
 
   function send(words){
-    me(words); BUSY = true;
+    me(words); BUSY = true; LASTWORDS = words;
     var wait = add('bc-bot thinking', 'Thinking…');
     post({action:'plan', words: words, history: HIST, cards: Object.keys(D.cards || {})})
       .then(function(r){ wait.remove(); show(r.plan, words); })
@@ -126,11 +127,11 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
 
   function show(p, words){
     var k = p.kind;
-    if (k === 'question'){
-      remember(words, 'Answered with Director Bear Chat');
+    if (k === 'question' || k === 'rooms_board'){
+      remember(words, k === 'question' ? 'Answered with Director Bear Chat' : 'Opened the Rooms board panel: ' + p.command);
       var bi = document.querySelector('#bot .bc-input'), bf = document.querySelector('#bot .bc-bar');
       var mine = logEl().lastElementChild; if (mine) mine.remove();   // the chatbot shows the question itself
-      bi.value = p.question || words; bf.requestSubmit ? bf.requestSubmit() : bf.dispatchEvent(new Event('submit', {cancelable:true}));
+      bi.value = (k === 'rooms_board' ? p.command : p.question) || words; bf.requestSubmit ? bf.requestSubmit() : bf.dispatchEvent(new Event('submit', {cancelable:true}));
       return;
     }
     if (k === 'open_card'){
