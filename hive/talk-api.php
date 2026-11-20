@@ -15,6 +15,8 @@ Safety:
 define('TALK_LIVE', false);
 define('DAILY_CAP', 300);               // most Haiku calls per school per day (spending guard)
 define('MODEL', 'claude-haiku-5-5');
+define('TALK_HOST', 'thepreschoolprofessional.net');   // where the portal's own endpoints live (lookups run as the director)
+@set_time_limit(120);
 
 $__t = 'PASTE_YOUR_AIRTABLE_TOKEN_HERE';
 $__dirs = [dirname(__DIR__, 2), dirname(__DIR__), __DIR__];
@@ -132,6 +134,66 @@ function hm_ok($t){ return is_string($t) && preg_match('/^([01]\d|2[0-3]):[0-5]\
 function hm12($t){ if (!hm_ok($t)) return $t; list($h, $m) = explode(':', $t); $h = (int)$h; return (($h % 12) ?: 12).':'.$m.($h < 12 ? ' AM' : ' PM'); }
 function nice_day($ymd){ $d = DateTime::createFromFormat('Y-m-d', $ymd, new DateTimeZone('America/New_York')); return $d ? $d->format('l, M j') : $ymd; }
 
+/* ---------- Every Director Portal card, as the exact calls the card makes ----------
+talk-catalogue.php lists each call (endpoint, action, its arguments). Lookups ("read") run right away
+because they change nothing. Changes ("write") only come back as a proposal for the director's Yes.
+Every call goes through the portal's own endpoints with the director's own PIN, so Talk to Bear Line
+can never do more than that director could do by hand on the card. */
+function catalogue(){ static $c = null; if ($c === null){ $c = []; $raw = @include __DIR__.'/talk-catalogue.php'; foreach ((is_array($raw) ? $raw : []) as $e) if (!empty($e['id'])) $c[$e['id']] = $e; } return $c; }
+function cat_ids($kind){ return array_keys(array_filter(catalogue(), function($e) use ($kind){ return $e['kind'] === $kind; })); }
+function cat_lines($kind){
+$out = [];
+foreach (catalogue() as $id => $e){ if ($e['kind'] !== $kind) continue; $ps = [];
+foreach ((array)($e['params'] ?? []) as $k => $d) if (($d['type'] ?? '') !== 'signature') $ps[] = $k.' ('.($d['type'] ?? 'string').(!empty($d['required']) ? ', required' : '').(!empty($d['enum']) ? ', one of '.implode('|', $d['enum']) : '').')'.(!empty($d['desc']) ? ': '.$d['desc'] : '');
+$out[] = '* '.$id.' ['.($e['card'] ?? '').'] '.($e['what'] ?? '').($ps ? ' Args: '.implode('; ', $ps).'.' : ' No args.').(!empty($e['needs_id_from']) ? ' Ids from: '.$e['needs_id_from'].'.' : '').(!empty($e['outside_effect']) && $e['outside_effect'] !== 'none' ? ' Outside effect: '.$e['outside_effect'].'.' : '').(!empty($e['response']) && $kind === 'read' ? ' Returns: '.$e['response'].'.' : ''); }
+return implode("\n", $out);
+}
+/* Checks Claude's arguments against the card's own list: only known keys, right types, allowed choices. */
+function cat_args($id, $args, $kind){
+$c = catalogue(); if (!isset($c[$id]) || $c[$id]['kind'] !== $kind) return [null, [], 'that isn\'t something the portal cards do'];
+$e = $c[$id]; if (!is_array($args)) $args = [];
+$body = ['action' => $e['action']]; $vals = [];
+$put = function($k, $v) use (&$body){ if (strpos($k, '.') !== false){ list($a, $b) = explode('.', $k, 2); if (!isset($body[$a]) || !is_array($body[$a])) $body[$a] = []; $body[$a][$b] = $v; } else $body[$k] = $v; };
+foreach ((array)($e['fixed'] ?? []) as $k => $v) $put($k, $v);
+foreach ((array)($e['params'] ?? []) as $k => $d){
+if (($d['type'] ?? '') === 'signature') continue;   // the director signs on the screen; never made up
+if (!array_key_exists($k, $args) || $args[$k] === '' || $args[$k] === null){ if (!empty($d['required'])) return [null, [], 'it needs '.$k]; continue; }
+$v = $args[$k]; $t = $d['type'] ?? 'string';
+if ($t === 'number'){ if (!is_numeric($v)) return [null, [], $k.' must be a number']; $v = $v + 0; }
+elseif ($t === 'boolean'){ if (!is_bool($v)){ $v = filter_var($v, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE); if ($v === null) return [null, [], $k.' must be yes or no']; } }
+elseif ($t === 'array' || $t === 'object'){ if (!is_array($v)) return [null, [], $k.' must be a list']; if (strlen(json_encode($v)) > 20000) return [null, [], $k.' is too long']; }
+else { if (!is_scalar($v)) return [null, [], $k.' must be text']; $v = mb_substr(trim((string)$v), 0, 4000); }
+if (!empty($d['enum']) && !in_array($v, $d['enum'], true)) return [null, [], $k.' must be one of '.implode(', ', $d['enum'])];
+$put($k, $v); $vals[$k] = $v;
+}
+return [$body, $vals, ''];
+}
+function portal_call($id, $body, $pin){
+$c = catalogue(); if (!isset($c[$id])) return ['error' => 'Not allowed'];
+$e = $c[$id]; if (!preg_match('/^[a-z0-9-]+\.php$/', $e['endpoint'])) return ['error' => 'Not allowed'];
+$body['pin'] = $pin; if (!empty($e['dirpin'])) $body['dirpin'] = $pin;
+$ch = curl_init('https://'.TALK_HOST.'/hive/'.$e['endpoint']);
+curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 25, CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_POSTFIELDS => json_encode($body)]);
+$raw = curl_exec($ch); $code = curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
+$j = json_decode($raw ?: '', true);
+if (!is_array($j)) return ['error' => 'The '.($e['card'] ?? 'portal').' card didn\'t answer ('.$code.').'];
+return $j;
+}
+/* Keeps lookups small for Claude: no file contents, signatures or pictures, long lists cut short. */
+function shrink($v, $depth = 0){
+if (is_string($v)) return mb_strlen($v) > 400 ? mb_substr($v, 0, 400).'…' : $v;
+if (!is_array($v)) return $v;
+$o = []; $i = 0;
+foreach ($v as $k => $x){
+if (++$i > 60){ $o['more'] = (count($v) - 60).' more not shown'; break; }
+if (is_string($k) && preg_match('/(pin|password|passcode|token|secret)$/i', $k)){ $o[$k] = '[hidden]'; continue; }
+if (is_string($k) && preg_match('/(b64|pdf|png|jpg|photo|image|sig|face|data)$/i', $k) && is_string($x) && strlen($x) > 200){ $o[$k] = '[file]'; continue; }
+$o[$k] = $depth > 6 ? '…' : shrink($x, $depth + 1);
+}
+return $o;
+}
+function nice_key($k){ if (strpos($k, '.') !== false) return substr($k, strpos($k, '.') + 1); return ucfirst(trim(strtolower(preg_replace('/([a-z])([A-Z])/', '$1 $2', str_replace('_', ' ', $k))))); }
+
 /* ============================================================ */
 if (AIRTABLE_TOKEN === 'PASTE_YOUR_AIRTABLE_TOKEN_HERE') fail('The Airtable token is missing on the server.', 503);
 $input = json_decode(file_get_contents('php://input'), true);
@@ -166,7 +228,6 @@ foreach (array_slice((array)($input['history'] ?? []), -4) as $h){ $u = trim(mb_
 
 $system = "You are Talk to Bear Line, the voice helper for the director of Kid City USA $school, a preschool. "
 ."The director says or types a request. It may ask for several things in one sentence (for example \"the toddlers are going to the playground and sign Ms. Ana out at 2\"). Return one action for each thing, in the order they said them, at most 5. You never make changes yourself: the director sees each proposal and taps Yes or No on each one.\n\n"
-."Today is ".$now->format('l, Y-m-d')." and the time is ".$now->format('H:i')." (Eastern).\n\n"
 ."Pick kind:\n"
 ."- room_sign_in / room_sign_out: sign one or more CHILDREN in or out on the Rooms board for TODAY. children = exact names from the Children list. time = HH:MM 24-hour; use the current time when they say now or give no time.\n"
 ."- staff_time_fix: fix a STAFF member's clock-in or clock-out time (for example \"sign Ms. Ana out at 2 PM yesterday\"). This changes their punch on the Bear Line time clock right away. staff = exact name from the Staff list. date = YYYY-MM-DD (today if not said). time_in and/or time_out as HH:MM 24-hour; leave the one they didn't mention empty. reason = their reason, or \"Entered by the director with Talk to Bear Line\".\n"
@@ -174,12 +235,19 @@ $system = "You are Talk to Bear Line, the voice helper for the director of Kid C
 ."- rooms_board: a whole CLASS or ROOM on the Rooms board. board_action = out (the room is leaving for the playground, outside, the playroom or the office; also called a transition), back (the room is coming back inside), move (move children or a whole room into another room), or meal (mark breakfast, lunch or PM snack). room = exact name from the Rooms list. room_to = for out: Playground, Outside, Playroom or Office; for move: the exact room they go to. For meal, item = breakfast, lunch or snack. For move of only some children, children = their exact names.\n"
 ."- open_card: they want to open, bring up or go to a page, form, card or tool (for example \"bring up the food program forms\"). card = exact name from the Cards list that fits best.\n"
 ."- question: they ask how, where, when or how many about the Director Portal or the school. question = their question, cleaned up. The director chatbot answers it.\n"
-."- tablet: they want something done on the front tablet itself: the greeting message on the tablet, or they say to do it ON the tablet. Talk to Bear Line can't do those yet. When they just say to sign a staff member in or out at a time, use staff_time_fix instead.\n"
+."- tablet: change the greeting message on the front sign-in tablet. body = the new greeting exactly as it should show (plain text, at most 200 characters), or empty to clear it. To sign a child in or out use room_sign_in / room_sign_out; to fix a staff clock time use staff_time_fix.\n"
 ."- clarify: you are not sure who or what they mean, a name matches nobody or more than one person, or a needed time is missing for staff. question = one short question back.\n"
 ."- file_to_person: put the ATTACHED file in a staff member's or child's file. staff = exact staff name OR children = [exact child name]. doc = the key of the best document type from that person's Documents list.\n"
 ."- file_to_vault: put the ATTACHED file in the Audit Vault in Reporting. month = YYYY-MM (this month unless they say). section = elc, food, dcf or other.\n"
 ."- email: send an email for the director. to = office (this school's office email, also used when they say \"email it to me\"), food_program (the food program sponsor), or owner (Mrs. Bear). Never write an email address yourself. subject = short subject. body = the email text, written as the director in first person, polite and short, signed \"Kid City USA $school\". attach = yes when the attached file should go with it, otherwise no.\n"
-."- cant: anything else, or anything about PINs, passwords, codes, money, or contacting parents or staff.\n\n"
+."- portal: any other change a director can make by hand on a Director Portal card (time off, new hires, enrollments, parent uploads and requests, the parent portal board, room notes, staff and child files, facility checklists, weekly checks, DCF forms, transportation, supplies, messages to send through ProCare, the briefing checklist, staff meeting, and everything else in the Portal changes list below). op = the id from the Portal changes list. args_json = a JSON object with that change's args, built exactly as described (ids come from a portal_read lookup first). say = one sentence describing the change in plain words with names and dates.\n"
+."- answer: after you looked something up with portal_read, answer the director's question in say (one to three short sentences with the real names, numbers and dates). Use this for questions about what is in the portal right now (who is off tomorrow, how many enrollments are waiting, which checks aren't done).\n"
+."- cant: anything about PINs, passwords, codes, money or payroll amounts, or something no card can do. Say so in one kind sentence.\n\n"
+."Looking things up: use the portal_read tool whenever you need real data, to answer a question or to find the id a change needs (for example list the time off requests before approving one). Lookups change nothing. Do not guess ids. If a lookup shows more than one possible match, use clarify.\n\n"
+."Portal changes list (op ids for kind portal):\n".cat_lines('write')."\n\n"
+."Portal lookups (op ids for the portal_read tool):\n".cat_lines('read');
+/* Everything above stays the same all day, so Claude reads it from the cache (about a tenth of the price). What changes goes after it. */
+$dynamic = "Today is ".$now->format('l, Y-m-d')." and the time is ".$now->format('H:i')." (Eastern).\n\n"
 .($file ? "The director has attached a file: \"".$file['name']."\" (".$file['type'].").\n\n" : "No file is attached. If they ask to file or email an attachment, use clarify and ask them to tap the paperclip first.\n\n")
 ."Rules: Only use names that are in the lists below, spelled exactly as listed. Never guess between two people. A staff member is never a child. "
 ."say = one short, friendly sentence to the director describing exactly what you propose, with names, day and 12-hour time, or your question. Leave every field you don't use as an empty string.\n\n"
@@ -193,30 +261,54 @@ $system = "You are Talk to Bear Line, the voice helper for the director of Kid C
 
 $one = ['type' => 'object', 'additionalProperties' => false,
 'properties' => [
-'kind' => ['type' => 'string', 'enum' => ['file_to_person','file_to_vault','email','rooms_board','room_sign_in','room_sign_out','staff_time_fix','inventory_count','open_card','question','tablet','clarify','cant']],
+'kind' => ['type' => 'string', 'enum' => ['portal','answer','file_to_person','file_to_vault','email','rooms_board','room_sign_in','room_sign_out','staff_time_fix','inventory_count','open_card','question','tablet','clarify','cant']],
 'say' => ['type' => 'string'], 'children' => ['type' => 'array', 'items' => ['type' => 'string']],
 'time' => ['type' => 'string'], 'staff' => ['type' => 'string'], 'date' => ['type' => 'string'],
 'time_in' => ['type' => 'string'], 'time_out' => ['type' => 'string'], 'reason' => ['type' => 'string'],
 'item' => ['type' => 'string'], 'qty' => ['type' => 'string'], 'card' => ['type' => 'string'], 'question' => ['type' => 'string'],
 'board_action' => ['type' => 'string', 'enum' => ['out','back','move','meal','']], 'room' => ['type' => 'string'], 'room_to' => ['type' => 'string'],
 'doc' => ['type' => 'string'], 'month' => ['type' => 'string'], 'section' => ['type' => 'string', 'enum' => ['elc','food','dcf','other','']],
-'to' => ['type' => 'string', 'enum' => ['office','food_program','owner','']], 'subject' => ['type' => 'string'], 'body' => ['type' => 'string'], 'attach' => ['type' => 'string', 'enum' => ['yes','no']]],
-'required' => ['kind','say','children','time','staff','date','time_in','time_out','reason','item','qty','card','question','board_action','room','room_to','doc','month','section','to','subject','body','attach']];
+'to' => ['type' => 'string', 'enum' => ['office','food_program','owner','']], 'subject' => ['type' => 'string'], 'body' => ['type' => 'string'], 'attach' => ['type' => 'string', 'enum' => ['yes','no']],
+'op' => ['type' => 'string', 'enum' => array_merge(cat_ids('write'), [''])], 'args_json' => ['type' => 'string']],
+'required' => ['op','args_json','kind','say','children','time','staff','date','time_in','time_out','reason','item','qty','card','question','board_action','room','room_to','doc','month','section','to','subject','body','attach']];
 $schema = ['type' => 'object', 'additionalProperties' => false, 'properties' => ['actions' => ['type' => 'array', 'items' => $one]], 'required' => ['actions']];
 
 $user = ($hist ? "Earlier in this conversation:\n".implode("\n", $hist)."\n\n" : '')."Director's request: ".$words;
-$req = ['model' => MODEL, 'max_tokens' => 1500,
-'system' => [['type' => 'text', 'text' => $system, 'cache_control' => ['type' => 'ephemeral']]],
+$reads = cat_ids('read');
+$tools = $reads ? [['name' => 'portal_read', 'description' => 'Look something up in the Director Portal for this school, exactly the way the card does it. Changes nothing. Returns the card\'s JSON.',
+'input_schema' => ['type' => 'object', 'additionalProperties' => false, 'properties' => [
+'op' => ['type' => 'string', 'enum' => $reads, 'description' => 'Lookup id from the Portal lookups list'],
+'args_json' => ['type' => 'string', 'description' => 'JSON object with the lookup\'s args, or {} when it has none']], 'required' => ['op','args_json']]]] : [];
+$msgs = [['role' => 'user', 'content' => $user]]; $looked = 0; $res = [];
+for ($round = 0; $round < 6; $round++){
+$req = ['model' => MODEL, 'max_tokens' => 2000,
+'system' => [['type' => 'text', 'text' => $system, 'cache_control' => ['type' => 'ephemeral']], ['type' => 'text', 'text' => $dynamic]],
 'output_config' => ['effort' => 'low', 'format' => ['type' => 'json_schema', 'schema' => $schema]],
-'messages' => [['role' => 'user', 'content' => $user]]];
-
+'messages' => $msgs];
+if ($tools){ $req['tools'] = $tools; if ($round >= 5 || $looked >= 8) $req['tool_choice'] = ['type' => 'none']; }
 $ch = curl_init('https://api.anthropic.com/v1/messages');
-curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 30,
+curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 40,
 CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'x-api-key: '.CLAUDE_API_KEY, 'anthropic-version: 2026-10-21'],
 CURLOPT_POSTFIELDS => json_encode($req)]);
 $raw = curl_exec($ch); $code = curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
 $res = json_decode($raw ?: '{}', true);
 if ($code !== 200){ log_line(['school'=>$school,'role'=>$role,'words'=>$words,'result'=>'Claude error '.$code]); fail('Talk to Bear Line couldn\'t reach Claude just now ('.$code.'). Try again in a minute.', 502); }
+if (($res['stop_reason'] ?? '') !== 'tool_use') break;
+$results = [];
+foreach (($res['content'] ?? []) as $b){
+if (($b['type'] ?? '') !== 'tool_use') continue;
+$looked++;
+$in = (array)($b['input'] ?? []); $op = (string)($in['op'] ?? '');
+list($body, $vals, $err) = cat_args($op, json_decode((string)($in['args_json'] ?? '{}'), true), 'read');
+$got = $err ? ['error' => $err] : portal_call($op, $body, $pin);
+$txt = json_encode(shrink($got), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+if (strlen($txt) > 14000) $txt = mb_strcut($txt, 0, 14000).' …(cut short)';
+$results[] = ['type' => 'tool_result', 'tool_use_id' => $b['id'], 'content' => $txt] + (!empty($got['error']) ? ['is_error' => true] : []);
+}
+if (!$results) break;
+$msgs[] = ['role' => 'assistant', 'content' => $res['content']];
+$msgs[] = ['role' => 'user', 'content' => $results];
+}
 if (($res['stop_reason'] ?? '') === 'refusal') fail('I can\'t help with that one.', 422);
 $text = ''; foreach (($res['content'] ?? []) as $b) if (($b['type'] ?? '') === 'text') $text .= $b['text'];
 $P = json_decode($text, true);
@@ -303,7 +395,22 @@ if ($sub === '' || $bod === ''){ $ask('What should the email say?'); break; }
 $out += ['to' => (string)$p['to'], 'to_label' => $label, 'to_addr' => $addr, 'subject' => $sub, 'body' => $bod, 'attach' => $att];
 $out['say'] = 'Send this email to '.$label.($att ? ' with "'.$att.'" attached' : '').'?';
 break;
-case 'tablet': $out['say'] = 'Things on the front tablet itself (staff clock in or out, child sign-in on the tablet, the tablet greeting) aren\'t connected to Talk to Bear Line yet. Mrs. Bear is adding them next.'; break;
+case 'portal':
+$a = json_decode((string)$p['args_json'], true);
+list($body, $vals, $err) = cat_args((string)$p['op'], $a, 'write');
+if ($err){ $ask('I couldn\'t line that up with the portal card ('.$err.'). Can you say it another way?'); break; }
+$e = catalogue()[$p['op']]; $det = [];
+foreach ($vals as $k => $v){ if (preg_match('/(^id$|Id$|_id$|^recordId$|^records?$)/', $k)) continue; $det[nice_key($k)] = is_array($v) ? json_encode($v, JSON_UNESCAPED_UNICODE) : (is_bool($v) ? ($v ? 'Yes' : 'No') : (string)$v); }
+$needSig = false; foreach ((array)($e['params'] ?? []) as $d) if (($d['type'] ?? '') === 'signature') $needSig = true;
+$out += ['op' => $p['op'], 'args' => $vals, 'sign' => $needSig, 'card' => $e['card'] ?? '', 'details' => $det, 'effect' => ($e['outside_effect'] ?? 'none') !== 'none' ? $e['outside_effect'] : ''];
+$out['say'] = trim((string)$p['say']) ?: ($e['what'] ?? 'Make this change').'?';
+break;
+case 'answer': $out['say'] = trim((string)$p['say']) ?: 'I couldn\'t find that.'; break;
+case 'tablet':
+$g = trim(mb_substr(strip_tags((string)$p['body']), 0, 200));
+$out['greeting'] = $g;
+$out['say'] = $g === '' ? 'Clear the greeting on the '.$school.' front tablet?' : 'Change the '.$school.' front tablet greeting to "'.$g.'"?';
+break;
 }
 $plans[] = $out;
 }
@@ -357,8 +464,23 @@ $body = "--$bd\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n".$txt."\r\n--$
 if (!function_exists('mail') || !@mail($addr, '=?UTF-8?B?'.base64_encode($sub).'?=', $body, $hdr)){ log_line($base + ['details' => $what, 'result' => 'Failed']); fail('The email didn\'t send. Nothing went out.', 502); }
 log_line($base + ['details' => $what, 'result' => 'Done']); echo json_encode(['ok' => true, 'say' => 'Sent. '.$what.'.']); exit;
 }
+if ($kind === 'portal'){
+$op = (string)($p['op'] ?? '');
+list($body, $vals, $err) = cat_args($op, (array)($p['args'] ?? []), 'write');   // checked again: the card's own rules, not the page's copy
+if ($err) fail('That change doesn\'t check out ('.$err.'). Nothing changed.');
+$e = catalogue()[$op];
+foreach ((array)($e['params'] ?? []) as $k => $d){ if (($d['type'] ?? '') !== 'signature') continue;
+$sg = (string)($input['sig'] ?? ''); $png = strpos($sg, 'data:image/png;base64,') === 0 && strlen($sg) < 120000 ? base64_decode(substr($sg, 22), true) : false;
+if ($png === false || substr($png, 0, 8) !== "\x89PNG\r\n\x1a\n") fail('Please sign on the screen first. Nothing changed.');
+$body[$k] = $sg; }
+$what = ($e['card'] ?? 'Portal').': '.mb_substr(trim((string)($p['say'] ?? '')) ?: ($e['what'] ?? $op), 0, 300).' ['.$op.' '.mb_substr(json_encode($vals, JSON_UNESCAPED_UNICODE), 0, 600).']';
+if (!TALK_LIVE){ log_line($base + ['details' => $what, 'result' => 'Practice']); echo json_encode(['ok' => true, 'practice' => true, 'say' => 'Practice mode: nothing changed. Live, this would be done on the '.($e['card'] ?? 'portal').' card, logged as the '.$school.' director.']); exit; }
+$got = portal_call($op, $body, $pin);
+if (!empty($got['error'])){ log_line($base + ['details' => $what, 'result' => 'Failed: '.mb_substr((string)$got['error'], 0, 200)]); fail('The '.($e['card'] ?? 'portal').' card said: '.mb_substr((string)$got['error'], 0, 200).' Nothing changed.', 502); }
+log_line($base + ['details' => $what, 'result' => 'Done']); echo json_encode(['ok' => true, 'say' => 'Done on the '.($e['card'] ?? 'portal').' card.']); exit;
+}
 if ($kind === 'rooms_board'){ log_line($base + ['details' => mb_substr((string)($input['details'] ?? ''), 0, 300), 'result' => TALK_LIVE ? 'Done' : 'Practice']); echo json_encode(['ok' => true]); exit; }
-if (!in_array($kind, ['room_sign_in','room_sign_out','staff_time_fix','inventory_count'])) fail('Nothing to change.');
+if (!in_array($kind, ['room_sign_in','room_sign_out','staff_time_fix','inventory_count','tablet'])) fail('Nothing to change.');
 $ctx = school_context($school);
 $now = now_et(); $today = $now->format('Y-m-d');
 
@@ -417,6 +539,20 @@ fail($msg.($type === 'out' && isset($fix['in']) ? ' The clock-in may already be 
 }
 }
 log_line($base + ['details' => $what, 'result' => 'Done']); echo json_encode(['ok' => true, 'say' => 'Done. '.$what.'. Staff Hours shows it on its next refresh.']); exit;
+}
+
+if ($kind === 'tablet'){
+$g = trim(mb_substr(strip_tags((string)($p['greeting'] ?? '')), 0, 200));
+$what = $g === '' ? 'Front tablet greeting cleared' : 'Front tablet greeting set to "'.$g.'"';
+if (!TALK_LIVE){ log_line($base + ['details' => $what, 'result' => 'Practice']); echo json_encode(['ok' => true, 'practice' => true, 'say' => 'Practice mode: nothing changed. Live, this would be: '.$what.'.']); exit; }
+foreach ([dirname(__DIR__, 2), dirname(__DIR__), __DIR__] as $d0){ if (file_exists($d0.'/elc-sync-code.php')) include_once $d0.'/elc-sync-code.php'; }
+if (!defined('ELC_SYNC_CODE')) fail('Bear Line isn\'t connected from here yet. Nothing was changed.', 503);
+$bl = ($school === 'Sanford') ? 'https://bearphonicsacademy.com/elc-94f077be04/bearline-api.php' : 'https://bearphonicsacademy.com/elc-1ce53ee46c/bearline-api.php';
+$ctx0 = stream_context_create(['http' => ['method' => 'POST', 'header' => "Content-Type: application/json\r\n", 'timeout' => 25, 'ignore_errors' => true,
+'content' => json_encode(['action' => 'hive_set_greeting', 'code' => ELC_SYNC_CODE, 'text' => $g, 'by' => 'Director '.$school.' (Talk to Bear Line)'])]]);
+$j = json_decode((string)@file_get_contents($bl, false, $ctx0), true);
+if (!is_array($j) || empty($j['ok'])){ log_line($base + ['details' => $what, 'result' => 'Failed']); fail('The tablet didn\'t take the new greeting'.(is_array($j) && !empty($j['error']) ? ' ('.$j['error'].')' : '').'. Nothing was changed.', 502); }
+log_line($base + ['details' => $what, 'result' => 'Done']); echo json_encode(['ok' => true, 'say' => 'Done. '.$what.'.']); exit;
 }
 
 if ($kind === 'inventory_count'){

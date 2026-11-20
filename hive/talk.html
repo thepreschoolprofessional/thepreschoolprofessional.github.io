@@ -41,6 +41,9 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
 .tb-file button{border:0;background:none;color:#c2185b;font-weight:800;cursor:pointer;margin-left:6px;}
 .tb-mail{margin-top:8px;background:#fff;border:1px solid #eadfd6;border-radius:12px;padding:10px;font-size:.9rem;white-space:pre-wrap;}
 .tb-mail b{display:inline-block;min-width:62px;}
+.tb-sign{margin-top:8px;font-size:.85rem;}
+.tb-sign canvas{display:block;width:100%;max-width:300px;border:1px dashed #c9b6a8;border-radius:10px;background:#fff;touch-action:none;margin:4px 0;}
+.tb-sign button{border:0;background:none;color:#c2185b;font-weight:700;cursor:pointer;padding:0;}
 .tb-mic,.tb-go{border:0;border-radius:14px;padding:0 16px;font-size:1.05rem;font-weight:800;cursor:pointer;color:#fff;background:var(--purple);}
 .tb-go{background:var(--pink);}
 .tb-mic.on{background:#c62828;animation:pulse 1s infinite;}
@@ -107,8 +110,8 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
     DirectorChat.mount(document.getElementById('bot'), {school: SCHOOL, pin: PIN, mode: LIVE ? 'live' : 'preview', practice: !LIVE,
       onDone: function(label, done){ post({action:'do', plan:{kind:'rooms_board'}, words: LASTWORDS, details: done}).catch(function(){}); }});
     logEl().innerHTML = '';
-    bot('Hi! Tell me what you want done in Bear Line or the Director Portal, or ask me anything. You can attach a photo or file with 📎 and tell me where it goes or who to email it to. I\'ll show you exactly what I\'m going to do, and nothing happens until you tap Yes.');
-    var tries = ['The toddlers are going to the playground', 'File this in a child\'s immunization record', 'Email this to the office', 'Sign in a child now', 'Fix a staff clock-out time', 'Bring up the food program forms', 'Update a supply count', 'How do I add a new hire?'];
+    bot('Hi! Tell me anything you would do by hand on a Director Portal card or in Bear Line, or ask me anything about what\'s in them. You can attach a photo or file with 📎 and tell me where it goes or who to email it to. I\'ll show you exactly what I\'m going to do, and nothing happens until you tap Yes.');
+    var tries = ['Whose time off is waiting for me?', 'Any enrollments waiting?', 'Change the tablet greeting to Happy Thanksgiving!', 'The toddlers are going to the playground', 'File this in a child\'s immunization record', 'Email this to the office', 'Sign in a child now', 'Fix a staff clock-out time', 'Bring up the food program forms', 'Update a supply count', 'How do I add a new hire?'];
     var tb = document.getElementById('tries');
     tries.forEach(function(t){ var b = document.createElement('button'); b.type = 'button'; b.className = 'bc-chip'; b.textContent = t; b.onclick = function(){ var i = input(); i.value = t; i.focus(); }; tb.appendChild(b); });
     app.querySelector('.tb-bar').onsubmit = function(ev){ ev.preventDefault(); var i = input(); var v = i.value.trim(); if (!v || BUSY) return; i.value = ''; VOICE = false; send(v); };
@@ -177,11 +180,31 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
       var b = document.createElement('button'); b.type = 'button'; b.className = 'bc-chip yes'; b.textContent = 'Open ' + p.card; b.onclick = function(){ openCard(p.card); };
       row.appendChild(b); m.appendChild(row); return;
     }
-    if (k === 'room_sign_in' || k === 'room_sign_out' || k === 'staff_time_fix' || k === 'inventory_count' || k === 'file_to_person' || k === 'file_to_vault' || k === 'email'){
+    if (k === 'room_sign_in' || k === 'room_sign_out' || k === 'staff_time_fix' || k === 'inventory_count' || k === 'file_to_person' || k === 'file_to_vault' || k === 'email' || k === 'portal' || k === 'tablet'){
       remember(words, 'Proposed: ' + p.say);
       var c = bot(p.say), r2 = document.createElement('div'); r2.className = 'bc-chips';
       var yes = document.createElement('button'), no = document.createElement('button');
       yes.type = no.type = 'button'; yes.className = 'bc-chip yes'; no.className = 'bc-chip';
+      if (k === 'portal'){   // every detail that goes into the card, plus anything that leaves the portal
+        var dl = document.createElement('div'); dl.className = 'tb-mail'; var t = '<b>Card:</b> ' + esc(p.card);
+        Object.keys(p.details || {}).forEach(function(key){ t += '\n<b>' + esc(key) + ':</b> ' + esc(p.details[key]); });
+        if (p.effect) t += '\n\n⚠️ ' + esc(p.effect);
+        dl.innerHTML = t; c.appendChild(dl);
+        if (p.sign){   // the card needs the director's own signature, drawn here
+          var pad = document.createElement('div'); pad.className = 'tb-sign';
+          pad.innerHTML = '<div>Sign here with your finger:</div><canvas width="300" height="110"></canvas><button type="button">Clear</button>';
+          c.appendChild(pad); var cv = pad.querySelector('canvas'), cx = cv.getContext('2d'), down = false; cv.drawn = false;
+          cx.lineWidth = 2.5; cx.lineCap = 'round'; cx.strokeStyle = '#222';
+          var at = function(ev){ var r = cv.getBoundingClientRect(), t0 = ev.touches ? ev.touches[0] : ev; return [(t0.clientX - r.left) * cv.width / r.width, (t0.clientY - r.top) * cv.height / r.height]; };
+          var st = function(ev){ ev.preventDefault(); down = true; var q = at(ev); cx.beginPath(); cx.moveTo(q[0], q[1]); };
+          var mv = function(ev){ if (!down) return; ev.preventDefault(); var q = at(ev); cx.lineTo(q[0], q[1]); cx.stroke(); cv.drawn = true; };
+          var up = function(){ down = false; };
+          cv.addEventListener('mousedown', st); cv.addEventListener('mousemove', mv); window.addEventListener('mouseup', up);
+          cv.addEventListener('touchstart', st, {passive:false}); cv.addEventListener('touchmove', mv, {passive:false}); cv.addEventListener('touchend', up);
+          pad.querySelector('button').onclick = function(){ cx.clearRect(0, 0, cv.width, cv.height); cv.drawn = false; };
+          p._pad = cv;
+        }
+      }
       if (k === 'email'){   // the whole email, exactly as it would go out
         var mail = document.createElement('div'); mail.className = 'tb-mail';
         mail.innerHTML = '<b>To:</b> ' + esc(p.to_label) + '\n<b>Subject:</b> ' + esc(p.subject) + (p.attach ? '\n<b>Attached:</b> ' + esc(p.attach) : '') + '\n\n' + esc(p.body);
@@ -190,6 +213,7 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
       yes.textContent = LIVE ? (k === 'email' ? 'Yes, send it' : 'Yes, do it') : 'Yes (practice)'; no.textContent = 'No';
       yes.onclick = function(){ yes.disabled = no.disabled = true; var w = add('bc-bot thinking', 'Working…');
         var body = {action:'do', plan: p, words: words};
+        if (p.sign){ if (!p._pad || !p._pad.drawn){ w.remove(); yes.disabled = no.disabled = false; bot('Please sign in the box first, then tap Yes.'); return; } body.sig = p._pad.toDataURL('image/png'); }
         if (k === 'email' && p.attach){ if (!FILE){ w.remove(); bot('The attached file is gone. Attach it again and ask me once more.'); return; } body.b64 = FILE.b64; }
         post(body).then(function(r){
           if (r.go) return saveFile(p).then(function(){ return post({action:'do', plan: p, words: words, done: 1}); });
