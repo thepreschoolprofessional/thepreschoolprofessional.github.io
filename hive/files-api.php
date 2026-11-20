@@ -378,7 +378,8 @@ $wd = school_dir($ws); if (!$wd) fail('Could not open storage.', 500);
 if ($wa === 'wl_orient_start' || $wa === 'wl_orient_sign'){
 $w = ori_clean($input); $signed = ($wa === 'wl_orient_sign');
 if (strlen($w['parent']) < 3 || strlen($w['child']) < 2) fail('Please type your full name and your child\'s name.');
-if (strlen(preg_replace('/\D/', '', $w['phone'])) < 7 || strpos($w['email'], '@') === false) fail('Please add your phone number and email.');
+if (strlen(preg_replace('/\D/', '', $w['phone'])) < 7) fail('Please add your phone number.');
+if ($w['email'] !== '' && strpos($w['email'], '@') === false) $w['email'] = '';
 $pd = pp_dir($ws); if (!$pd) fail('Could not open storage.', 500);
 ori_upsert($pd, $w, (int)($input['done'] ?? 0), (int)($input['total'] ?? 9), $signed, true);
 $filed = ''; if ($signed){ $filed = ori_file($ws, $w); if ($filed !== ''){ $o2 = jread($pd.'/orientation.json', []); foreach ($o2 as $i2 => $x2){ if (strtolower(($x2['parent'] ?? '').'|'.($x2['child'] ?? '')) === strtolower($w['parent'].'|'.$w['child']) && !empty($x2['signed'])) $o2[$i2]['filed'] = true; } jwrite($pd.'/orientation.json', $o2); } hive_notify($ws, 'Parent orientation signed: '.short_child($w['child']), ['A parent finished and signed Parent Orientation for '.short_child($w['child']).'.', $filed !== '' ? 'It was filed in the Student File automatically.' : 'The child is not on the roster yet (or the name did not match), so it will be filed when the child is added.']); }
@@ -745,7 +746,8 @@ if (!$isParent) fail('Only a parent signs the orientation.', 403);
 $d = pp_dir($school); if (!$d) fail('Could not open the parent portal storage.', 500);
 $w = ori_clean($input); $signed = ($action === 'pp_orient_sign');
 if (strlen($w['parent']) < 3 || strlen($w['child']) < 2) fail('Please type your full name and your child\'s name.');
-if (strlen(preg_replace('/\D/', '', $w['phone'])) < 7 || strpos($w['email'], '@') === false) fail('Please add your phone number and email.');
+if (strlen(preg_replace('/\D/', '', $w['phone'])) < 7) fail('Please add your phone number.');
+if ($w['email'] !== '' && strpos($w['email'], '@') === false) $w['email'] = '';
 ori_upsert($d, $w, (int)($input['done'] ?? 0), (int)($input['total'] ?? 9), $signed, false);
 $filed = ''; if ($signed){ $filed = ori_file($school, $w); if ($filed !== ''){ $o2 = jread($d.'/orientation.json', []); foreach ($o2 as $i2 => $x2){ if (strtolower(($x2['parent'] ?? '').'|'.($x2['child'] ?? '')) === strtolower($w['parent'].'|'.$w['child']) && !empty($x2['signed'])) $o2[$i2]['filed'] = true; } jwrite($d.'/orientation.json', $o2); } hive_notify($school, 'Parent orientation signed: '.short_child($w['child']), ['A parent finished and signed Parent Orientation for '.short_child($w['child']).'.', $filed !== '' ? 'It was filed in the Student File automatically.' : 'The child did not match a roster name yet, so it will be filed when the child is added.']); }
 echo json_encode(['ok'=>true, 'filed'=>($filed !== '')]); exit;
