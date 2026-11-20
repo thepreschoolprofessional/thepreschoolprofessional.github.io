@@ -915,7 +915,7 @@ function mount(el, opt){
 function greet(){
   if (TEACH){ say('bot', 'Hi! I\'m Teacher Bear Chat for '+OPT.school+'. Ask me how to do anything on the Teacher Portal: the Rooms board, meals, lesson plans, daily plans, checklists, time off, calling out, handbook rules, training and more. I\'ll give you the steps and a button to the right card.',
     chips((D.starters||[]).map(function(s){ return {label:s}; }), function(it){ ask(it.label); })); return; }
-  say('bot', 'Hi! I\'m Director Bear Chat for '+OPT.school+'. Ask me where something is or how to do it in the Director Portal: food program, DCF binder, files, staff hours, schedules, enrollments, new hires, reports and more. I\'ll give you the steps and a button to the right card.',
+  say('bot', 'Hi! I\'m '+(OPT.name||'Director Bear Chat')+' for '+OPT.school+'. Ask me where something is or how to do it in the Director Portal: food program, DCF binder, files, staff hours, schedules, enrollments, new hires, reports and more. I\'ll give you the steps and a button to the right card.',
     chips((D.starters||[]).map(function(s){ return {label:s}; }), function(it){ ask(it.label); }));
 }
 function poke(){ clearTimeout(IDLE); IDLE = setTimeout(function(){ if (LOG.length || MISSED.length || ROOT.querySelector('.bc-me')) reset(); }, IDLE_MS); }

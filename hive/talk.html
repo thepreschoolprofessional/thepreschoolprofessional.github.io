@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
-<title>Talk to Bear Line</title>
+<title>Bear Line Director Talk</title>
 <link rel="icon" href="chat-logo.png">
 <style>
 :root{--ink:#4a3a30;--soft:#9b8576;--pink:#ff6b9d;--blue:#5aa9ff;--purple:#9b6bff;}
@@ -62,12 +62,12 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
 </style>
 </head>
 <body>
-<header><a class="back" href="director.html">&larr; Director Portal</a><img class="logo" src="chat-logo.png" alt=""><h1>Talk to Bear Line</h1><div class="sub" id="sub">Test version</div></header>
+<header><a class="back" href="director.html">&larr; Director Portal</a><img class="logo" src="chat-logo.png" alt=""><h1>Bear Line Director Talk</h1><div class="sub" id="sub">Test version</div></header>
 <div id="app"></div>
 <script src="bear-chat-data.js?v=5"></script>
 <script src="director-chat-data.js?v=6"></script>
 <script src="director-chat-lessons.js?v=3"></script>
-<script src="director-chat.js?v=8"></script>
+<script src="director-chat.js?v=9"></script>
 <script>
 (function(){
   /* Talk to Bear Line, TEST VERSION (built 11/20/26, not linked from any portal yet).
@@ -81,7 +81,7 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
   function post(body){ body.pin = PIN; return fetch(API, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)}).then(function(r){ return r.json().then(function(j){ if (!r.ok || j.error) throw new Error(j.error || 'Something went wrong.'); return j; }); }); }
 
   function signIn(msg){
-    app.innerHTML = '<div class="closed"><h2>Director PIN</h2><p style="margin-top:10px">'+esc(msg || 'Enter your director PIN to use Talk to Bear Line.')+'</p><input id="pinIn" type="password" autocomplete="off" inputmode="text"><br><button id="pinGo">Open</button></div>';
+    app.innerHTML = '<div class="closed"><h2>Director PIN</h2><p style="margin-top:10px">'+esc(msg || 'Enter your director PIN to use Bear Line Director Talk.')+'</p><input id="pinIn" type="password" autocomplete="off" inputmode="text"><br><button id="pinGo">Open</button></div>';
     var go = function(){ PIN = document.getElementById('pinIn').value.trim(); if (PIN) start(); };
     document.getElementById('pinGo').onclick = go;
     document.getElementById('pinIn').onkeydown = function(e){ if (e.key === 'Enter') go(); };
@@ -108,7 +108,7 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
       + '<div class="tb-note"><button type="button" class="bc-chip" id="tbcheck">Check the Bear Line tablet link</button> (changes nothing)</div>'
       + '<details class="tb-log" id="tblog"><summary>What was asked and done today ('+esc(SCHOOL)+')</summary><div id="logbox">Loading…</div></details>'
       + '</div></main>';
-    DirectorChat.mount(document.getElementById('bot'), {school: SCHOOL, pin: PIN, mode: LIVE ? 'live' : 'preview', practice: !LIVE,
+    DirectorChat.mount(document.getElementById('bot'), {name: 'Bear Line Director Talk', school: SCHOOL, pin: PIN, mode: LIVE ? 'live' : 'preview', practice: !LIVE,
       onDone: function(label, done){ post({action:'do', plan:{kind:'rooms_board'}, words: LASTWORDS, details: done}).catch(function(){}); }});
     logEl().innerHTML = '';
     bot('Hi! Tell me anything you would do by hand on a Director Portal card or in Bear Line, or ask me anything about what\'s in them. You can attach a photo or file with 📎 and tell me where it goes or who to email it to. I\'ll show you exactly what I\'m going to do, and nothing happens until you tap Yes.');
@@ -171,7 +171,7 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
   function show(p, words, only){
     var k = p.kind;
     if (k === 'question' || k === 'rooms_board'){
-      remember(words, k === 'question' ? 'Answered with Director Bear Chat' : 'Opened the Rooms board panel: ' + p.command);
+      remember(words, k === 'question' ? 'Answered with Bear Line Director Talk' : 'Opened the Rooms board panel: ' + p.command);
       var bi = document.querySelector('#bot .bc-input'), bf = document.querySelector('#bot .bc-bar');
       if (only){ var mine = logEl().lastElementChild; if (mine && mine.classList.contains('bc-me')) mine.remove(); }   // the chatbot shows the question itself
       bi.value = (k === 'rooms_board' ? p.command : p.question) || words; bf.requestSubmit ? bf.requestSubmit() : bf.dispatchEvent(new Event('submit', {cancelable:true}));
