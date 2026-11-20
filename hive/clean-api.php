@@ -1,7 +1,7 @@
 <?php
 /* THE HIVE — Cleaning chart pass API (11/13/26). NO staff PIN: a 30-minute pass minted by Bear Line (signed, school-locked) opens ONLY the cleaning/inspection forms.
 Can do exactly three things: list checklist items for one allowed form, save a Facility Submission for the pass's own school, list today's submissions for that school.
-Nothing else in the Hive is reachable from here. A classroom-page location pass (rpass) also works for the same forms. Incident reports are NOT included (those stay behind the teacher PIN). */
+Nothing else in the Bear’s Den is reachable from here. A classroom-page location pass (rpass) also works for the same forms. Incident reports are NOT included (those stay behind the teacher PIN). */
 $__t = '';
 foreach ([dirname(__DIR__, 2).'/hive-token.php', dirname(__DIR__).'/hive-token.php', __DIR__.'/hive-token.php'] as $__f){
   if (file_exists($__f)){ include $__f; if (defined('HIVE_TOKEN')){ $__t = HIVE_TOKEN; break; } }

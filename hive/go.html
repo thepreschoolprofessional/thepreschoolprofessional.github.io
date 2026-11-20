@@ -4,7 +4,7 @@
 <script>
 (function(){
 var OK=['teacher.html','my-bio.html','teacher-training.html','handbook-training.html','sop.html','staff-agenda.html','closures.html','lessons.html','clean.html','staff-send.html'];
-function bad(t){document.getElementById('m').innerHTML='<b>'+t+'</b><br><a class="b" href="index.html">Go to the Hive sign-in</a>';}
+function bad(t){document.getElementById('m').innerHTML='<b>'+t+'</b><br><a class="b" href="index.html">Go to the Bear’s Den sign-in</a>';}
 try{
  var h=new URLSearchParams((location.hash||'').replace(/^#/,'')), p=h.get('p')||'', to=h.get('to')||'teacher.html';
  history.replaceState(null,'',location.pathname);
@@ -15,7 +15,7 @@ try{
   if(!j||!j.ok){bad((j&&j.error)||'This link did not work. Go back to the Bear Line and tap it again.');return;}
   try{sessionStorage.setItem('hivePin',j.pin);sessionStorage.setItem('hiveRole','teacher');sessionStorage.setItem('hiveSchool',j.school);sessionStorage.setItem('hiveMe',j.name||'');}catch(e){}
   location.replace(m[1]+(m[2]||''));
- }).catch(function(){bad('Could not reach the Hive. Check the Wi-Fi and tap it again.');});
+ }).catch(function(){bad('Could not reach the Bear’s Den. Check the Wi-Fi and tap it again.');});
 }catch(e){bad('This link did not work.');}
 })();
 </script></body></html>

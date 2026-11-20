@@ -74,7 +74,7 @@ $DEFS = [
  'f5131' => ['Personnel file form CF-FSP 5131 (Background Screening and Personnel File Requirements)', false, true, ''],
  'oos'   => ['Out-of-state registry searches (lived outside Florida in last 5 years)', false, false, 'Only if they did'],
  'vol'   => ['Volunteer acknowledgment CF-FSP 5217', false, false, 'Volunteers only, before they start'],
- 'ce'    => ['Other training certificates (outside classes)', false, false, 'Hive lesson certificates are added automatically below'],
+ 'ce'    => ['Other training certificates (outside classes)', false, false, 'Bear’s Den lesson certificates are added automatically below'],
 ],
 'student' => [
  'reg'   => ['Registration form / enrollment packet', false, true, ''],
@@ -243,7 +243,7 @@ if (AIRTABLE_TOKEN === 'PASTE_YOUR_AIRTABLE_TOKEN_HERE') fail('The Airtable toke
 $input = json_decode(file_get_contents('php://input'), true);
 if (!$input) fail('Bad request');
 /* ---- Notifications: plain emails to the school's own office inbox (first name + last initial only, no private details). Failure is silent; the red Needs Attention banner is the main alert. ---- */
-/* Hive -> Bear Line bridge: add a family (after enrollment approval) or a staff clock PIN (after a new hire is added). Authorised by the private ELC sync code; never throws. */
+/* Bear’s Den -> Bear Line bridge: add a family (after enrollment approval) or a staff clock PIN (after a new hire is added). Authorised by the private ELC sync code; never throws. */
 function bl_post($school, $payload){
   foreach ([dirname(__DIR__, 2), dirname(__DIR__), __DIR__] as $d0){ if (file_exists($d0.'/elc-sync-code.php')) include_once $d0.'/elc-sync-code.php'; }
   if (!defined('ELC_SYNC_CODE')) return ['ok'=>false, 'error'=>'not_connected', 'message'=>'Bear Line is not connected from here yet.'];
@@ -285,9 +285,9 @@ function bl_left_retry($school){
 }
 function hive_notify($school, $subject, $lines){
 $to = ($school === 'Sanford') ? 'sanfordoffice.1320@gmail.com' : 'delandoffice.238@gmail.com';
-$body = implode("\n", (array)$lines)."\n\nOpen the director portal to review: https://thepreschoolprofessional.net/hive/\n(This is an automatic note from the Hive. Names are shortened on purpose.)";
-$hdr = "From: The Hive <noreply@thepreschoolprofessional.net>\r\nContent-Type: text/plain; charset=utf-8";
-$ok = function_exists('mail') ? @mail($to, '=?UTF-8?B?'.base64_encode('[Hive] '.$subject).'?=', $body, $hdr) : false;
+$body = implode("\n", (array)$lines)."\n\nOpen the director portal to review: https://thepreschoolprofessional.net/hive/\n(This is an automatic note from the Bear’s Den. Names are shortened on purpose.)";
+$hdr = "From: Bear’s Den <noreply@thepreschoolprofessional.net>\r\nContent-Type: text/plain; charset=utf-8";
+$ok = function_exists('mail') ? @mail($to, '=?UTF-8?B?'.base64_encode('[Bear’s Den] '.$subject).'?=', $body, $hdr) : false;
 $d = school_dir($school); if ($d){ $lf = $d.'/notify-log.json'; $lg = jread($lf, []); $lg[] = ['at'=>gmdate('c'), 'subject'=>$subject, 'sent'=>(bool)$ok]; if (count($lg) > 60) $lg = array_slice($lg, -60); jwrite($lf, $lg); }
 return (bool)$ok; }
 function short_child($full){ $p = preg_split('/\s+/', trim(preg_replace('/[^A-Za-z\' -]/', ' ', (string)$full))); if (count($p) < 2) return trim((string)$full); return ucfirst(strtolower($p[0])).' '.strtoupper(substr(end($p), 0, 1)).'.'; }
@@ -634,7 +634,7 @@ echo json_encode(['notes'=>(object)$n]); exit;
 /* ---- System check (directors): is every connection working? ---- */
 if ($action === 'sys_check' || $action === 'sys_test_mail'){
 if (!$isDir) fail('Directors only.', 403);
-if ($action === 'sys_test_mail'){ $ok = hive_notify($school, 'Test notification', ['This is a test from the System Check page. If you can read this, Hive email alerts reach this inbox.']); echo json_encode(['sent'=>$ok, 'to'=>($school === 'Sanford' ? 'sanfordoffice.1320@gmail.com' : 'delandoffice.238@gmail.com')]); exit; }
+if ($action === 'sys_test_mail'){ $ok = hive_notify($school, 'Test notification', ['This is a test from the System Check page. If you can read this, Bear’s Den email alerts reach this inbox.']); echo json_encode(['sent'=>$ok, 'to'=>($school === 'Sanford' ? 'sanfordoffice.1320@gmail.com' : 'delandoffice.238@gmail.com')]); exit; }
 $sd = school_dir($school); $out = [];
 $out[] = ['k'=>'Private vault (where signed packets are kept)', 'ok'=>(bool)($sd && is_writable($sd)), 'note'=>($sd ? 'Writable' : 'Cannot write')];
 $pins = get_pins(); $out[] = ['k'=>'PIN list (Airtable Portal Access)', 'ok'=>count($pins) > 0, 'note'=>count($pins).' PINs loaded'];
@@ -1314,7 +1314,7 @@ bl_left_retry($school);
   if (!$rqf || (time() - (int)($rqc['t'] ?? 0)) > 240){ $rqj = bl_post($school, ['action'=>'hive_staff_requests']); if (!empty($rqj['ok'])){ $rqc = ['t'=>time(), 'list'=>(array)($rqj['requests'] ?? [])]; if ($rqf) jwrite($rqf, $rqc); } }
   foreach (($rqc['list'] ?? []) as $rq){ $rd = strtotime((string)($rq['date'] ?? '')); $rn = trim((string)($rq['by'] ?? '')) !== '' ? ucfirst(strtolower(preg_split('/\s+/', trim((string)$rq['by']))[0])) : ucfirst((string)($rq['sid'] ?? 'Staff'));
     $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'blstaffreq', 'href'=>'files.html', 'label'=>trim($rn).' asked for a time change on '.($rd ? date('D n/j', $rd) : 'a day').'. Open the Bear Line, Staff hours tab, fix it and tap Mark fixed', 'status'=>'missing', 'red'=>true]; } }
-{ $d0 = school_dir($school); foreach (($d0 ? jread($d0.'/bl-left-pending.json', []) : []) as $lp) $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'blleft', 'href'=>'files.html?kind='.(($lp['kind'] ?? '') === 'staff' ? 'staff' : 'student'), 'label'=>($lp['kind'] === 'staff' ? short_child($lp['name']) : short_child($lp['name'])).' was removed in the Hive but is still on the Bear Line. The Hive keeps trying; tell Mrs. Bear if this stays here', 'status'=>'missing', 'red'=>true]; }
+{ $d0 = school_dir($school); foreach (($d0 ? jread($d0.'/bl-left-pending.json', []) : []) as $lp) $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'blleft', 'href'=>'files.html?kind='.(($lp['kind'] ?? '') === 'staff' ? 'staff' : 'student'), 'label'=>($lp['kind'] === 'staff' ? short_child($lp['name']) : short_child($lp['name'])).' was removed in the Bear’s Den but is still on the Bear Line. Bear’s Den keeps trying; tell Mrs. Bear if this stays here', 'status'=>'missing', 'red'=>true]; }
 foreach (en_list_all($school) as $enb){ if (($enb['status'] ?? '') === 'approved' && isset($enb['bearline']) && empty($enb['bearline']['ok']) && strtotime($enb['approvedAt'] ?? 'now') > time() - 60 * 86400) $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'enroll', 'href'=>'enroll.html', 'label'=>short_child(($enb['child']['first'] ?? '').' '.($enb['child']['last'] ?? '')).' is on the roster but NOT set up on the Bear Line sign-in yet. Open the packet and press Add to Bear Line', 'status'=>'missing', 'red'=>true]; }
 foreach (nh_list_all($school) as $nhb){ if (($nhb['status'] ?? '') === 'added' && isset($nhb['bearline']) && empty($nhb['bearline']['ok'])) $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'newhire', 'href'=>'newhires.html', 'label'=>($nhb['name'] ?? 'A new hire').' has no Bear Line clock PIN yet. Open New Hires and press Get Bear Line PIN', 'status'=>'missing', 'red'=>true]; }
 foreach (en_list_all($school) as $en0){ if (($en0['status'] ?? '') === 'new') $items[] = ['kind'=>'school', 'id'=>'', 'name'=>$school, 'sub'=>'School', 'doc'=>'enroll', 'href'=>'enroll.html', 'label'=>'New enrollment packet: '.($en0['child']['first'] ?? '').' '.mb_substr($en0['child']['last'] ?? '', 0, 1).'. — review and approve', 'status'=>'missing', 'red'=>false]; }

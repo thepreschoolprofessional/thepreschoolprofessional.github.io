@@ -1,10 +1,10 @@
-/* 🧩 ASQ Screenings — self-injecting add-on for The Hive teacher & director portals (built 10/15/26).
+/* 🧩 ASQ Screenings — self-injecting add-on for Bear’s Den teacher & director portals (built 10/15/26).
 Same pattern as transport.js: loads after the page's inline script and reuses api()/esc()/show().
 Data lives in Airtable "ASQ Tracker". One row per child per screening.
 Rules from Mrs. Bear + the SR contract:
 - ASQ-3 + ASQ:SE-2 are due within 45 calendar days of School Readiness enrollment (and again at redetermination).
 - The screening itself is completed ONLINE through the ELC's own link (Provider Portal -> Incomplete Queue).
-  The questionnaires are copyrighted (Brookes), so the Hive never reproduces them -- it tracks who is due,
+  The questionnaires are copyrighted (Brookes), so the Bear’s Den never reproduces them -- it tracks who is due,
   which age questionnaire to pick, and each step after.
 - After the ELC posts the Summary Result Letter to ShareFile, the parent signs it + gets the ASQ activities
   within 10 days, then the signed letter is uploaded back to ShareFile.
@@ -202,7 +202,7 @@ async function addChild(){
   var sc=await getSchool(); if(!sc){ toast('No school found'); return; }
   var child=v('aqNewChild'), start=v('aqNewStart'), dob=v('aqNewDob');
   if(!child || !start){ toast('Child and SR start date, please'); return; }
-  var fields={'Child':child, 'Room':v('aqNewRoom'), 'Reason':v('aqNewReason')||'New SR enrollment', 'SR Start Date':start, 'Due Date':addDays(start,45), 'Status':'⏳ Due', 'Coalition': sc==='Sanford'?'ELC Seminole':'ELC Flagler & Volusia', 'Source':'Added in the Hive by director'};
+  var fields={'Child':child, 'Room':v('aqNewRoom'), 'Reason':v('aqNewReason')||'New SR enrollment', 'SR Start Date':start, 'Due Date':addDays(start,45), 'Status':'⏳ Due', 'Coalition': sc==='Sanford'?'ELC Seminole':'ELC Flagler & Volusia', 'Source':'Added in the Bear’s Den by director'};
   if(dob){ fields.DOB=dob; var q=qText(dob); if(q.short) fields.Questionnaire=q.short; }
   var res=await api({action:'create', table:T, fields:fields});
   if(res && res.error){ toast('Could not add: '+res.error); return; }

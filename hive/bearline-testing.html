@@ -27,7 +27,7 @@ input,textarea,select{font:inherit;padding:10px;border:1px solid var(--line);bor
 <p class="intro">Seeing something that looks wrong, confusing or missing on the Bear Line? Tell us here. Each report is checked, and Mrs. Bear approves before anything is changed. Please do not type children's full names or any PINs.</p>
 <label for="nm">Your name</label><input id="nm" autocomplete="name" placeholder="Your first name">
 <label for="wh">Where did you see it?</label>
-<select id="wh"><option value="">Choose a screen (or pick Other)</option><option>Tablet sign-in / sign-out</option><option>Parent screen</option><option>Staff clock in / out</option><option>Staff menu / My items</option><option>Director time grid (Staff Hours)</option><option>Classroom Pack / QR page</option><option>Cleaning chart</option><option>Incident report</option><option>Attendance board</option><option>Director Portal (Hive)</option><option>Other</option></select>
+<select id="wh"><option value="">Choose a screen (or pick Other)</option><option>Tablet sign-in / sign-out</option><option>Parent screen</option><option>Staff clock in / out</option><option>Staff menu / My items</option><option>Director time grid (Staff Hours)</option><option>Classroom Pack / QR page</option><option>Cleaning chart</option><option>Incident report</option><option>Attendance board</option><option>Director Portal (Bear’s Den)</option><option>Other</option></select>
 <label for="is">What did you see, and what did you expect?</label>
 <textarea id="is" rows="5" placeholder="Example: When I signed a child out, the screen showed the wrong time. I expected 3:15 PM."></textarea>
 <div style="margin-top:12px"><button id="go" onclick="send()">Send report</button></div>
@@ -44,7 +44,7 @@ function call(b){b.pin=PIN;return fetch(API,{method:'POST',headers:{'Content-Typ
 function cls(s){return 's-'+String(s).split(' ')[0]}
 function when(t){if(!t)return'';var d=new Date(t);return isNaN(d)?'':d.toLocaleDateString([], {month:'short',day:'numeric'})+' '+d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}
 function load(){
- if(!PIN){document.getElementById('list').textContent='Please open this from your Hive director portal.';document.getElementById('go').disabled=true;return}
+ if(!PIN){document.getElementById('list').textContent='Please open this from your Bear’s Den director portal.';document.getElementById('go').disabled=true;return}
  call({action:'bt_list'}).then(function(d){
   if(d.error){document.getElementById('list').textContent=d.error;return}
   document.getElementById('lt').textContent='Reports from '+d.school;

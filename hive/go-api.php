@@ -1,5 +1,5 @@
 <?php
-/* THE HIVE — Bear Line hand-off (11/16/26). A staff member who is already signed in on the Bear Line taps a link and lands straight on the Hive page
+/* THE HIVE — Bear Line hand-off (11/16/26). A staff member who is already signed in on the Bear Line taps a link and lands straight on the Bear’s Den page
 (no teacher PIN typed). Bear Line signs a 30-minute pass (same pass as the cleaning chart); this file asks THAT school's Bear Line to verify it, then hands back
 only that school's teacher sign-in so the page opens signed in. Pages are limited to the allow-list in go.html. */
 $__t = '';

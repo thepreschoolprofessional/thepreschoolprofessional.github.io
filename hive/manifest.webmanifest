@@ -1,6 +1,6 @@
 {
-  "name": "Hive Rooms",
-  "short_name": "Hive Rooms",
+  "name": "Bear’s Den Rooms",
+  "short_name": "Bear’s Den Rooms",
   "description": "Fast classroom sign-in / sign-out for Kid City USA",
   "start_url": "rooms.html",
   "scope": "./",

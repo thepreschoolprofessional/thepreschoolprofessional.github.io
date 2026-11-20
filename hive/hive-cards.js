@@ -1,4 +1,4 @@
-/* Hive card home screen. Turns a portal's tab strip into big colored cards.
+/* Bear’s Den card home screen. Turns a portal's tab strip into big colored cards.
    Each page sets window.HIVE_CARDS = {prompt:'...', order:[{k:'text in the tab', s:'small caption', c:'#color'}]}
    then loads this file. Tabs not listed still get a card (at the end), so nothing is ever lost. */
 (function(){

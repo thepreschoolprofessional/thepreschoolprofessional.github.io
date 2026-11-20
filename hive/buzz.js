@@ -1,4 +1,4 @@
-/* The Buzz Board — self-injecting add-on for The Hive teacher & director portals.
+/* The Buzz Board — self-injecting add-on for Bear’s Den teacher & director portals.
 Loads after the portal's inline script, so it reuses the page's global api()/esc()/show().
 Teacher portal: one 🐝 tab (both schools). Director portal: 🐝 Team Buzz + 👑 My Buzz Board (school-scoped by api.php).
 v3: adds an All-Time Leaders board (never resets) and a 30-day history dropdown for the weekly chart.

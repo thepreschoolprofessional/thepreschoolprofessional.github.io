@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex,nofollow"><title>My PINs - The Hive</title>
+<meta name="robots" content="noindex,nofollow"><title>My PINs - Bear’s Den</title>
 <style>
 :root{--bg:#f3fbf9;--ink:#2b2118;--card:#fff;--line:#cfe6e1;--acc:#00796b;--mut:#6a7a77}
 *{box-sizing:border-box}body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
@@ -12,7 +12,7 @@ h2{font-size:17px;margin:0 0 8px;color:var(--acc)}.row{display:flex;justify-cont
 @media print{button{display:none}}
 </style><script src="bl-brand.js?v=20261113b" defer></script>
 </head><body>
-<header><button onclick="location.href='director.html'">← Director portal</button><h1>🔐 My PINs and Hive Portal PINs</h1><button onclick="window.print()">Print</button></header>
+<header><button onclick="location.href='director.html'">← Director portal</button><h1>🔐 My PINs and Bear’s Den Portal PINs</h1><button onclick="window.print()">Print</button></header>
 <main id="app"><div class="msg">Loading…</div></main>
 <script>
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
@@ -21,7 +21,7 @@ try{pin=sessionStorage.getItem('hivePin')||''}catch(e){}
 if(!pin){app.innerHTML='<div class="msg">Please open this from the Director Portal.</div>'}else{
 fetch('director-pins-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pin})}).then(function(r){return r.json()}).then(function(d){
  if(d.error){app.innerHTML='<div class="msg">'+esc(d.error)+'</div>';return}
- var h='<div class="sec"><h2>'+esc(d.school)+' - Hive portals</h2>'+d.hive.map(function(x){return'<div class="row"><span>'+esc(x.label)+'</span><span class="pin">'+esc(x.pin)+'</span></div>'}).join('')+'<div class="sub">These change when someone leaves or every two months. Give the Teacher PIN to teachers in person or by text, never in a group channel that a former employee can still see.</div></div>'
+ var h='<div class="sec"><h2>'+esc(d.school)+' - Bear’s Den portals</h2>'+d.hive.map(function(x){return'<div class="row"><span>'+esc(x.label)+'</span><span class="pin">'+esc(x.pin)+'</span></div>'}).join('')+'<div class="sub">These change when someone leaves or every two months. Give the Teacher PIN to teachers in person or by text, never in a group channel that a former employee can still see.</div></div>'
  +'<div class="sec"><h2>Your own Bear Line PIN</h2>'+((d.bearline&&d.bearline.length)?d.bearline.map(function(x){return'<div class="row"><span>'+esc(x.name)+' <span class="sub">'+esc(x.role)+' (staff screen, Admin Sign-In, QR setup)</span></span><span class="pin">'+esc(x.pin)+'</span></div>'}).join(''):'<div class="sub">Your Bear Line PIN could not be loaded. Look yourself up on the Family and Staff PINs card (Staff tab).</div>')+'</div>'
  +'<div class="sec"><h2>Bear Line PINs</h2><div class="sub">Tutors and staff (for example Lori at DeLand 2) are on the Staff tab. Each parent and each staff member has their own Bear Line PIN. Look them up on the <b>Family and Staff PINs</b> card (parents by classroom, staff on their own tab).</div></div>'
  +'<div class="sub">This page is for directors only. It clears itself after 3 minutes.</div>';

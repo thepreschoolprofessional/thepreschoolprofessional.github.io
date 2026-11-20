@@ -1,4 +1,4 @@
-/* Hive staff bio cards: questions, bio writer, designer card. Shared by my-bio.html, files.html and parent.html */
+/* Bear’s Den staff bio cards: questions, bio writer, designer card. Shared by my-bio.html, files.html and parent.html */
 (function(){
 var EDU=['High school diploma / GED','Some college','CDA credential','Associate degree','Bachelor\'s degree','Master\'s degree or higher'];
 var H45=[['yes','Yes, completed'],['progress','Working on it now'],['no','Not yet']];

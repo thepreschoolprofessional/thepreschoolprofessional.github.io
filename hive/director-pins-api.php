@@ -1,5 +1,5 @@
 <?php
-/* THE HIVE — Director PIN card API, built 11/12/26. DIRECTOR (own school) or OWNER PIN. Shows the director every Hive portal PIN for THEIR school only
+/* THE HIVE — Director PIN card API, built 11/12/26. DIRECTOR (own school) or OWNER PIN. Shows the director every Bear’s Den portal PIN for THEIR school only
    (Director, Teacher, Parent). Never the Owner PIN, never the other school. Nothing is stored; PINs are read live from Airtable Portal Access. */
 $__t = 'PASTE_YOUR_AIRTABLE_TOKEN_HERE'; $__code = '';
 foreach ([dirname(__DIR__, 2), dirname(__DIR__), __DIR__] as $__d){

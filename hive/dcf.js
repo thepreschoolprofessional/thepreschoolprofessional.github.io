@@ -229,7 +229,7 @@ function drillPdf0(yr){
         panel(402,'EMERGENCY PREPAREDNESS','Conduct drills of the emergency preparedness and evacuation plan for situations such as inclement weather (tornadoes) or a necessary lock down of the facility due to an outside threat. Annually you must practice each drill outlined in your emergency preparedness plan at least once.',
           [['DATE (MM/DD/YY)',44],['TIME OF DAY',38],['NUMBER OF ADULT PARTICIPANTS',32],['NUMBER OF CHILD PARTICIPANTS',32],['SITUATION / EVENT PRACTICED',62],['TIME TAKEN TO COMPLETE',40],['COMMENTS',80],['INITIALS OF OWNER/DIRECTOR',38]],em,
           function(r){ return [mdy(r.date),r.time,r.adults,r.kids,r.type+(r.type==='Other emergency'&&r.route?': '+r.route:''),r.clear,r.note,r.init]; });
-        page.drawText('Keep records 12 months. Page '+(pg+1)+' of '+pages+'. Generated from the Hive drill log.',{x:30,y:14,size:7,font:F,color:rgb(.4,.4,.4)});
+        page.drawText('Keep records 12 months. Page '+(pg+1)+' of '+pages+'. Generated from the Bear’s Den drill log.',{x:30,y:14,size:7,font:F,color:rgb(.4,.4,.4)});
       }
       return doc.save();
     }); });
@@ -273,7 +273,7 @@ function parPdf(emp,d,m){
       tx('I certify that this is an accurate record of the hours worked on the Child Care Food Program.',36,y,8.5); y-=24;
       tx('Employee signature ________________________   Date __________',36,y,9); y-=22;
       tx('Director / authorized representative ________________________   Date __________',36,y,9); y-=16;
-      tx('Hours sheet copy of the Food Program Personnel Activity Report, filed from the Hive. Sign the printed official copy.',36,y,7,F);
+      tx('Hours sheet copy of the Food Program Personnel Activity Report, filed from the Bear’s Den. Sign the printed official copy.',36,y,7,F);
       return doc.save();
     }); });
   });
@@ -1502,7 +1502,7 @@ function logPdf(fk,ms){
     });
     T('Check mark = done and OK.   ! = flagged, needs attention.   Blank row = not recorded.',L,y-16,8);
     T('Director review:  ______________________________     Date: ______________',L,y-34,10);
-    T('Printed from the Hive portal - '+title+' - '+mon,L,14,7);
+    T('Printed from the Bear’s Den portal - '+title+' - '+mon,L,14,7);
     return doc.save();
   }); });
 }
@@ -1527,7 +1527,7 @@ function schedPdf(kind){
           vals.push(st.brk?tm(st.brk.s)+'-'+tm(st.brk.e):'');
           var tint=SOP.color(D,st.name)[0]; cols.forEach(function(c,i){ rect(page,x,y,c[1],26,tint); cell(page,vals[i],x,y+9,c[1],i>2?7.5:9,i===0); x+=c[1]; }); });
         var cz=[]; (function(){ var mo=monday(S.date); for(var q=0;q<5;q++){ var dd=addDays(mo,q), cc=SOP.closure(dd,S.school); if(cc) cz.push(nice(dd)+': '+(cc.type==='all'?'SCHOOL CLOSED - ':'VPK and school-age closed - ')+cc.name); } })(); cz.forEach(function(t,i){ page.drawText(ascii(t),{x:30,y:84-i*11,size:9,font:B}); });
-        page.drawText('Schedules may change when a staff member is out; changes are recorded in the Hive.',{x:30,y:54,size:9,font:F}); foot(page);
+        page.drawText('Schedules may change when a staff member is out; changes are recorded in the Bear’s Den.',{x:30,y:54,size:9,font:F}); foot(page);
       } else {
         Object.keys(D.rooms).forEach(function(r){ var o=D.rooms[r], age=(SOP.AGE[o.tpl]||{label:''}), page=doc.addPage([792,612]);
           hdr(page,'Classroom Daily Schedule - '+r,age.label+'   Teachers: '+(D.staff||[]).filter(function(s){return s.room===r;}).map(function(s){return s.name;}).join(', '));

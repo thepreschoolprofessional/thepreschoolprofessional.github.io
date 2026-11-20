@@ -1,6 +1,6 @@
 <?php
 // ELC sign-in -> Airtable connector. Receives entries from the Bear Phonics Academy tablet pages.
-// Uses the existing Hive Airtable token (kept outside public_html). Writes ONLY to the ELC Sign-Ins table.
+// Uses the existing Bear’s Den Airtable token (kept outside public_html). Writes ONLY to the ELC Sign-Ins table.
 header('Content-Type: application/json'); header('Cache-Control: no-store'); header('X-Robots-Tag: noindex');
 function out($a,$c=200){ http_response_code($c); echo json_encode($a); exit; }
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') out(['ok'=>false,'error'=>'post_only'],405);

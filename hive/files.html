@@ -2,7 +2,7 @@
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<title>Hive Files</title>
+<title>Bear’s Den Files</title>
 <style>
 :root{--ink:#4a3a30;--soft:#9b8576;--line:#eadfce;--grn:#2e8b57;--blu:#1565c0;--org:#ef6c00;--red:#d32f2f;--amb:#e08a00}
 *{box-sizing:border-box;font-family:'Segoe UI',system-ui,sans-serif}
@@ -197,7 +197,7 @@ async function signSave(doc){
  const wrap=(t,y)=>{let l='';t.split(' ').forEach(w=>{if(x.measureText(l+w).width>W-2*pad){x.fillText(l,pad,y);y+=30;l='';}l+=w+' ';});x.fillText(l,pad,y);return y+30;};
  let y=wrap(a.s,180);if(ch){x.font='bold 24px Arial';x.fillText(ch,pad,y+10);y+=40;}
  x.drawImage(sc,pad,Math.max(y+10,330),420,137);x.font='20px Arial';x.fillStyle='#111';
- x.fillText('Signed on screen by: '+nm,pad,520);x.fillText('Date/time: '+new Date().toLocaleString(),pad,552);x.fillStyle='#777';x.font='15px Arial';x.fillText('Electronic signature captured in the Hive at the center. Parent was present.',pad,590);
+ x.fillText('Signed on screen by: '+nm,pad,520);x.fillText('Date/time: '+new Date().toLocaleString(),pad,552);x.fillStyle='#777';x.font='15px Arial';x.fillText('Electronic signature captured in the Bear’s Den at the center. Parent was present.',pad,590);
  const b64=cv.toDataURL('image/png').split(',')[1];
  try{await api('upload',{id:CUR.id,doc,name:'signed-'+nm.replace(/[^A-Za-z]/g,'').slice(0,12)+'.png',b64,exp:a.yr&&$('sx')?$('sx').value:''});
   $('mod').style.display='none';await refresh();say('gm','Signed and saved to '+CUR.name+'\'s file.');}
