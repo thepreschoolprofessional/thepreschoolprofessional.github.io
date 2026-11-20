@@ -105,17 +105,20 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
       + '<div class="tb-file" id="tbfile"></div>'
       + '<div class="tb-note">📎 attaches a photo or PDF to file or email. 🎤 uses your browser\'s free voice typing. Every change waits for your Yes. Never say PINs or passwords out loud.</div>'
       + '<div class="tb-try"><b>Try:</b><div class="bc-chips" id="tries"></div></div>'
+      + '<div class="tb-note"><button type="button" class="bc-chip" id="tbcheck">Check the Bear Line tablet link</button> (changes nothing)</div>'
       + '<details class="tb-log" id="tblog"><summary>What was asked and done today ('+esc(SCHOOL)+')</summary><div id="logbox">Loading…</div></details>'
       + '</div></main>';
     DirectorChat.mount(document.getElementById('bot'), {school: SCHOOL, pin: PIN, mode: LIVE ? 'live' : 'preview', practice: !LIVE,
       onDone: function(label, done){ post({action:'do', plan:{kind:'rooms_board'}, words: LASTWORDS, details: done}).catch(function(){}); }});
     logEl().innerHTML = '';
     bot('Hi! Tell me anything you would do by hand on a Director Portal card or in Bear Line, or ask me anything about what\'s in them. You can attach a photo or file with 📎 and tell me where it goes or who to email it to. I\'ll show you exactly what I\'m going to do, and nothing happens until you tap Yes.');
-    var tries = ['Whose time off is waiting for me?', 'Any enrollments waiting?', 'Change the tablet greeting to Happy Thanksgiving!', 'The toddlers are going to the playground', 'File this in a child\'s immunization record', 'Email this to the office', 'Sign in a child now', 'Fix a staff clock-out time', 'Bring up the food program forms', 'Update a supply count', 'How do I add a new hire?'];
+    var tries = ['Whose time off is waiting for me?', 'Any enrollments waiting?', 'Put Happy Thanksgiving on the front tablet until Friday', 'The toddlers are going to the playground', 'File this in a child\'s immunization record', 'Email this to the office', 'Sign in a child now', 'Fix a staff clock-out time', 'Bring up the food program forms', 'Update a supply count', 'How do I add a new hire?'];
     var tb = document.getElementById('tries');
     tries.forEach(function(t){ var b = document.createElement('button'); b.type = 'button'; b.className = 'bc-chip'; b.textContent = t; b.onclick = function(){ var i = input(); i.value = t; i.focus(); }; tb.appendChild(b); });
     app.querySelector('.tb-bar').onsubmit = function(ev){ ev.preventDefault(); var i = input(); var v = i.value.trim(); if (!v || BUSY) return; i.value = ''; VOICE = false; send(v); };
     setupMic(); setupFile();
+    document.getElementById('tbcheck').onclick = function(){ var b = this; b.disabled = true; var w = add('bc-bot thinking', 'Checking…');
+      post({action:'selftest'}).then(function(r){ w.remove(); bot(r.say); }).catch(function(e){ w.remove(); bot(e.message); }).then(function(){ b.disabled = false; }); };
     document.getElementById('tblog').addEventListener('toggle', function(){ if (this.open) loadLog(); });
   }
   function input(){ return app.querySelector('.tb-input'); }
@@ -180,7 +183,7 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
       var b = document.createElement('button'); b.type = 'button'; b.className = 'bc-chip yes'; b.textContent = 'Open ' + p.card; b.onclick = function(){ openCard(p.card); };
       row.appendChild(b); m.appendChild(row); return;
     }
-    if (k === 'room_sign_in' || k === 'room_sign_out' || k === 'staff_time_fix' || k === 'inventory_count' || k === 'file_to_person' || k === 'file_to_vault' || k === 'email' || k === 'portal' || k === 'tablet'){
+    if (k === 'room_sign_in' || k === 'room_sign_out' || k === 'staff_time_fix' || k === 'inventory_count' || k === 'file_to_person' || k === 'file_to_vault' || k === 'email' || k === 'portal' || k === 'tablet' || k === 'parent_note'){
       remember(words, 'Proposed: ' + p.say);
       var c = bot(p.say), r2 = document.createElement('div'); r2.className = 'bc-chips';
       var yes = document.createElement('button'), no = document.createElement('button');
@@ -204,6 +207,9 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
           pad.querySelector('button').onclick = function(){ cx.clearRect(0, 0, cv.width, cv.height); cv.drawn = false; };
           p._pad = cv;
         }
+      }
+      if ((k === 'tablet' || k === 'parent_note') && p.preview){   // the notice exactly as families will see it
+        var nt = document.createElement('div'); nt.className = 'tb-mail'; nt.textContent = p.preview; c.appendChild(nt);
       }
       if (k === 'email'){   // the whole email, exactly as it would go out
         var mail = document.createElement('div'); mail.className = 'tb-mail';

@@ -132,7 +132,43 @@ return (!$words && count($starts) === 1) ? $starts[0] : '';
 }
 function hm_ok($t){ return is_string($t) && preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $t); }
 function hm12($t){ if (!hm_ok($t)) return $t; list($h, $m) = explode(':', $t); $h = (int)$h; return (($h % 12) ?: 12).':'.$m.($h < 12 ? ' AM' : ' PM'); }
+function punch_word($ty){ return ['in' => 'clocked in', 'lunchOut' => 'out to lunch', 'lunchIn' => 'back from lunch', 'out' => 'clocked out'][$ty] ?? $ty; }
 function nice_day($ymd){ $d = DateTime::createFromFormat('Y-m-d', $ymd, new DateTimeZone('America/New_York')); return $d ? $d->format('l, M j') : $ymd; }
+function ymd_ok($d){ if (!is_string($d) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $d)) return false; $x = DateTime::createFromFormat('Y-m-d', $d); return $x && $x->format('Y-m-d') === $d; }
+
+/* ---------- Bear Line tablet server (bearphonicsacademy.com), server to server ----------
+The sync code lives in elc-sync-code.php outside public_html, never in this repo. Returns [ok, answer, error]. */
+function bl_post($school, $payload){
+foreach ([dirname(__DIR__, 2), dirname(__DIR__), __DIR__] as $d0){ if (file_exists($d0.'/elc-sync-code.php')) include_once $d0.'/elc-sync-code.php'; }
+if (!defined('ELC_SYNC_CODE')) return [false, null, 'not_connected'];
+$bl = ($school === 'Sanford') ? 'https://bearphonicsacademy.com/elc-94f077be04/bearline-api.php' : 'https://bearphonicsacademy.com/elc-1ce53ee46c/bearline-api.php';
+$c = stream_context_create(['http' => ['method' => 'POST', 'header' => "Content-Type: application/json\r\n", 'timeout' => 25, 'ignore_errors' => true,
+'content' => json_encode(['code' => ELC_SYNC_CODE] + $payload)]]);
+$j = json_decode((string)@file_get_contents($bl, false, $c), true);
+if (!is_array($j)) return [false, null, 'no_answer'];
+return [!empty($j['ok']), $j, (string)($j['error'] ?? '')];
+}
+/* The front tablet's Family Corner notices (needs hive_notices on the tablet side; null when it isn't there yet). */
+function bl_notices($school){
+list($ok, $j) = bl_post($school, ['action' => 'hive_notices']);
+return ($ok && isset($j['notices']) && is_array($j['notices'])) ? $j['notices'] : null;
+}
+/* One notice whose words contain what the director said, or null when none or more than one fits. */
+function pick_notice($want, $list){
+$norm = function($s){ return trim(preg_replace('/\s+/', ' ', preg_replace('/[^a-z0-9 ]/', ' ', strtolower((string)$s)))); };
+$w = $norm($want); if ($w === '') return null; $words = explode(' ', $w); $hit = [];
+foreach ((array)$list as $n){ $t = ' '.$norm(($n['title'] ?? '').' '.($n['en'] ?? '').' '.($n['es'] ?? '')).' ';
+$all = true; foreach ($words as $x){ if (strpos($t, ' '.$x) === false){ $all = false; break; } }
+if ($all) $hit[] = $n; }
+return count($hit) === 1 ? $hit[0] : null;
+}
+function bl_child_notes($school, $child){
+list($ok, $j) = bl_post($school, ['action' => 'hive_child_note', 'op' => 'list', 'child' => $child]);
+return ($ok && isset($j['notes']) && is_array($j['notes'])) ? $j['notes'] : null;
+}
+function show_word($w){ return ['in' => 'drop-off (sign-in)', 'out' => 'pickup (sign-out)', 'both' => 'drop-off and pickup'][$w] ?? $w; }
+function day_span($fr, $to, $open = 'until taken down'){ return (empty($to) || $to >= '2099-01-01') ? 'from '.($fr ? nice_day($fr) : 'now').' '.$open : ($fr ? nice_day($fr) : 'now').' to '.nice_day($to); }
+function notice_line($n){ return '"'.($n['en'] ?? '').'"'.(!empty($n['from']) || !empty($n['to']) ? ' ('.day_span($n['from'] ?? '', $n['to'] ?? '').')' : ''); }
 
 /* ---------- Every Director Portal card, as the exact calls the card makes ----------
 talk-catalogue.php lists each call (endpoint, action, its arguments). Lookups ("read") run right away
@@ -223,6 +259,23 @@ if ($action === 'whoami'){
 echo json_encode(['school' => $school, 'live' => TALK_LIVE, 'keyReady' => CLAUDE_API_KEY !== '']); exit;
 }
 
+/* ---------- Check the link to the Bear Line tablet. Changes nothing: a made-up staff name must
+   come back unknown_staff, and an empty notice must be refused. ---------- */
+if ($action === 'selftest'){
+$lines = [];
+list($ok, $j, $e) = bl_post($school, ['action' => 'hive_fix_punch', 'staff' => 'Zzqx Linkcheck Nobody', 'date' => now_et()->format('Y-m-d'), 'type' => 'in', 'at' => '09:00', 'by' => 'Talk to Bear Line link check', 'note' => 'Link check with a made-up name']);
+$lines[] = 'Staff time fixes: '.($e === 'unknown_staff' ? 'connected (a made-up name was turned away, as it should be).' : ($e === 'not_connected' ? 'not connected, elc-sync-code.php isn\'t next to hive-token.php on this server yet.' : ($e === 'denied' ? 'the code doesn\'t match the tablet\'s code.' : ($e === 'no_answer' ? 'the tablet didn\'t answer.' : 'unexpected answer ('.($ok ? 'ok' : $e).').'))));
+if ($e !== 'not_connected'){
+list($ok2, $j2, $e2) = bl_post($school, ['action' => 'hive_set_notice', 'op' => 'linkcheck', 'en' => '', 'by' => 'Talk to Bear Line link check']);
+$lines[] = 'Front tablet notices: '.(in_array($e2, ['bad_op','empty_text'], true) ? 'connected.' : ($e2 === 'denied' ? 'the code doesn\'t match.' : 'unexpected answer ('.($ok2 ? 'ok' : $e2).').'));
+list($ok3, $j3, $e3) = bl_post($school, ['action' => 'hive_child_note', 'op' => 'linkcheck', 'child' => '', 'en' => '', 'by' => 'Talk to Bear Line link check']);
+$lines[] = 'Notes for one family: '.(in_array($e3, ['bad_op','empty_text','unknown_child'], true) ? 'connected.' : ($e3 === 'denied' ? 'the code doesn\'t match.' : 'not there yet (desktop Prompt 3 adds it).'));
+$lines[] = 'Reading the notices already up: '.(bl_notices($school) !== null ? 'works.' : 'not there yet (desktop Prompt 3 adds it).');
+}
+log_line(['school' => $school, 'role' => $role, 'words' => 'Link check', 'kind' => 'selftest', 'result' => implode(' ', $lines)]);
+echo json_encode(['ok' => true, 'say' => implode("\n", $lines)]); exit;
+}
+
 /* ---------- PLAN: words -> one proposed change ---------- */
 if ($action === 'plan'){
 $words = trim(mb_substr((string)($input['words'] ?? ''), 0, 400));
@@ -243,16 +296,17 @@ $system = "You are Talk to Bear Line, the voice helper for the director of Kid C
 ."The director says or types a request. It may ask for several things in one sentence (for example \"the toddlers are going to the playground and sign Ms. Ana out at 2\"). Return one action for each thing, in the order they said them, at most 5. You never make changes yourself: the director sees each proposal and taps Yes or No on each one.\n\n"
 ."Pick kind:\n"
 ."- room_sign_in / room_sign_out: sign one or more CHILDREN in or out on the Rooms board for TODAY. children = exact names from the Children list. time = HH:MM 24-hour; use the current time when they say now or give no time.\n"
-."- staff_time_fix: fix a STAFF member's clock-in or clock-out time (for example \"sign Ms. Ana out at 2 PM yesterday\"). This changes their punch on the Bear Line time clock right away. staff = exact name from the Staff list. date = YYYY-MM-DD (today if not said). time_in and/or time_out as HH:MM 24-hour; leave the one they didn't mention empty. reason = their reason, or \"Entered by the director with Talk to Bear Line\".\n"
+."- staff_time_fix: fix a STAFF member's clock-in or clock-out time (for example \"sign Ms. Ana out at 2 PM yesterday\"). This changes their punch on the Bear Line time clock right away. staff = exact name from the Staff list. date = YYYY-MM-DD (today if not said). time_in, lunch_out, lunch_in and/or time_out as HH:MM 24-hour (lunch_out = left for lunch, lunch_in = back from lunch); leave the ones they didn't mention empty. reason = their reason, or \"Entered by the director with Talk to Bear Line\".\n"
 ."- inventory_count: set the on-hand count of a supply. item = exact name from the Inventory list. qty = whole number as text.\n"
 ."- rooms_board: a whole CLASS or ROOM on the Rooms board. board_action = out (the room is leaving for the playground, outside, the playroom or the office; also called a transition), back (the room is coming back inside), move (move children or a whole room into another room), or meal (mark breakfast, lunch or PM snack). room = exact name from the Rooms list. room_to = for out: Playground, Outside, Playroom or Office; for move: the exact room they go to. For meal, item = breakfast, lunch or snack. For move of only some children, children = their exact names.\n"
 ."- open_card: they want to open, bring up or go to a page, form, card or tool (for example \"bring up the food program forms\"). card = exact name from the Cards list that fits best.\n"
 ."- question: they ask how, where, when or how many about the Director Portal or the school. question = their question, cleaned up. The director chatbot answers it.\n"
-."- tablet: change the greeting message on the front sign-in tablet. body = the new greeting exactly as it should show (plain text, at most 200 characters), or empty to clear it. To sign a child in or out use room_sign_in / room_sign_out; to fix a staff clock time use staff_time_fix.\n"
+."- tablet: put up, change, take down or list notices on the front sign-in tablet's Family Corner, which every family sees (for example \"Happy Birthday Gabriella\" or \"Picture day is Friday\"). The tablet has no greeting, so a greeting or a message for the tablet is a notice. notice_op = add, update, remove, or list (they ask what's on the front tablet). body = the notice in English exactly as it should show (plain text, at most 300 characters). es = the same notice in Spanish. title = a short title only if they give one, else empty. from = first day it shows and to_date = last day, as YYYY-MM-DD; leave from empty for today and to_date empty for until it's taken down. For update or remove, notice_match = a few words from the notice they mean. To sign a child in or out use room_sign_in / room_sign_out; to fix a staff clock time use staff_time_fix.\n"
+."- parent_note: leave a private note on ONE child that pops up for that child's own parent on the front tablet when they sign the child in or out (for example \"leave a note for Mia's mom at pickup that she needs a change of clothes\"). children = [exact child name]. notice_op = add, remove (take a note down), or list (what notes are waiting for that child). body = the note in English as the parent will read it, kind and short, written as the school (plain text, at most 300 characters). es = the same note in Spanish. note_show = out (pickup), in (drop-off) or both. from = first day it can show and to_date = last day, as YYYY-MM-DD; leave from empty for today and to_date empty for until the parent sees it. For remove, notice_match = a few words from the note. For something every family sees, use tablet instead.\n"
 ."- clarify: you are not sure who or what they mean, a name matches nobody or more than one person, or a needed time is missing for staff. question = one short question back.\n"
 ."- file_to_person: put the ATTACHED file in a staff member's or child's file. staff = exact staff name OR children = [exact child name]. doc = the key of the best document type from that person's Documents list.\n"
 ."- file_to_vault: put the ATTACHED file in the Audit Vault in Reporting. month = YYYY-MM (this month unless they say). section = elc, food, dcf or other.\n"
-."- email: send an email for the director. to = office (this school's office email, also used when they say \"email it to me\"), food_program (the food program sponsor), or owner (Mrs. Bear). Never write an email address yourself. subject = short subject. body = the email text, written as the director in first person, polite and short, signed \"Kid City USA $school\". attach = yes when the attached file should go with it, otherwise no.\n"
+."- email: send an email for the director. to = office (the director's own school office, ".$OFFICE[$school]."; always use office when they say email it to me, send it to me or email myself), food_program (the food program sponsor)".(OWNER_ADDR ? ", or owner (Mrs. Bear, only when they name Mrs. Bear or the owner)" : "").". Never write an email address yourself. subject = short subject. body = the email text, written as the director in first person, polite and short, signed \"Kid City USA $school\". attach = yes when the attached file should go with it, otherwise no.\n"
 ."- portal: any other change a director can make by hand on a Director Portal card (time off, new hires, enrollments, parent uploads and requests, the parent portal board, room notes, staff and child files, facility checklists, weekly checks, DCF forms, transportation, supplies, messages to send through ProCare, the briefing checklist, staff meeting, and everything else in the Portal changes list below). op = the id from the Portal changes list. args_json = a JSON object with that change's args, built exactly as described (ids come from a portal_read lookup first). say = one sentence describing the change in plain words with names and dates.\n"
 ."- answer: after you looked something up with portal_read, answer the director's question in say (one to three short sentences with the real names, numbers and dates). Use this for questions about what is in the portal right now (who is off tomorrow, how many enrollments are waiting, which checks aren't done).\n"
 ."- cant: anything about PINs, passwords, codes, money or payroll amounts, or something no card can do. Say so in one kind sentence.\n\n"
@@ -274,16 +328,17 @@ $dynamic = "Today is ".$now->format('l, Y-m-d')." and the time is ".$now->format
 
 $one = ['type' => 'object', 'additionalProperties' => false,
 'properties' => [
-'kind' => ['type' => 'string', 'enum' => ['portal','answer','file_to_person','file_to_vault','email','rooms_board','room_sign_in','room_sign_out','staff_time_fix','inventory_count','open_card','question','tablet','clarify','cant']],
+'kind' => ['type' => 'string', 'enum' => ['portal','answer','file_to_person','file_to_vault','email','rooms_board','room_sign_in','room_sign_out','staff_time_fix','inventory_count','open_card','question','tablet','parent_note','clarify','cant']],
 'say' => ['type' => 'string'], 'children' => ['type' => 'array', 'items' => ['type' => 'string']],
 'time' => ['type' => 'string'], 'staff' => ['type' => 'string'], 'date' => ['type' => 'string'],
-'time_in' => ['type' => 'string'], 'time_out' => ['type' => 'string'], 'reason' => ['type' => 'string'],
+'time_in' => ['type' => 'string'], 'time_out' => ['type' => 'string'], 'lunch_out' => ['type' => 'string'], 'lunch_in' => ['type' => 'string'], 'reason' => ['type' => 'string'],
+'notice_op' => ['type' => 'string', 'enum' => ['add','update','remove','list','']], 'es' => ['type' => 'string'], 'title' => ['type' => 'string'], 'from' => ['type' => 'string'], 'to_date' => ['type' => 'string'], 'notice_match' => ['type' => 'string'], 'note_show' => ['type' => 'string', 'enum' => ['in','out','both','']],
 'item' => ['type' => 'string'], 'qty' => ['type' => 'string'], 'card' => ['type' => 'string'], 'question' => ['type' => 'string'],
 'board_action' => ['type' => 'string', 'enum' => ['out','back','move','meal','']], 'room' => ['type' => 'string'], 'room_to' => ['type' => 'string'],
 'doc' => ['type' => 'string'], 'month' => ['type' => 'string'], 'section' => ['type' => 'string', 'enum' => ['elc','food','dcf','other','']],
-'to' => ['type' => 'string', 'enum' => ['office','food_program','owner','']], 'subject' => ['type' => 'string'], 'body' => ['type' => 'string'], 'attach' => ['type' => 'string', 'enum' => ['yes','no']],
+'to' => ['type' => 'string', 'enum' => array_merge(['office','food_program'], OWNER_ADDR ? ['owner'] : [], [''])], 'subject' => ['type' => 'string'], 'body' => ['type' => 'string'], 'attach' => ['type' => 'string', 'enum' => ['yes','no']],
 'op' => ['type' => 'string', 'enum' => array_merge(cat_ids('write'), [''])], 'args_json' => ['type' => 'string']],
-'required' => ['op','args_json','kind','say','children','time','staff','date','time_in','time_out','reason','item','qty','card','question','board_action','room','room_to','doc','month','section','to','subject','body','attach']];
+'required' => ['op','args_json','kind','say','children','time','staff','date','time_in','time_out','lunch_out','lunch_in','reason','notice_op','es','title','from','to_date','notice_match','note_show','item','qty','card','question','board_action','room','room_to','doc','month','section','to','subject','body','attach']];
 $schema = ['type' => 'object', 'additionalProperties' => false, 'properties' => ['actions' => ['type' => 'array', 'items' => $one]], 'required' => ['actions']];
 
 $user = ($hist ? "Earlier in this conversation:\n".implode("\n", $hist)."\n\n" : '')."Director's request: ".$words;
@@ -346,12 +401,14 @@ break;
 case 'staff_time_fix':
 $s = pick_name($p['staff'], $ctx['staff']);
 $d = preg_match('/^\d{4}-\d{2}-\d{2}$/', $p['date']) ? $p['date'] : $now->format('Y-m-d');
-$ti = hm_ok($p['time_in']) ? $p['time_in'] : ''; $to = hm_ok($p['time_out']) ? $p['time_out'] : '';
+$fx = []; foreach (['in' => 'time_in', 'lunchOut' => 'lunch_out', 'lunchIn' => 'lunch_in', 'out' => 'time_out'] as $ty => $k){ if (hm_ok($p[$k] ?? '')) $fx[$ty] = $p[$k]; }
+$seq = array_values($fx); $sorted = $seq; sort($sorted);
 if (!$s) $ask('Which staff member? I couldn\'t match "'.$p['staff'].'" to one person on the '.$school.' staff list.');
-elseif (!$ti && !$to) $ask('What time should '.$s.' be clocked in or out?');
+elseif (!$fx) $ask('What time should '.$s.' be clocked in or out?');
 elseif ($d > $now->format('Y-m-d')) $ask('That day hasn\'t happened yet. Which day did you mean?');
-else { $out += ['staff' => $s, 'date' => $d, 'time_in' => $ti, 'time_out' => $to, 'reason' => trim($p['reason']) ?: 'Entered by the director with Talk to Bear Line'];
-$out['say'] = 'Change '.$s.'\'s time on '.nice_day($d).' to '.implode(' and ', array_filter([$ti ? 'clocked in at '.hm12($ti) : '', $to ? 'clocked out at '.hm12($to) : ''])).' on the Bear Line time clock?'; }
+elseif ($seq !== $sorted) $ask('Those times are out of order for '.$s.'. What time did they clock in, go to lunch, come back and clock out?');
+else { $out += ['staff' => $s, 'date' => $d, 'time_in' => $fx['in'] ?? '', 'lunch_out' => $fx['lunchOut'] ?? '', 'lunch_in' => $fx['lunchIn'] ?? '', 'time_out' => $fx['out'] ?? '', 'reason' => trim($p['reason']) ?: 'Entered by the director with Talk to Bear Line'];
+$out['say'] = 'Change '.$s.'\'s time on '.nice_day($d).' to '.implode(', ', array_map(function($ty, $t){ return punch_word($ty).' at '.hm12($t); }, array_keys($fx), $fx)).' on the Bear Line time clock?'; }
 break;
 case 'inventory_count':
 $it = pick_name($p['item'], array_keys($ctx['items']));
@@ -401,7 +458,7 @@ $out['say'] = 'File "'.$file['name'].'" in the Audit Vault, '.DateTime::createFr
 break;
 case 'email':
 list($addr, $label) = recipient((string)$p['to'], $school);
-if (!$addr){ $ask($p['to'] === 'food_program' ? 'There\'s no food program email saved for '.$school.'. Its claim goes through KidKare. Who should I email instead?' : ($p['to'] === 'owner' ? 'Mrs. Bear\'s email isn\'t saved on the server yet, so I can\'t email her from here. I can send it to the '.$school.' office instead.' : 'Who should this go to: the '.$school.' office, the food program, or Mrs. Bear?')); break; }
+if (!$addr){ $ask($p['to'] === 'food_program' ? 'There\'s no food program email saved for '.$school.'. Its claim goes through KidKare. Who should I email instead?' : ($p['to'] === 'owner' ? 'Mrs. Bear\'s email isn\'t saved on the server yet, so I can\'t email her from here. I can send it to the '.$school.' office instead.' : 'Who should this go to: the '.$school.' office'.(OWNER_ADDR ? ', the food program, or Mrs. Bear?' : ' or the food program?'))); break; }
 $att = ($p['attach'] === 'yes' && $file) ? $file['name'] : '';
 $sub = trim(mb_substr(strip_tags((string)$p['subject']), 0, 120)); $bod = trim(mb_substr(strip_tags((string)$p['body']), 0, 3000));
 if ($sub === '' || $bod === ''){ $ask('What should the email say?'); break; }
@@ -419,10 +476,60 @@ $out += ['op' => $p['op'], 'args' => $vals, 'sign' => $needSig, 'card' => $e['ca
 $out['say'] = trim((string)$p['say']) ?: ($e['what'] ?? 'Make this change').'?';
 break;
 case 'answer': $out['say'] = trim((string)$p['say']) ?: 'I couldn\'t find that.'; break;
+case 'parent_note':
+$names = []; foreach ((array)$p['children'] as $c){ $m = pick_name($c, array_keys($ctx['kids'])); if ($m) $names[$m] = 1; }
+if (count($names) !== 1){ $ask(count($names) > 1 ? 'A note goes to one child\'s family at a time. Which child first?' : 'Which child is the note for? I couldn\'t match that name on the '.$school.' children list.'); break; }
+$kid = array_keys($names)[0]; $nop = (string)$p['notice_op'];
+if ($nop === 'list' || $nop === 'remove'){
+$ns = bl_child_notes($school, $kid);
+if ($ns === null){ $ask('I can leave new notes for a family, but I can\'t see the notes already waiting yet. Nothing was changed.'); break; }
+if ($nop === 'list'){ $out = ['kind' => 'answer', 'say' => $ns ? 'Notes waiting for '.$kid.'\'s family: '.implode('; ', array_map('notice_line', $ns)).'.' : 'No notes are waiting for '.$kid.'\'s family.']; break; }
+$old = pick_notice($p['notice_match'] ?: $p['body'], $ns);
+if (!$old){ $ask($ns ? 'Which note do you mean? '.$kid.' has: '.implode('; ', array_map('notice_line', $ns)).'.' : 'No notes are waiting for '.$kid.'\'s family.'); break; }
+$out += ['notice_op' => 'remove', 'notice_id' => (string)($old['id'] ?? ''), 'child' => $kid, 'preview' => 'Taking down the note for '.$kid.'\'s family: '.notice_line($old)];
+$out['say'] = 'Take this note down so '.$kid.'\'s family won\'t see it?'; break;
+}
+$en = trim(mb_substr(strip_tags((string)$p['body']), 0, 300));
+if ($en === ''){ $ask('What should the note to '.$kid.'\'s family say?'); break; }
+$es = trim(mb_substr(strip_tags((string)$p['es']), 0, 300)) ?: $en;
+$sh = in_array($p['note_show'], ['in','out','both'], true) ? $p['note_show'] : 'both';
+$fr = ymd_ok($p['from']) ? $p['from'] : $now->format('Y-m-d');
+$to = ymd_ok($p['to_date']) ? $p['to_date'] : '';
+if ($to !== '' && ($to < $fr || $to < $now->format('Y-m-d'))){ $ask('That last day doesn\'t work. Which days should the note show?'); break; }
+$out += ['notice_op' => 'add', 'child' => $kid, 'en' => $en, 'es' => $es, 'note_show' => $sh, 'from' => $fr, 'to_date' => $to];
+$out['preview'] = "For: $kid's family only\nShows at: ".show_word($sh)."\nEnglish: $en\nSpanish: $es\nDays: ".day_span($fr, $to, 'until the parent sees it');
+$out['say'] = 'Leave this note for '.$kid.'\'s family on the front tablet?';
+break;
 case 'tablet':
-$g = trim(mb_substr(strip_tags((string)$p['body']), 0, 200));
-$out['greeting'] = $g;
-$out['say'] = $g === '' ? 'Clear the greeting on the '.$school.' front tablet?' : 'Change the '.$school.' front tablet greeting to "'.$g.'"?';
+$nop = (string)$p['notice_op'];
+if ($nop === 'list'){
+$ns = bl_notices($school);
+if ($ns === null){ $out = ['kind' => 'answer', 'say' => 'I can\'t read the front tablet\'s notices from here yet. I can put up a new one.']; break; }
+$out = ['kind' => 'answer', 'say' => $ns ? 'The '.$school.' front tablet shows: '.implode('; ', array_map('notice_line', $ns)).'.' : 'There are no notices on the '.$school.' front tablet right now.']; break;
+}
+$old = null;
+if ($nop === 'update' || $nop === 'remove'){
+$ns = bl_notices($school);
+if ($ns === null){ $ask('I can put up new notices on the front tablet, but I can\'t see the ones already there yet, so I can\'t change or take one down from here. Use the Notices page for that one.'); break; }
+$old = pick_notice($p['notice_match'] ?: $p['body'], $ns);
+if (!$old){ $ask($ns ? 'Which notice do you mean? The front tablet shows: '.implode('; ', array_map('notice_line', $ns)).'.' : 'There are no notices on the '.$school.' front tablet right now.'); break; }
+}
+if ($nop === 'remove'){
+$out += ['notice_op' => 'remove', 'notice_id' => (string)($old['id'] ?? ''), 'preview' => 'Taking down: '.notice_line($old)];
+$out['say'] = 'Take this notice off the '.$school.' front tablet?'; break;
+}
+$en = trim(mb_substr(strip_tags((string)$p['body']), 0, 300));
+if ($en === '' && $old) $en = (string)($old['en'] ?? '');
+if ($en === ''){ $ask('What should the notice on the front tablet say?'); break; }
+$es = trim(mb_substr(strip_tags((string)$p['es']), 0, 300)) ?: ($old && trim($p['body']) === '' ? (string)($old['es'] ?? $en) : $en);
+$ti = trim(mb_substr(strip_tags((string)$p['title']), 0, 60)) ?: ($old['title'] ?? 'Family Corner');
+$fr = ymd_ok($p['from']) ? $p['from'] : ($old['from'] ?? $now->format('Y-m-d'));
+$to = ymd_ok($p['to_date']) ? $p['to_date'] : ($old['to'] ?? '');
+if ($to !== '' && $to < $fr){ $ask('The last day comes before the first day. Which days should it show?'); break; }
+if ($to !== '' && $to < $now->format('Y-m-d')){ $ask('That end date has already passed. Which days should it show?'); break; }
+$out += ['notice_op' => $old ? 'update' : 'add', 'notice_id' => $old ? (string)($old['id'] ?? '') : '', 'en' => $en, 'es' => $es, 'title' => $ti, 'from' => $fr, 'to_date' => $to];
+$out['preview'] = "Title: $ti\nEnglish: $en\nSpanish: $es\nShows: ".day_span($fr, $to);
+$out['say'] = $old ? 'Change this notice on the '.$school.' front tablet?' : 'Put this notice on the '.$school.' front tablet?';
 break;
 }
 $plans[] = $out;
@@ -493,7 +600,7 @@ if (!empty($got['error'])){ log_line($base + ['details' => $what, 'result' => 'F
 log_line($base + ['details' => $what, 'result' => 'Done']); echo json_encode(['ok' => true, 'say' => 'Done on the '.($e['card'] ?? 'portal').' card.']); exit;
 }
 if ($kind === 'rooms_board'){ log_line($base + ['details' => mb_substr((string)($input['details'] ?? ''), 0, 300), 'result' => TALK_LIVE ? 'Done' : 'Practice']); echo json_encode(['ok' => true]); exit; }
-if (!in_array($kind, ['room_sign_in','room_sign_out','staff_time_fix','inventory_count','tablet'])) fail('Nothing to change.');
+if (!in_array($kind, ['room_sign_in','room_sign_out','staff_time_fix','inventory_count','tablet','parent_note'])) fail('Nothing to change.');
 $ctx = school_context($school);
 $now = now_et(); $today = $now->format('Y-m-d');
 
@@ -530,41 +637,69 @@ log_line($base + ['details' => $what, 'result' => 'Done']); echo json_encode(['o
 
 if ($kind === 'staff_time_fix'){
 /* Changes the punch on the Bear Line time clock itself (the same place the tablet and the director's
-   Staff Sign In/Out page write), so Staff Hours, the timesheet and payroll all read the new time. */
-$s = (string)($p['staff'] ?? ''); $d = (string)($p['date'] ?? ''); $ti = (string)($p['time_in'] ?? ''); $to = (string)($p['time_out'] ?? '');
-if (!in_array($s, $ctx['staff'], true) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $d) || $d > $today || (!hm_ok($ti) && !hm_ok($to))) fail('That time fix doesn\'t check out. Nothing was changed.');
-if (hm_ok($ti) && hm_ok($to) && $to <= $ti) fail('The clock-out has to be after the clock-in. Nothing was changed.');
-$fix = []; if (hm_ok($ti)) $fix['in'] = $ti; if (hm_ok($to)) $fix['out'] = $to;
-$what = $s.' on '.nice_day($d).': '.implode(', ', array_map(function($k, $v){ return ($k === 'in' ? 'clocked in ' : 'clocked out ').hm12($v); }, array_keys($fix), $fix));
+   Staff Sign In/Out page write), so Staff Hours, the timesheet and payroll all read the new time.
+   Bear Line's hive_fix_punch: staff, date, type (in, out, lunchOut, lunchIn), at (HH:MM), by, note; it writes the staff audit. */
+$s = (string)($p['staff'] ?? ''); $d = (string)($p['date'] ?? '');
+$fx = []; foreach (['in' => 'time_in', 'lunchOut' => 'lunch_out', 'lunchIn' => 'lunch_in', 'out' => 'time_out'] as $ty => $k){ if (hm_ok($p[$k] ?? '')) $fx[$ty] = $p[$k]; }
+$seq = array_values($fx); $sorted = $seq; sort($sorted);
+if (!in_array($s, $ctx['staff'], true) || !ymd_ok($d) || $d > $today || !$fx) fail('That time fix doesn\'t check out. Nothing was changed.');
+if ($seq !== $sorted) fail('Those times are out of order. Nothing was changed.');
+$what = $s.' on '.nice_day($d).': '.implode(', ', array_map(function($ty, $t){ return punch_word($ty).' '.hm12($t); }, array_keys($fx), $fx));
 if (!TALK_LIVE){ log_line($base + ['details' => $what, 'result' => 'Practice']); echo json_encode(['ok' => true, 'practice' => true, 'say' => 'Practice mode: nothing changed. Live, this would set '.$what.' on the Bear Line time clock right away, logged as the '.$school.' director.']); exit; }
-foreach ([dirname(__DIR__, 2), dirname(__DIR__), __DIR__] as $d0){ if (file_exists($d0.'/elc-sync-code.php')) include_once $d0.'/elc-sync-code.php'; }
-if (!defined('ELC_SYNC_CODE')) fail('Bear Line isn\'t connected from here yet. Nothing was changed.', 503);
-$bl = ($school === 'Sanford') ? 'https://bearphonicsacademy.com/elc-94f077be04/bearline-api.php' : 'https://bearphonicsacademy.com/elc-1ce53ee46c/bearline-api.php';
-foreach ($fix as $type => $at){
-$ctx0 = stream_context_create(['http' => ['method' => 'POST', 'header' => "Content-Type: application/json\r\n", 'timeout' => 25, 'ignore_errors' => true,
-'content' => json_encode(['action' => 'hive_fix_punch', 'code' => ELC_SYNC_CODE, 'staff' => $s, 'date' => $d, 'type' => $type, 'at' => $at, 'by' => 'Director '.$school.' (Talk to Bear Line)', 'note' => mb_substr((string)($p['reason'] ?? ''), 0, 200)])]]);
-$j = json_decode((string)@file_get_contents($bl, false, $ctx0), true);
-if (!is_array($j) || empty($j['ok'])){
-$e = is_array($j) ? (string)($j['error'] ?? '') : '';
-log_line($base + ['details' => $what, 'result' => 'Failed '.$e]);
-$msg = $e === 'unknown_staff' ? 'Bear Line doesn\'t have a staff member named '.$s.'.' : ($e === 'ambiguous_staff' ? 'Bear Line has more than one '.$s.'.' : 'Bear Line didn\'t take the change'.($e ? ' ('.$e.')' : '').'.');
-fail($msg.($type === 'out' && isset($fix['in']) ? ' The clock-in may already be changed; check Staff Sign In/Out.' : ' Nothing was changed.'), 502);
+$done = [];
+foreach ($fx as $type => $at){
+list($ok, $j, $e) = bl_post($school, ['action' => 'hive_fix_punch', 'staff' => $s, 'date' => $d, 'type' => $type, 'at' => $at, 'by' => 'Director '.$school.' (Talk to Bear Line)', 'note' => mb_substr((string)($p['reason'] ?? ''), 0, 200)]);
+if (!$ok){
+log_line($base + ['details' => $what, 'result' => 'Failed '.$e.($done ? ' after '.implode(', ', $done) : '')]);
+$msg = ['not_connected' => 'Bear Line isn\'t connected from here yet.', 'unknown_staff' => 'Bear Line doesn\'t have a staff member named '.$s.'.', 'ambiguous_staff' => 'Bear Line has more than one '.$s.'.',
+'out_before_in' => 'Bear Line says the clock-out would be before the clock-in.', 'bad_time' => 'Bear Line didn\'t accept that day or time.', 'denied' => 'Bear Line turned the request away.'][$e] ?? ('Bear Line didn\'t take the change'.($e ? ' ('.$e.')' : '').'.');
+fail($msg.($done ? ' Already changed: '.implode(', ', $done).'. Check Staff Sign In/Out.' : ' Nothing was changed.'), 502);
 }
+$done[] = punch_word($type).' '.hm12($at);
 }
 log_line($base + ['details' => $what, 'result' => 'Done']); echo json_encode(['ok' => true, 'say' => 'Done. '.$what.'. Staff Hours shows it on its next refresh.']); exit;
 }
 
+if ($kind === 'parent_note'){
+/* A note on one child that pops up for that child's parent at tablet sign-in or sign-out (Bear Line's hive_child_note). */
+$nop = (string)($p['notice_op'] ?? ''); $kid = (string)($p['child'] ?? '');
+if (!isset($ctx['kids'][$kid]) || !in_array($nop, ['add','remove'], true)) fail('That note doesn\'t check out. Nothing was changed.');
+$send = ['action' => 'hive_child_note', 'op' => $nop, 'child' => $kid, 'by' => 'Director '.$school.' (Talk to Bear Line)'];
+if ($nop === 'remove'){
+$nid = (string)($p['notice_id'] ?? ''); if (!preg_match('/^[A-Za-z0-9_\-]{1,40}$/', $nid)) fail('That note doesn\'t check out. Nothing was changed.');
+$send['id'] = $nid; $what = 'Note for '.$kid.'\'s family taken down ('.$nid.')';
+} else {
+$en = trim(mb_substr(strip_tags((string)($p['en'] ?? '')), 0, 300)); $es = trim(mb_substr(strip_tags((string)($p['es'] ?? '')), 0, 300)) ?: $en;
+$sh = (string)($p['note_show'] ?? ''); $fr = (string)($p['from'] ?? ''); $to = (string)($p['to_date'] ?? '');
+if ($en === '' || !in_array($sh, ['in','out','both'], true) || !ymd_ok($fr) || ($to !== '' && (!ymd_ok($to) || $to < $fr || $to < $today))) fail('That note doesn\'t check out. Nothing was changed.');
+$send += ['en' => $en, 'es' => $es, 'show' => $sh, 'from' => $fr]; if ($to !== '') $send['to'] = $to;
+$what = 'Note for '.$kid.'\'s family at '.show_word($sh).': "'.$en.'"';
+}
+if (!TALK_LIVE){ log_line($base + ['details' => $what, 'result' => 'Practice']); echo json_encode(['ok' => true, 'practice' => true, 'say' => 'Practice mode: nothing changed and no parent sees anything. Live, this would be: '.$what.'.']); exit; }
+list($ok, $j, $e) = bl_post($school, $send);
+if (!$ok){ log_line($base + ['details' => $what, 'result' => 'Failed '.$e]);
+fail((['not_connected' => 'Bear Line isn\'t connected from here yet.', 'unknown_child' => 'Bear Line doesn\'t have a child named '.$kid.'.', 'ambiguous_child' => 'Bear Line has more than one '.$kid.'.', 'unknown_note' => 'That note isn\'t there anymore.'][$e] ?? ('The tablet didn\'t take it'.($e ? ' ('.$e.')' : '').'.')).' Nothing was changed.', 502); }
+log_line($base + ['details' => $what, 'result' => 'Done']); echo json_encode(['ok' => true, 'say' => 'Done. '.$what.'.']); exit;
+}
+
 if ($kind === 'tablet'){
-$g = trim(mb_substr(strip_tags((string)($p['greeting'] ?? '')), 0, 200));
-$what = $g === '' ? 'Front tablet greeting cleared' : 'Front tablet greeting set to "'.$g.'"';
+/* Front tablet Family Corner notices, through Bear Line's hive_set_notice (the same list the Notices page edits). */
+$nop = (string)($p['notice_op'] ?? ''); $nid = (string)($p['notice_id'] ?? '');
+if (!in_array($nop, ['add','update','remove'], true) || ($nop !== 'add' && !preg_match('/^[A-Za-z0-9_\-]{1,40}$/', $nid))) fail('That notice doesn\'t check out. Nothing was changed.');
+$send = ['action' => 'hive_set_notice', 'op' => $nop, 'by' => 'Director '.$school.' (Talk to Bear Line)'];
+if ($nop !== 'add') $send['id'] = $nid;
+if ($nop === 'remove') $what = 'Front tablet notice taken down ('.$nid.')';
+else {
+$en = trim(mb_substr(strip_tags((string)($p['en'] ?? '')), 0, 300)); $es = trim(mb_substr(strip_tags((string)($p['es'] ?? '')), 0, 300)) ?: $en;
+$ti = trim(mb_substr(strip_tags((string)($p['title'] ?? '')), 0, 60)) ?: 'Family Corner';
+$fr = (string)($p['from'] ?? ''); $to = (string)($p['to_date'] ?? '');
+if ($en === '' || !ymd_ok($fr) || ($to !== '' && (!ymd_ok($to) || $to < $fr || $to < $today))) fail('That notice doesn\'t check out. Nothing was changed.');
+$send += ['en' => $en, 'es' => $es, 'title' => $ti, 'from' => $fr]; if ($to !== '') $send['to'] = $to;
+$what = ($nop === 'add' ? 'Front tablet notice put up: "' : 'Front tablet notice changed to: "').$en.'" ('.day_span($fr, $to).')';
+}
 if (!TALK_LIVE){ log_line($base + ['details' => $what, 'result' => 'Practice']); echo json_encode(['ok' => true, 'practice' => true, 'say' => 'Practice mode: nothing changed. Live, this would be: '.$what.'.']); exit; }
-foreach ([dirname(__DIR__, 2), dirname(__DIR__), __DIR__] as $d0){ if (file_exists($d0.'/elc-sync-code.php')) include_once $d0.'/elc-sync-code.php'; }
-if (!defined('ELC_SYNC_CODE')) fail('Bear Line isn\'t connected from here yet. Nothing was changed.', 503);
-$bl = ($school === 'Sanford') ? 'https://bearphonicsacademy.com/elc-94f077be04/bearline-api.php' : 'https://bearphonicsacademy.com/elc-1ce53ee46c/bearline-api.php';
-$ctx0 = stream_context_create(['http' => ['method' => 'POST', 'header' => "Content-Type: application/json\r\n", 'timeout' => 25, 'ignore_errors' => true,
-'content' => json_encode(['action' => 'hive_set_greeting', 'code' => ELC_SYNC_CODE, 'text' => $g, 'by' => 'Director '.$school.' (Talk to Bear Line)'])]]);
-$j = json_decode((string)@file_get_contents($bl, false, $ctx0), true);
-if (!is_array($j) || empty($j['ok'])){ log_line($base + ['details' => $what, 'result' => 'Failed']); fail('The tablet didn\'t take the new greeting'.(is_array($j) && !empty($j['error']) ? ' ('.$j['error'].')' : '').'. Nothing was changed.', 502); }
+list($ok, $j, $e) = bl_post($school, $send);
+if (!$ok){ log_line($base + ['details' => $what, 'result' => 'Failed '.$e]); fail(($e === 'not_connected' ? 'Bear Line isn\'t connected from here yet.' : ($e === 'unknown_notice' ? 'That notice isn\'t on the tablet anymore.' : 'The tablet didn\'t take it'.($e ? ' ('.$e.')' : '').'.')).' Nothing was changed.', 502); }
 log_line($base + ['details' => $what, 'result' => 'Done']); echo json_encode(['ok' => true, 'say' => 'Done. '.$what.'.']); exit;
 }
 
