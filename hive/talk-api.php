@@ -143,7 +143,7 @@ $system = "You are Talk to Bear Line, the voice helper for the director of Kid C
 ."Today is ".$now->format('l, Y-m-d')." and the time is ".$now->format('H:i')." (Eastern).\n\n"
 ."Pick kind:\n"
 ."- room_sign_in / room_sign_out: sign one or more CHILDREN in or out on the Rooms board for TODAY. children = exact names from the Children list. time = HH:MM 24-hour; use the current time when they say now or give no time.\n"
-."- staff_time_fix: fix a STAFF member's clock-in or clock-out time (for example \"sign Ms. Ana out at 2 PM yesterday\"). This files a time correction for payroll. staff = exact name from the Staff list. date = YYYY-MM-DD (today if not said). time_in and/or time_out as HH:MM 24-hour; leave the one they didn't mention empty. reason = their reason, or \"Entered by the director with Talk to Bear Line\".\n"
+."- staff_time_fix: fix a STAFF member's clock-in or clock-out time (for example \"sign Ms. Ana out at 2 PM yesterday\"). This changes their punch on the Bear Line time clock right away. staff = exact name from the Staff list. date = YYYY-MM-DD (today if not said). time_in and/or time_out as HH:MM 24-hour; leave the one they didn't mention empty. reason = their reason, or \"Entered by the director with Talk to Bear Line\".\n"
 ."- inventory_count: set the on-hand count of a supply. item = exact name from the Inventory list. qty = whole number as text.\n"
 ."- rooms_board: a whole CLASS or ROOM on the Rooms board. board_action = out (the room is leaving for the playground, outside, the playroom or the office; also called a transition), back (the room is coming back inside), move (move children or a whole room into another room), or meal (mark breakfast, lunch or PM snack). room = exact name from the Rooms list. room_to = for out: Playground, Outside, Playroom or Office; for move: the exact room they go to. For meal, item = breakfast, lunch or snack. For move of only some children, children = their exact names.\n"
 ."- open_card: they want to open, bring up or go to a page, form, card or tool (for example \"bring up the food program forms\"). card = exact name from the Cards list that fits best.\n"
@@ -212,7 +212,7 @@ if (!$s) $ask('Which staff member? I couldn\'t match "'.$p['staff'].'" to one pe
 elseif (!$ti && !$to) $ask('What time should '.$s.' be clocked in or out?');
 elseif ($d > $now->format('Y-m-d')) $ask('That day hasn\'t happened yet. Which day did you mean?');
 else { $out += ['staff' => $s, 'date' => $d, 'time_in' => $ti, 'time_out' => $to, 'reason' => trim($p['reason']) ?: 'Entered by the director with Talk to Bear Line'];
-$out['say'] = 'Send a time fix for '.$s.' on '.nice_day($d).': '.implode(', ', array_filter([$ti ? 'in at '.hm12($ti) : '', $to ? 'out at '.hm12($to) : ''])).'? It goes to Charles for payroll, like Staff Time Corrections.'; }
+$out['say'] = 'Change '.$s.'\'s time on '.nice_day($d).' to '.implode(' and ', array_filter([$ti ? 'clocked in at '.hm12($ti) : '', $to ? 'clocked out at '.hm12($to) : ''])).' on the Bear Line time clock?'; }
 break;
 case 'inventory_count':
 $it = pick_name($p['item'], array_keys($ctx['items']));
@@ -293,16 +293,29 @@ log_line($base + ['details' => $what, 'result' => 'Done']); echo json_encode(['o
 }
 
 if ($kind === 'staff_time_fix'){
+/* Changes the punch on the Bear Line time clock itself (the same place the tablet and the director's
+   Staff Sign In/Out page write), so Staff Hours, the timesheet and payroll all read the new time. */
 $s = (string)($p['staff'] ?? ''); $d = (string)($p['date'] ?? ''); $ti = (string)($p['time_in'] ?? ''); $to = (string)($p['time_out'] ?? '');
 if (!in_array($s, $ctx['staff'], true) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $d) || $d > $today || (!hm_ok($ti) && !hm_ok($to))) fail('That time fix doesn\'t check out. Nothing was changed.');
-$fields = ['Staff Member' => $s, 'Date' => $d, 'Reason' => mb_substr((string)($p['reason'] ?? ''), 0, 200).' (Talk to Bear Line)', 'Status' => '🟡 New — waiting for Charles', 'School' => $school];
-if (hm_ok($ti)) $fields['Correct Time In'] = hm12($ti);
-if (hm_ok($to)) $fields['Correct Time Out'] = hm12($to);
-$what = 'Time fix for '.$s.' on '.nice_day($d).': '.implode(', ', array_filter([hm_ok($ti) ? 'in '.hm12($ti) : '', hm_ok($to) ? 'out '.hm12($to) : '']));
-if (!TALK_LIVE){ log_line($base + ['details' => $what, 'result' => 'Practice']); echo json_encode(['ok' => true, 'practice' => true, 'say' => 'Practice mode: nothing was sent. Live, this would send Charles: '.$what.'.']); exit; }
-$r = at_request('POST', ['Staff Time Corrections'], null, ['records' => [['fields' => $fields]], 'typecast' => true]);
-if (empty($r['records'])){ log_line($base + ['details' => $what, 'result' => 'Failed']); fail('The time fix didn\'t save.', 502); }
-log_line($base + ['details' => $what, 'result' => 'Done']); echo json_encode(['ok' => true, 'say' => 'Sent to Charles. '.$what.'.']); exit;
+if (hm_ok($ti) && hm_ok($to) && $to <= $ti) fail('The clock-out has to be after the clock-in. Nothing was changed.');
+$fix = []; if (hm_ok($ti)) $fix['in'] = $ti; if (hm_ok($to)) $fix['out'] = $to;
+$what = $s.' on '.nice_day($d).': '.implode(', ', array_map(function($k, $v){ return ($k === 'in' ? 'clocked in ' : 'clocked out ').hm12($v); }, array_keys($fix), $fix));
+if (!TALK_LIVE){ log_line($base + ['details' => $what, 'result' => 'Practice']); echo json_encode(['ok' => true, 'practice' => true, 'say' => 'Practice mode: nothing changed. Live, this would set '.$what.' on the Bear Line time clock right away, logged as the '.$school.' director.']); exit; }
+foreach ([dirname(__DIR__, 2), dirname(__DIR__), __DIR__] as $d0){ if (file_exists($d0.'/elc-sync-code.php')) include_once $d0.'/elc-sync-code.php'; }
+if (!defined('ELC_SYNC_CODE')) fail('Bear Line isn\'t connected from here yet. Nothing was changed.', 503);
+$bl = ($school === 'Sanford') ? 'https://bearphonicsacademy.com/elc-94f077be04/bearline-api.php' : 'https://bearphonicsacademy.com/elc-1ce53ee46c/bearline-api.php';
+foreach ($fix as $type => $at){
+$ctx0 = stream_context_create(['http' => ['method' => 'POST', 'header' => "Content-Type: application/json\r\n", 'timeout' => 25, 'ignore_errors' => true,
+'content' => json_encode(['action' => 'hive_fix_punch', 'code' => ELC_SYNC_CODE, 'staff' => $s, 'date' => $d, 'type' => $type, 'at' => $at, 'by' => 'Director '.$school.' (Talk to Bear Line)', 'note' => mb_substr((string)($p['reason'] ?? ''), 0, 200)])]]);
+$j = json_decode((string)@file_get_contents($bl, false, $ctx0), true);
+if (!is_array($j) || empty($j['ok'])){
+$e = is_array($j) ? (string)($j['error'] ?? '') : '';
+log_line($base + ['details' => $what, 'result' => 'Failed '.$e]);
+$msg = $e === 'unknown_staff' ? 'Bear Line doesn\'t have a staff member named '.$s.'.' : ($e === 'ambiguous_staff' ? 'Bear Line has more than one '.$s.'.' : 'Bear Line didn\'t take the change'.($e ? ' ('.$e.')' : '').'.');
+fail($msg.($type === 'out' && isset($fix['in']) ? ' The clock-in may already be changed; check Staff Sign In/Out.' : ' Nothing was changed.'), 502);
+}
+}
+log_line($base + ['details' => $what, 'result' => 'Done']); echo json_encode(['ok' => true, 'say' => 'Done. '.$what.'. Staff Hours shows it on its next refresh.']); exit;
 }
 
 if ($kind === 'inventory_count'){
