@@ -36,6 +36,11 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
 #bot .bc-wrap{box-shadow:none;padding:0;}
 .tb-bar{display:flex;gap:6px;margin-top:10px;}
 .tb-input{flex:1;padding:12px 14px;border-radius:14px;border:2px solid #ffd2b0;font-size:1rem;}
+.tb-clip{border:2px solid #ffd2b0;background:#fff;border-radius:14px;padding:0 12px;font-size:1.1rem;cursor:pointer;}
+.tb-file{display:none;margin-top:8px;font-size:.88rem;background:#f7eefe;border-radius:10px;padding:6px 10px;}
+.tb-file button{border:0;background:none;color:#c2185b;font-weight:800;cursor:pointer;margin-left:6px;}
+.tb-mail{margin-top:8px;background:#fff;border:1px solid #eadfd6;border-radius:12px;padding:10px;font-size:.9rem;white-space:pre-wrap;}
+.tb-mail b{display:inline-block;min-width:62px;}
 .tb-mic,.tb-go{border:0;border-radius:14px;padding:0 16px;font-size:1.05rem;font-weight:800;cursor:pointer;color:#fff;background:var(--purple);}
 .tb-go{background:var(--pink);}
 .tb-mic.on{background:#c62828;animation:pulse 1s infinite;}
@@ -67,7 +72,7 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
      Questions are handed to Director Bear Chat on this page. Practice mode is set in talk-api.php (TALK_LIVE). */
   var API = 'talk-api.php';
   var app = document.getElementById('app');
-  var PIN = sessionStorage.getItem('hivePin') || '', SCHOOL = '', LIVE = false, HIST = [], BUSY = false, LASTWORDS = '';
+  var PIN = sessionStorage.getItem('hivePin') || '', SCHOOL = '', LIVE = false, HIST = [], BUSY = false, LASTWORDS = '', FILE = null, VOICE = false;
   var D = window.DC_DATA || {cards:{}};
   function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
   function post(body){ body.pin = PIN; return fetch(API, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)}).then(function(r){ return r.json().then(function(j){ if (!r.ok || j.error) throw new Error(j.error || 'Something went wrong.'); return j; }); }); }
@@ -90,35 +95,57 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
   function build(keyReady){
     app.innerHTML = '<div class="banner'+(LIVE?' live':'')+'">'+(LIVE
         ? '<b>Live.</b> When you tap Yes, the change is made in Bear Line and logged with your school.'
-        : '<b>TEST VERSION, practice mode.</b> Talk to it like you would to a person. When you tap Yes, it shows what it <i>would</i> do and logs it. Nothing in Bear Line changes yet.')
+        : '<b>TEST VERSION, practice mode.</b> Talk to it like you would to a person. When you tap Yes, it shows what it <i>would</i> do and logs it. Nothing in Bear Line or the Director Portal changes, nothing is filed and no email is sent yet.')
       + (keyReady ? '' : '<br><b>Not connected to Claude yet:</b> the Claude key still needs to be added on the server.')
       + '</div><main><div class="bc-wrap"><div id="bot"></div>'
-      + '<form class="tb-bar"><input class="tb-input" placeholder="Say or type: sign Mia in at 8:15…" autocomplete="off" maxlength="400"><button type="button" class="tb-mic" title="Speak">🎤</button><button class="tb-go" type="submit">Send</button></form>'
-      + '<div class="tb-note">🎤 uses your browser\'s free voice typing. Every change waits for your Yes. Never say PINs or passwords out loud.</div>'
+      + '<form class="tb-bar"><button type="button" class="tb-clip" title="Attach a photo or file">📎</button><input type="file" class="tb-pick" accept="image/jpeg,image/png,application/pdf,image/*" style="display:none"><input class="tb-input" placeholder="Say or type: sign Mia in at 8:15…" autocomplete="off" maxlength="400"><button type="button" class="tb-mic" title="Speak">🎤</button><button class="tb-go" type="submit">Send</button></form>'
+      + '<div class="tb-file" id="tbfile"></div>'
+      + '<div class="tb-note">📎 attaches a photo or PDF to file or email. 🎤 uses your browser\'s free voice typing. Every change waits for your Yes. Never say PINs or passwords out loud.</div>'
       + '<div class="tb-try"><b>Try:</b><div class="bc-chips" id="tries"></div></div>'
       + '<details class="tb-log" id="tblog"><summary>What was asked and done today ('+esc(SCHOOL)+')</summary><div id="logbox">Loading…</div></details>'
       + '</div></main>';
     DirectorChat.mount(document.getElementById('bot'), {school: SCHOOL, pin: PIN, mode: LIVE ? 'live' : 'preview', practice: !LIVE,
       onDone: function(label, done){ post({action:'do', plan:{kind:'rooms_board'}, words: LASTWORDS, details: done}).catch(function(){}); }});
     logEl().innerHTML = '';
-    bot('Hi! Tell me what you want done in Bear Line, or ask me anything about the Director Portal. I\'ll show you exactly what I\'m going to do, and nothing changes until you tap Yes.');
-    var tries = ['The toddlers are going to the playground', 'Sign in a child now', 'Fix a staff clock-out time', 'Bring up the food program forms', 'Update a supply count', 'How do I add a new hire?'];
+    bot('Hi! Tell me what you want done in Bear Line or the Director Portal, or ask me anything. You can attach a photo or file with 📎 and tell me where it goes or who to email it to. I\'ll show you exactly what I\'m going to do, and nothing happens until you tap Yes.');
+    var tries = ['The toddlers are going to the playground', 'File this in a child\'s immunization record', 'Email this to the office', 'Sign in a child now', 'Fix a staff clock-out time', 'Bring up the food program forms', 'Update a supply count', 'How do I add a new hire?'];
     var tb = document.getElementById('tries');
     tries.forEach(function(t){ var b = document.createElement('button'); b.type = 'button'; b.className = 'bc-chip'; b.textContent = t; b.onclick = function(){ var i = input(); i.value = t; i.focus(); }; tb.appendChild(b); });
-    app.querySelector('.tb-bar').onsubmit = function(ev){ ev.preventDefault(); var i = input(); var v = i.value.trim(); if (!v || BUSY) return; i.value = ''; send(v); };
-    setupMic();
+    app.querySelector('.tb-bar').onsubmit = function(ev){ ev.preventDefault(); var i = input(); var v = i.value.trim(); if (!v || BUSY) return; i.value = ''; VOICE = false; send(v); };
+    setupMic(); setupFile();
     document.getElementById('tblog').addEventListener('toggle', function(){ if (this.open) loadLog(); });
   }
   function input(){ return app.querySelector('.tb-input'); }
   function logEl(){ return document.querySelector('#bot .bc-log'); }
   function add(cls, html){ var box = logEl(), d = document.createElement('div'); d.className = 'bc-msg ' + cls; d.innerHTML = html; box.appendChild(d); box.scrollTop = box.scrollHeight; return d; }
   function me(t){ return add('bc-me', esc(t)); }
-  function bot(t){ return add('bc-bot', esc(t).replace(/\n/g,'<br>')); }
+  function bot(t){ speak(t); return add('bc-bot', esc(t).replace(/\n/g,'<br>')); }
+  /* When the director spoke, the answer is read back out loud (the browser's own free voice). */
+  function speak(t){ try { if (!VOICE || !window.speechSynthesis) return; var u = new SpeechSynthesisUtterance(String(t).replace(/["“”]/g, '')); u.lang = 'en-US'; speechSynthesis.speak(u); } catch(e){} }
+
+  function setupFile(){
+    var pick = app.querySelector('.tb-pick');
+    app.querySelector('.tb-clip').onclick = function(){ pick.value = ''; pick.click(); };
+    pick.onchange = function(){
+      var f = pick.files && pick.files[0]; if (!f) return;
+      if (!/^(image\/(jpeg|png)|application\/pdf)$/.test(f.type)){ bot('I can take photos (JPG or PNG) and PDFs. If this is an iPhone photo, take it with the camera from the 📎 button instead.'); return; }
+      if (f.size > 10 * 1024 * 1024){ bot('That file is over 10 MB. Take the picture again or use a smaller PDF.'); return; }
+      var rd = new FileReader();
+      rd.onload = function(){ FILE = {name: f.name || 'photo', type: f.type, size: f.size, b64: String(rd.result).split(',')[1] || ''}; showFile(); input().focus(); };
+      rd.readAsDataURL(f);
+    };
+  }
+  function showFile(){
+    var el = document.getElementById('tbfile');
+    if (!FILE){ el.style.display = 'none'; el.innerHTML = ''; return; }
+    el.style.display = 'block'; el.innerHTML = '📎 <b>' + esc(FILE.name) + '</b> is attached. Now tell me where it goes or who to send it to.<button type="button">Remove</button>';
+    el.querySelector('button').onclick = function(){ FILE = null; showFile(); };
+  }
 
   function send(words){
     me(words); BUSY = true; LASTWORDS = words;
     var wait = add('bc-bot thinking', 'Thinking…');
-    post({action:'plan', words: words, history: HIST, cards: Object.keys(D.cards || {})})
+    post({action:'plan', words: words, history: HIST, cards: Object.keys(D.cards || {}), file: FILE ? {name: FILE.name, type: FILE.type} : null})
       .then(function(r){ wait.remove(); showAll(r.plans || (r.plan ? [r.plan] : []), words); })
       .catch(function(e){ wait.remove(); bot(e.message); })
       .then(function(){ BUSY = false; });
@@ -150,19 +177,41 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
       var b = document.createElement('button'); b.type = 'button'; b.className = 'bc-chip yes'; b.textContent = 'Open ' + p.card; b.onclick = function(){ openCard(p.card); };
       row.appendChild(b); m.appendChild(row); return;
     }
-    if (k === 'room_sign_in' || k === 'room_sign_out' || k === 'staff_time_fix' || k === 'inventory_count'){
+    if (k === 'room_sign_in' || k === 'room_sign_out' || k === 'staff_time_fix' || k === 'inventory_count' || k === 'file_to_person' || k === 'file_to_vault' || k === 'email'){
       remember(words, 'Proposed: ' + p.say);
       var c = bot(p.say), r2 = document.createElement('div'); r2.className = 'bc-chips';
       var yes = document.createElement('button'), no = document.createElement('button');
       yes.type = no.type = 'button'; yes.className = 'bc-chip yes'; no.className = 'bc-chip';
-      yes.textContent = LIVE ? 'Yes, do it' : 'Yes (practice)'; no.textContent = 'No';
+      if (k === 'email'){   // the whole email, exactly as it would go out
+        var mail = document.createElement('div'); mail.className = 'tb-mail';
+        mail.innerHTML = '<b>To:</b> ' + esc(p.to_label) + '\n<b>Subject:</b> ' + esc(p.subject) + (p.attach ? '\n<b>Attached:</b> ' + esc(p.attach) : '') + '\n\n' + esc(p.body);
+        c.appendChild(mail);
+      }
+      yes.textContent = LIVE ? (k === 'email' ? 'Yes, send it' : 'Yes, do it') : 'Yes (practice)'; no.textContent = 'No';
       yes.onclick = function(){ yes.disabled = no.disabled = true; var w = add('bc-bot thinking', 'Working…');
-        post({action:'do', plan: p, words: words}).then(function(r){ w.remove(); bot(r.say); }).catch(function(e){ w.remove(); bot(e.message); }); };
+        var body = {action:'do', plan: p, words: words};
+        if (k === 'email' && p.attach){ if (!FILE){ w.remove(); bot('The attached file is gone. Attach it again and ask me once more.'); return; } body.b64 = FILE.b64; }
+        post(body).then(function(r){
+          if (r.go) return saveFile(p).then(function(){ return post({action:'do', plan: p, words: words, done: 1}); });
+          return r;
+        }).then(function(r){ w.remove(); bot(r.say); }).catch(function(e){ w.remove(); bot(e.message); }); };
       no.onclick = function(){ yes.disabled = no.disabled = true; post({action:'do', plan: p, words: words, declined: 1}).catch(function(){}); bot('OK, I didn\'t change anything.'); };
       r2.appendChild(yes); r2.appendChild(no); c.appendChild(r2); return;
     }
     remember(words, p.say || '');
     bot(p.say || 'I didn\'t catch that. Try saying it another way.');
+  }
+
+  /* Live only: files go in through the same calls the Staff Files, Student Files and Audit Vault cards use. */
+  function saveFile(p){
+    if (!FILE) return Promise.reject(new Error('The attached file is gone. Attach it again and ask me once more.'));
+    var call = function(url, b){ b.pin = PIN; return fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(b)}).then(function(r){ return r.json(); }).then(function(j){ if (!j || j.error) throw new Error((j && j.error) || 'It didn\'t save.'); return j; }); };
+    if (p.kind === 'file_to_vault') return call('reporting-api.php', {action:'upload', month: p.month, cat: p.section, name: FILE.name, b64: FILE.b64});
+    return call('files-api.php', {action:'roster', kind: p.person_kind}).then(function(r){
+      var hit = (r.people || []).filter(function(x){ return x.name === p.person; });
+      if (hit.length !== 1) throw new Error('I couldn\'t find ' + p.person + '\'s file. Nothing was filed.');
+      return call('files-api.php', {action:'upload', kind: p.person_kind, id: hit[0].id, doc: p.doc, name: FILE.name, b64: FILE.b64});
+    });
   }
 
   function openCard(name){
@@ -186,10 +235,11 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
     var rec = null;
     btn.onclick = function(){
       if (rec){ rec.stop(); return; }
+      try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch(e){}
       rec = new SR(); rec.lang = 'en-US'; rec.interimResults = true; rec.maxAlternatives = 1;
       var finalText = '';
       rec.onresult = function(e){ var t = ''; for (var i = 0; i < e.results.length; i++){ t += e.results[i][0].transcript; if (e.results[i].isFinal) finalText = t; } input().value = t; };
-      rec.onend = function(){ btn.classList.remove('on'); rec = null; var v = input().value.trim(); if (v && finalText && !BUSY){ input().value = ''; send(v); } };
+      rec.onend = function(){ btn.classList.remove('on'); rec = null; var v = input().value.trim(); if (v && finalText && !BUSY){ input().value = ''; VOICE = true; send(v); } };
       rec.onerror = function(){ btn.classList.remove('on'); };
       btn.classList.add('on'); rec.start();
     };

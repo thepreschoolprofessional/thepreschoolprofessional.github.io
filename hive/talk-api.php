@@ -25,6 +25,11 @@ $__k = '';
 foreach ($__dirs as $__d){
 if (file_exists($__d.'/hive-claude-key.php')){ include_once $__d.'/hive-claude-key.php'; if (defined('CLAUDE_KEY') && strpos(CLAUDE_KEY, 'sk-ant-') === 0){ $__k = CLAUDE_KEY; break; } }
 }
+$__o = '';
+foreach ($__dirs as $__d){
+if (file_exists($__d.'/hive-owner-email.php')){ include_once $__d.'/hive-owner-email.php'; if (defined('OWNER_EMAIL') && filter_var(OWNER_EMAIL, FILTER_VALIDATE_EMAIL)){ $__o = OWNER_EMAIL; break; } }
+}
+define('OWNER_ADDR', $__o);   // Mrs. Bear's own address, kept outside public_html (never in this public repo)
 define('AIRTABLE_TOKEN', $__t);
 define('CLAUDE_API_KEY', $__k);
 define('BASE_ID', 'app2HNkUSJqx9IkYZ');
@@ -37,6 +42,24 @@ header('X-Robots-Tag: noindex, nofollow');
 header('Cache-Control: no-store');
 
 $ROLE_SCHOOL = ['director-sanford' => 'Sanford', 'director-deland' => 'DeLand 2'];
+/* Email goes ONLY to addresses already saved in the portal (dcf.js OFFICE_MAIL / SPONSOR_TO) or Mrs. Bear's private file. Claude never picks an address. */
+$OFFICE = ['Sanford' => 'sanfordoffice.1320@gmail.com', 'DeLand 2' => 'delandoffice.238@gmail.com'];
+$FOOD = ['Sanford' => '', 'DeLand 2' => 'ccfp@ccswfl.org'];
+$VAULT = ['elc' => 'ELC / School Readiness', 'food' => 'Food Program (CACFP)', 'dcf' => 'DCF / Licensing', 'other' => 'Staff Meetings & Other'];
+function recipient($key, $school){ global $OFFICE, $FOOD;
+if ($key === 'office') return [$OFFICE[$school], 'the '.$school.' office ('.$OFFICE[$school].')'];
+if ($key === 'food_program') return $FOOD[$school] ? [$FOOD[$school], 'the food program sponsor ('.$FOOD[$school].')'] : ['', ''];
+if ($key === 'owner') return OWNER_ADDR ? [OWNER_ADDR, 'Mrs. Bear ('.OWNER_ADDR.')'] : ['', ''];
+return ['', '']; }
+/* The document types in Staff Files and Student Files, read from files-api.php so the two never drift apart. */
+function doc_types(){
+$src = @file_get_contents(__DIR__.'/files-api.php') ?: ''; $out = ['staff' => [], 'student' => []];
+foreach (['staff', 'student'] as $k){
+if (!preg_match("/'".$k."'\\s*=>\\s*\\[(.*?)\\n\\s*\\]/s", $src, $m)) continue;
+preg_match_all("/^\\s*'([a-z0-9]+)'\\s*=>\\s*\\['((?:[^'\\\\]|\\\\.)*)'/m", $m[1], $mm, PREG_SET_ORDER);
+foreach ($mm as $x) $out[$k][$x[1]] = stripslashes($x[2]);
+}
+return $out; }
 
 function fail($msg, $code = 400){ http_response_code($code); echo json_encode(['error'=>$msg]); exit; }
 function now_et(){ return new DateTime('now', new DateTimeZone('America/New_York')); }
@@ -129,6 +152,9 @@ echo json_encode(['school' => $school, 'live' => TALK_LIVE, 'keyReady' => CLAUDE
 if ($action === 'plan'){
 $words = trim(mb_substr((string)($input['words'] ?? ''), 0, 400));
 if ($words === '') fail('Say or type what you want done.');
+$fi = (array)($input['file'] ?? []); $file = null;
+if (!empty($fi['name'])) $file = ['name' => mb_substr(preg_replace('/[^\w .()\-]/u', '', (string)$fi['name']), 0, 80), 'type' => in_array($fi['type'] ?? '', ['image/jpeg','image/png','application/pdf'], true) ? $fi['type'] : 'file'];
+$docs = doc_types();
 if (CLAUDE_API_KEY === '') fail('The Claude key hasn\'t been added to the server yet. Mrs. Bear adds it in Hostinger, then this starts working.', 503);
 if (!bump_cap($school)) fail('Talk to Bear Line has reached today\'s limit for '.$school.'. It resets at midnight.', 429);
 
@@ -150,24 +176,32 @@ $system = "You are Talk to Bear Line, the voice helper for the director of Kid C
 ."- question: they ask how, where, when or how many about the Director Portal or the school. question = their question, cleaned up. The director chatbot answers it.\n"
 ."- tablet: they want something done on the front tablet itself: the greeting message on the tablet, or they say to do it ON the tablet. Talk to Bear Line can't do those yet. When they just say to sign a staff member in or out at a time, use staff_time_fix instead.\n"
 ."- clarify: you are not sure who or what they mean, a name matches nobody or more than one person, or a needed time is missing for staff. question = one short question back.\n"
+."- file_to_person: put the ATTACHED file in a staff member's or child's file. staff = exact staff name OR children = [exact child name]. doc = the key of the best document type from that person's Documents list.\n"
+."- file_to_vault: put the ATTACHED file in the Audit Vault in Reporting. month = YYYY-MM (this month unless they say). section = elc, food, dcf or other.\n"
+."- email: send an email for the director. to = office (this school's office email, also used when they say \"email it to me\"), food_program (the food program sponsor), or owner (Mrs. Bear). Never write an email address yourself. subject = short subject. body = the email text, written as the director in first person, polite and short, signed \"Kid City USA $school\". attach = yes when the attached file should go with it, otherwise no.\n"
 ."- cant: anything else, or anything about PINs, passwords, codes, money, or contacting parents or staff.\n\n"
+.($file ? "The director has attached a file: \"".$file['name']."\" (".$file['type'].").\n\n" : "No file is attached. If they ask to file or email an attachment, use clarify and ask them to tap the paperclip first.\n\n")
 ."Rules: Only use names that are in the lists below, spelled exactly as listed. Never guess between two people. A staff member is never a child. "
 ."say = one short, friendly sentence to the director describing exactly what you propose, with names, day and 12-hour time, or your question. Leave every field you don't use as an empty string.\n\n"
 ."Staff list: ".implode('; ', $ctx['staff'])."\n\n"
 ."Children list: ".implode('; ', array_keys($ctx['kids']))."\n\n"
 ."Rooms list: ".implode('; ', $ctx['rooms'] ?? [])."\n\n"
 ."Inventory list: ".implode('; ', array_keys($ctx['items']))."\n\n"
+."Staff documents (key = label): ".implode('; ', array_map(function($k, $v){ return "$k = $v"; }, array_keys($docs['staff']), $docs['staff']))."\n\n"
+."Child documents (key = label): ".implode('; ', array_map(function($k, $v){ return "$k = $v"; }, array_keys($docs['student']), $docs['student']))."\n\n"
 ."Cards list: ".implode('; ', $cards);
 
 $one = ['type' => 'object', 'additionalProperties' => false,
 'properties' => [
-'kind' => ['type' => 'string', 'enum' => ['rooms_board','room_sign_in','room_sign_out','staff_time_fix','inventory_count','open_card','question','tablet','clarify','cant']],
+'kind' => ['type' => 'string', 'enum' => ['file_to_person','file_to_vault','email','rooms_board','room_sign_in','room_sign_out','staff_time_fix','inventory_count','open_card','question','tablet','clarify','cant']],
 'say' => ['type' => 'string'], 'children' => ['type' => 'array', 'items' => ['type' => 'string']],
 'time' => ['type' => 'string'], 'staff' => ['type' => 'string'], 'date' => ['type' => 'string'],
 'time_in' => ['type' => 'string'], 'time_out' => ['type' => 'string'], 'reason' => ['type' => 'string'],
 'item' => ['type' => 'string'], 'qty' => ['type' => 'string'], 'card' => ['type' => 'string'], 'question' => ['type' => 'string'],
-'board_action' => ['type' => 'string', 'enum' => ['out','back','move','meal','']], 'room' => ['type' => 'string'], 'room_to' => ['type' => 'string']],
-'required' => ['kind','say','children','time','staff','date','time_in','time_out','reason','item','qty','card','question','board_action','room','room_to']];
+'board_action' => ['type' => 'string', 'enum' => ['out','back','move','meal','']], 'room' => ['type' => 'string'], 'room_to' => ['type' => 'string'],
+'doc' => ['type' => 'string'], 'month' => ['type' => 'string'], 'section' => ['type' => 'string', 'enum' => ['elc','food','dcf','other','']],
+'to' => ['type' => 'string', 'enum' => ['office','food_program','owner','']], 'subject' => ['type' => 'string'], 'body' => ['type' => 'string'], 'attach' => ['type' => 'string', 'enum' => ['yes','no']]],
+'required' => ['kind','say','children','time','staff','date','time_in','time_out','reason','item','qty','card','question','board_action','room','room_to','doc','month','section','to','subject','body','attach']];
 $schema = ['type' => 'object', 'additionalProperties' => false, 'properties' => ['actions' => ['type' => 'array', 'items' => $one]], 'required' => ['actions']];
 
 $user = ($hist ? "Earlier in this conversation:\n".implode("\n", $hist)."\n\n" : '')."Director's request: ".$words;
@@ -241,6 +275,34 @@ $c = pick_name($p['card'], $cards);
 if (!$c){ $out = ['kind' => 'question', 'say' => (string)$p['say'], 'question' => $words]; } else $out['card'] = $c;
 break;
 case 'question': $out['question'] = trim($p['question']) ?: $words; break;
+case 'file_to_person':
+if (!$file){ $ask('Tap the paperclip and pick the file or photo first, then tell me where it goes.'); break; }
+$kid = ''; foreach ((array)$p['children'] as $c){ $kid = pick_name($c, array_keys($ctx['kids'])); if ($kid) break; }
+$st = $kid ? '' : pick_name($p['staff'], $ctx['staff']);
+$pkind = $kid ? 'student' : 'staff'; $who = $kid ?: $st;
+if (!$who){ $ask('Whose file should this go in? I couldn\'t match that name to one person at '.$school.'.'); break; }
+$doc = (string)$p['doc'];
+if (!isset($docs[$pkind][$doc])){ $ask('Which document is this for '.$who.'?'); break; }
+$out += ['person_kind' => $pkind, 'person' => $who, 'doc' => $doc, 'doc_label' => $docs[$pkind][$doc], 'file_name' => $file['name']];
+$out['say'] = 'File "'.$file['name'].'" in '.$who.'\'s '.($pkind === 'staff' ? 'Staff File' : 'Student File').' under '.$docs[$pkind][$doc].'?';
+break;
+case 'file_to_vault':
+if (!$file){ $ask('Tap the paperclip and pick the file or photo first, then tell me where it goes.'); break; }
+$mo = preg_match('/^20\d\d-(0[1-9]|1[0-2])$/', $p['month']) ? $p['month'] : $now->format('Y-m');
+$sec = isset($VAULT[$p['section']]) ? $p['section'] : '';
+if (!$sec){ $ask('Which part of the Audit Vault: ELC, Food Program, DCF, or Staff Meetings & Other?'); break; }
+$out += ['month' => $mo, 'section' => $sec, 'file_name' => $file['name']];
+$out['say'] = 'File "'.$file['name'].'" in the Audit Vault, '.DateTime::createFromFormat('Y-m-d', $mo.'-01')->format('F Y').', '.$VAULT[$sec].'?';
+break;
+case 'email':
+list($addr, $label) = recipient((string)$p['to'], $school);
+if (!$addr){ $ask($p['to'] === 'food_program' ? 'There\'s no food program email saved for '.$school.'. Its claim goes through KidKare. Who should I email instead?' : ($p['to'] === 'owner' ? 'Mrs. Bear\'s email isn\'t saved on the server yet, so I can\'t email her from here. I can send it to the '.$school.' office instead.' : 'Who should this go to: the '.$school.' office, the food program, or Mrs. Bear?')); break; }
+$att = ($p['attach'] === 'yes' && $file) ? $file['name'] : '';
+$sub = trim(mb_substr(strip_tags((string)$p['subject']), 0, 120)); $bod = trim(mb_substr(strip_tags((string)$p['body']), 0, 3000));
+if ($sub === '' || $bod === ''){ $ask('What should the email say?'); break; }
+$out += ['to' => (string)$p['to'], 'to_label' => $label, 'to_addr' => $addr, 'subject' => $sub, 'body' => $bod, 'attach' => $att];
+$out['say'] = 'Send this email to '.$label.($att ? ' with "'.$att.'" attached' : '').'?';
+break;
 case 'tablet': $out['say'] = 'Things on the front tablet itself (staff clock in or out, child sign-in on the tablet, the tablet greeting) aren\'t connected to Talk to Bear Line yet. Mrs. Bear is adding them next.'; break;
 }
 $plans[] = $out;
@@ -256,6 +318,45 @@ $words = trim(mb_substr((string)($input['words'] ?? ''), 0, 400));
 $kind = (string)($p['kind'] ?? '');
 $base = ['school' => $school, 'role' => $role, 'words' => $words, 'kind' => $kind];
 if (!empty($input['declined'])){ log_line($base + ['result' => 'Declined']); echo json_encode(['ok' => true]); exit; }
+$ctx = school_context($school);
+/* Files: the page itself saves through files-api.php / reporting-api.php (the same calls the Staff Files,
+   Student Files and Audit Vault cards make) and only when live. Here we check it and keep the log. */
+if ($kind === 'file_to_person' || $kind === 'file_to_vault'){
+if ($kind === 'file_to_person'){ $docs = doc_types(); $pk = (string)($p['person_kind'] ?? ''); $who = (string)($p['person'] ?? ''); $doc = (string)($p['doc'] ?? '');
+$okp = $pk === 'staff' ? in_array($who, $ctx['staff'], true) : ($pk === 'student' && isset($ctx['kids'][$who]));
+if (!$okp || !isset($docs[$pk][$doc])) fail('That doesn\'t check out. Nothing was filed.');
+$what = '"'.mb_substr((string)($p['file_name'] ?? ''), 0, 80).'" filed in '.$who.'\'s '.($pk === 'staff' ? 'Staff File' : 'Student File').' under '.$docs[$pk][$doc]; }
+else { $mo = (string)($p['month'] ?? ''); $sec = (string)($p['section'] ?? '');
+if (!preg_match('/^20\d\d-(0[1-9]|1[0-2])$/', $mo) || !isset($VAULT[$sec])) fail('That doesn\'t check out. Nothing was filed.');
+$what = '"'.mb_substr((string)($p['file_name'] ?? ''), 0, 80).'" filed in the Audit Vault, '.$mo.', '.$VAULT[$sec]; }
+if (!TALK_LIVE){ log_line($base + ['details' => $what, 'result' => 'Practice']); echo json_encode(['ok' => true, 'practice' => true, 'say' => 'Practice mode: nothing was filed. Live, this would be: '.$what.'.']); exit; }
+if (empty($input['done'])){ echo json_encode(['ok' => true, 'go' => true]); exit; }   // the page saves it, then calls back with done
+log_line($base + ['details' => $what, 'result' => 'Done']); echo json_encode(['ok' => true, 'say' => 'Done. '.$what.'.']); exit;
+}
+if ($kind === 'email'){
+list($addr, $label) = recipient((string)($p['to'] ?? ''), $school);   // the address always comes from the server's own list
+$sub = trim(mb_substr(strip_tags((string)($p['subject'] ?? '')), 0, 120)); $bod = trim(mb_substr(strip_tags((string)($p['body'] ?? '')), 0, 3000));
+if (!$addr || $sub === '' || $bod === '') fail('That email doesn\'t check out. Nothing was sent.');
+$raw = null; $fn = '';
+if (!empty($p['attach'])){
+$raw = base64_decode((string)($input['b64'] ?? ''), true);
+if ($raw === false || strlen($raw) < 100 || strlen($raw) > 10 * 1024 * 1024) fail('The attached file didn\'t come through. Nothing was sent.');
+if (substr($raw, 0, 4) === '%PDF') $ext = 'pdf'; elseif (substr($raw, 0, 3) === "\xFF\xD8\xFF") $ext = 'jpg'; elseif (substr($raw, 0, 8) === "\x89PNG\r\n\x1a\n") $ext = 'png'; else fail('Only photos and PDFs can be attached. Nothing was sent.');
+$fn = preg_replace('/[^A-Za-z0-9 ._()-]/', '', preg_replace('/\.[A-Za-z0-9]+$/', '', (string)$p['attach'])) ?: 'attachment'; $fn .= '.'.$ext;
+}
+$what = 'Email to '.$label.': "'.$sub.'"'.($fn ? ' with '.$fn.' attached' : '');
+if (!TALK_LIVE){ log_line($base + ['details' => $what, 'result' => 'Practice']); echo json_encode(['ok' => true, 'practice' => true, 'say' => 'Practice mode: nothing was sent. Live, this would send the '.$what.'.']); exit; }
+$sn = 'Kid City USA '.$school; $bd = 'b'.md5(uniqid('', true));
+$hdr = "From: ".$sn." <noreply@thepreschoolprofessional.net>\r\nReply-To: ".$OFFICE[$school]."\r\nMIME-Version: 1.0\r\n";
+$txt = str_replace(["\r\n", "\r"], "\n", $bod); $txt = str_replace("\n", "\r\n", $txt)."\r\n";
+if ($raw !== null){
+$ct = $ext === 'pdf' ? 'application/pdf' : ($ext === 'png' ? 'image/png' : 'image/jpeg');
+$hdr .= "Content-Type: multipart/mixed; boundary=\"$bd\"";
+$body = "--$bd\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n".$txt."\r\n--$bd\r\nContent-Type: $ct; name=\"$fn\"\r\nContent-Transfer-Encoding: base64\r\nContent-Disposition: attachment; filename=\"$fn\"\r\n\r\n".chunk_split(base64_encode($raw))."\r\n--$bd--";
+} else { $hdr .= "Content-Type: text/plain; charset=UTF-8"; $body = $txt; }
+if (!function_exists('mail') || !@mail($addr, '=?UTF-8?B?'.base64_encode($sub).'?=', $body, $hdr)){ log_line($base + ['details' => $what, 'result' => 'Failed']); fail('The email didn\'t send. Nothing went out.', 502); }
+log_line($base + ['details' => $what, 'result' => 'Done']); echo json_encode(['ok' => true, 'say' => 'Sent. '.$what.'.']); exit;
+}
 if ($kind === 'rooms_board'){ log_line($base + ['details' => mb_substr((string)($input['details'] ?? ''), 0, 300), 'result' => TALK_LIVE ? 'Done' : 'Practice']); echo json_encode(['ok' => true]); exit; }
 if (!in_array($kind, ['room_sign_in','room_sign_out','staff_time_fix','inventory_count'])) fail('Nothing to change.');
 $ctx = school_context($school);
