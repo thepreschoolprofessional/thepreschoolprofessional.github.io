@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Talk to Bear Line</title>
+<link rel="icon" href="chat-logo.png">
+<style>
+:root{--ink:#4a3a30;--soft:#9b8576;--pink:#ff6b9d;--blue:#5aa9ff;--purple:#9b6bff;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',system-ui,sans-serif;}
+body{min-height:100vh;background:linear-gradient(160deg,#fff7ef,#ffe7d4);color:var(--ink);padding:0 0 60px;}
+header{padding:14px 16px 8px;text-align:center;position:relative;}
+header .logo{height:64px;width:auto;display:block;margin:0 auto 4px;}
+header .back{position:absolute;left:14px;top:14px;color:#c2185b;font-weight:800;text-decoration:none;font-size:.9rem;}
+h1{font-size:1.6rem;}
+.sub{color:var(--soft);font-size:.92rem;margin-top:4px;}
+.banner{max-width:760px;margin:10px auto;background:#fff3cd;border:2px dashed #e0a800;border-radius:14px;padding:10px 14px;font-size:.9rem;}
+.banner.live{background:#e8f5e9;border-color:#43a047;}
+main{max-width:760px;margin:0 auto;padding:0 16px;}
+.bc-wrap{background:#fff;border-radius:20px;box-shadow:0 6px 18px rgba(74,58,48,.10);padding:14px;}
+.bc-log{height:52vh;min-height:300px;overflow-y:auto;padding:4px;display:flex;flex-direction:column;gap:10px;}
+.bc-msg{max-width:86%;padding:10px 14px;border-radius:16px;line-height:1.4;font-size:.96rem;word-wrap:break-word;}
+.bc-me{align-self:flex-end;background:#1d4e89;color:#fff;border-bottom-right-radius:4px;}
+.bc-bot{align-self:flex-start;background:#fff4ea;border-bottom-left-radius:4px;}
+.bc-bot a{color:#c2185b;font-weight:700;}
+.bc-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.bc-chip{border:2px solid #ffd2b0;background:#fff;border-radius:999px;padding:6px 12px;font-size:.85rem;font-weight:700;color:var(--ink);cursor:pointer;}
+.bc-chip:hover{background:#fff0e3;}
+.bc-chip.yes{background:var(--pink);border-color:var(--pink);color:#fff;}
+.bc-chip:disabled{opacity:.5;cursor:default;}
+.bc-panel{margin-top:8px;padding:10px;border:1px solid #eadfd6;border-radius:12px;background:#fffaf6;}.bc-h{font-weight:800;margin:8px 0 4px;font-size:13px;}.bc-sel{width:100%;padding:8px;border:1px solid #d8c8bb;border-radius:10px;font:inherit;}.bc-kids{display:flex;flex-wrap:wrap;gap:6px 12px;}.bc-kid{display:flex;align-items:center;gap:4px;font-size:14px;margin:4px 0;}
+.bc-form{display:grid;gap:8px;margin-top:8px;}.bc-form label{display:grid;gap:3px;font-size:.85rem;font-weight:700;}.bc-form input,.bc-form textarea{padding:8px 10px;border-radius:10px;border:2px solid #ffd2b0;font-size:.95rem;font-weight:400;}
+.bc-send{border:0;border-radius:12px;padding:10px;background:var(--pink);color:#fff;font-weight:800;cursor:pointer;}
+/* The director chatbot runs inside this page for questions; its own bar and lists are hidden. */
+#bot .bc-bar,#bot .bc-browse,#bot .bc-missed,#bot .bc-voice-note,#bot .bc-privacy{display:none;}
+#bot .bc-wrap{box-shadow:none;padding:0;}
+.tb-bar{display:flex;gap:6px;margin-top:10px;}
+.tb-input{flex:1;padding:12px 14px;border-radius:14px;border:2px solid #ffd2b0;font-size:1rem;}
+.tb-mic,.tb-go{border:0;border-radius:14px;padding:0 16px;font-size:1.05rem;font-weight:800;cursor:pointer;color:#fff;background:var(--purple);}
+.tb-go{background:var(--pink);}
+.tb-mic.on{background:#c62828;animation:pulse 1s infinite;}
+@keyframes pulse{50%{opacity:.6;}}
+.tb-note{font-size:.8rem;color:var(--soft);margin:8px 2px 0;}
+.tb-try{margin-top:12px;font-size:.9rem;}
+.tb-try b{display:block;margin-bottom:4px;}
+.tb-log{margin-top:14px;font-size:.88rem;}
+.tb-log summary{cursor:pointer;font-weight:800;}
+.tb-log table{width:100%;border-collapse:collapse;margin-top:6px;}
+.tb-log td{border-top:1px solid #f3e3d6;padding:5px 4px;vertical-align:top;}
+.thinking{opacity:.7;font-style:italic;}
+.closed{max-width:520px;margin:60px auto;background:#fff;border-radius:20px;padding:24px;text-align:center;box-shadow:0 6px 18px rgba(74,58,48,.10);}
+.closed input{padding:10px 12px;border-radius:12px;border:2px solid #ffd2b0;font-size:1rem;margin-top:12px;width:200px;text-align:center;}
+.closed button{border:0;border-radius:12px;padding:10px 16px;background:var(--pink);color:#fff;font-weight:800;cursor:pointer;margin-top:10px;}
+</style>
+</head>
+<body>
+<header><a class="back" href="director.html">&larr; Director Portal</a><img class="logo" src="chat-logo.png" alt=""><h1>Talk to Bear Line</h1><div class="sub" id="sub">Test version</div></header>
+<div id="app"></div>
+<script src="bear-chat-data.js?v=5"></script>
+<script src="director-chat-data.js?v=6"></script>
+<script src="director-chat-lessons.js?v=3"></script>
+<script src="director-chat.js?v=7"></script>
+<script>
+(function(){
+  /* Talk to Bear Line, TEST VERSION (built 11/20/26, not linked from any portal yet).
+     Words go to talk-api.php, Claude Haiku proposes ONE change, the director taps Yes or No.
+     Questions are handed to Director Bear Chat on this page. Practice mode is set in talk-api.php (TALK_LIVE). */
+  var API = 'talk-api.php';
+  var app = document.getElementById('app');
+  var PIN = sessionStorage.getItem('hivePin') || '', SCHOOL = '', LIVE = false, HIST = [], BUSY = false;
+  var D = window.DC_DATA || {cards:{}};
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function post(body){ body.pin = PIN; return fetch(API, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)}).then(function(r){ return r.json().then(function(j){ if (!r.ok || j.error) throw new Error(j.error || 'Something went wrong.'); return j; }); }); }
+
+  function signIn(msg){
+    app.innerHTML = '<div class="closed"><h2>Director PIN</h2><p style="margin-top:10px">'+esc(msg || 'Enter your director PIN to use Talk to Bear Line.')+'</p><input id="pinIn" type="password" autocomplete="off" inputmode="text"><br><button id="pinGo">Open</button></div>';
+    var go = function(){ PIN = document.getElementById('pinIn').value.trim(); if (PIN) start(); };
+    document.getElementById('pinGo').onclick = go;
+    document.getElementById('pinIn').onkeydown = function(e){ if (e.key === 'Enter') go(); };
+  }
+  function start(){
+    app.innerHTML = '<div class="closed"><p>Opening…</p></div>';
+    post({action:'whoami'}).then(function(w){
+      SCHOOL = w.school; LIVE = !!w.live; sessionStorage.setItem('hivePin', PIN);
+      document.getElementById('sub').textContent = SCHOOL + (LIVE ? '' : ' · Test version');
+      build(w.keyReady);
+    }).catch(function(e){ PIN = ''; signIn(e.message); });
+  }
+
+  function build(keyReady){
+    app.innerHTML = '<div class="banner'+(LIVE?' live':'')+'">'+(LIVE
+        ? '<b>Live.</b> When you tap Yes, the change is made in Bear Line and logged with your school.'
+        : '<b>TEST VERSION, practice mode.</b> Talk to it like you would to a person. When you tap Yes, it shows what it <i>would</i> do and logs it. Nothing in Bear Line changes yet.')
+      + (keyReady ? '' : '<br><b>Not connected to Claude yet:</b> the Claude key still needs to be added on the server.')
+      + '</div><main><div class="bc-wrap"><div id="bot"></div>'
+      + '<form class="tb-bar"><input class="tb-input" placeholder="Say or type: sign Mia in at 8:15…" autocomplete="off" maxlength="400"><button type="button" class="tb-mic" title="Speak">🎤</button><button class="tb-go" type="submit">Send</button></form>'
+      + '<div class="tb-note">🎤 uses your browser\'s free voice typing. Every change waits for your Yes. Never say PINs or passwords out loud.</div>'
+      + '<div class="tb-try"><b>Try:</b><div class="bc-chips" id="tries"></div></div>'
+      + '<details class="tb-log" id="tblog"><summary>What was asked and done today ('+esc(SCHOOL)+')</summary><div id="logbox">Loading…</div></details>'
+      + '</div></main>';
+    DirectorChat.mount(document.getElementById('bot'), {school: SCHOOL, pin: PIN, mode: 'live'});
+    logEl().innerHTML = '';
+    bot('Hi! Tell me what you want done in Bear Line, or ask me anything about the Director Portal. I\'ll show you exactly what I\'m going to do, and nothing changes until you tap Yes.');
+    var tries = ['Sign in a child now', 'Fix a staff clock-out time', 'Bring up the food program forms', 'Update a supply count', 'How do I add a new hire?'];
+    var tb = document.getElementById('tries');
+    tries.forEach(function(t){ var b = document.createElement('button'); b.type = 'button'; b.className = 'bc-chip'; b.textContent = t; b.onclick = function(){ var i = input(); i.value = t; i.focus(); }; tb.appendChild(b); });
+    app.querySelector('.tb-bar').onsubmit = function(ev){ ev.preventDefault(); var i = input(); var v = i.value.trim(); if (!v || BUSY) return; i.value = ''; send(v); };
+    setupMic();
+    document.getElementById('tblog').addEventListener('toggle', function(){ if (this.open) loadLog(); });
+  }
+  function input(){ return app.querySelector('.tb-input'); }
+  function logEl(){ return document.querySelector('#bot .bc-log'); }
+  function add(cls, html){ var box = logEl(), d = document.createElement('div'); d.className = 'bc-msg ' + cls; d.innerHTML = html; box.appendChild(d); box.scrollTop = box.scrollHeight; return d; }
+  function me(t){ return add('bc-me', esc(t)); }
+  function bot(t){ return add('bc-bot', esc(t).replace(/\n/g,'<br>')); }
+
+  function send(words){
+    me(words); BUSY = true;
+    var wait = add('bc-bot thinking', 'Thinking…');
+    post({action:'plan', words: words, history: HIST, cards: Object.keys(D.cards || {})})
+      .then(function(r){ wait.remove(); show(r.plan, words); })
+      .catch(function(e){ wait.remove(); bot(e.message); })
+      .then(function(){ BUSY = false; });
+  }
+  function remember(words, reply){ HIST.push({you: words, me: reply}); if (HIST.length > 4) HIST.shift(); }
+
+  function show(p, words){
+    var k = p.kind;
+    if (k === 'question'){
+      remember(words, 'Answered with Director Bear Chat');
+      var bi = document.querySelector('#bot .bc-input'), bf = document.querySelector('#bot .bc-bar');
+      var mine = logEl().lastElementChild; if (mine) mine.remove();   // the chatbot shows the question itself
+      bi.value = p.question || words; bf.requestSubmit ? bf.requestSubmit() : bf.dispatchEvent(new Event('submit', {cancelable:true}));
+      return;
+    }
+    if (k === 'open_card'){
+      remember(words, 'Opened ' + p.card);
+      var m = bot(p.say || ('Opening ' + p.card + '.')), row = document.createElement('div'); row.className = 'bc-chips';
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'bc-chip yes'; b.textContent = 'Open ' + p.card; b.onclick = function(){ openCard(p.card); };
+      row.appendChild(b); m.appendChild(row); return;
+    }
+    if (k === 'room_sign_in' || k === 'room_sign_out' || k === 'staff_time_fix' || k === 'inventory_count'){
+      remember(words, 'Proposed: ' + p.say);
+      var c = bot(p.say), r2 = document.createElement('div'); r2.className = 'bc-chips';
+      var yes = document.createElement('button'), no = document.createElement('button');
+      yes.type = no.type = 'button'; yes.className = 'bc-chip yes'; no.className = 'bc-chip';
+      yes.textContent = LIVE ? 'Yes, do it' : 'Yes (practice)'; no.textContent = 'No';
+      yes.onclick = function(){ yes.disabled = no.disabled = true; var w = add('bc-bot thinking', 'Working…');
+        post({action:'do', plan: p, words: words}).then(function(r){ w.remove(); bot(r.say); }).catch(function(e){ w.remove(); bot(e.message); }); };
+      no.onclick = function(){ yes.disabled = no.disabled = true; post({action:'do', plan: p, words: words, declined: 1}).catch(function(){}); bot('OK, I didn\'t change anything.'); };
+      r2.appendChild(yes); r2.appendChild(no); c.appendChild(r2); return;
+    }
+    remember(words, p.say || '');
+    bot(p.say || 'I didn\'t catch that. Try saying it another way.');
+  }
+
+  function openCard(name){
+    var c = (D.cards || {})[name] || {};
+    if (c.url){ window.open(c.url, '_blank', 'noopener'); return; }
+    if (c.page){ window.open(c.page, '_blank'); return; }
+    window.open('director.html#open=' + encodeURIComponent(name), '_blank');
+  }
+
+  function loadLog(){
+    var box = document.getElementById('logbox'); box.textContent = 'Loading…';
+    post({action:'log'}).then(function(r){
+      var L = r.log || []; if (!L.length){ box.textContent = 'Nothing yet this month.'; return; }
+      box.innerHTML = '<table>' + L.map(function(x){ return '<tr><td>'+esc(x.when.slice(5,16))+'</td><td>'+esc(x.details || x.words)+'</td><td><b>'+esc(x.result)+'</b></td></tr>'; }).join('') + '</table>';
+    }).catch(function(e){ box.textContent = e.message; });
+  }
+
+  function setupMic(){
+    var btn = app.querySelector('.tb-mic'), SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR){ btn.style.display = 'none'; return; }
+    var rec = null;
+    btn.onclick = function(){
+      if (rec){ rec.stop(); return; }
+      rec = new SR(); rec.lang = 'en-US'; rec.interimResults = true; rec.maxAlternatives = 1;
+      var finalText = '';
+      rec.onresult = function(e){ var t = ''; for (var i = 0; i < e.results.length; i++){ t += e.results[i][0].transcript; if (e.results[i].isFinal) finalText = t; } input().value = t; };
+      rec.onend = function(){ btn.classList.remove('on'); rec = null; var v = input().value.trim(); if (v && finalText && !BUSY){ input().value = ''; send(v); } };
+      rec.onerror = function(){ btn.classList.remove('on'); };
+      btn.classList.add('on'); rec.start();
+    };
+  }
+
+  if (PIN) start(); else signIn();
+})();
+</script>
+</body>
+</html>
