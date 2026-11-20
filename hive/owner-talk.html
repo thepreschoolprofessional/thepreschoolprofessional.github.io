@@ -212,6 +212,12 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
       };
       drow.appendChild(db); dm.appendChild(drow); return;
     }
+    if (k === 'open_form'){
+      remember(words, 'Opened ' + p.form_name);
+      var fm = bot(p.say || ('Opening ' + p.form_name + '.')), frow = document.createElement('div'); frow.className = 'bc-chips';
+      var fb = document.createElement('button'); fb.type = 'button'; fb.className = 'bc-chip yes'; fb.textContent = 'Open ' + p.form_name; fb.onclick = function(){ openNew(p.form_url); };
+      frow.appendChild(fb); fm.appendChild(frow); return;
+    }
     if (k === 'open_card'){
       remember(words, 'Opened ' + p.card);
       var m = bot(p.say || ('Opening ' + p.card + '.')), row = document.createElement('div'); row.className = 'bc-chips';

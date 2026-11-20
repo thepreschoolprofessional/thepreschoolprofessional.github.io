@@ -297,6 +297,40 @@ $j = post_json($e['endpoint'], $body);
 if (isset($j['error']) && strpos((string)$j['error'], 'no answer') === 0) return ['error' => 'The '.($e['card'] ?? 'portal').' card didn\'t answer.'];
 return iso_filter($j) ?? [];
 }
+
+/* FORMS: every printable form (Food Program table + Forms Library: employee, enrollment, facility, general) with its own link. Finds the one the director named. */
+function find_forms($q, $pin){
+global $school;
+$stop = ['form','forms','the','a','an','please','need','i','me','for','of','and','to','bring','up','open','show','get','pull','my','our','can','you','give','want','sheet','blank','print','copy','link'];
+$tok = function($s) use ($stop){ $s = strtolower(preg_replace('/[^a-z0-9 ]+/i', ' ', (string)$s)); $o = []; foreach (preg_split('/\s+/', trim($s)) as $w){ if ($w === '') continue; $w = preg_replace('/(ies)$/', 'y', $w); $w = preg_replace('/s$/', '', $w); if (strlen($w) > 1 && !in_array($w, $stop, true)) $o[$w] = 1; } return array_keys($o); };
+$qt = $tok($q); if (!$qt) return [];
+$rows = [];
+/* each source: lookup id, table, name field, category field, then the link fields (label => field) */
+$SRC = [
+['api_list_forms_library', 'Forms Library', 'Form Name', 'Category', ['' => 'File Link']],
+['api_list_food_program', 'Food Program', 'Document', 'Category', ['' => 'File Link']],
+['api_list_lesson_plan_index', 'Lesson Plan Index', 'Plan', 'Month', ['Lesson Plan' => 'File Link', 'Student Workbook' => 'Student Workbook Link', 'Teacher Supplement' => 'Teacher Workbook Link', 'Student Workbook (4-6)' => '4-6 Student Workbook Link', 'Teacher Supplement (4-6)' => '4-6 Teacher Workbook Link']],
+['api_list_resource_links', 'Resource Links', 'Title', 'Section', ['' => 'URL', 'Teacher Guide' => 'Teacher Guide URL', 'Student Workbook' => 'Student Workbook URL', 'Wall Cards' => 'Wall Cards URL', 'Picture Cards' => 'Picture Cards URL']],
+];
+foreach ($SRC as $src){
+$j = portal_call($src[0], ['action' => 'list', 'table' => $src[1], 'maxRecords' => 150], $pin);
+foreach ((array)($j['records'] ?? []) as $r){
+$f = (array)($r['fields'] ?? []); $n0 = trim((string)($f[$src[2]] ?? '')); if ($n0 === '') continue;
+$cat = $f[$src[3]] ?? ''; if (is_array($cat)) $cat = $cat['name'] ?? ''; $ag = $f['Age Group'] ?? ''; if (is_array($ag)) $ag = $ag['name'] ?? '';
+$sc = $f['School'] ?? ''; if (is_array($sc)) $sc = $sc['name'] ?? '';
+if ($sc !== '' && $sc !== 'Both' && stripos((string)$sc, $school === 'Sanford' ? 'Sanford' : 'DeLand') === false) continue;
+foreach ($src[4] as $lab => $fld){
+$l = trim((string)($f[$fld] ?? '')); if ($l === '' || !preg_match('~^https://~', $l)) continue;
+$n = $lab === '' ? $n0 : $n0.' - '.$lab; if ($src[1] === 'Lesson Plan Index' && $ag !== '' && stripos($n0, (string)$ag) === false) $n = $n0.' ('.$ag.') - '.$lab;
+$nt = $tok($n.' '.$cat.' '.$ag); $hit = 0; foreach ($qt as $w){ foreach ($nt as $x){ if ($x === $w || (strlen($w) > 3 && (strpos($x, $w) === 0 || strpos($w, $x) === 0))){ $hit++; break; } } }
+if ($hit === 0) continue;
+$extra = max(0, count($tok($n)) - count($qt));
+$score = $hit / count($qt) - 0.02 * $extra + ($sc !== '' && $sc !== 'Both' ? 0.03 : 0);
+$rows[] = ['name' => $n, 'cat' => (string)$cat, 'url' => $l, 'score' => $score, 'full' => $hit === count($qt)];
+}}}
+usort($rows, function($a, $b){ return $b['score'] <=> $a['score']; });
+return array_slice($rows, 0, 6);
+}
 /* ONE-SCHOOL RULE: a director only ever gets their own school. The school comes from the PIN (never from the words). Anything a lookup returns that is marked with the other school is dropped before Claude sees it,
    and anything Claude sends with a School field is forced to the director's own school. */
 function iso_names(){ global $school; return $school === 'Sanford' ? ['Sanford', 'DeLand'] : ['DeLand', 'Sanford']; }
@@ -409,6 +443,7 @@ foreach (array_slice((array)($input['history'] ?? []), -8) as $h){ $u = trim(mb_
 $system = "You are Talk to Bear Line, the voice helper for the director of Kid City USA $school, a preschool. "
 ."The director says or types a request. It may ask for several things in one sentence (for example \"the toddlers are going to the playground and sign Ms. Ana out at 2\"). Return one action for each thing, in the order they said them, at most 5. You never make changes yourself: the director sees each proposal and taps Yes or No on each one. Yes and No buttons appear ONLY on a proposed change. In a clarify or an answer, NEVER say tap, press or click Yes; there is no button there. If you need a go-ahead or a missing detail, ask it as a plain question the director can answer by typing (for example: Want me to send it? Type yes or tell me what to change).\n\n"
 ."DOCUMENTS: when the director asks you to open, show or pull up a document, use kind open_doc (it needs no Yes). First look it up: files_person for a staff or student paper (use its person id as doc_id and the file name as doc_file, doc_source person, doc_kind staff or student), or reporting_list for a monthly report (doc_source report, doc_file = the name, doc_month = YYYY-MM, doc_cat = its cat). Only use names that really appear in a lookup result. If more than one file could match, use clarify and list the choices. Say the document name in say. "
+."FORMS AND LESSON PLANS: when the director asks for a SPECIFIC form, paper, lesson plan, workbook or teacher guide by name (for example the infant feeding form, an application for employment, the field trip permission form, the medical statement, the October threes lesson plan, the November twos student workbook), use kind open_form with form_query = its name in their own words, including the month and age group for a lesson plan (it needs no Yes; the server finds the exact form and its link). Use open_card for forms only when they ask for the forms area in general. "
 ."ONE SCHOOL ONLY: you work for the director of Kid City USA $school and nobody else. Never ask which school, never answer about, look up, send to or change anything at the other school, even if asked or if a result seems to include it. If asked about the other school, say kindly that you can only help with $school. "
 ."What you can see and do: in the Director Portal you can look up almost every card (briefing, staff hours, buzz board, ratios, enrollment, new hires, parent portal, parent uploads and replies, staff and student files, training, reporting, DCF binder, transportation, inventory, food program, the Director Pack tiles) and propose changes to most of them. On the Bear Line tablet you can look up: who is signed in or out on a day, ELC children missing parent signatures, absences and their reasons, staff clock punches, open time-fix requests, front-screen notices and events, and a child's parent notes; and you can propose signing a child in or out, fixing a staff punch, and adding or changing notices, events and parent notes. You never handle PINs, passwords or pay amounts. If the director asks what you can do, tell them this in plain words with a couple of example questions. If something is not on that list, say so plainly and name the closest thing you can do.\n\nThink the request through before you answer: work out which card or action fits, what it needs, and what the director already gave you. When they ask to send a template email to parents (inquiry, enrolled, onboard, tour, registration, sams, teacher hub, management hub), use the portal op api_create_email_automation_requests with Template and Parent Emails; the card fills in the rest. If a detail is missing, use clarify and name the card and every missing detail with the choices, in one message.\n\nWhenever you ask a question (clarify), say you cannot do something (cant), or need something said a certain way, ALWAYS finish with one short example of exactly how the director can say it, in quotes, using real names from the lists when you can (for example: Try saying: \"send the tour email to mom@example.com\"). Never just tell them to say it another way.\n\nPick kind:\n"
 ."- room_sign_in / room_sign_out: sign one or more CHILDREN in or out for TODAY, on the Rooms board and on the Bear Line tablet record (the parent sign-in). children = exact names from the Children list. time = HH:MM 24-hour; use the current time when they say now or give no time.\n"
@@ -446,7 +481,7 @@ $dynamic = "Today is ".$now->format('l, Y-m-d')." and the time is ".$now->format
 
 $one = ['type' => 'object', 'additionalProperties' => false,
 'properties' => [
-'kind' => ['type' => 'string', 'enum' => ['portal','answer','compose','file_to_person','file_to_vault','email','rooms_board','room_sign_in','room_sign_out','staff_time_fix','inventory_count','open_card','open_doc','question','tablet','tablet_event','parent_note','clarify','cant']],
+'kind' => ['type' => 'string', 'enum' => ['portal','answer','compose','file_to_person','file_to_vault','email','rooms_board','room_sign_in','room_sign_out','staff_time_fix','inventory_count','open_card','open_doc','open_form','question','tablet','tablet_event','parent_note','clarify','cant']],
 'say' => ['type' => 'string'], 'children' => ['type' => 'array', 'items' => ['type' => 'string']],
 'time' => ['type' => 'string'], 'staff' => ['type' => 'string'], 'date' => ['type' => 'string'],
 'time_in' => ['type' => 'string'], 'time_out' => ['type' => 'string'], 'lunch_out' => ['type' => 'string'], 'lunch_in' => ['type' => 'string'], 'reason' => ['type' => 'string'],
@@ -457,7 +492,7 @@ $one = ['type' => 'object', 'additionalProperties' => false,
 'to' => ['type' => 'string', 'enum' => array_merge(['office','food_program'], OWNER_ADDR ? ['owner'] : [], [''])], 'subject' => ['type' => 'string'], 'body' => ['type' => 'string'], 'attach' => ['type' => 'string', 'enum' => ['yes','no']],
 'op' => ['type' => 'string', 'enum' => array_merge(cat_ids('write'), [''])], 'args_json' => ['type' => 'string'],
 'link_kind' => ['type' => 'string', 'enum' => ['staff','existing','enroll','']], 'email_to' => ['type' => 'string'], 'recipient' => ['type' => 'string'],
-'doc_source' => ['type' => 'string', 'enum' => ['person','report','']], 'doc_kind' => ['type' => 'string', 'enum' => ['staff','student','']], 'doc_id' => ['type' => 'string'], 'doc_file' => ['type' => 'string'], 'doc_month' => ['type' => 'string'], 'doc_cat' => ['type' => 'string']],
+'doc_source' => ['type' => 'string', 'enum' => ['person','report','']], 'doc_kind' => ['type' => 'string', 'enum' => ['staff','student','']], 'doc_id' => ['type' => 'string'], 'doc_file' => ['type' => 'string'], 'doc_month' => ['type' => 'string'], 'doc_cat' => ['type' => 'string'], 'form_query' => ['type' => 'string']],
 'required' => ['op','args_json','link_kind','email_to','recipient','kind','say','children','time','staff','date','time_in','time_out','lunch_out','lunch_in','reason','notice_op','es','title','from','to_date','notice_match','note_type','item','qty','card','question','board_action','room','room_to','doc','month','section','to','subject','body','attach']];
 $schema = ['type' => 'object', 'additionalProperties' => false, 'properties' => ['actions' => ['type' => 'array', 'items' => $one]], 'required' => ['actions']];
 
@@ -560,6 +595,16 @@ elseif ($rm) $out['command'] = 'move everyone in '.$rm.' to '.$to;
 else $ask('Who should move to '.$to.'?'); }
 elseif ($ba === 'meal'){ $ml = preg_match('/lunch/i', $p['item']) ? 'lunch' : (preg_match('/snack/i', $p['item']) ? 'PM snack' : 'breakfast'); $out['command'] = 'Mark '.$ml.($rm ? ' for '.$rm : ''); }
 else $ask('What should happen on the Rooms board?');
+break;
+case 'open_form':
+$fq = trim((string)($p['form_query'] ?? '')); $hits = $fq === '' ? [] : find_forms($fq, $pin);
+$locked = function($u){ return (bool)preg_match('~files/food-program/(sanford-monthly-entrances|deland2-monthly-entrances|deland2-personnel-activity-report)\.pdf~i', $u); };
+$hits = array_values(array_filter($hits, function($h){ return $h['full']; })) ?: [];
+if (!$hits){ $c = pick_name('Forms Wizard', $cards) ?: pick_name('Food Forms', $cards); if ($c) $out = ['kind' => 'open_card', 'say' => 'I could not find a form by that name, so here is the forms area.', 'card' => $c]; else $out = ['kind' => 'question', 'say' => (string)$p['say'], 'question' => $words]; break; }
+$top = $hits[0]; $close = array_values(array_filter($hits, function($h) use ($top){ return $h['score'] >= $top['score'] - 0.04; }));
+if (count($close) > 1){ $out = ['kind' => 'clarify', 'say' => 'Which one do you want? '.implode('; ', array_map(function($h){ return $h['name']; }, array_slice($close, 0, 5))).'.']; break; }
+if ($locked($top['url'])){ $c = pick_name('Food Forms', $cards); $out = $c ? ['kind' => 'open_card', 'say' => $top['name'].' lists staff or children, so it opens inside the Food Forms card.', 'card' => $c] : ['kind' => 'cant', 'say' => $top['name'].' lists staff or children, so it only opens inside the Director Portal.']; break; }
+$out += ['form_name' => $top['name'], 'form_url' => $top['url'], 'say' => 'Opening '.$top['name'].'.'];
 break;
 case 'open_card':
 $c = pick_name($p['card'], $cards);
