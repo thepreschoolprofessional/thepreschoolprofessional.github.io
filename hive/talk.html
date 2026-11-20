@@ -125,6 +125,7 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
       post({action:'selftest'}).then(function(r){ w.remove(); bot(r.say); }).catch(function(e){ w.remove(); bot(e.message); }).then(function(){ b.disabled = false; }); };
     document.getElementById('tblog').addEventListener('toggle', function(){ if (this.open) loadLog(); });
   }
+  function openNew(u){ var a = document.createElement('a'); a.href = u; a.target = '_blank'; if (!/^https?:\/\/(www\.)?thepreschoolprofessional\.net\//i.test(u) && !/^[a-z0-9._-]+\.(html|php)/i.test(u)) a.rel = 'noopener'; a.style.display = 'none'; document.body.appendChild(a); a.click(); setTimeout(function(){ a.remove(); }, 500); }
   function input(){ return app.querySelector('.tb-input'); }
   function logEl(){ return document.querySelector('#bot .bc-log'); }
   function add(cls, html){ var box = logEl(), d = document.createElement('div'); d.className = 'bc-msg ' + cls; d.innerHTML = html; box.appendChild(d); box.scrollTop = box.scrollHeight; return d; }
@@ -187,7 +188,7 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
       box.innerHTML = '<b>To:</b> ' + esc(p.to_email) + '\n<b>Subject:</b> ' + esc(p.subject) + '\n\n' + esc(p.body); cm.appendChild(box);
       var crow = document.createElement('div'); crow.className = 'bc-chips';
       var gb = document.createElement('button'); gb.type = 'button'; gb.className = 'bc-chip yes'; gb.textContent = 'Open Gmail with this ready';
-      gb.onclick = function(){ window.open('https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(p.to_email) + '&su=' + encodeURIComponent(p.subject) + '&body=' + encodeURIComponent(p.body), '_blank'); };
+      gb.onclick = function(){ openNew('https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(p.to_email) + '&su=' + encodeURIComponent(p.subject) + '&body=' + encodeURIComponent(p.body)); };
       crow.appendChild(gb); cm.appendChild(crow); return;
     }
     if (k === 'open_card'){
@@ -266,10 +267,10 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
 
   function openCard(name){
     var c = (D.cards || {})[name] || {};
-    if (c.url && /^https?:\/\/(www\.)?thepreschoolprofessional\.net\//i.test(c.url)){ window.open(c.url, '_blank'); return; }   // our own pages keep your sign-in
-    if (c.url){ window.open(c.url, '_blank', 'noopener'); return; }
-    if (c.page){ window.open(c.page, '_blank'); return; }
-    window.open('director.html#open=' + encodeURIComponent(name), '_blank');
+    if (c.url && /^https?:\/\/(www\.)?thepreschoolprofessional\.net\//i.test(c.url)){ openNew(c.url); return; }   // our own pages keep your sign-in
+    if (c.url){ openNew(c.url); return; }
+    if (c.page){ openNew(c.page); return; }
+    openNew('director.html#open=' + encodeURIComponent(name));
   }
 
   function loadLog(){
