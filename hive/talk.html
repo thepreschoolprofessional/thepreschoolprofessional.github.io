@@ -104,7 +104,7 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
       + '<form class="tb-bar"><button type="button" class="tb-clip" title="Attach a photo or file">📎</button><input type="file" class="tb-pick" accept="image/jpeg,image/png,application/pdf,image/*" style="display:none"><input class="tb-input" placeholder="Say or type: sign Mia in at 8:15…" autocomplete="off" maxlength="400"><button type="button" class="tb-mic" title="Speak">🎤</button><button class="tb-go" type="submit">Send</button></form>'
       + '<div class="tb-file" id="tbfile"></div>'
       + '<div class="tb-note">📎 attaches a photo or PDF to file or email. 🎤 uses your browser\'s free voice typing. Every change waits for your Yes. Never say PINs or passwords out loud.</div>'
-      + '<div class="tb-try"><b>Try:</b><div class="bc-chips" id="tries"></div></div>'
+      + '<details class="tb-try" style="margin:8px 0;background:#fff;border:1px solid #e6d9cf;border-radius:12px;padding:8px 12px"><summary style="cursor:pointer;font-weight:800">💡 Try saying… (tap to open)</summary><div class="bc-chips" id="tries" style="margin-top:8px;max-height:220px;overflow:auto"></div></details>'
       + '<div class="tb-note"><button type="button" class="bc-chip" id="tbcheck">Check the Bear Line tablet link</button> (changes nothing)</div>'
       + '<details class="tb-log" id="tblog"><summary>What was asked and done today ('+esc(SCHOOL)+')</summary><div id="logbox">Loading…</div></details>'
       + '</div></main>';
