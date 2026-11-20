@@ -105,6 +105,7 @@ $DEFS = [
  'elcpay'=> ['ELC / School Readiness payment certificate (eligibility)', true, true, 'School Readiness children only. Enter the date the certificate EXPIRES so the red alert comes before it runs out'],
  'elc'   => ['Other ELC / 4C paperwork', false, false, 'Only if the family has any'],
  'cust'  => ['Custody / court papers', false, false, 'Only if any'],
+ 'obs'   => ['Teacher notes and observations (parent saw them on the tablet)', false, false, 'Filed by Talk to Bear Line'],
 ],
 ];
 $CE_GOAL = 24; // yearly in-service hours goal shown on each staff file
