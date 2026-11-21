@@ -103,13 +103,19 @@ if (isset($row['result']) && strpos((string)$row['result'], 'Failed') === 0) iss
 
 /* ---------- SELF-MONITORING: everything that did not go right is written to the Talk Issues table (Airtable) so it can be read each day and fixed.
    Lessons marked Active in the Talk Lessons table are added to Talk's instructions, so many fixes need no code change. ---------- */
+/* Backup copy of an issue in the private folder, used when the Talk Issues table can't be written, so no missed question is lost. */
+function issue_keep($problem, $said, $did, $why){
+global $school;
+@file_put_contents(private_dir().'/issues-'.now_et()->format('Y-m').'.jsonl', json_encode(['when' => now_et()->format('Y-m-d H:i:s'), 'school' => $school, 'problem' => $problem, 'said' => mb_substr((string)$said, 0, 600), 'did' => mb_substr((string)$did, 0, 800), 'why' => $why])."\n", FILE_APPEND | LOCK_EX);
+}
 function issue_log($problem, $said, $did){
 global $school, $role;
 try {
-if (AIRTABLE_TOKEN === 'PASTE_YOUR_AIRTABLE_TOKEN_HERE') return;
+if (AIRTABLE_TOKEN === 'PASTE_YOUR_AIRTABLE_TOKEN_HERE'){ issue_keep($problem, $said, $did, 'No Airtable token'); return; }
 $said = mb_substr(trim((string)$said), 0, 600); $did = mb_substr(trim((string)$did), 0, 800);
-at_request('POST', ['Talk Issues'], null, ['typecast' => true, 'fields' => ['Issue' => mb_substr($problem.': '.$said, 0, 120), 'Day' => now_et()->format('Y-m-d H:i'), 'School' => $school, 'Who' => (string)$role, 'Problem' => $problem, 'Said' => $said, 'Talk Did' => $did, 'Times' => 1, 'Status' => 'New']]);
-} catch (Throwable $e) {}
+$r = at_request('POST', ['Talk Issues'], null, ['typecast' => true, 'fields' => ['Issue' => mb_substr($problem.': '.$said, 0, 120), 'Day' => now_et()->format('Y-m-d H:i'), 'School' => $school, 'Who' => (string)$role, 'Problem' => $problem, 'Said' => $said, 'Talk Did' => $did, 'Times' => 1, 'Status' => 'New']]);
+if (empty($r['id'])) issue_keep($problem, $said, $did, 'Talk Issues did not save: '.mb_substr(json_encode($r['error'] ?? 'no answer'), 0, 200));
+} catch (Throwable $e) { issue_keep($problem, $said, $did, 'Talk Issues did not save'); }
 }
 function note_ask($words){   /* true when this school asked nearly the same thing in the last 15 minutes (the director had to ask again) */
 global $school;
@@ -187,7 +193,7 @@ return ($ok && isset($j['notices']) && is_array($j['notices'])) ? $j['notices'] 
 function pick_notice($want, $list){
 $norm = function($s){ return trim(preg_replace('/\s+/', ' ', preg_replace('/[^a-z0-9 ]/', ' ', strtolower((string)$s)))); };
 $w = $norm($want); if ($w === '') return null; $words = explode(' ', $w); $hit = [];
-foreach ((array)$list as $n){ $t = ' '.$norm(($n['title'] ?? '').' '.($n['en'] ?? '').' '.($n['es'] ?? '')).' ';
+foreach ((array)$list as $n){ $t = ' '.$norm(($n['title'] ?? '').' '.($n['en'] ?? '').' '.($n['text'] ?? '').' '.($n['es'] ?? '')).' ';
 $all = true; foreach ($words as $x){ if (strpos($t, ' '.$x) === false){ $all = false; break; } }
 if ($all) $hit[] = $n; }
 return count($hit) === 1 ? $hit[0] : null;
@@ -253,8 +259,8 @@ return !isset($done[(string)($n['id'] ?? '')]) && ($c === '' || $c === $k || $c 
 function note_record_line($n){
 $t = ucfirst((string)($n['type'] ?? 'note'));
 $when = (string)($n['created'] ?? $n['at'] ?? $n['from'] ?? '');
-$seen = (string)($n['seen'] ?? $n['seenAt'] ?? $n['okAt'] ?? $n['ok_at'] ?? '');
-$who = (string)($n['seenBy'] ?? $n['okBy'] ?? $n['parent'] ?? '');
+$seen = (string)($n['acked'] ?? $n['seen'] ?? $n['seenAt'] ?? $n['okAt'] ?? '');
+$who = (string)($n['ackBy'] ?? $n['seenBy'] ?? $n['okBy'] ?? $n['parent'] ?? '');
 $es = (string)($n['es'] ?? ''); $en = (string)($n['en'] ?? $n['text'] ?? '');
 return $t.($when ? ', left '.$when : '').(!empty($n['by']) ? ' by '.$n['by'] : '').': '.$en.($es !== '' && $es !== $en ? ' / '.$es : '').($seen ? '  (parent tapped OK '.$seen.($who ? ', '.$who : '').')' : '');
 }
@@ -445,6 +451,11 @@ list($ok5, $j5, $e5) = bl_post($school, ['action' => 'hive_child_sign', 'child' 
 $lines[] = 'Child sign-in on the tablet record: '.($e5 === 'unknown_child' ? 'connected (a made-up name was turned away).' : ($e5 === 'denied' ? 'the code doesn\'t match.' : 'not there yet (desktop Prompt 4 adds it).'));
 $lines[] = 'Reading the notices already up: '.(bl_notices($school) !== null ? 'works.' : 'not there yet (desktop Prompt 3 adds it).');
 }
+/* Can Talk write to the Talk Issues table, where missed questions are kept? Writes one test row and deletes it. */
+$tr = AIRTABLE_TOKEN === 'PASTE_YOUR_AIRTABLE_TOKEN_HERE' ? [] : at_request('POST', ['Talk Issues'], null, ['typecast' => true, 'fields' => ['Issue' => 'Link check (deleted right away)', 'Day' => now_et()->format('Y-m-d H:i'), 'School' => $school, 'Problem' => 'Error', 'Status' => 'Ignore']]);
+if (!empty($tr['id'])) at_request('DELETE', ['Talk Issues', $tr['id']]);
+$kept = count(array_filter(@file(private_dir().'/issues-'.now_et()->format('Y-m').'.jsonl', FILE_IGNORE_NEW_LINES) ?: [], function($l) use ($school){ return strpos($l, '"school":'.json_encode($school)) !== false; }));
+$lines[] = 'Missed-question log: '.(!empty($tr['id']) ? 'saving to the Talk Issues table.' : 'the Talk Issues table didn\'t save, so missed questions are kept in the private folder instead.').($kept ? ' '.$kept.' kept there this month.' : '');
 log_line(['school' => $school, 'role' => $role, 'words' => 'Link check', 'kind' => 'selftest', 'result' => implode(' ', $lines)]);
 echo json_encode(['ok' => true, 'say' => implode("\n", $lines)]); exit;
 }
@@ -828,6 +839,7 @@ $ik = (string)($out['kind'] ?? '');
 if ($ik === 'clarify') issue_log('Needed more info', $words, (string)($out['say'] ?? ''));
 elseif ($ik === 'cant') issue_log('Could not do', $words, (string)($out['say'] ?? ''));
 elseif ($ik === 'question') issue_log('Not found', $words, (string)($out['say'] ?? ''));
+elseif ($ik === 'answer' && preg_match('/\b(couldn.?t|could not|can.?t|cannot|don.?t|do not) (find|see|tell|read|reach|answer|have)\b|\bno (record|data|information|way to)\b|\bnot (sure|able)\b/iu', (string)($out['say'] ?? ''))) issue_log('Not found', $words, (string)($out['say'] ?? ''));
 elseif ($ik === 'open_card' && strpos((string)($out['say'] ?? ''), 'could not find a form') !== false) issue_log('Not found', $words, (string)$out['say']);
 $plans[] = $out;
 }
@@ -933,7 +945,9 @@ foreach (array_chunk($updates, 10) as $ch){ $r = at_request('PATCH', ['Room Atte
 $tab = []; $tabErr = '';
 foreach ($done as $n){ list($ok, $j, $e) = bl_post($school, ['action' => 'hive_child_sign', 'child' => $n, 'date' => $today, 'type' => $kind === 'room_sign_in' ? 'in' : 'out', 'at' => $t, 'by' => 'Director '.$school.' (Talk to Bear Line)', 'note' => 'Entered by the director with Talk to Bear Line']);
 if ($ok) $tab[] = $n; else { $tabErr = $e; if (in_array($e, ['not_connected','bad_action','no_answer','denied'], true) || $e === '' || stripos($e, 'unknown') === 0 && $e !== 'unknown_child') break; } }
-$tabSay = count($tab) === count($done) ? ' Also on the Bear Line tablet record.' : ($tab ? ' On the tablet record only for '.implode(', ', $tab).'; the rest still need it there.' : ' The Bear Line tablet record isn\'t connected from here yet, so it was changed on the Rooms board only.');
+$tabWhy = ['unknown_child' => 'the tablet doesn\'t have that child by that name', 'ambiguous_child' => 'the tablet has more than one child by that name', 'bad_time' => 'the tablet didn\'t accept that day or time', 'out_before_in' => 'the sign-out would be before the sign-in there'][$tabErr] ?? '';
+$tabSay = count($tab) === count($done) ? ' Also on the Bear Line tablet record.' : ($tabWhy !== '' ? ' Not on the Bear Line tablet record'.($tab ? ' for the rest (done for '.implode(', ', $tab).')' : '').', because '.$tabWhy.'. Fix it on the tablet.' : ($tab ? ' On the tablet record only for '.implode(', ', $tab).'; the rest still need it there.' : ' The Bear Line tablet record isn\'t connected from here yet, so it was changed on the Rooms board only.'));
+if (count($tab) !== count($done)) issue_log('Error', (string)($base['words'] ?? $what), 'Rooms board done; tablet record not: '.($tabErr ?: 'no answer'));
 log_line($base + ['details' => $what.'. Tablet: '.($tab ? implode(', ', $tab) : 'none'.($tabErr ? ' ('.$tabErr.')' : '')), 'result' => 'Done']); echo json_encode(['ok' => true, 'say' => 'Done. '.$what.'.'.$tabSay]); exit;
 }
 
@@ -1061,7 +1075,9 @@ if ($action === 'log'){
 $lines = @file(private_dir().'/log-'.now_et()->format('Y-m').'.jsonl', FILE_IGNORE_NEW_LINES) ?: [];
 $out = [];
 foreach (array_reverse($lines) as $l){ $r = json_decode($l, true); if (($r['school'] ?? '') !== $school || empty($r['result']) || strpos($r['result'], 'Claude error') === 0) continue; $out[] = ['when' => $r['when'], 'words' => $r['words'] ?? '', 'details' => $r['details'] ?? '', 'result' => $r['result']]; if (count($out) >= 30) break; }
-echo json_encode(['log' => $out]); exit;
+$iss = [];
+foreach (array_reverse(@file(private_dir().'/issues-'.now_et()->format('Y-m').'.jsonl', FILE_IGNORE_NEW_LINES) ?: []) as $l){ $r = json_decode($l, true); if (($r['school'] ?? '') !== $school) continue; $iss[] = ['when' => $r['when'] ?? '', 'problem' => $r['problem'] ?? '', 'words' => $r['said'] ?? '', 'did' => $r['did'] ?? '']; if (count($iss) >= 30) break; }
+echo json_encode(['log' => $out, 'issues' => $iss]); exit;
 }
 
 fail('Unknown action');

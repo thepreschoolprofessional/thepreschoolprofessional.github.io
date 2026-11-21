@@ -300,8 +300,9 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
   function loadLog(){
     var box = document.getElementById('logbox'); box.textContent = 'Loading…';
     post({action:'log'}).then(function(r){
-      var L = r.log || []; if (!L.length){ box.textContent = 'Nothing yet this month.'; return; }
-      box.innerHTML = '<table>' + L.map(function(x){ return '<tr><td>'+esc(x.when.slice(5,16))+'</td><td>'+esc(x.details || x.words)+'</td><td><b>'+esc(x.result)+'</b></td></tr>'; }).join('') + '</table>';
+      var L = r.log || [], I = r.issues || []; if (!L.length && !I.length){ box.textContent = 'Nothing yet this month.'; return; }
+      box.innerHTML = (L.length ? '<table>' + L.map(function(x){ return '<tr><td>'+esc(x.when.slice(5,16))+'</td><td>'+esc(x.details || x.words)+'</td><td><b>'+esc(x.result)+'</b></td></tr>'; }).join('') + '</table>' : '')
+        + (I.length ? '<p><b>Questions Talk missed (kept here because the Talk Issues table didn\'t save them)</b></p><table>' + I.map(function(x){ return '<tr><td>'+esc(x.when.slice(5,16))+'</td><td>'+esc(x.words)+'</td><td>'+esc(x.problem)+'</td></tr>'; }).join('') + '</table>' : '');
     }).catch(function(e){ box.textContent = e.message; });
   }
 
