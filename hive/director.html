@@ -62,6 +62,10 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 .pct{font-weight:900;font-size:1.1rem;}
 .foodchips{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
 .fchip{background:#fff3d6;border-radius:10px;padding:5px 12px;font-weight:800;font-size:.85rem;}
+.fphub{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin:0 0 16px}
+.fphub a{display:block;color:#fff;text-decoration:none;border-radius:14px;padding:14px 16px;box-shadow:0 3px 10px rgba(0,0,0,.12)}
+.fphub a b{display:block;font-size:1.05rem;margin-bottom:4px}.fphub a small{display:block;font-size:.82rem;opacity:.95;line-height:1.3}
+.fphd{font-weight:800;margin:4px 0 10px;color:#5d4a2e}
 .banner{background:#fff3d6;border:2px dashed #f0d9a6;border-radius:14px;padding:12px 16px;font-size:.88rem;color:#8a7357;margin-bottom:14px;font-weight:600;}
 .roomgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:16px;}
 .roomtile{border-radius:18px;padding:16px 14px;text-align:center;color:#fff;box-shadow:0 6px 18px rgba(74,58,48,.14);}
@@ -210,7 +214,14 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
   </div>
 
   <div class="panel" id="p-food">
-    <div class="banner">🍽 Daily KidKare meal counts and what still needs attention. Remember: Charles records &amp; saves daily — <b>you submit the claim at month-end</b>.</div>
+    <div class="banner">🍽 Start here for everything food program. Pick what you need below. The daily KidKare meal counts are further down.</div>
+    <div class="fphub">
+      <a href="dcf.html?tab=att&amp;from=food" style="background:#2e7d32"><b>✍️ Food Program Attendance</b><small>The official Weekly Attendance &amp; Meal Count form for each classroom. Fix a mark, sign &amp; date, print. Add a missing child right on the form.</small></a>
+      <a href="rooms.html?add=1&amp;back=director.html%23open%3DFood%2520Program" style="background:#1565c0"><b>➕ Add a child</b><small>Puts the child on the classroom roster, the sign-in sheet and the food program form. Charles adds them in KidKare at the next check.</small></a>
+      <a href="dcf.html?tab=pack&amp;from=food" style="background:#6a1b9a"><b>📦 Month-End Packet</b><small>Entrances, terminations, PAR, receipts, then review &amp; submit by the 5th.</small></a>
+      <a href="#" onclick="var t=document.querySelector('.tab[onclick*=&quot;foodforms&quot;]');if(t)t.click();window.scrollTo(0,0);return false;" style="background:#3f8f5c"><b>📋 Blank forms to print</b><small>Every CACFP/CCFP form by category, to print or hand a parent.</small></a>
+    </div>
+    <div class="fphd">📊 Daily KidKare meal counts. Charles records &amp; saves these daily; <b>you submit the claim at month-end</b>.</div>
     <div id="foodList" class="empty">Loading…</div>
   </div>
 
@@ -928,7 +939,7 @@ window.HIVE_CARDS={prompt:'What do you want to work on?',order:[
  {k:'FTE Report',l:['Weekly FTE report: fill in and save','Print the filled or blank official form','20-week sheet with changes and charts','Full sheets are filed in the vault'],s:'Weekly FTE, saved here',c:'#00695c'},
  {k:'Monthly Staff Meeting Agenda',l:['The agenda for this month\'s staff meeting','Posted the evening before the meeting','Teachers see the same agenda in their portal','Past agendas are saved here too'],s:'Agenda for the staff meeting',c:'#5d4037'},
  {k:'Daily Briefing',l:["Today's to-do list (check off, add notes)", "Friday meeting answers", "Red Needs Attention alerts"],s:"Today's to-do list",c:'#2e8b57'},
- {k:'Classroom Attendance',t:[['Rooms Board lessons','lessons.html#A1']],l:["Rooms board: sign children in and out", "Meals checked off by room", "Weekly attendance forms to sign", "Headcounts and ratios"],s:'Room sign-in, meals, headcounts',c:'#1565c0'},
+ {k:'Classroom Attendance',t:[['Rooms Board lessons','lessons.html#A1']],l:["Rooms board: sign children in and out", "Meals checked off by room", "Roster: add or withdraw a child", "Headcounts and ratios"],s:'Room sign-in, meals, headcounts',c:'#1565c0'},
  {k:'Emergency Contacts',l:['By classroom, same order as the Rooms board','Child, parent or emergency contact, email, phone','Tap a number to call, tap an email to write','Email a whole room at once'],s:'Call or email a family',c:'#c62828'},
  {k:'Staff Items',l:['Send a staff member something to do or read','Upload a document, training, sign, cleaning chart, announcement','Spanish version for staff who read Spanish','Staff see it on Bear Line without clocking in or out'],s:'Send items to staff',c:'#6a3fb5'},
  {k:'Staff Contacts',l:['Every staff member at your school','Phone and email, tap to call or write','Directors can add or fix numbers','Shows who is still missing a phone or email'],s:'Call or email staff',c:'#6a1b9a'},
@@ -937,8 +948,8 @@ window.HIVE_CARDS={prompt:'What do you want to work on?',order:[
  {k:'Family and Staff PINs',l:['Click a classroom to see its children','Every adult has their own PIN','Staff PINs on their own tab','Private: directors and owner only'],s:'Look up a PIN',c:'#6a1b9a'},
  {k:'Bear’s Den Portal PINs',l:['Director, Teacher and Parent portal PINs for your school','Updated the moment a PIN changes','Private: directors only'],s:'Current portal PINs',c:'#00796b'},
  {k:'Admin Sign-In',l:['Sign a child in or out with your director signature','For a parent who is not on the list','No second PIN needed'],s:'Sign a child in',c:'#ef6c00'},
- {k:'Food Program',l:["Daily KidKare meal counts", "What still needs attention", "You submit the claim at month-end"],s:'Meal counts and the claim',c:'#d9822b'},
- {k:'Food Forms',l:["Every CACFP/CCFP form by category", "Open and print the exact form"],s:'Forms to print',c:'#3f8f5c'},
+ {k:'Food Program',l:["Food Program Attendance: the official weekly form to fix, sign and print", "Add a child to a classroom", "Month-End Packet", "Daily KidKare meal counts"],s:'Start here for the food program',c:'#d9822b'},
+ {k:'Food Forms',l:["Blank CACFP/CCFP forms by category", "Open and print the exact form", "Filled weekly forms are on Food Program"],s:'Blank forms to print',c:'#3f8f5c'},
  {k:'DCF Binder',l:["Missing items by day", "Cleaning, inspections, temps and security", "End of day, drills (fire drill log)", "Transportation, attendance, food program", "Month-end packet and forms to print"],s:'Inspector view',c:'#c62828'},
  {k:'Transportation',l:["Trips and riders", "Transportation packet"],s:'Trips, riders, packet',c:'#00838f'},
  {k:'Reporting',l:["Monthly checklist: ELC, Food Program, DCF, meetings", "Audit vault of filed PDFs", "Weekly attendance forms"],s:'Monthly reporting and vault',c:'#37474f'},

@@ -27,7 +27,7 @@ var FORMS = {
  eod:{type:'🌙 End of Day Building Sweep',label:'End-of-day building sweep',room:BLDG,items:function(){return ['End-of-day visual sweep of entire building & all playgrounds completed by 2 closing staff.'];}},
  drl:{type:'🧯 Drills & Emergency',label:'Fire / emergency drill',room:BLDG,monthly:true,items:function(){return ['Fire/emergency drill conducted & logged'];}}
 };
-var FROMREP=false; try{ FROMREP=new URLSearchParams(location.search).get('from')==='rep'; }catch(e){}
+var FROMREP=false, FROMFOOD=false; try{ var FRM=new URLSearchParams(location.search).get('from'); FROMREP=FRM==='rep'; FROMFOOD=FRM==='food'; }catch(e){}
 var TABS = [
  {id:'miss',label:'Missing'},
  {id:'clean',label:'Cleaning',forms:['bath','cls']},
@@ -133,11 +133,11 @@ function drillMissing(monthIso){
 /* ---------- render ---------- */
 function render(){
   var h='';
-  h+='<div class="hdr"><div><b>DCF Binder</b> <span class="sch">'+esc(S.school)+'</span></div><div class="hbtn">'+(FROMREP?'<a class="btn sec sm" href="reporting.html">&lsaquo; Monthly Reporting</a>':'<a class="btn sec sm" href="director.html">&lsaquo; Director portal</a>')+' <button class="btn sec sm" id="prt">Print</button></div></div>';
+  h+='<div class="hdr"><div><b>DCF Binder</b> <span class="sch">'+esc(S.school)+'</span></div><div class="hbtn">'+(FROMREP?'<a class="btn sec sm" href="reporting.html">&lsaquo; Monthly Reporting</a>':FROMFOOD?'<a class="btn sec sm" href="director.html#open=Food%20Program">&lsaquo; Food Program</a>':'<a class="btn sec sm" href="director.html">&lsaquo; Director portal</a>')+' <button class="btn sec sm" id="prt">Print</button></div></div>';
   h+='<div class="bar"><button class="btn sec sm" data-a="prev">&lsaquo;</button><input type="date" id="dt" value="'+S.date+'"><button class="btn sec sm" data-a="next">&rsaquo;</button><button class="btn sec sm" data-a="today">Today</button>'+(S.busy?'<span class="load">loading&hellip;</span>':'')+'</div>';
   var wk=monday(S.date), t=todayNY();
   var mt=missingList(monthStart(t),t).length+(drillMissing(t)?1:0)+(drillMissing(addDays(monthStart(t),-1))?1:0);
-  h+='<div class="tabs">'+TABS.filter(function(x){ return FROMREP || S.tab===x.id || !(x.id==='food'||x.id==='pack'); }).map(function(x){ return '<button class="tab'+(S.tab===x.id?' on':'')+'" data-tab="'+x.id+'">'+x.label+(x.id==='miss'&&mt?' <span class="red">'+mt+'</span>':'')+'</button>'; }).join('')+'</div>';
+  h+='<div class="tabs">'+TABS.filter(function(x){ return FROMREP || FROMFOOD || S.tab===x.id || !(x.id==='food'||x.id==='pack'); }).map(function(x){ return '<button class="tab'+(S.tab===x.id?' on':'')+'" data-tab="'+x.id+'">'+x.label+(x.id==='miss'&&mt?' <span class="red">'+mt+'</span>':'')+'</button>'; }).join('')+'</div>';
   h+='<div class="body">'+body()+'</div><div id="toast" class="toast"></div><div id="modal"></div>';
   $('app').innerHTML=h;
   $('prt').onclick=function(){ window.print(); };
@@ -362,7 +362,7 @@ function foodView(){
   var h='<div class="card"><div class="ct">Food program &mdash; daily meal counts</div><div class="sub">Week of '+nice(wk)+' (from the KidKare counts saved each afternoon)</div><div class="gw"><table class="grid"><tr><th></th><th>B</th><th>L</th><th>P</th><th>Present</th></tr>';
   days.forEach(function(d){ var m=S.meals.filter(function(x){return x.fields.Date===d;})[0]; var f=m?m.fields:null;
     h+='<tr><th class="rl">'+nice(d)+'</th>'+(f?'<td>'+(f.Breakfast||0)+'</td><td>'+(f.Lunch||0)+'</td><td>'+(f['PM Snack']||0)+'</td><td>'+(f.Present||0)+'</td>':'<td colspan="4" class="'+(isSchoolDay(d)&&d<todayNY()?'redt':'')+'">'+(isSchoolDay(d)&&d<todayNY()?'not recorded':'&ndash;')+'</td>')+'</tr>'; });
-  return h+'</table></div><div class="hint">The weekly sponsor attendance sheets and the daily backup log are being added to this tab next.</div></div>';
+  return h+'</table></div><div class="hint">These are the daily totals saved in KidKare. The official Weekly Attendance &amp; Meal Count form for each classroom (fix marks, sign &amp; date, print) is on the Attendance tab.</div><button class="btn sec" data-tab="att">Open the weekly forms</button></div>';
 }
 
 /* ---------- cell modal: view / edit / fill in ---------- */
@@ -1039,7 +1039,7 @@ document.addEventListener('click',function(e){
 });
 
 /* ---------- boot ---------- */
-api('whoami').then(function(w){ S.school=w.school; try{var q=new URLSearchParams(location.search);if(q.get('date')&&/^\d{4}-\d{2}-\d{2}$/.test(q.get('date')))S.date=q.get('date');if(q.get('tab'))S.tab=q.get('tab');if(q.get('form')&&S.pk&&PFORMS.some(function(p){return p[0]===q.get('form');}))S.pk.form=q.get('form');}catch(e){} render(); return ensureData(); }).then(function(){ try{var c=new URLSearchParams(location.search).get('cell');if(c){var p=c.split('|');if(FORMS[p[0]])openCell(p[0],p[1],p[2]);}}catch(e){} }).catch(function(e){ document.getElementById('app').innerHTML='<div class="card"><b>'+esc(e.message)+'</b><br><a class="btn" href="index.html">Back to sign in</a></div>'; });
+api('whoami').then(function(w){ S.school=w.school; try{var q=new URLSearchParams(location.search);if(q.get('date')&&/^\d{4}-\d{2}-\d{2}$/.test(q.get('date')))S.date=q.get('date');if(q.get('tab'))S.tab=q.get('tab');if(q.get('room')&&S.rep)S.rep.room=q.get('room');if(q.get('form')&&S.pk&&PFORMS.some(function(p){return p[0]===q.get('form');}))S.pk.form=q.get('form');}catch(e){} render(); return ensureData(); }).then(function(){ try{var c=new URLSearchParams(location.search).get('cell');if(c){var p=c.split('|');if(FORMS[p[0]])openCell(p[0],p[1],p[2]);}}catch(e){} }).catch(function(e){ document.getElementById('app').innerHTML='<div class="card"><b>'+esc(e.message)+'</b><br><a class="btn" href="index.html">Back to sign in</a></div>'; });
 /* ===== add-on 11/4/26: weekly attendance & meal count reports + monthly terminations ===== */
 /* DCF Binder add-on (11/4/26): Weekly Attendance & Meal Count Reports per classroom + Monthly Terminations form.
    Loaded after dcf.js. Uses dcf.js globals (S, api, esc, addDays, monday, MONTHS, HDR, pkData ...). */
@@ -1183,15 +1183,17 @@ function repEdit(spec){
 }
 /* ---------- Attendance tab ---------- */
 var oldAtt=attView;
+/* Add a child straight from the official weekly form: opens the Rooms board add-a-child form for this classroom (same roster + KidKare intake), then comes back here. */
+function addKidHref(room){ var back='dcf.html?tab=att&date='+S.date+'&room='+encodeURIComponent(room).replace(/'/g,'%27')+(FROMFOOD?'&from=food':FROMREP?'&from=rep':''); return 'rooms.html?add=1&room='+encodeURIComponent(room)+'&back='+encodeURIComponent(back); }
 attView=function(){
   var base=oldAtt?oldAtt():'';
   base=base.replace(/<div class="hint">Full rosters[\s\S]*$/,'<div class="hint">Weekly forms are below. Room times and ratios print from the Rooms board.</div><a class="btn sec" href="rooms.html">Open Rooms board</a></div>');
   if(!S.rep.rooms){ loadRep(); return base+'<div class="card">Loading classrooms&hellip;</div>'; }
   var mon=monday(S.date), sat=addDays(mon,5);
-  var h='<div class="card"><div class="ct">Weekly Attendance &amp; Meal Count Reports</div><div class="sub">Same form as the KidKare report, one per classroom. Tap any box to add or remove a mark. Tap a classroom to see it filled in. Print any time.</div>';
+  var h='<div class="card"><div class="ct">Weekly Attendance &amp; Meal Count Reports</div><div class="sub">This is the official food program attendance form, the same as the KidKare report, one per classroom. Tap a classroom to see it filled in, tap any box to add or remove a mark, then sign &amp; date. Print any time. A child missing from a classroom? Pick the classroom and tap &#10133; Add a child to this classroom.</div>';
   h+='<div class="rpbar"><button class="btn sec sm" data-rep="prev">&lsaquo;</button><span class="b">Week of '+fmtMD(mon,1)+' &ndash; '+fmtMD(addDays(mon,4),1)+'</span><button class="btn sec sm" data-rep="next">&rsaquo;</button><button class="btn sec sm" data-rep="thisweek">This week</button></div><div class="rpbar">';
   wkLoad(mon.slice(0,7)); var wkOpen=0; S.rep.rooms.forEach(function(r){ var nd=wkNeed(mon,r.Room), sg=!!wkData(mon,r.Room); if(nd) wkOpen++; h+='<button class="btn'+(S.rep.room===r.Room?'':' sec')+'" data-rep="room" data-v="'+esc(r.Room)+'">'+esc(r.Room)+(nd?' <span style="color:#ff5252">&#9679;</span>':(sg?' <span style="color:#2e7d32">&#10003;</span>':''))+'</button>'; });
-  h+='</div><div class="rpbar"><button class="btn grn sm" data-rep="print"'+(S.rep.room?'':' disabled')+'>Print this classroom</button><button class="btn sec sm" data-rep="printall">Print all classrooms</button></div></div>';
+  h+='</div><div class="rpbar"><button class="btn grn sm" data-rep="print"'+(S.rep.room?'':' disabled')+'>Print this classroom</button><button class="btn sec sm" data-rep="printall">Print all classrooms</button>'+(S.rep.room?'<a class="btn sec sm" href="'+addKidHref(S.rep.room)+'">&#10133; Add a child to this classroom</a>':'')+'</div></div>';
   if(wkOpen) h=h.replace('<div class="rpbar"><button class="btn sec sm" data-rep="prev">','<div class="wkbar bad"><b style="color:#c62828">&#9679; '+wkOpen+' classroom report'+(wkOpen===1?'':'s')+' this week still need'+(wkOpen===1?'s':'')+' a director/staff signature and date.</b> Tap a classroom marked with a red dot.</div><div class="rpbar"><button class="btn sec sm" data-rep="prev">');
   if(S.rep.room){ var pgs=repPages(S.rep.room,mon); h+=wkBar(S.rep.room,mon)+'<div class="rpscroll" id="reppage">'+pgs.join('<div style="height:14px"></div>')+'</div>'; }
   return base+h;

@@ -314,7 +314,7 @@ function paperTab(r){
   var list=roomKids(r.name), day=dayOf(r.name);
   var html=P.render({schoolAge:isSA(r.name), school:S.school, room:r.name, date:S.date, teachers:teachersFor(r.name), children:list, att:saFix(attMapFor(list),isSA(r.name)), day:day, asOf: isToday()? nowHM(): null});
   var food=weekReady()? foodPages(r) : '<div class="card noprint">Loading the food count form&hellip;</div>';
-  return '<div class="noprint"><button class="btn" data-act="print">Print both forms</button> <button class="btn sec" data-act="printfood">Print food form only</button> <span class="sub2">Attendance roster first, then the Weekly Attendance &amp; Meal Count (food) form just below it. Same layouts as the DCF binder.</span></div><div class="pfwrap">'+html+'</div><div class="noprint" style="margin:14px 0 4px;font-weight:700">Food count form (this week)</div>'+food;
+  return '<div class="noprint"><button class="btn" data-act="print">Print both forms</button> <button class="btn sec" data-act="printfood">Print food form only</button> <button class="btn sec" data-act="addonly" data-r="'+encodeURIComponent(r.name)+'">&#10133; Add a child to this room</button> <span class="sub2">Attendance roster first, then the Weekly Attendance &amp; Meal Count (food) form just below it. Same layouts as the DCF binder.</span></div><div class="pfwrap">'+html+'</div><div class="noprint" style="margin:14px 0 4px;font-weight:700">Food count form (this week)</div>'+food;
 }
 /* ---------- Food Count tab: the same Weekly Attendance & Meal Count form as the DCF Binder, built from this board's own sign-in and meal data ---------- */
 var FC_REPH={'DeLand 2':{name:'Kid City USA Deland 2 Inc (573)',phone:'(386) 279-7553',sponsor:'Child Care of Southwest Florida (U-2677)',sphone:'(239) 936-0899'},
@@ -553,7 +553,7 @@ var ACT = {
     S.role=w.role; if(w.school) S.school=w.school;
     if(!S.school){ S.pin=null; var le=document.getElementById('lerr'); if(le) le.textContent='Pick your school first.'; return; }
     ls('hiveRoomsPin',pin); ls('hiveRoomsSchool',S.school);
-    S.view='board'; S.loaded=false; return refresh();
+    S.view='board'; S.loaded=false; return refresh().then(maybeAdd);
   }).catch(function(e){ S.pin=null; var el=document.getElementById('lerr'); if(el) el.textContent=e.message; });
  },
  logout: function(){ ls('hiveRoomsPin',null); S.pin=null; S.view='login'; S.loaded=false; render(); },
@@ -694,6 +694,7 @@ var ACT = {
  notedit: function(el){ var k=decodeURIComponent(el.getAttribute('data-r')), x=(S.notes||{})[k]||{}; openModal('<h3>Note for '+(k==='ALL'?'all staff':esc(k))+'</h3><p class="sub2">Staff can read this on the board. Only owners and directors can change it. Leave it empty to clear it.</p><textarea class="inp" id="ntx" rows="4" maxlength="300" placeholder="Have a great weekend!">'+esc(x.text||'')+'</textarea><label class="lbl">Show until (optional)</label><input class="inp" type="date" id="ntu" value="'+esc(x.until||'')+'"><div id="merr" class="err"></div><div class="mrow"><button class="btn sec" data-act="mclose2">Cancel</button><button class="btn" data-act="roomnotesave" data-r="'+encodeURIComponent(k)+'">Save note</button></div>'); },
  roomnotesave: function(el){ var k=decodeURIComponent(el.getAttribute('data-r')); fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:S.pin,school:S.school,action:'rn_set',room:k,text:val('ntx'),until:val('ntu'),by:S.role==='owner'?'Mrs. Bear':'Director'})}).then(function(r){return r.json()}).then(function(j){ if(j.error) throw new Error(j.error); S.notes=j.notes; closeModal(); render(); toast('Note saved'); }).catch(function(e){ var m=document.getElementById('merr'); if(m) m.textContent=e.message; }); },
  roster: function(){ if(S.role==='director') rosterModal(S.pin); else needDirector(function(p){ rosterModal(p); }); },
+ addonly: function(el){ var r=decodeURIComponent(el.getAttribute('data-r')||''); if(S.role==='director'||S.role==='owner') addKidModal(S.pin, r); else needDirector(function(p){ addKidModal(p, r); }); },
  addkid: function(el){ var p=el.getAttribute('data-p'); var err=document.getElementById('merr'); err.textContent='';
    var fn=val('kfn').trim(), ln=val('kln').trim(), dob=val('kdob'), room=val('kroom');
    if(!fn||!ln){ err.textContent='Enter the child\'s first AND last name.'; return; }
@@ -713,7 +714,7 @@ var ACT = {
      specialNeeds:chk('ksn'),atRisk:chk('kar'),solidsDate:val('ksol'),specialDiet:chk('ksd'),milkSub:chk('kms'),milkAllergy:chk('kma'),dietExp:val('kde'),notes:val('kno').trim(),
      guardian:g,days:days,timesVary:chk('ktv'),overnight:chk('kov'),meals:meals,migrant:chk('kmi'),room:room};
    if(!intake.enroll||!intake.expire){ err.textContent='Enter the enrollment date and expiration date.'; return; }
-   api('create','Room Children',{fields:{Child:name, Room:room, DOB:dob, Status:'Active', Order:99, 'KidKare Action':'Needs Add', 'KidKare Intake':JSON.stringify(intake)}},p).then(function(){ closeModal(); toast(name+' added to '+room+'. Charles will add them in KidKare at the next 10 AM / 6 PM check. Remember ProCare too.'); return reloadAll(); }).catch(function(e){ err.textContent=e.message; }); },
+   api('create','Room Children',{fields:{Child:name, Room:room, DOB:dob, Status:'Active', Order:99, 'KidKare Action':'Needs Add', 'KidKare Intake':JSON.stringify(intake)}},p).then(function(){ closeModal(); toast(name+' added to '+room+'. Charles will add them in KidKare at the next 10 AM / 6 PM check. Remember ProCare too.'); return reloadAll().then(function(){ if(backHTML()) openModal('<h3>'+esc(name)+' is on '+esc(room)+'</h3><p class="sub2">They are on the classroom roster and the food program form now. Add them in ProCare too.</p><div class="mrow"><button class="btn sec" data-act="mclose2">Stay here</button>'+backHTML()+'</div>'); }); }).catch(function(e){ err.textContent=e.message; }); },
  wdopen: function(el){ var id=el.getAttribute('data-id'), p=el.getAttribute('data-p'); var k=S.kids.filter(function(x){return x.id===id;})[0]; if(!k) return;
    openModal('<h3>Withdraw '+esc(k.name)+'?</h3><p class="sub2">They come off every room sheet. Charles will remove them from the food program (KidKare) and remind the director to remove them from ProCare.</p><label class="lbl">Reason</label><select class="inp" id="wr"><option>Moved away</option><option>Changed schools / programs</option><option>Aged out / started kindergarten</option><option>Family decision</option><option>Other</option></select><label class="lbl">Last day</label><input class="inp" type="date" id="wdt" value="'+todayISO()+'"><div id="merr" class="err"></div><div class="mrow"><button class="btn sec" data-act="mclose2">Cancel</button><button class="btn org" data-act="wdgo" data-id="'+id+'" data-p="'+esc(p)+'">Withdraw</button></div>'); },
  wdgo: function(el){ var id=el.getAttribute('data-id'), p=el.getAttribute('data-p'); var k=S.kids.filter(function(x){return x.id===id;})[0]; if(!k) return;
@@ -734,11 +735,12 @@ function whoSelect(roomName,id){ var t=teachersFor(roomName); return '<select cl
 
 function chk(id){ var e=document.getElementById(id); return !!(e&&e.checked); }
 function radio(name){ var e=document.querySelector('input[name="'+name+'"]:checked'); return e?e.value:''; }
-function kkForm(rooms){
+function kkForm(rooms, pre){
+  pre=pre||S.room;
   var Y=new Date().getFullYear(), exp=(new Date().getMonth()>=7?Y+1:Y)+'-07-31';
   function ck(id,l,chk0){ return '<label class="ckl"><input type="checkbox" id="'+id+'"'+(chk0?' checked':'')+'> '+l+'</label>'; }
   var h='<h4>Child</h4><div class="g2"><input class="inp" id="kfn" placeholder="First name"><input class="inp" id="kmn" placeholder="Middle (optional)"></div><input class="inp" id="kln" placeholder="Last name" style="margin-top:8px">'
-   +'<label class="lbl">Date of birth</label><input class="inp" type="date" id="kdob"><label class="lbl">Room</label><select class="inp" id="kroom">'+rooms.map(function(n){ return '<option'+(n===S.room?' selected':'')+'>'+esc(n)+'</option>'; }).join('')+'</select>'
+   +'<label class="lbl">Date of birth</label><input class="inp" type="date" id="kdob"><label class="lbl">Room</label><select class="inp" id="kroom">'+rooms.map(function(n){ return '<option'+(n===pre?' selected':'')+'>'+esc(n)+'</option>'; }).join('')+'</select>'
    +'<div class="g2"><div><label class="lbl">Enrollment date</label><input class="inp" type="date" id="ken" value="'+todayISO()+'"></div><div><label class="lbl">Enrollment expires</label><input class="inp" type="date" id="kex" value="'+exp+'"></div></div>'
    +'<label class="lbl">Sex</label><div class="rg"><label><input type="radio" name="ksex" value="Male"> Male</label><label><input type="radio" name="ksex" value="Female"> Female</label></div>'
    +'<label class="lbl">Race (check all that apply)</label>'+ck('kraceAI','American Indian / Alaskan Native')+ck('kraceAs','Asian')+ck('kraceBl','Black or African American')+ck('kraceHI','Native Hawaiian / Pacific Islander')+ck('kraceWh','White')+ck('kraceUn','Unknown')
@@ -773,6 +775,23 @@ function rosterModal(p){
   openModal(h);
 }
 
+/* Add a child on its own (from the Food Program card, the official weekly food form or the Paper Form tab). Same roster + KidKare intake as Roster, so the child lands on that classroom's sign-in sheet and food form. */
+function addKidModal(p, room){
+  var rooms=S.rooms.map(function(r){return r.name;});
+  var h='<h3>Add a child'+(room?' to '+esc(room):'')+'</h3><div class="hint">The child goes on this classroom\'s roster, sign-in sheet and Weekly Attendance &amp; Meal Count (food program) form right away. Charles adds them in KidKare at the next 10 AM / 6 PM check. Add them in ProCare too.</div>'
+   +kkForm(rooms, room)+'<div id="merr" class="err"></div><div class="mrow"><button class="btn sec" data-act="mclose2">Cancel</button><button class="btn grn" data-act="addkid" data-p="'+esc(p)+'">Add child</button></div>';
+  openModal(h);
+}
+/* ?add=1[&room=][&back=] deep link. back may only be one of our own pages. */
+var ADDQ=(function(){ try{ var q=new URLSearchParams(location.search); if(q.get('add')!=='1') return null; var b=q.get('back')||''; if(!/^(dcf|director|reporting|pack|room)\.html([?#][\w=&%.\-]*)?$/.test(b)) b=''; return {room:q.get('room')||'', back:b}; }catch(e){ return null; } })();
+function backHTML(){ if(!ADDQ||!ADDQ.back) return ''; return '<a class="btn" href="'+esc(ADDQ.back)+'">&lsaquo; Back to '+(/^dcf/.test(ADDQ.back)?'the food program form':'where I was')+'</a>'; }
+function maybeAdd(){
+  if(!ADDQ||ADDQ.done) return; ADDQ.done=1;
+  var room=(ADDQ.room&&roomObj(ADDQ.room))? ADDQ.room : '';
+  if(room){ S.room=room; S.view='room'; S.tab='paper'; render(); }
+  if(S.role==='director'||S.role==='owner') addKidModal(S.pin, room); else needDirector(function(p){ addKidModal(p, room); });
+}
+
 /* ---------- events ---------- */
 document.addEventListener('click', function(e){
   var el=e.target.closest('[data-act]'); if(!el) return;
@@ -796,8 +815,9 @@ function bootEmbed(){
 function boot(){
   if(/[?&]embed=1\b/.test(location.search)){ bootEmbed(); return; }
   var pin=ls('hiveRoomsPin');
+  if(!pin && ADDQ){ try{ pin=sessionStorage.getItem('hivePin')||''; }catch(e){ pin=''; } if(pin){ try{ sessionStorage.setItem('hiveRoomsPin',pin); }catch(e){} } }   /* from the portal: same sign-in, this tab only */
   if(pin){ S.pin=pin; S.school=ls('hiveRoomsSchool')||portalSchool();
-    api('whoami','').then(function(w){ S.role=w.role; if(w.school) S.school=w.school; if(!S.school){ S.pin=null; S.view='login'; render(); return; } if(S.role==='director' && /[?&]as=teacher\b/.test(location.search)){ S.role='teacher'; S.asTeacher=1; } S.view='board'; return refresh(); }).catch(function(){ S.view='login'; render(); });
+    api('whoami','').then(function(w){ S.role=w.role; if(w.school) S.school=w.school; if(!S.school){ S.pin=null; S.view='login'; render(); return; } if(S.role==='director' && /[?&]as=teacher\b/.test(location.search)){ S.role='teacher'; S.asTeacher=1; } S.view='board'; return refresh().then(maybeAdd); }).catch(function(){ S.view='login'; render(); });
   } else render();
 }
 setInterval(function(){ if(S.view!=='login' && document.visibilityState==='visible' && !modalOpen() && S.pending===0 && isToday()) refresh(true); }, 20000);

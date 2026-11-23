@@ -41,7 +41,7 @@ function pages(o){ /* o: school, room, mon, kids[{n,age}], rows{date:{lowername:
     var dl=pk.filter(function(k){return k.diet}).map(function(k){return k.n+': '+k.diet}).join(';  ');
     h+='<tr><td colspan="3" class="lab" style="height:24px;border-top:2px solid #000">* Special Diet</td><td colspan="35" class="dg" style="border-top:2px solid #000;text-align:left;white-space:normal;font:10px Georgia,serif;padding:2px 5px;line-height:1.25">'+esc(dl)+'</td></tr>';
     h+='<tr class="tot"><td colspan="3" class="labr">Daily Totals:</td>';days.forEach(function(d,i){var t=tot[i],has=pk.length&&(t.a||t.b||t.l||t.p);[t.a,t.b,'',t.l,t.p,'',''].forEach(function(v,j){h+='<td'+(j===0?' class="dg"':'')+'>'+(v===''?'':(has?v:''))+'</td>'})});h+='</tr></table>';
-    h+='<div class="ft">I certify that the information on this form is true and correct to the best of my knowledge and that I will claim reimbursement only for eligible meals served to eligible participants. The director signs and dates the official weekly copy in the DCF Binder.</div><div class="pg">Page '+(p+1)+' of '+n+'</div></div>';
+    h+='<div class="ft">I certify that the information on this form is true and correct to the best of my knowledge and that I will claim reimbursement only for eligible meals served to eligible participants. The director signs and dates the official weekly copy in the Director Portal: Food Program, Food Program Attendance.</div><div class="pg">Page '+(p+1)+' of '+n+'</div></div>';
   }
   return h;
 }
@@ -50,7 +50,7 @@ function mount(el,cfg){
   var rooms=cfg.rooms||[],ST={room:rooms.length===1||!cfg.allowAll?rooms[0]:'ALL',mon:monday(cfg.today),busy:false,html:'',msg:''},ws=weeks(cfg.today);
   function ui(){
     var sel=rooms.length>1?'<label>Room<select id="ffr">'+(cfg.allowAll?'<option value="ALL"'+(ST.room==='ALL'?' selected':'')+'>All rooms</option>':'')+rooms.map(function(r){return '<option'+(ST.room===r?' selected':'')+'>'+esc(r)+'</option>'}).join('')+'</select></label>':'';
-    var h='<div class="sec"><div class="noprint"><h2>🍎 Food Program Attendance</h2><div class="sub">The Weekly Attendance &amp; Meal Count form, filled in from the sign-ins and meals on the Rooms board. Pick the week, then print. The last 2 months are shown.</div>'
+    var h='<div class="sec"><div class="noprint"><h2>🍎 Food Program Attendance</h2><div class="sub">The Weekly Attendance &amp; Meal Count form, filled in from the sign-ins and meals on the Rooms board. Pick the week, then print. The last 2 months are shown. This copy is for printing. A child missing from it? A director adds them in the Director Portal: Food Program, Add a child. They show here once they are on the classroom roster.</div>'
      +'<div class="ffc">'+sel+'<label>Week<select id="ffw">'+ws.map(function(w){return '<option value="'+w+'"'+(ST.mon===w?' selected':'')+'>Week of '+md(w)+' - '+md(add(w,4))+'</option>'}).join('')+'</select></label></div>'
      +'<button class="big" id="ffp"'+(ST.busy||!ST.html?' disabled':'')+' style="'+(ST.busy||!ST.html?'opacity:.5':'')+'">🖨️ Print this form</button>'+(ST.msg?'<div class="msg">'+ST.msg+'</div>':'')+'</div>'
      +(ST.html?'<div class="fcw">'+ST.html+'</div>':(ST.busy?'<div class="msg">Loading the form...</div>':''))+'</div>';
