@@ -104,7 +104,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 </style>
 <script>/* stale-page guard: if this browser is showing an old saved copy, load the fresh one */
 (function(){var V='20261117c';try{fetch(location.pathname+'?chk='+Date.now(),{cache:'no-store'}).then(function(r){return r.text()}).then(function(t){var m=t.match(/var V='([^']+)'/);if(m&&m[1]!==V&&!sessionStorage.getItem('hiveReloaded'+m[1])){sessionStorage.setItem('hiveReloaded'+m[1],'1');location.replace(location.pathname+'?v='+m[1]);}});}catch(e){}})();</script>
-<script src="bl-brand.js?v=20261123a" defer></script>
+<script src="bl-brand.js?v=20261123c" defer></script>
 </head>
 <body>
 <a class="back" href="index.html">← exit</a>
@@ -146,7 +146,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
  <div class="tab" style="background:#6a3fb5" onclick="location.href='staff-items.html'">📋 Staff Items</div>
   <div class="tab" style="background:#00838f" onclick="location.href='bearline-testing.html'">🧪 Bear Line Software Testing</div>
   <div class="tab" style="background:#ef6c00" onclick="openElcTablet()">📲 Bear Line Tablet</div>
-    <div class="tab" data-icon="bp-logo.png" style="background:#8d5a00" onclick="openBL('bears-den.html','staff')">🐻 Bear’s Den</div>
+    <div class="tab" style="background:#8d5a00" onclick="openBL('bears-den.html','staff')">🛖 Bear’s Den</div>
     <div class="tab" style="background:#6a1b9a" onclick="openPins()">🔑 Family and Staff PINs</div>
     <div class="tab" style="background:#00796b" onclick="location.href='director-pins.html'">🔐 My PINs and Bear’s Den Portal PINs</div>
     <div class="tab" style="background:#0572ec" onclick="window.open('https://start.1password.com/signin','_blank','noopener')">🔐 Password Vault</div>
@@ -175,7 +175,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
   <div class="tab" style="background:#1565c0" onclick="location.href='newhires.html'">🧑‍🏫 New Hires</div>
   <div class="tab" style="background:#5a4cc9" onclick="show('mc',this)">🔗 School Links</div>
   <div class="tab" style="background:linear-gradient(90deg,var(--teal),var(--green))" onclick="show('wb',this)">📚 Lesson Plan Wizard</div>
-  <div class="tab t-fund" onclick="show('fund',this)">Fundraiser</div>
+  <div class="tab t-fund" onclick="show('fund',this)">💛 Fundraiser</div>
 </nav>
 <main>
   <div class="panel show" id="p-brief">
@@ -944,7 +944,7 @@ window.HIVE_CARDS={prompt:'What do you want to work on?',order:[
  {k:'Staff Items',l:['Send a staff member something to do or read','Upload a document, training, sign, cleaning chart, announcement','Spanish version for staff who read Spanish','Staff see it on Bear Line without clocking in or out'],s:'Send items to staff',c:'#6a3fb5'},
  {k:'Staff Contacts',l:['Every staff member at your school','Phone and email, tap to call or write','Directors can add or fix numbers','Shows who is still missing a phone or email'],s:'Call or email staff',c:'#6a1b9a'},
  {k:'Bear Line Tablet',l:["Opens your school's Bear Line tablet", "Who signed in and out today", "Absence notes and excuse forms", "Month sign-in/out sheets"],s:'Who signed in today',c:'#ef6c00'},
- {k:'🐻 Bear’s Den',l:['Every family, their children and their billing box','Who owes and how far behind','Children check: Bear Line vs ProCare billing','Read only for now: billing still runs in ProCare'],s:'Families, balances, who owes',c:'#8d5a00'},
+ {k:'🛖 Bear’s Den',l:['Every family, their children and their billing box','Who owes and how far behind','Children check: Bear Line vs ProCare billing','Read only for now: billing still runs in ProCare'],s:'Families, balances, who owes',c:'#8d5a00'},
  {k:'Family and Staff PINs',l:['Click a classroom to see its children','Every adult has their own PIN','Staff PINs on their own tab','Private: directors and owner only'],s:'Look up a PIN',c:'#6a1b9a'},
  {k:'Bear’s Den Portal PINs',l:['Director, Teacher and Parent portal PINs for your school','Updated the moment a PIN changes','Private: directors only'],s:'Current portal PINs',c:'#00796b'},
  {k:'Admin Sign-In',l:['Sign a child in or out with your director signature','For a parent who is not on the list','No second PIN needed'],s:'Sign a child in',c:'#ef6c00'},
