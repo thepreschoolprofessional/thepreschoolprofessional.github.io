@@ -65,6 +65,7 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 <div class="tab" style="background:#8d5524" onclick="show('fees',this);PPA.show('fees')">💵 Tuition &amp; Fees</div>
 <div class="tab" style="background:#c62828" onclick="show('sick',this);PPA.show('sick')">🤒 When Your Child Is Sick</div>
 <div class="tab" style="background:#1565c0" onclick="show('pick',this);PPA.show('pick')">🚪 Drop-Off &amp; Pick-Up</div>
+<div class="tab" style="background:#4a3a30" onclick="show('sheet',this)">📝 Sign-In/Out Sheet</div>
 <div class="tab" style="background:#6a1b9a" onclick="show('learn',this);PPA.show('learn')">🎓 Parent Orientation</div>
 <div class="tab t-res active" onclick="show('res',this)">📚 Documents &amp; Registration</div>
 <div class="tab" style="background:#2e7d6b" onclick="show('forms',this);PPA.show('forms')">🥗 Food Program Forms</div>
@@ -160,6 +161,15 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
 </div>
 
 <div class="panel" id="p-docs"><div id="docsBox"></div></div>
+<div class="panel" id="p-sheet">
+<div class="result" style="border-top-color:#4a3a30">
+<h2>Your Child&rsquo;s Sign-In/Out Sheet</h2>
+<p>See your child&rsquo;s official Monthly Sign In/Out Sheet from anywhere. It is the same sheet we send to ELC, with the times and signatures from the Bear Line tablet.</p>
+<p><b>How:</b> pick your school, then type the 4-digit family PIN you use on the tablet at school. It is <b>view only</b>, so nothing can be changed. You can see this month and the 2 months before it. Older sheets are kept in your child&rsquo;s file at the school.</p>
+<p>Each parent or guardian can use their own PIN. Need one? Ask the front office.</p>
+<p style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px"><a href="https://bearphonicsacademy.com/elc-94f077be04/parent-forms.html" target="_blank" rel="noopener noreferrer" style="background:#4a3a30;color:#fff;padding:12px 20px;border-radius:14px;font-weight:800;text-decoration:none">Sanford</a> <a href="https://bearphonicsacademy.com/elc-1ce53ee46c/parent-forms.html" target="_blank" rel="noopener noreferrer" style="background:#4a3a30;color:#fff;padding:12px 20px;border-radius:14px;font-weight:800;text-decoration:none">DeLand 2</a></p>
+</div>
+</div>
 <div class="panel" id="p-fund">
 <img src="files/fundraiser-banner.svg" alt="Year-Round Fundraiser — help our hive grow" style="width:100%;border-radius:20px;margin-bottom:16px;box-shadow:0 8px 24px rgba(74,58,48,.14)">
 <div class="result" style="border-top-color:#ffb13d">
@@ -348,6 +358,7 @@ window.HIVE_CARDS={prompt:'What do you want to see?',order:[
  {k:'Tuition',s:'Tuition, fees and holidays',c:'#8d5524'},
  {k:'When Your Child Is Sick',s:'When to stay home, medicine',c:'#c62828'},
  {k:'Drop-Off',s:'Drop-off, pick-up and safety',c:'#1565c0'},
+ {k:'Sign-In/Out Sheet',s:'Your child\'s official sheet (view only)',c:'#4a3a30'},
  {k:'Parent Orientation',s:'Short lessons about our school',c:'#6a1b9a'},
  {k:'Food Program Forms',s:'Dietary, infant and meal forms',c:'#2e7d6b'},
  {k:'Documents',s:'Handbook, registration, forms',c:'#5aa9ff'},
