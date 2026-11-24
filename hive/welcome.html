@@ -94,6 +94,7 @@ var INFO={
  'Sanford':{full:'Kid City USA Sanford',addr:'1320 Hickory Ave, Sanford, FL 32771',phone:'(407) 942-3242',email:'sanfordoffice.1320@gmail.com',tour:'https://calendar.app.google/z17uoN2pzNdVsFkr6'},
  'DeLand 2':{full:'Kid City USA DeLand 2',addr:'238 S Amelia Ave, DeLand, FL 32724',phone:'(386) 279-7553',email:'delandoffice.238@gmail.com',tour:'https://calendar.app.google/JFXUgb64ePDaM9us8'}
 };
+var KC=/[?&]packet=kidcity/i.test(location.search);
 var SC=''; try{SC=sessionStorage.getItem('wlSchool')||'';}catch(e){}
 (function(){var q=(location.search||'').toLowerCase(); if(q.indexOf('school=sanford')>-1)SC='Sanford'; if(q.indexOf('school=deland')>-1)SC='DeLand 2';})();
 window.PP_SCHOOL=function(){return SC;};
@@ -115,7 +116,7 @@ function renderAbout(){
  +'<p>✅ <b>A curriculum that inspires.</b> From infants to preschoolers, our engaging, age-appropriate curriculum fosters intellectual, social and emotional growth.</p>'
  +'<p>✅ <b>Top-tier educators.</b> Our passionate teachers are highly qualified, with 80% of our staff holding a Bachelor\'s degree or higher. 🏆</p>'
  +'<p>✅ <b>Safe, state-of-the-art facilities</b> and a <b>family-oriented environment.</b> ❤️</p>'
- +'<p>🎉 <b>Enrollment is easy:</b> look around this site, then tap <b>Register Online</b> to fill out and sign your registration packet on the screen. Tours are by appointment. Spots are filling fast!</p>'
+ +(KC?'<p>🎉 <b>Enrollment is easy:</b> look around this site, then tap <b>Enrollment Packet</b> to get our Kid City USA registration packet. Tours are by appointment. Spots are filling fast!</p>':'<p>🎉 <b>Enrollment is easy:</b> look around this site, then tap <b>Register Online</b> to fill out and sign your registration packet on the screen. Tours are by appointment. Spots are filling fast!</p>')
  +'<p>📞 <b>'+esc(i.phone)+'</b> · '+esc(i.addr)+'<br>Certified Veteran-Owned Business</p><a class="go" href="'+esc(i.tour)+'" target="_blank" rel="noopener">📅 Book a tour</a>';
 }
 var teachDone='';
@@ -138,8 +139,17 @@ function renderContact(){
 var R=null, STEP=0, NSTEP=9, SIGS={};
 var DEVSK=['Walks / runs','Climbs','Jumps & hops on one foot','Uses words to share needs and feelings','Speaks clearly','Follows simple directions','Recognizes some letters','Knows some letter sounds','Counts objects','Uses crayons / pencils','Uses scissors'];
 var FIN=['Tuition is paid in advance every Friday. Unpaid after 6:00 p.m. Monday is past due and a $25.00 late fee is added.','Tuition is due every week regardless of attendance, illness, holidays or closures.','One-time, non-refundable registration fee: $100.00 per child or $150.00 per family.','$25.00 fee for any declined payment. We take ProCare, debit cards, credit cards and money orders. We do not accept checks.','If my child is absent a week and tuition is not paid, my child will be withdrawn. Re-enrollment needs a new registration fee and any balance.','I will give two weeks\' written notice before withdrawing, or I will be billed for those two weeks.','Pick-up after closing time is billed at $1.00 per minute, per child.','If my account becomes delinquent, I pay collection costs, attorney fees and court costs.','We are a uniformed school: 5 shirts for $80.00 or $18.00 each. A shirt is provided and charged if my child arrives without one.','If my child receives School Readiness or other help, I am responsible for my parent fee and any charges not covered.','These terms also appear in the Parent Handbook. I agree to them and understand the fees are not negotiable.'];
+function kcDraw(){var i=INFO[SC];var pdf='files/Kid-City-USA-Registration-Packet.pdf';
+ $('regBox').innerHTML='<div class="result"><h2>📝 Kid City USA Enrollment Packet</h2><div class="note">'+esc(i.full)+'</div>'
+ +'<p>Welcome! Here is our Kid City USA registration packet. It is a fillable PDF: you can type right on it on your phone or computer, or print it and fill it out by hand.</p>'
+ +'<p><b>Three easy steps:</b></p><p>1️⃣ Tap <b>Open the packet</b> below and fill in your child and family information.</p><p>2️⃣ Sign where it says <i>Parent / Guardian</i> (type, draw with your finger, or print and sign by hand).</p><p>3️⃣ Email the finished packet to <b>'+esc(i.email)+'</b>, or bring it to the office at '+esc(i.addr)+'.</p>'
+ +'<a class="go" href="'+pdf+'" target="_blank" rel="noopener">📄 Open the packet (PDF)</a>'
+ +'<a class="go" style="background:#1565c0" href="'+pdf+'" download>⬇️ Download the packet</a>'
+ +'<a class="go" style="background:#2e8b57" href="mailto:'+esc(i.email)+'?subject='+encodeURIComponent('Enrollment packet - '+i.full)+'">✉️ Email the finished packet to the office</a>'
+ +'<div class="note" style="margin-top:12px">Please do not email Social Security numbers. Leave that line blank and the director will fill it in with you at the office. You will also need a current physical (DH 3040) and immunization record (DH 680 or 681) within 30 days of starting. Questions? Call <b>'+esc(i.phone)+'</b>.</div></div>';}
 function regStart(){
  if(!SC){$('regBox').innerHTML='<div class="result"><h2>📝 Register Online</h2><p>Please pick your school at the top of the page first. 💛</p></div>';return;}
+ if(KC){kcDraw();return;}
  if(!R){R={D:{},photos:{},assist:{elc:'',note:''},plan:{},sent:false};STEP=0;SIGS={};}
  regDraw();
 }
@@ -260,6 +270,7 @@ function regDone(){
  +'<a class="rescard" href="#" onclick="show(\'bring\',document.querySelectorAll(\'nav .tab\')[5]);PPA.show(\'bring\');return false"><div class="em">🎒</div><div><h3>See what to bring on the first day</h3><p>Change of clothes, wipes, tissues and more.</p></div></a>'
  +'<p class="note">Questions? Call '+esc(i.phone)+' or email <a href="mailto:'+esc(i.email)+'">'+esc(i.email)+'</a>.</p></div>';
 }
+if(KC){var _lg=document.querySelector('img[src="bp-logo.png"]');if(_lg)_lg.src='kc-logo.png';[].slice.call(document.querySelectorAll('nav .tab')).forEach(function(t){if((t.getAttribute('onclick')||'').indexOf("show('reg'")>-1)t.innerHTML='📝 Enrollment Packet';});}
 if(SC&&INFO[SC])pick(SC); else renderAbout();
 window.HIVE_CARDS={prompt:'Welcome! What would you like to see?',order:[
  {k:'About Us',s:'Who we are',c:'#e0457b'},
@@ -268,7 +279,7 @@ window.HIVE_CARDS={prompt:'Welcome! What would you like to see?',order:[
  {k:'Drop-Off',s:'Drop-off, pick-up and safety',c:'#1565c0'},
  {k:'New Family Orientation',s:'Short lessons, then sign',c:'#6a1b9a'},
  {k:'What to Bring',s:'Your first-day list',c:'#ef6c00'},
- {k:'Register Online',s:'Fill out and sign on the screen',c:'#2e8b57'},
+ KC?{k:'Enrollment Packet',s:'Get the Kid City USA packet',c:'#2e8b57'}:{k:'Register Online',s:'Fill out and sign on the screen',c:'#2e8b57'},
  {k:'Follow Us',s:'TikTok, Facebook, Instagram',c:'#5aa9ff'},
  {k:'Contact Us',s:'Call or email the office',c:'#c62828'}
 ]};

@@ -316,8 +316,10 @@ a.back{position:absolute;left:14px;top:14px;text-decoration:none;font-weight:800
       <div class="sect">🌟 Start an enrollment or onboarding</div>
       <div style="font-size:.9rem;color:var(--soft);margin-bottom:10px">Send the link. They fill out and sign the real packet on their own screen, and it lands in the list below to wait for your approval.</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
-        <button class="mini" style="background:var(--teal)" onclick="onbMail('enroll')">✉️ Email family the link (opens Gmail)</button>
-        <button class="mini" style="background:var(--teal)" onclick="onbCopy('enroll')">📋 Copy family Welcome link</button>
+        <button class="mini" style="background:#c62828" onclick="onbMail('enrollkc')">✉️ Email Kid City USA packet link</button>
+        <button class="mini" style="background:#c62828" onclick="onbCopy('enrollkc')">📋 Copy Kid City USA packet link</button>
+        <button class="mini" style="background:var(--teal)" onclick="onbMail('enroll')">✉️ Email Bear Phonics packet link (opens Gmail)</button>
+        <button class="mini" style="background:var(--teal)" onclick="onbCopy('enroll')">📋 Copy Bear Phonics packet link</button>
         <a class="mini" style="text-decoration:none;background:var(--teal)" href="enroll.html">👨‍👩‍👧 Open New Enrollments</a>
         <button class="mini" style="background:var(--purple)" onclick="onbMail('existing')">✉️ Email current staff the link (they sign once)</button>
         <button class="mini" style="background:var(--purple)" onclick="onbCopy('existing')">📋 Copy current-staff link</button>
@@ -713,11 +715,11 @@ async function loadTime(){ const d = await api({action:'list', table:'Staff Time
 var ONB_SCH='';
 async function onbFA(action){ var r=await fetch('files-api.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:sessionStorage.getItem('hivePin'),action:action})}); var j=await r.json(); if(j.error) throw new Error(j.error); return j; }
 function onbSch(){ return ONB_SCH||((typeof SCHOOL!=='undefined'&&SCHOOL)?SCHOOL:''); }
-function onbLink(kind){ var s=onbSch(); if(!s) return ''; var k=(s==='Sanford')?'sanford':'deland'; return 'https://thepreschoolprofessional.net/hive/'+(kind==='enroll'?'welcome.html':'onboard.html')+'?school='+k+(kind==='existing'?'&existing=1':''); }
-function onbMail(kind){ var u=onbLink(kind); if(!u){ alert('Still loading your school. Tap again in a second.'); return; } var sch=(onbSch()==='Sanford')?'Kid City USA Sanford':'Kid City USA DeLand 2', fam=(kind==='enroll');
+function onbLink(kind){ var s=onbSch(); if(!s) return ''; var k=(s==='Sanford')?'sanford':'deland'; return 'https://thepreschoolprofessional.net/hive/'+((kind==='enroll'||kind==='enrollkc')?'welcome.html':'onboard.html')+'?school='+k+(kind==='existing'?'&existing=1':'')+(kind==='enrollkc'?'&packet=kidcity':''); }
+function onbMail(kind){ var u=onbLink(kind); if(!u){ alert('Still loading your school. Tap again in a second.'); return; } var sch=(onbSch()==='Sanford')?'Kid City USA Sanford':'Kid City USA DeLand 2', fam=(kind==='enroll'||kind==='enrollkc');
   if(kind==='existing'){ var su0='Please sign your '+sch+' employee packet', b0='Hello!\n\nWe are putting everyone\'s employee packet online so we do not have to copy stacks of paper. Please use this link, check your information, and sign one time. Your signature goes on the whole packet, and then I will confirm your hire date and sign my part.\n\n'+u+'\n\nThank you!\n'+sch; window.open('https://mail.google.com/mail/?view=cm&fs=1&su='+encodeURIComponent(su0)+'&body='+encodeURIComponent(b0),'_blank'); return; }
   var su=fam?('Welcome to '+sch+' - your enrollment packet'):('Welcome to the '+sch+' team - your new-hire packet');
-  var body=fam?('Hello!\n\nThank you for choosing '+sch+'. Please use this link to fill out and sign your enrollment packet right on your phone or computer:\n\n'+u+'\n\nIf you have any questions, just reply to this email or call us.\n\nThank you!\n'+sch)
+  var body=fam?((kind==='enrollkc'?'Hello!\n\nThank you for choosing '+sch+'. Please use this link to open our Kid City USA enrollment packet. You can fill it out on your phone or computer, or print it, then email it back to us or bring it to the office:\n\n'+u+'\n\nIf you have any questions, just reply to this email or call us.\n\nThank you!\n'+sch:'Hello!\n\nThank you for choosing '+sch+'. Please use this link to fill out and sign your enrollment packet right on your phone or computer:\n\n'+u+'\n\nIf you have any questions, just reply to this email or call us.\n\nThank you!\n'+sch))
               :('Hello!\n\nWe are so happy you are joining '+sch+'. Please use this link to sign up, follow your training checklist, and fill out and sign your Employee Packet:\n\n'+u+'\n\nIf you have any questions, just reply to this email or call us.\n\nThank you!\n'+sch);
   window.open('https://mail.google.com/mail/?view=cm&fs=1&su='+encodeURIComponent(su)+'&body='+encodeURIComponent(body),'_blank'); }
 async function onbCopy(kind){ var u=onbLink(kind); if(!u){ alert('Still loading your school. Tap again in a second.'); return; } try{ await navigator.clipboard.writeText(u); toast('Link copied 📋'); }catch(e){ prompt('Copy this link:',u); } }
