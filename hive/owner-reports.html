@@ -44,7 +44,7 @@ function load(){
  touch();
  post({action:'list'}).then(function(r){return r.json()}).then(function(d){
   if(d.error){app.innerHTML='<div class="msg">'+esc(d.error)+'</div>';return}
-  DATA=d.kinds;render();
+  DATA=d.kinds;var ON=(location.search.match(/only=([\w-]+)/)||[])[1];if(ON){DATA=DATA.filter(function(k){return k.kind===ON});var h1=document.querySelector('h1');if(h1&&h1.firstChild)h1.firstChild.nodeValue='💵 Payroll Records ';document.title='Payroll Records - Bear’s Den'}render();
  }).catch(function(){app.innerHTML='<div class="msg">Could not load. Please try again.</div>'});
 }
 function render(){
