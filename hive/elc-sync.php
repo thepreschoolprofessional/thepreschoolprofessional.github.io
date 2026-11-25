@@ -158,6 +158,47 @@ if ($op==='pincheck' || $op==='roster'){
   }
   out(['ok'=>true,'who'=>$who,'board'=>$board,'catchup'=>$catch]);
 }
+/* ---------- Director clock-out check: every attendance ratio box and sweep initial filled in (added 11/25/26) ----------
+   att_check  -> per room, the boxes still empty on today's official Attendance Roster (Room Day Mgmt + transition sweep initials)
+   att_initial -> the director's initials go into every empty box (Mgmt is director-only, same as the Rooms board) */
+if ($op==='att_check' || $op==='att_initial'){
+  $school=trim($_POST['school'] ?? ''); if(!in_array($school,['Sanford','DeLand 2'],true)) out(['ok'=>false,'error'=>'bad_school'],400);
+  $d=(string)($_POST['date'] ?? ''); $now=(string)($_POST['now'] ?? '');
+  if(!preg_match('/^\d{4}-\d{2}-\d{2}$/',$d) || !preg_match('/^\d{2}:\d{2}$/',$now)) out(['ok'=>false,'error'=>'bad_date'],400);
+  $sq=str_replace("'","\\'",$school);
+  $ls=function($table,$formula,$pages) { $o=[]; $off=''; for($i=0;$i<$pages;$i++){ $q='pageSize=100&filterByFormula='.rawurlencode($formula).($off!==''?'&offset='.rawurlencode($off):''); $r=at('GET',rawurlencode($table).'?'.$q); if(isset($r['error'])) return null; foreach(($r['records']??[]) as $x) $o[]=$x; $off=(string)($r['offset']??''); if($off==='') break; } return $o; };
+  $pj=function($s,$def){ $v=json_decode((string)$s,true); return is_array($v)?$v:$def; };
+  $R=$ls('Rooms',"AND({School}='$sq',{Active})",1); $K=$ls('Room Children',"AND({School}='$sq',{Status}='Active')",4);
+  $A=$ls('Room Attendance',"AND({School}='$sq',IS_SAME({Date},'$d','day'))",4); $D=$ls('Room Day',"AND({School}='$sq',IS_SAME({Date},'$d','day'))",1);
+  if($R===null||$K===null||$A===null||$D===null) out(['ok'=>false,'error'=>'airtable'],502);
+  $home=[]; foreach($K as $x){ $n=mb_strtolower(trim((string)($x['fields']['Child']??''))); if($n!=='') $home[$n]=(string)($x['fields']['Room']??''); }
+  $att=[]; foreach($A as $x){ $f=$x['fields']; $n=mb_strtolower(trim((string)($f['Child']??''))); if($n===''||isset($att[$n])) continue;
+    $rm=(string)($f['Current Room']??''); if($rm==='') $rm=(string)($home[$n]??''); $att[$n]=['room'=>$rm,'a'=>substr((string)($f['Arrival']??''),0,5),'d'=>substr((string)($f['Departure']??''),0,5)]; }
+  $days=[]; foreach($D as $x){ $rm=(string)($x['fields']['Room']??''); if($rm!=='' && !isset($days[$rm])) $days[$rm]=$x; }
+  $rooms=[]; foreach($R as $x){ $rm=(string)($x['fields']['Room']??''); if($rm!=='') $rooms[$rm]=1; } foreach($days as $rm=>$x) $rooms[$rm]=1;
+  $SL=['06:30','07:30','08:30','09:30','10:30','11:30','12:30','13:30','14:30','15:30','16:30','17:30','18:30'];
+  $LB=['6:30a','7:30a','8:30a','9:30a','10:30a','11:30a','12:30p','1:30p','2:30p','3:30p','4:30p','5:30p','6:30p'];
+  $scan=function($rm) use ($SL,$LB,$att,$days,$now,$pj){
+    $f=$days[$rm]['fields']??[]; $staff=$pj($f['Staff']??'',[]); $mg=$pj($f['Mgmt']??'',[]); $tr=$pj($f['Transitions']??'',[]); $miss=[];
+    foreach($SL as $i=>$s){ if($s>$now) break; $k=0; foreach($att as $a){ if($a['room']===$rm && $a['a']!=='' && $a['a']<=$s && ($a['d']==='' || $s<$a['d'])) $k++; }
+      $st=0; foreach($staff as $bl){ foreach((array)$bl as $b){ if(is_array($b) && !empty($b['in']) && $b['in']<=$s && (empty($b['out']) || $s<$b['out'])) $st++; } }
+      if(($k>0||$st>0) && trim((string)($mg[$s]??''))==='') $miss[]=['t'=>'ratio','s'=>$s,'label'=>$LB[$i].' ratio check ('.$k.' children : '.$st.' staff)']; }
+    foreach($tr as $j=>$t){ if(!is_array($t)) continue; $dest=trim((string)($t['dest']??'')); $nm='Transition #'.($j+1).($dest!==''?' ('.$dest.')':'');
+      if(trim((string)($t['outBy']??''))==='') $miss[]=['t'=>'tout','i'=>$j,'label'=>$nm.': OUT sweep count initial'];
+      if(!empty($t['in']) && trim((string)($t['inBy']??''))==='') $miss[]=['t'=>'tin','i'=>$j,'label'=>$nm.': IN sweep count initial']; }
+    return $miss; };
+  if ($op==='att_check'){ $o=[]; foreach(array_keys($rooms) as $rm){ $m=$scan($rm); $o[]=['room'=>$rm,'missing'=>array_map(function($x){return $x['label'];},$m)]; } out(['ok'=>true,'rooms'=>$o]); }
+  $ini=strtoupper(preg_replace('/[^A-Za-z]/','',(string)($_POST['init'] ?? ''))); if(strlen($ini)<2||strlen($ini)>4) out(['ok'=>false,'error'=>'initials'],400);
+  $done=0;
+  foreach(array_keys($rooms) as $rm){ $m=$scan($rm); if(!$m) continue;
+    $f=$days[$rm]['fields']??[]; $mg=$pj($f['Mgmt']??'',[]); $tr=$pj($f['Transitions']??'',[]);
+    foreach($m as $x){ if($x['t']==='ratio') $mg[$x['s']]=$ini; elseif($x['t']==='tout') $tr[$x['i']]['outBy']=$ini; else $tr[$x['i']]['inBy']=$ini; $done++; }
+    $fl=['Mgmt'=>json_encode((object)$mg),'Transitions'=>json_encode(array_values($tr))];
+    if(isset($days[$rm]['id'])) $r=at('PATCH',rawurlencode('Room Day').'/'.$days[$rm]['id'],['fields'=>$fl]);
+    else { $fl+=['Key'=>$school.'|'.$rm.'|'.$d,'Room'=>$rm,'Date'=>$d,'School'=>$school,'Staff'=>'{}','Counts'=>'[]']; $r=at('POST',rawurlencode('Room Day'),['fields'=>$fl,'typecast'=>true]); }
+    if(isset($r['error'])) out(['ok'=>false,'error'=>'write_failed','room'=>$rm],502); }
+  out(['ok'=>true,'done'=>$done]);
+}
 if (!preg_match('/^(sanford|deland)__(\d{4}-\d{2})__([A-Za-z0-9_\-]{1,60})__(\d{2})$/',$id,$m)) out(['ok'=>false,'error'=>'bad_id'],400);
 $q='filterByFormula='.rawurlencode("{Entry ID}='".$id."'").'&maxRecords=1&fields%5B%5D=Entry%20ID';
 $f=at('GET',TBL.'?'.$q);
