@@ -75,8 +75,9 @@ $pin = strtoupper(trim($input['pin'] ?? ''));
 $pins = get_pins();
 if (!$pin || !isset($pins[$pin])) fail('That PIN isn\'t right. Double-check with Mrs. Bear.', 401);
 $role = $pins[$pin];
-if (!isset($ROLE_SCHOOL[$role])) fail('Reporting is only available with a director PIN.', 403);
-$school = $ROLE_SCHOOL[$role];
+if ($role === 'owner'){ $school = trim($input['school'] ?? ''); if (!in_array($school, ['Sanford', 'DeLand 2'], true)) fail('Pick Sanford or DeLand 2.', 400); } /* owner acts for the school named in the request */
+elseif (!isset($ROLE_SCHOOL[$role])) fail('Reporting is only available with a director PIN.', 403);
+else $school = $ROLE_SCHOOL[$role];
 $action = $input['action'] ?? '';
 $CATS = ['elc','food','dcf','other'];
 

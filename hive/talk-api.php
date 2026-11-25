@@ -605,7 +605,7 @@ $p = ['kind' => 'portal', 'op' => 'api_create_email_automation_requests', 'args_
 }
 
 /* Re-check every name against this school's own lists. Anything unsure becomes a question back. */
-$out = ['kind' => $p['kind'], 'say' => (string)$p['say']];
+$out = ['kind' => $p['kind'], 'say' => (string)$p['say'], 'school' => $school];
 $ask = function($q) use (&$out){ $out = ['kind' => 'clarify', 'say' => $q]; };
 switch ($p['kind']){
 case 'room_sign_in': case 'room_sign_out':

@@ -285,7 +285,7 @@ main{max-width:760px;margin:0 auto;padding:0 16px;}
   /* Live only: files go in through the same calls the Staff Files, Student Files and Audit Vault cards use. */
   function saveFile(p){
     if (!FILE) return Promise.reject(new Error('The attached file is gone. Attach it again and ask me once more.'));
-    var call = function(url, b){ b.pin = PIN; return fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(b)}).then(function(r){ return r.json(); }).then(function(j){ if (!j || j.error) throw new Error((j && j.error) || 'It didn\'t save.'); return j; }); };
+    var call = function(url, b){ b.pin = PIN; b.school = p.school || CLICK || (SEL !== 'Both' ? SEL : ''); return fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(b)}).then(function(r){ return r.json(); }).then(function(j){ if (!j || j.error) throw new Error((j && j.error) || 'It didn\'t save.'); return j; }); };
     if (p.kind === 'file_to_vault') return call('reporting-api.php', {action:'upload', month: p.month, cat: p.section, name: FILE.name, b64: FILE.b64});
     return call('files-api.php', {action:'roster', kind: p.person_kind}).then(function(r){
       var hit = (r.people || []).filter(function(x){ return x.name === p.person; });

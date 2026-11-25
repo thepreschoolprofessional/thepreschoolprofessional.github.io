@@ -476,13 +476,14 @@ if (!$pin || !isset($pins[$pin])) fail('That PIN isn\'t right. Double-check with
 $role = $pins[$pin];
 $action = $input['action'] ?? '';
 $TEACHER_SCHOOL = ['teacher-sanford' => 'Sanford', 'teacher-deland' => 'DeLand 2'];
-$isDir = isset($ROLE_SCHOOL[$role]);
+$isOwner = ($role === 'owner'); /* the owner PIN acts for whichever school the request names (Owner Talk, 11/25/26) */
+$isDir = isset($ROLE_SCHOOL[$role]) || $isOwner;
 $isTeacher = (strpos($role, 'teacher') === 0);
 $isParent = (strpos($role, 'parent') === 0);
 if ($isParent && !in_array(($input['action'] ?? ''), ['bios_public', 'sop_public', 'pp_list', 'pp_get', 'pp_orient_sign', 'pp_orient_start', 'pp_auto', 'pp_ev_list', 'pp_ev_claim', 'pp_doc_send', 'pp_req_list'], true)) fail('Files are only available with a director PIN.', 403);
 if (!$isDir && !$isTeacher && !$isParent) fail('Files are only available with a director PIN.', 403);
 $PARENT_SCHOOL = ['parent-sanford' => 'Sanford', 'parent-deland' => 'DeLand 2'];
-$school = $isDir ? $ROLE_SCHOOL[$role] : (isset($TEACHER_SCHOOL[$role]) ? $TEACHER_SCHOOL[$role] : (isset($PARENT_SCHOOL[$role]) ? $PARENT_SCHOOL[$role] : trim($input['school'] ?? '')));
+$school = $isDir ? ($isOwner ? trim($input['school'] ?? '') : $ROLE_SCHOOL[$role]) : (isset($TEACHER_SCHOOL[$role]) ? $TEACHER_SCHOOL[$role] : (isset($PARENT_SCHOOL[$role]) ? $PARENT_SCHOOL[$role] : trim($input['school'] ?? '')));
 if (!in_array($school, $SCHOOLS, true)) fail('Pick your school first.');
 
 if ($action === 'whoami'){ echo json_encode(['role'=>$isDir ? 'director' : 'teacher', 'school'=>$school]); exit; }
