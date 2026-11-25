@@ -44,7 +44,7 @@ function load(){
  touch();
  post({action:'list'}).then(function(r){return r.json()}).then(function(d){
   if(d.error){app.innerHTML='<div class="msg">'+esc(d.error)+'</div>';return}
-  DATA=d.kinds;var ON=(location.search.match(/only=([\w-]+)/)||[])[1];if(ON){DATA=DATA.filter(function(k){return k.kind===ON});var h1=document.querySelector('h1');if(h1&&h1.firstChild)h1.firstChild.nodeValue='💵 ADP Payroll ';document.title='ADP Payroll - Bear’s Den'}render();
+  DATA=d.kinds;var ON=(location.search.match(/only=([\w-]+)/)||[])[1];if(ON){DATA=DATA.filter(function(k){return k.kind===ON});var h1=document.querySelector('h1'),I=window.BL_ICONS||{};if(h1)h1.innerHTML=(I.money?'<span class="bl-ic" style="display:inline-block;vertical-align:-8px;margin-right:6px"><svg viewBox="0 0 64 64" width="36" height="36" aria-hidden="true">'+I.money+'</svg></span>':'💵 ')+'ADP Payroll <span class="sub">(owner only)</span>';document.title='ADP Payroll - Bear’s Den'}render();
  }).catch(function(){app.innerHTML='<div class="msg">Could not load. Please try again.</div>'});
 }
 function render(){
